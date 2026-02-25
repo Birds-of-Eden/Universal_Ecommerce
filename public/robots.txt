@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://hilfulfujulbd.com/sitemap.xml
+Sitemap: https://hilfulfujulbd.com/kitabghor/sitemap-books.xml
+Sitemap: https://hilfulfujulbd.com/kitabghor/sitemap-categories.xml
+Sitemap: https://hilfulfujulbd.com/kitabghor/sitemap-authors.xml
+Sitemap: https://hilfulfujulbd.com/kitabghor/sitemap-publishers.xml
+Sitemap: https://hilfulfujulbd.com/kitabghor/sitemap-blogs.xml

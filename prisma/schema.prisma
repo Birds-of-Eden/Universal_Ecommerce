@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  role          String    @default("user")
+  phone         String?
+  address       Json?
+  passwordHash  String?   @map("password")
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  banned        Boolean?
+  banReason     String?
+  banExpires    Int?
+  note          String?
+
+  orders   Order[]
+  wishlist Wishlist[]
+  cart     CartItem[]
+  reviews  Review[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Writer {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  image     String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deleted   Boolean  @default(false)
+}
+
+model Publisher {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  image     String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deleted   Boolean  @default(false)
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deleted   Boolean  @default(false)
+}
+
+model Product {
+  id             Int      @id @default(autoincrement())
+  name           String
+  slug           String   @unique
+  writerId       Int?
+  publisherId    Int?
+  categoryId     Int
+  description    String   @db.Text
+  price          Decimal  @db.Decimal(10, 2)
+  original_price Decimal? @db.Decimal(10, 2)
+  discount       Int?     @default(0)
+  stock          Int      @default(0)
+  available      Boolean  @default(true)
+
+  image   String?
+  gallery String[]
+  pdf     String?
+
+  soldCount   Int   @default(0)
+  ratingAvg   Float @default(0)
+  ratingCount Int   @default(0)
+
+  writer     Writer?     @relation(fields: [writerId], references: [id])
+  publisher  Publisher?  @relation(fields: [publisherId], references: [id])
+  category   Category    @relation(fields: [categoryId], references: [id])
+  orderItems OrderItem[]
+  wishlist   Wishlist[]
+  reviews    Review[]
+  cartItems  CartItem[]
+  deleted    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+}
+
+model Order {
+  id               Int     @id @default(autoincrement())
+  userId           String?
+  name             String
+  email            String?
+  phone_number     String
+  alt_phone_number String?
+  country          String
+  district         String
+  area             String
+  address_details  String
+  image            String?
+
+  payment_method String
+  order_date     DateTime @default(now())
+  total          Decimal  @db.Decimal(10, 2)
+  shipping_cost  Decimal  @db.Decimal(10, 2)
+  grand_total    Decimal  @db.Decimal(10, 2)
+
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+  transactionId String?
+
+  user       User?       @relation(fields: [userId], references: [id])
+  orderItems OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  shipment   Shipment?
+}
+
+model Payment {
+  id                  Int               @id @default(autoincrement())
+  paymentGatewayData  Json?             
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int     @default(1)
+  price     Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Review {
+  id        Int     @id @default(autoincrement())
+  rating    Int
+  comment   String?
+  productId Int
+  userId    String
+
+  product Product @relation(fields: [productId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model CartItem {
+  id        Int    @id @default(autoincrement())
+  userId    String
+  productId Int
+  quantity  Int    @default(1)
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Wishlist {
+  id        Int    @id @default(autoincrement())
+  userId    String
+  productId Int
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+model Blog {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  title     String
+  summary   String
+  content   String   @db.Text
+  date      DateTime
+  author    String
+  image     String
+  ads       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ShipmentStatus {
+  PENDING
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+model Shipment {
+  id             Int            @id @default(autoincrement())
+  orderId        Int            @unique
+  courier        String
+  trackingNumber String?
+  status         ShipmentStatus @default(PENDING)
+  shippedAt      DateTime?
+  expectedDate   DateTime?
+  deliveredAt    DateTime?
+  order Order @relation(fields: [orderId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NewsletterSubscriber {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  status          String   @default("subscribed")
+  unsubscribedAt  DateTime?
+  createdAt       DateTime @default(now())
+}
+
+model Newsletter {
+  id          String   @id @default(uuid())
+  title       String
+  subject     String
+  content     String   @db.Text
+  status      String   @default("draft")
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Coupon {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  discountType  String    // "percentage" or "fixed"
+  discountValue Decimal   @db.Decimal(10, 2)
+  minOrderValue Decimal?  @db.Decimal(10, 2)
+  maxDiscount   Decimal?  @db.Decimal(10, 2)
+  usageLimit    Int?
+  usedCount     Int       @default(0)
+  isValid       Boolean   @default(true)
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String   @db.VarChar(255)
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  @@index([email])
+  @@index([token])
+}
