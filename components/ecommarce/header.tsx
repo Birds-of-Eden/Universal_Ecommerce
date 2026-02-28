@@ -20,6 +20,8 @@ import {
   House,
   Newspaper,
   Boxes,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 /* =========================
@@ -219,6 +221,7 @@ export default function Header() {
 
   const [hasMounted, setHasMounted] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [theme, setTheme] = useState("light");
 
   // cart count
   const [cartCount, setCartCount] = useState(0);
@@ -249,6 +252,21 @@ export default function Header() {
   const userRole = (session?.user as any)?.role || "user";
 
   useEffect(() => setHasMounted(true), []);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.classList.toggle("dark", savedTheme === "dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    document.documentElement.classList.toggle("dark", newTheme === "dark");
+  };
 
   useEffect(() => {
     const total =
@@ -386,6 +404,17 @@ export default function Header() {
   const iconBtnClass =
     "relative h-11 w-11 rounded-lg btn-primary border border-border flex items-center justify-center";
 
+  // Theme toggle button component
+  const Button = ({ children, onClick, variant, size, className, title }: any) => (
+    <button
+      onClick={onClick}
+      className={className}
+      title={title}
+    >
+      {children}
+    </button>
+  );
+
   return (
     <header className="sticky top-0 z-50">
 
@@ -409,6 +438,22 @@ export default function Header() {
             </Link>
 
             <div className="hidden md:flex items-center gap-3">
+              {/* Theme Toggle */}
+              {hasMounted && (
+                <Button
+                  onClick={toggleTheme}
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full bg-muted hover:bg-accent text-foreground"
+                  title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {theme === "dark" ? (
+                    <Sun className="h-5 w-5" />
+                  ) : (
+                    <Moon className="h-5 w-5" />
+                  )}
+                </Button>
+              )}
               <Link href="/kitabghor/blogs" className={topBtnClass}>
                 <Newspaper className="h-4 w-4" />
                 ব্লগ
@@ -595,7 +640,7 @@ export default function Header() {
       </div>
 
       {/* Row 3: Home + Dynamic categories */}
-      <div className="bg-background text-foreground border-b border-border hidden md:block">
+      <div className="bg-primary text-foreground border-b border-border hidden md:block">
         <div className="container mx-auto px-4">
           <div
             className="h-12 flex items-center gap-2 relative"
@@ -623,9 +668,7 @@ export default function Header() {
               >
                 <Link
                   href={`/kitabghor/categories/${cat.slug}`}
-                  className={`flex items-center px-4 py-2 rounded-full transition-all duration-200 ${
-                    hoverTopCatId === cat.id ? "btn-primary" : "hover:bg-muted"
-                  }`}
+                  className="flex items-center px-4 py-2 rounded-full transition-all duration-200 btn-primary"
                 >
                   {cat.name}
                 </Link>
