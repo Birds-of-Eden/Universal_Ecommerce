@@ -31,6 +31,8 @@ const menuItems = [
       { name: "Writers", href: "/admin/management/writers" },
       { name: "Categories", href: "/admin/management/categories" },
       { name: "Publishers", href: "/admin/management/publishers" },
+      { name: "Brands", href: "/admin/management/brands" },
+      { name: "VAT Classes", href: "/admin/management/vatclasses" },
     ],
   },
   { name: "Blogs", href: "/admin/blogs", icon: BookOpen },

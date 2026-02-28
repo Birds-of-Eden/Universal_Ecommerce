@@ -1,498 +1,748 @@
-//components/management/ProductAddModal.tsx
-
 "use client";
 
-import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { Zap, Upload, X, FileText, Image as ImageIcon } from "lucide-react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Image from "next/image";
+import { toast } from "sonner";
+import { X, Zap } from "lucide-react";
 
-interface ProductForm {
-  id?: string | number;
-  name: string;
-  slug: string;
-  description: string;
-  price: string;
-  original_price: string;
-  discount: string;
-  stock: string;
-  available: boolean;
-  writerId: string;
-  publisherId: string;
-  categoryId: string;
-  image: string;
-  gallery: string[];
-  pdf: string;
-}
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+type ProductType = "PHYSICAL" | "DIGITAL" | "SERVICE";
 
 interface Entity {
-  id: number | string;
+  id: number;
   name: string;
 }
 
-interface ProductAddModalProps {
+interface VatClass {
+  id: number;
+  name: string;
+  code: string;
+}
+
+interface DigitalAsset {
+  id: number;
+  title: string;
+}
+
+interface ProductForm {
+  id?: number;
+  name: string;
+  description: string;
+  shortDesc: string;
+  type: ProductType;
+  sku: string;
+  basePrice: string;
+  originalPrice: string;
+  currency: string;
+  weight: string;
+  dimLength: string;
+  dimWidth: string;
+  dimHeight: string;
+  dimUnit: string;
+  VatClassId: string;
+  digitalAssetId: string;
+  serviceDurationMinutes: string;
+  serviceLocation: string;
+  serviceOnlineLink: string;
+  categoryId: string;
+  brandId: string;
+  writerId: string;
+  publisherId: string;
+  available: boolean;
+  featured: boolean;
+  image: string;
+  gallery: string[];
+  videoUrl: string;
+}
+
+interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (idOrData: string | number | Omit<ProductForm, 'id'>, data?: Omit<ProductForm, 'id'>) => Promise<void>;
-  editing?: ProductForm | null;
-  writers: Entity[];
-  publishers: Entity[];
+  onSubmit: (idOrData: any, data?: any) => Promise<void>;
+  editing?: any;
   categories: Entity[];
+  brands: Entity[];
+  writers?: Entity[];
+  publishers?: Entity[];
+  vatClasses?: VatClass[];
+  digitalAssets?: DigitalAsset[];
 }
+
+const emptyForm: ProductForm = {
+  name: "",
+  description: "",
+  shortDesc: "",
+  type: "PHYSICAL",
+  sku: "",
+  basePrice: "",
+  originalPrice: "",
+  currency: "USD",
+  weight: "",
+  dimLength: "",
+  dimWidth: "",
+  dimHeight: "",
+  dimUnit: "cm",
+  VatClassId: "",
+  digitalAssetId: "",
+  serviceDurationMinutes: "",
+  serviceLocation: "",
+  serviceOnlineLink: "",
+  categoryId: "",
+  brandId: "",
+  writerId: "",
+  publisherId: "",
+  available: true,
+  featured: false,
+  image: "",
+  gallery: [],
+  videoUrl: "",
+};
 
 export default function ProductAddModal({
   open,
   onClose,
   onSubmit,
   editing,
-  writers,
-  publishers,
   categories,
-}: ProductAddModalProps) {
+  brands,
+  writers = [],
+  publishers = [],
+  vatClasses = [],
+  digitalAssets = [],
+}: Props) {
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState({
-    mainImage: false,
-    gallery: false,
-    pdf: false
-  });
-
-  const [form, setForm] = useState<ProductForm>({
-    name: "",
-    slug: "",
-    description: "",
-    price: "",
-    original_price: "",
-    discount: "0",
-    stock: "0",
-    available: true,
-    writerId: "",
-    publisherId: "",
-    categoryId: "",
-    image: "",
-    gallery: [],
-    pdf: "",
-  });
+  const [form, setForm] = useState<ProductForm>(emptyForm);
+  const selectedCategory = categories.find(
+    (c) => String(c.id) === String(form.categoryId),
+  );
+  const showBookFields =
+    !!selectedCategory?.name &&
+    selectedCategory.name.toLowerCase().includes("book");
 
   useEffect(() => {
-    if (editing) setForm(editing);
+    if (!editing) {
+      setForm(emptyForm);
+      return;
+    }
+
+    const d = editing.dimensions ?? null;
+    const dimLength =
+      d && typeof d === "object" && d.length != null ? String(d.length) : "";
+    const dimWidth =
+      d && typeof d === "object" && d.width != null ? String(d.width) : "";
+    const dimHeight =
+      d && typeof d === "object" && d.height != null ? String(d.height) : "";
+    const dimUnit =
+      d && typeof d === "object" && typeof d.unit === "string" ? d.unit : "cm";
+
+    setForm({
+      id: editing.id,
+      name: editing.name ?? "",
+      description: editing.description ?? "",
+      shortDesc: editing.shortDesc ?? "",
+      type: (editing.type as ProductType) ?? "PHYSICAL",
+      sku: editing.sku ?? "",
+      basePrice: editing.basePrice?.toString?.() ?? "",
+      originalPrice: editing.originalPrice?.toString?.() ?? "",
+      currency: editing.currency ?? "USD",
+      weight: editing.weight?.toString?.() ?? "",
+      dimLength,
+      dimWidth,
+      dimHeight,
+      dimUnit,
+      VatClassId: editing.VatClassId?.toString?.() ?? "",
+      digitalAssetId: editing.digitalAssetId?.toString?.() ?? "",
+      serviceDurationMinutes:
+        editing.serviceDurationMinutes?.toString?.() ?? "",
+      serviceLocation: editing.serviceLocation ?? "",
+      serviceOnlineLink: editing.serviceOnlineLink ?? "",
+      categoryId: editing.categoryId?.toString?.() ?? "",
+      brandId: editing.brandId?.toString?.() ?? "",
+      writerId: editing.writerId?.toString?.() ?? "",
+      publisherId: editing.publisherId?.toString?.() ?? "",
+      available: editing.available ?? true,
+      featured: editing.featured ?? false,
+      image: editing.image ?? "",
+      gallery: editing.gallery ?? [],
+      videoUrl: editing.videoUrl ?? "",
+    });
   }, [editing]);
+
+  useEffect(() => {
+    if (!showBookFields && (form.writerId || form.publisherId)) {
+      setForm((prev) => ({ ...prev, writerId: "", publisherId: "" }));
+    }
+  }, [showBookFields, form.writerId, form.publisherId]);
 
   if (!open) return null;
 
-  const handleUpload = async (file: File, folder: string) => {
-    // Validate file type
-    if (folder.includes('image') && !file.type.startsWith('image/')) {
-      throw new Error('Please upload a valid image file');
-    }
-    if (folder.includes('pdf') && file.type !== 'application/pdf') {
-      throw new Error('Please upload a valid PDF file');
-    }
-
-    // Validate file size (5MB max)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      throw new Error('File size should be less than 5MB');
-    }
-
+  const uploadFile = async (file: File, folder: string) => {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(`/api/upload/${folder}`, {
+    const res = await fetch(`/api/upload/${folder}`, {
       method: "POST",
       body: formData,
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Upload failed');
-    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.url) throw new Error(data?.message || "Upload failed");
+    return data.url as string;
+  };
 
-    const data = await response.json();
-    return data.url;
+  const handleMainImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const url = await uploadFile(file, "products");
+      setForm((prev) => ({ ...prev, image: url }));
+    } catch (err: any) {
+      toast.error(err?.message || "Image upload failed");
+    }
+  };
+
+  const handleGalleryUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+
+    try {
+      const files = Array.from(e.target.files);
+      const urls = await Promise.all(
+        files.map((file) => uploadFile(file, "products/gallery")),
+      );
+      setForm((prev) => ({ ...prev, gallery: [...prev.gallery, ...urls] }));
+    } catch (err: any) {
+      toast.error(err?.message || "Gallery upload failed");
+    }
   };
 
   const removeGalleryImage = (index: number) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      gallery: prev.gallery.filter((_, i) => i !== index)
+      gallery: prev.gallery.filter((_, i) => i !== index),
     }));
   };
 
-  const renderFilePreview = (url: string, onRemove?: () => void) => (
-    <div className="relative group">
-      {url.endsWith('.pdf') ? (
-        <div className="border rounded p-3 flex items-center justify-between bg-gray-50">
-          <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-red-500" />
-            <span className="text-sm truncate max-w-[200px]">
-              {url.split('/').pop()}
-            </span>
-          </div>
-          {onRemove && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="relative group">
-          <Image
-            src={url}
-            alt="Preview"
-            width={120}
-            height={120}
-            className="rounded-md object-cover h-30 w-30 border"
-          />
-          {onRemove && (
-            <Button
-              type="button"
-              variant="destructive"
-              size="icon"
-              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  const buildDimensions = () => {
+    const length = form.dimLength.trim() ? Number(form.dimLength) : null;
+    const width = form.dimWidth.trim() ? Number(form.dimWidth) : null;
+    const height = form.dimHeight.trim() ? Number(form.dimHeight) : null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+    if (length === null && width === null && height === null) return null;
+    if (
+      (length !== null && Number.isNaN(length)) ||
+      (width !== null && Number.isNaN(width)) ||
+      (height !== null && Number.isNaN(height))
+    ) {
+      return undefined;
+    }
+
+    return {
+      length,
+      width,
+      height,
+      unit: form.dimUnit || "cm",
+    };
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    if (!form.name || !form.basePrice || !form.categoryId) {
+      toast.error("Name, Category and Price required");
+      return;
+    }
+
+    const dimensions = buildDimensions();
+    if (dimensions === undefined) {
+      toast.error("Please enter valid dimensions");
+      return;
+    }
+
     setLoading(true);
     try {
-      await onSubmit(editing?.id ?? form, form);
+      const payload = {
+        name: form.name,
+        description: form.description || "",
+        shortDesc: form.shortDesc || null,
+        type: form.type,
+        sku: form.sku || null,
+
+        categoryId: Number(form.categoryId),
+        brandId: form.brandId ? Number(form.brandId) : null,
+        writerId: form.writerId ? Number(form.writerId) : null,
+        publisherId: form.publisherId ? Number(form.publisherId) : null,
+
+        basePrice: Number(form.basePrice),
+        originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
+        currency: form.currency || "USD",
+
+        weight: form.weight ? Number(form.weight) : null,
+        dimensions,
+        VatClassId: form.VatClassId ? Number(form.VatClassId) : null,
+
+        digitalAssetId: form.digitalAssetId ? Number(form.digitalAssetId) : null,
+        serviceDurationMinutes: form.serviceDurationMinutes
+          ? Number(form.serviceDurationMinutes)
+          : null,
+        serviceLocation: form.serviceLocation || null,
+        serviceOnlineLink: form.serviceOnlineLink || null,
+
+        available: form.available,
+        featured: form.featured,
+
+        image: form.image || null,
+        gallery: form.gallery || [],
+        videoUrl: form.videoUrl || null,
+      };
+
+      if (editing) {
+        await onSubmit(editing.id, payload);
+      } else {
+        await onSubmit(payload);
+      }
+
       onClose();
-    } catch (error) {
-      console.error('Error submitting product:', error);
-      toast.error("Failed to save product");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save product");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return;
-    setUploading({ ...uploading, mainImage: true });
-    try {
-      const url = await handleUpload(e.target.files[0], 'products');
-      setForm({ ...form, image: url });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to upload image';
-      toast.error(errorMessage);
-    } finally {
-      setUploading({ ...uploading, mainImage: false });
-    }
-  };
-
-  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.length) return;
-    setUploading({ ...uploading, gallery: true });
-    try {
-      const files = Array.from(e.target.files);
-      const urls = await Promise.all(
-        files.map((file) => handleUpload(file, 'products/gallery'))
-      );
-      setForm({ ...form, gallery: [...form.gallery, ...urls] });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to upload gallery images';
-      toast.error(errorMessage);
-    } finally {
-      setUploading({ ...uploading, gallery: false });
-    }
-  };
-
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return;
-    setUploading({ ...uploading, pdf: true });
-    try {
-      const url = await handleUpload(e.target.files[0], 'products/pdf');
-      setForm({ ...form, pdf: url });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to upload PDF';
-      toast.error(errorMessage);
-    } finally {
-      setUploading({ ...uploading, pdf: false });
-    }
-  };
-
   return (
-    <div className="fixed inset-0 bg-black/40 flex justify-center items-center p-6 z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-5">
-        <h2 className="text-2xl font-bold">
-          {editing ? "Update Product" : "Add New Product"}
+    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 relative max-h-[90vh] overflow-y-auto">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-black"
+          aria-label="Close"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <h2 className="text-2xl font-bold mb-4">
+          {editing ? "Edit Product" : "Add Product"}
         </h2>
-        {/* NAME */}
-        <div>
-          <Label>Name *</Label>
-          <Input
-            value={form.name}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                name: e.target.value,
-                slug: e.target.value.toLowerCase().replace(/\s+/g, "-"),
-              })
-            }
-          />
-        </div>
-        {/* SLUG */}
-        <div>
-          <Label>Slug *</Label>
-          <Input
-            value={form.slug}
-            onChange={(e) => setForm({ ...form, slug: e.target.value })}
-          />
-        </div>
-        {/* DROPDOWNS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <Label>Writer</Label>
-            <select
-              className="border p-2 rounded w-full"
-              value={form.writerId || ""}
-              onChange={(e) => setForm({ ...form, writerId: e.target.value })}
-            >
-              <option value="">Select</option>
-              {writers.map((w: any) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
+            <Label>Name *</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
           </div>
 
           <div>
-            <Label>Publisher</Label>
-            <select
-              className="border p-2 rounded w-full"
-              value={form.publisherId || ""}
+            <Label>Description</Label>
+            <textarea
+              className="w-full border rounded p-2 min-h-[90px]"
+              value={form.description}
               onChange={(e) =>
-                setForm({ ...form, publisherId: e.target.value })
+                setForm({ ...form, description: e.target.value })
               }
-            >
-              <option value="">Select</option>
-              {publishers.map((p: any) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           <div>
-            <Label>Category *</Label>
-            <select
-              className="border p-2 rounded w-full"
-              value={form.categoryId}
-              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-            >
-              <option value="">Select</option>
-              {categories.map((c: any) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {/* PRICE */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label>Price *</Label>
-            <Input
-              type="number"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Original Price</Label>
-            <Input
-              type="number"
-              value={form.original_price}
+            <Label>Short Description</Label>
+            <textarea
+              className="w-full border rounded p-2 min-h-[70px]"
+              value={form.shortDesc}
               onChange={(e) =>
-                setForm({ ...form, original_price: e.target.value })
+                setForm({ ...form, shortDesc: e.target.value })
               }
             />
           </div>
-          <div>
-            <Label>Discount (%)</Label>
-            <Input
-              type="number"
-              value={form.discount}
-              onChange={(e) => setForm({ ...form, discount: e.target.value })}
-            />
-          </div>
-        </div>
-        {/* STOCK */}
-        <div>
-          <Label>Stock</Label>
-          <Input
-            type="number"
-            value={form.stock}
-            onChange={(e) => setForm({ ...form, stock: e.target.value })}
-          />
-        </div>
-        {/* Main Image Upload */}
-        <div className="space-y-2">
-          <Label>Main Product Image *</Label>
-          {form.image ? (
-            <div className="flex items-start gap-4">
-              {renderFilePreview(form.image, () => 
-                setForm(prev => ({ ...prev, image: '' }))
-              )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Type</Label>
+              <select
+                className="border p-2 rounded w-full"
+                value={form.type}
+                onChange={(e) =>
+                  setForm({ ...form, type: e.target.value as ProductType })
+                }
+              >
+                <option value="PHYSICAL">PHYSICAL</option>
+                <option value="DIGITAL">DIGITAL</option>
+                <option value="SERVICE">SERVICE</option>
+              </select>
             </div>
-          ) : (
-            <label
-              htmlFor="main-image-upload"
-              className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#2C4A3B] transition-colors cursor-pointer"
-            >
-              <div className="space-y-1 text-center">
-                <div className="flex justify-center">
-                  <Upload className="h-12 w-12 text-gray-400" />
-                </div>
-                <div className="flex text-sm text-gray-600 justify-center">
-                  <span className="relative font-medium text-[#2C4A3B] hover:text-[#1a3529] focus-within:outline-none">
-                    Upload an image
-                  </span>
-                  <span className="pl-1">or drag and drop</span>
-                </div>
-                <p className="text-xs text-gray-500">
-                  PNG, JPG, GIF up to 5MB
-                </p>
-              </div>
-              <input
-                id="main-image-upload"
-                name="main-image-upload"
-                type="file"
-                className="sr-only"
-                accept="image/*"
-                onChange={handleImageUpload}
+
+            <div>
+              <Label>SKU</Label>
+              <Input
+                value={form.sku}
+                onChange={(e) => setForm({ ...form, sku: e.target.value })}
               />
-            </label>
-          )}
-        </div>
-
-        {/* Gallery Images */}
-        <div className="space-y-2">
-          <Label>Gallery Images</Label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3">
-            {form.gallery.map((img, index) => (
-              <div key={index} className="relative">
-                {renderFilePreview(img, () => removeGalleryImage(index))}
-              </div>
-            ))}
-          </div>
-          
-          <label
-            htmlFor="gallery-upload"
-            className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#2C4A3B] transition-colors cursor-pointer"
-          >
-            <div className="space-y-1 text-center">
-              <div className="flex justify-center">
-                <ImageIcon className="h-12 w-12 text-gray-400" />
-              </div>
-              <div className="flex text-sm text-gray-600 justify-center">
-                <span className="relative font-medium text-[#2C4A3B] hover:text-[#1a3529] focus-within:outline-none">
-                  Upload images
-                </span>
-                <span className="pl-1">or drag and drop</span>
-              </div>
-              <p className="text-xs text-gray-500">
-                PNG, JPG, GIF up to 5MB each
-              </p>
             </div>
-            <input
-              id="gallery-upload"
-              name="gallery-upload"
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Base Price *</Label>
+              <Input
+                type="number"
+                value={form.basePrice}
+                onChange={(e) => setForm({ ...form, basePrice: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <Label>Original Price</Label>
+              <Input
+                type="number"
+                value={form.originalPrice}
+                onChange={(e) =>
+                  setForm({ ...form, originalPrice: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Currency</Label>
+              <Input
+                value={form.currency}
+                onChange={(e) =>
+                  setForm({ ...form, currency: e.target.value.toUpperCase() })
+                }
+              />
+            </div>
+
+            <div>
+              <Label>Weight</Label>
+              <Input
+                type="number"
+                value={form.weight}
+                onChange={(e) => setForm({ ...form, weight: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>Dimensions</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Length</Label>
+                <Input
+                  type="number"
+                  value={form.dimLength}
+                  onChange={(e) =>
+                    setForm({ ...form, dimLength: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Width</Label>
+                <Input
+                  type="number"
+                  value={form.dimWidth}
+                  onChange={(e) =>
+                    setForm({ ...form, dimWidth: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Height</Label>
+                <Input
+                  type="number"
+                  value={form.dimHeight}
+                  onChange={(e) =>
+                    setForm({ ...form, dimHeight: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Unit</Label>
+                <select
+                  className="border p-2 rounded w-full"
+                  value={form.dimUnit}
+                  onChange={(e) =>
+                    setForm({ ...form, dimUnit: e.target.value })
+                  }
+                >
+                  <option value="cm">cm</option>
+                  <option value="mm">mm</option>
+                  <option value="in">in</option>
+                  <option value="m">m</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>VAT Class</Label>
+              <select
+                className="border p-2 rounded w-full"
+                value={form.VatClassId}
+                onChange={(e) => setForm({ ...form, VatClassId: e.target.value })}
+              >
+                <option value="">Select</option>
+                {vatClasses.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name} ({v.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label>Video URL</Label>
+              <Input
+                value={form.videoUrl}
+                onChange={(e) => setForm({ ...form, videoUrl: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Category *</Label>
+              <select
+                className="border p-2 rounded w-full"
+                value={form.categoryId}
+                onChange={(e) =>
+                  setForm({ ...form, categoryId: e.target.value })
+                }
+              >
+                <option value="">Select</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <Label>Brand</Label>
+              <select
+                className="border p-2 rounded w-full"
+                value={form.brandId}
+                onChange={(e) => setForm({ ...form, brandId: e.target.value })}
+              >
+                <option value="">Select</option>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {showBookFields && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Writer</Label>
+                <select
+                  className="border p-2 rounded w-full"
+                  value={form.writerId}
+                  onChange={(e) =>
+                    setForm({ ...form, writerId: e.target.value })
+                  }
+                >
+                  <option value="">Select</option>
+                  {writers.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label>Publisher</Label>
+                <select
+                  className="border p-2 rounded w-full"
+                  value={form.publisherId}
+                  onChange={(e) =>
+                    setForm({ ...form, publisherId: e.target.value })
+                  }
+                >
+                  <option value="">Select</option>
+                  {publishers.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {form.type === "DIGITAL" && (
+            <div>
+              <Label>Digital Asset</Label>
+              <select
+                className="border p-2 rounded w-full"
+                value={form.digitalAssetId}
+                onChange={(e) =>
+                  setForm({ ...form, digitalAssetId: e.target.value })
+                }
+              >
+                <option value="">Select</option>
+                {digitalAssets.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {form.type === "SERVICE" && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Service Duration (minutes)</Label>
+                  <Input
+                    type="number"
+                    value={form.serviceDurationMinutes}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        serviceDurationMinutes: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label>Service Location</Label>
+                  <Input
+                    value={form.serviceLocation}
+                    onChange={(e) =>
+                      setForm({ ...form, serviceLocation: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Service Online Link</Label>
+                <Input
+                  value={form.serviceOnlineLink}
+                  onChange={(e) =>
+                    setForm({ ...form, serviceOnlineLink: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center gap-2">
+              <input
+                id="available"
+                type="checkbox"
+                checked={form.available}
+                onChange={(e) =>
+                  setForm({ ...form, available: e.target.checked })
+                }
+              />
+              <Label htmlFor="available">Available</Label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                id="featured"
+                type="checkbox"
+                checked={form.featured}
+                onChange={(e) =>
+                  setForm({ ...form, featured: e.target.checked })
+                }
+              />
+              <Label htmlFor="featured">Featured</Label>
+            </div>
+          </div>
+
+          {/* MAIN IMAGE */}
+          <div>
+            <Label>Main Image</Label>
+            {form.image ? (
+              <div className="relative w-32">
+                <Image
+                  src={form.image}
+                  alt="preview"
+                  width={120}
+                  height={120}
+                  className="rounded border"
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="destructive"
+                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                  onClick={() => setForm({ ...form, image: "" })}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <Input type="file" accept="image/*" onChange={handleMainImageUpload} />
+            )}
+          </div>
+
+          {/* GALLERY */}
+          <div>
+            <Label>Gallery</Label>
+            <div className="flex flex-wrap gap-3 mb-3">
+              {form.gallery.map((img, i) => (
+                <div key={i} className="relative">
+                  <Image
+                    src={img}
+                    alt="gallery"
+                    width={100}
+                    height={100}
+                    className="rounded border"
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                    onClick={() => removeGalleryImage(i)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <Input
               type="file"
-              className="sr-only"
-              accept="image/*"
               multiple
+              accept="image/*"
               onChange={handleGalleryUpload}
             />
-          </label>
-        </div>
+          </div>
 
-        {/* PDF Upload */}
-        <div className="space-y-2">
-          <Label>Product PDF (Optional)</Label>
-          {form.pdf ? (
-            <div className="mt-2">
-              {renderFilePreview(form.pdf, () => 
-                setForm(prev => ({ ...prev, pdf: '' }))
-              )}
-            </div>
-          ) : (
-            <label
-              htmlFor="pdf-upload"
-              className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-[#2C4A3B] transition-colors cursor-pointer"
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-[#2C4A3B] text-white"
             >
-              <div className="space-y-1 text-center">
-                <div className="flex justify-center">
-                  <FileText className="h-12 w-12 text-gray-400" />
-                </div>
-                <div className="flex text-sm text-gray-600 justify-center">
-                  <span className="relative font-medium text-[#2C4A3B] hover:text-[#1a3529] focus-within:outline-none">
-                    Upload PDF
-                  </span>
-                  <span className="pl-1">or drag and drop</span>
-                </div>
-                <p className="text-xs text-gray-500">
-                  PDF up to 5MB
-                </p>
-              </div>
-              <input
-                id="pdf-upload"
-                name="pdf-upload"
-                type="file"
-                className="sr-only"
-                accept="application/pdf"
-                onChange={handlePdfUpload}
-              />
-            </label>
-          )}
-        </div>
-        <div className="flex justify-end gap-3 pb-4">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            disabled={loading || uploading.mainImage || uploading.gallery || uploading.pdf}
-            onClick={handleSubmit}
-            className="bg-[#2C4A3B] text-white hover:bg-[#1a3529]"
-          >
-            {(uploading.mainImage || uploading.gallery || uploading.pdf) ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Zap className="h-4 w-4 mr-1" />
-                {editing ? "Update Product" : "Add Product"}
-              </>
-            )}
-          </Button>
-        </div>
+              <Zap className="h-4 w-4 mr-1" />
+              {editing ? "Update Product" : "Add Product"}
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );

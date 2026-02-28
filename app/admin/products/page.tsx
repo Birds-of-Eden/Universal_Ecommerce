@@ -7,12 +7,43 @@ interface Product {
   id: number;
   name: string;
   description?: string;
-  price: number;
-  stock: number;
+  shortDesc?: string | null;
+  basePrice: number;
+  originalPrice?: number;
+  currency?: string;
+  type?: "PHYSICAL" | "DIGITAL" | "SERVICE";
+  sku?: string | null;
+  weight?: number | null;
+  dimensions?: any;
+  VatClassId?: number | null;
+  digitalAssetId?: number | null;
+  serviceDurationMinutes?: number | null;
+  serviceLocation?: string | null;
+  serviceOnlineLink?: string | null;
   image?: string;
-  writer?: Writer;
-  publisher?: Publisher;
+  gallery?: string[];
+  videoUrl?: string | null;
+  available: boolean;
+  featured?: boolean;
+  categoryId?: number;
+  brandId?: number | null;
+  writerId?: number | null;
+  publisherId?: number | null;
   category?: Category;
+  brand?: Brand;
+  writer?: Writer | null;
+  publisher?: Publisher | null;
+  variants?: any[];
+}
+
+interface Category {
+  id: number;
+  name: string;
+}
+
+interface Brand {
+  id: number;
+  name: string;
 }
 
 interface Writer {
@@ -25,78 +56,113 @@ interface Publisher {
   name: string;
 }
 
-interface Category {
+interface VatClass {
   id: number;
   name: string;
+  code: string;
+}
+
+interface DigitalAsset {
+  id: number;
+  title: string;
 }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [writers, setWriters] = useState<Writer[]>([]);
   const [publishers, setPublishers] = useState<Publisher[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [vatClasses, setVatClasses] = useState<VatClass[]>([]);
+  const [digitalAssets, setDigitalAssets] = useState<DigitalAsset[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [productsCache, setProductsCache] = useState<Map<string, Product[]>>(new Map());
+  const [categoriesCache, setCategoriesCache] = useState<Map<string, Category[]>>(new Map());
+  const [brandsCache, setBrandsCache] = useState<Map<string, Brand[]>>(new Map());
   const [writersCache, setWritersCache] = useState<Map<string, Writer[]>>(new Map());
   const [publishersCache, setPublishersCache] = useState<Map<string, Publisher[]>>(new Map());
-  const [categoriesCache, setCategoriesCache] = useState<Map<string, Category[]>>(new Map());
+  const [vatClassesCache, setVatClassesCache] = useState<Map<string, VatClass[]>>(new Map());
+  const [digitalAssetsCache, setDigitalAssetsCache] = useState<Map<string, DigitalAsset[]>>(new Map());
 
-  // Memoize loadAll function with caching
   const loadAll = useCallback(async () => {
     setLoading(true);
 
     try {
-      // Check caches first
-      const productsCacheKey = "all";
-      const writersCacheKey = "all";
-      const publishersCacheKey = "all";
-      const categoriesCacheKey = "all";
+      const cacheKey = "all";
 
-      const productsData = productsCache.get(productsCacheKey);
-      const writersData = writersCache.get(writersCacheKey);
-      const publishersData = publishersCache.get(publishersCacheKey);
-      const categoriesData = categoriesCache.get(categoriesCacheKey);
+      const cachedProducts = productsCache.get(cacheKey);
+      const cachedCategories = categoriesCache.get(cacheKey);
+      const cachedBrands = brandsCache.get(cacheKey);
+      const cachedWriters = writersCache.get(cacheKey);
+      const cachedPublishers = publishersCache.get(cacheKey);
+      const cachedVatClasses = vatClassesCache.get(cacheKey);
+      const cachedDigitalAssets = digitalAssetsCache.get(cacheKey);
 
-      // If all data is cached, use cached data
-      if (productsData && writersData && publishersData && categoriesData) {
-        setProducts(productsData);
-        setWriters(writersData);
-        setPublishers(publishersData);
-        setCategories(categoriesData);
+      if (
+        cachedProducts &&
+        cachedCategories &&
+        cachedBrands &&
+        cachedWriters &&
+        cachedPublishers &&
+        cachedVatClasses &&
+        cachedDigitalAssets
+      ) {
+        setProducts(cachedProducts);
+        setCategories(cachedCategories);
+        setBrands(cachedBrands);
+        setWriters(cachedWriters);
+        setPublishers(cachedPublishers);
+        setVatClasses(cachedVatClasses);
+        setDigitalAssets(cachedDigitalAssets);
         setLoading(false);
         return;
       }
 
-      // Otherwise fetch fresh data
-      const [p, w, pub, c] = await Promise.all([
+      const [p, c, b, w, pub, vat, da] = await Promise.all([
         fetch("/api/products").then((r) => r.json()),
+        fetch("/api/categories").then((r) => r.json()),
+        fetch("/api/brands").then((r) => r.json()),
         fetch("/api/writers").then((r) => r.json()),
         fetch("/api/publishers").then((r) => r.json()),
-        fetch("/api/categories").then((r) => r.json()),
+        fetch("/api/vat-classes").then((r) => r.json()),
+        fetch("/api/digital-assets").then((r) => r.json()),
       ]);
 
-      // Update caches
-      setProductsCache(prev => new Map(prev).set(productsCacheKey, p));
-      setWritersCache(prev => new Map(prev).set(writersCacheKey, w));
-      setPublishersCache(prev => new Map(prev).set(publishersCacheKey, pub));
-      setCategoriesCache(prev => new Map(prev).set(categoriesCacheKey, c));
+      setProductsCache((prev) => new Map(prev).set(cacheKey, p));
+      setCategoriesCache((prev) => new Map(prev).set(cacheKey, c));
+      setBrandsCache((prev) => new Map(prev).set(cacheKey, b));
+      setWritersCache((prev) => new Map(prev).set(cacheKey, w));
+      setPublishersCache((prev) => new Map(prev).set(cacheKey, pub));
+      setVatClassesCache((prev) => new Map(prev).set(cacheKey, vat));
+      setDigitalAssetsCache((prev) => new Map(prev).set(cacheKey, da));
 
       setProducts(p);
+      setCategories(c);
+      setBrands(b);
       setWriters(w);
       setPublishers(pub);
-      setCategories(c);
+      setVatClasses(vat);
+      setDigitalAssets(da);
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("Error loading products:", error);
     } finally {
       setLoading(false);
     }
-  }, [productsCache, writersCache, publishersCache, categoriesCache]);
+  }, [
+    productsCache,
+    categoriesCache,
+    brandsCache,
+    writersCache,
+    publishersCache,
+    vatClassesCache,
+    digitalAssetsCache,
+  ]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
 
-  // Memoize CRUD operations
   const createProduct = useCallback(async (data: unknown) => {
     const res = await fetch("/api/products", {
       method: "POST",
@@ -104,71 +170,79 @@ export default function ProductsPage() {
       body: JSON.stringify(data),
     });
 
-    const newProd = await res.json();
-    
-    // Update state and cache
-    setProducts((prev) => [newProd, ...prev]);
-    setProductsCache(prev => {
-      const newCache = new Map(prev);
-      const current = newCache.get("all") || [];
-      newCache.set("all", [newProd, ...current]);
-      return newCache;
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Create failed");
+    }
+
+    const newProduct = await res.json();
+
+    setProducts((prev) => [newProduct, ...prev]);
+
+    setProductsCache((prev) => {
+      const map = new Map(prev);
+      const current = map.get("all") || [];
+      map.set("all", [newProduct, ...current]);
+      return map;
     });
   }, []);
 
   const updateProduct = useCallback(async (id: number, data: unknown) => {
-    try {
-      const res = await fetch(`/api/products/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
+    const res = await fetch(`/api/products/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to update product");
-      }
-
-      const updated = await res.json();
-
-      // Update UI state and cache
-      setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)));
-      setProductsCache(prev => {
-        const newCache = new Map(prev);
-        const current = newCache.get("all") || [];
-        newCache.set("all", current.map((p) => (p.id === id ? updated : p)));
-        return newCache;
-      });
-
-      return updated;
-    } catch (error) {
-      console.error("Update product error:", error);
-      throw error;
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Update failed");
     }
+
+    const updated = await res.json();
+
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? updated : p))
+    );
+
+    setProductsCache((prev) => {
+      const map = new Map(prev);
+      const current = map.get("all") || [];
+      map.set(
+        "all",
+        current.map((p) => (p.id === id ? updated : p))
+      );
+      return map;
+    });
+
+    return updated;
   }, []);
 
   const deleteProduct = useCallback(async (id: number) => {
     await fetch(`/api/products/${id}`, { method: "DELETE" });
-    
-    // Clear cache to force refresh
-    setProductsCache(new Map());
-    await loadAll(); // Refresh full product list from backend
-  }, [loadAll]);
 
-  // Memoize data to prevent unnecessary re-renders
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+
+    setProductsCache(new Map());
+  }, []);
+
   const memoizedProducts = useMemo(() => products, [products]);
+  const memoizedCategories = useMemo(() => categories, [categories]);
+  const memoizedBrands = useMemo(() => brands, [brands]);
   const memoizedWriters = useMemo(() => writers, [writers]);
   const memoizedPublishers = useMemo(() => publishers, [publishers]);
-  const memoizedCategories = useMemo(() => categories, [categories]);
+  const memoizedVatClasses = useMemo(() => vatClasses, [vatClasses]);
+  const memoizedDigitalAssets = useMemo(() => digitalAssets, [digitalAssets]);
 
   return (
     <ProductManager
       products={memoizedProducts}
+      categories={memoizedCategories}
+      brands={memoizedBrands}
       writers={memoizedWriters}
       publishers={memoizedPublishers}
-      categories={memoizedCategories}
+      vatClasses={memoizedVatClasses}
+      digitalAssets={memoizedDigitalAssets}
       loading={loading}
       onCreate={createProduct}
       onUpdate={updateProduct}

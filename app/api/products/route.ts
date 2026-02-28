@@ -1,37 +1,27 @@
-// api/products/route.ts
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import slugify from "slugify";
 
+/* =========================
+   GET PRODUCTS
+========================= */
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
       where: {
         deleted: false,
-        available: true,
       },
       orderBy: { id: "desc" },
       include: {
+        category: true,
+        brand: true,
         writer: true,
         publisher: true,
-        category: true,
+        variants: true,
       },
     });
 
-    const cleaned = products
-      .map((p: any) => ({
-        ...p,
-        writer: p.writer?.deleted ? null : p.writer,
-        publisher: p.publisher?.deleted ? null : p.publisher,
-        category: p.category?.deleted ? null : p.category,
-      }))
-      .filter(
-        (p: any) =>
-          p.writer !== null &&
-          p.publisher !== null &&
-          p.category !== null
-      ); // <-- FILTER HERE
-
-    return NextResponse.json(cleaned);
+    return NextResponse.json(products);
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to load products" },
@@ -40,53 +30,80 @@ export async function GET() {
   }
 }
 
-
+/* =========================
+   CREATE PRODUCT
+========================= */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const exists = await prisma.product.findUnique({
-      where: { slug: body.slug },
+    if (!body.name || !body.categoryId || !body.basePrice) {
+      return NextResponse.json(
+        { error: "Name, category and base price required" },
+        { status: 400 }
+      );
+    }
+
+    const slug = slugify(body.name, { lower: true, strict: true });
+
+    const existing = await prisma.product.findUnique({
+      where: { slug },
     });
 
-    if (exists) {
+    if (existing) {
       return NextResponse.json(
         { error: "Slug already exists" },
         { status: 400 }
       );
     }
 
-    const writerId = body.writerId ? Number(body.writerId) : null;
-    const publisherId = body.publisherId ? Number(body.publisherId) : null;
-
-    const categoryId = Number(body.categoryId);
-
     const product = await prisma.product.create({
       data: {
         name: body.name,
-        slug: body.slug,
-        description: body.description,
-        price: Number(body.price),
-        original_price: body.original_price
-          ? Number(body.original_price)
+        slug,
+        type: body.type || "PHYSICAL",
+        sku: body.sku || null,
+
+        categoryId: Number(body.categoryId),
+        brandId: body.brandId ? Number(body.brandId) : null,
+
+        writerId: body.writerId ? Number(body.writerId) : null,
+        publisherId: body.publisherId ? Number(body.publisherId) : null,
+
+        description: body.description || "",
+        shortDesc: body.shortDesc || null,
+
+        basePrice: Number(body.basePrice),
+        originalPrice: body.originalPrice
+          ? Number(body.originalPrice)
           : null,
-        // Ensure discount is always an Int (or 0) for Prisma
-        discount: body.discount ? Number(body.discount) : 0,
-        stock: Number(body.stock),
-        available: body.available,
+        currency: body.currency || "USD",
 
-        writerId,
-        publisherId,
-        categoryId,
+        weight: body.weight ? Number(body.weight) : null,
+        dimensions: body.dimensions || null,
+        VatClassId: body.VatClassId ? Number(body.VatClassId) : null,
 
-        image: body.image,
+        digitalAssetId: body.digitalAssetId
+          ? Number(body.digitalAssetId)
+          : null,
+        serviceDurationMinutes: body.serviceDurationMinutes
+          ? Number(body.serviceDurationMinutes)
+          : null,
+        serviceLocation: body.serviceLocation || null,
+        serviceOnlineLink: body.serviceOnlineLink || null,
+
+        available: body.available ?? true,
+        featured: body.featured ?? false,
+
+        image: body.image || null,
         gallery: body.gallery || [],
-        pdf: body.pdf || null,
+        videoUrl: body.videoUrl || null,
       },
     });
 
-    return NextResponse.json(product);
+    return NextResponse.json(product, { status: 201 });
   } catch (err) {
+    console.error(err);
     return NextResponse.json(
       { error: "Failed to create product" },
       { status: 500 }
