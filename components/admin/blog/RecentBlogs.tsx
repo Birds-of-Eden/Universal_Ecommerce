@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Calendar, TrendingUp, Sparkles } from "lucide-react";
 import { format } from "date-fns";
-import { bn } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { processBlogSummary } from "./summaryUtils";
 
@@ -57,7 +57,7 @@ export default function RecentBlogs() {
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-              🔥 সাম্প্রতিক পোস্ট
+              🔥 Recent Posts
             </h3>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function RecentBlogs() {
             <TrendingUp className="h-5 w-5 text-white" />
           </div>
           <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-            🔥 সাম্প্রতিক পোস্ট
+            🔥 Recent Posts
           </h3>
         </div>
       </div>
@@ -104,7 +104,7 @@ export default function RecentBlogs() {
                   <div className="absolute top-2 right-2 z-10">
                     <span className="inline-flex items-center gap-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
                       <Sparkles className="h-3 w-3" />
-                      নতুন
+                      New
                     </span>
                   </div>
                 )}
@@ -134,14 +134,14 @@ export default function RecentBlogs() {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
                     <Calendar className="h-3 w-3 text-primary" />
                     <time dateTime={new Date(blog.date).toISOString()}>
-                      {format(new Date(blog.date), "d MMM, yyyy", { locale: bn })}
+                      {format(new Date(blog.date), "d MMM, yyyy", { locale: enUS })}
                     </time>
                   </div>
                 </div>
 
                 {/* Read More Indicator */}
                 <div className="relative flex items-center text-xs font-medium text-primary group-hover:gap-2 transition-all">
-                  <span>আরও পড়ুন</span>
+                  <span>Read More</span>
                   <svg
                     className="h-3 w-3 transform group-hover:translate-x-1 transition-transform"
                     fill="none"
@@ -166,7 +166,7 @@ export default function RecentBlogs() {
           href="/kitabghor/blogs"
           className="mt-4 block text-center py-3 px-4 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 text-sm font-medium text-primary transition-all hover:border-solid"
         >
-          সব ব্লগ দেখুন →
+          View All Blogs →
         </Link>
       </div>
     </div>

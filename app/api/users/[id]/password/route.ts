@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
 
 const prisma = new PrismaClient();
+
+// Validation schema for password change
+const passwordChangeSchema = z.object({
+  password: z.string().min(6, 'Password must be at least 6 characters long').max(100, 'Password must be less than 100 characters'),
+});
 
 // PATCH change user password
 export async function PATCH(
@@ -11,23 +17,34 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json();
-    const { password } = body;
-
-    if (!password) {
+    
+    // Validate request body
+    const validation = passwordChangeSchema.safeParse(body);
+    
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Password is required' },
+        { error: 'Validation failed', details: validation.error.issues },
         { status: 400 }
       );
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Password must be at least 6 characters long' },
-        { status: 400 }
-      );
-    }
-
+    const { password } = validation.data;
     const { id } = await params;
+
+    // Check if user exists first
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+      },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
 
     // Hash the new password
     const passwordHash = await bcrypt.hash(password, 10);
@@ -50,13 +67,26 @@ export async function PATCH(
 
     return NextResponse.json({
       message: 'Password updated successfully',
-      user
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        updatedAt: user.updatedAt,
+      }
     });
   } catch (error: any) {
     console.error('Error changing password:', error);
     
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Database constraint violation' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(

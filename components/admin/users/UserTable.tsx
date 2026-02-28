@@ -159,11 +159,11 @@ export default function UserTable({
 
   const getStatusColor = (user: User) => {
     if (user.banned && !isBanExpired(user.banExpires)) {
-      return "bg-red-100 text-red-800 border-red-200";
+      return "bg-destructive/10 text-destructive border-destructive/20";
     } else if (user.emailVerified) {
-      return "bg-green-100 text-green-800 border-green-200";
+      return "bg-green-500/10 text-green-600 border-green-500/20 dark:bg-green-400/10 dark:text-green-400 dark:border-green-400/20";
     } else {
-      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:bg-yellow-400/10 dark:text-yellow-400 dark:border-yellow-400/20";
     }
   };
 
@@ -179,65 +179,65 @@ export default function UserTable({
 
   const getRoleColor = (role: string) => {
     return role === "admin"
-      ? "bg-purple-100 text-purple-800 border-purple-200"
-      : "bg-blue-100 text-blue-800 border-blue-200";
+      ? "bg-purple-500/10 text-purple-600 border-purple-500/20 dark:bg-purple-400/10 dark:text-purple-400 dark:border-purple-400/20"
+      : "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20";
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl shadow-lg border border-[#D1D8BE]">
+    <div className="overflow-hidden rounded-2xl shadow-lg border-border">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="bg-gradient-to-r from-[#819A91] to-[#A7C1A8]">
-              <th className="px-6 py-4 text-left text-sm font-semibold text-[#EEEFE0] uppercase tracking-wider">
+            <tr className="bg-muted shadow-sm">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
                 ব্যবহারকারী
               </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-[#EEEFE0] uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
                 ভূমিকা
               </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-[#EEEFE0] uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
                 কার্যক্রম
               </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-[#EEEFE0] uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
                 অবস্থা
               </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-[#EEEFE0] uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
                 যোগদান
               </th>
-              <th className="px-6 py-4 text-left text-sm font-semibold text-[#EEEFE0] uppercase tracking-wider">
+              <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
                 কর্ম
               </th>
             </tr>
           </thead>
-          <tbody className="bg-[#EEEFE0] divide-y divide-[#D1D8BE]">
+          <tbody className="bg-background divide-y divide-border">
             {users.map((user) => (
               <tr
                 key={user.id}
-                className="hover:bg-[#D1D8BE] hover:bg-opacity-30 transition-all duration-300 group"
+                className="hover:bg-muted hover:bg-opacity-50 transition-all duration-300 group"
               >
                 {/* User Info */}
                 <td className="px-6 py-4">
                   <div className="flex items-start space-x-3">
                     <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-[#2C4A3B] to-[#819A91] rounded-full flex items-center justify-center shadow-md">
-                        <UserIcon className="h-5 w-5 text-[#EEEFE0]" />
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/70 rounded-full flex items-center justify-center shadow-md">
+                        <UserIcon className="h-5 w-5 text-primary-foreground" />
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
-                        <p className="text-sm font-semibold text-[#2C4A3B] truncate">
+                        <p className="text-sm font-semibold text-foreground truncate">
                           {user.name || "নাম নেই"}
                         </p>
                         {user.role === "admin" && (
                           <Shield className="h-3 w-3 text-purple-600" />
                         )}
                       </div>
-                      <div className="flex items-center mt-1 space-x-2 text-xs text-gray-600">
+                      <div className="flex items-center mt-1 space-x-2 text-xs text-muted-foreground">
                         <Mail className="h-3 w-3" />
                         <span className="truncate">{user.email}</span>
                       </div>
                       {user.phone && (
-                        <div className="flex items-center mt-1 space-x-2 text-xs text-gray-600">
+                        <div className="flex items-center mt-1 space-x-2 text-xs text-muted-foreground">
                           <Phone className="h-3 w-3" />
                           <span>{user.phone}</span>
                         </div>
@@ -258,19 +258,19 @@ export default function UserTable({
                 {/* Activities */}
                 <td className="px-6 py-4">
                   <div className="flex items-center space-x-4 text-sm">
-                    <div className="flex items-center space-x-1 text-[#2C4A3B]">
+                    <div className="flex items-center space-x-1 text-foreground">
                       <ShoppingBag className="h-4 w-4" />
                       <span className="font-semibold">
                         {user._count.orders}
                       </span>
-                      <span className="text-xs text-gray-600">অর্ডার</span>
+                      <span className="text-xs text-muted-foreground">অর্ডার</span>
                     </div>
-                    <div className="flex items-center space-x-1 text-[#819A91]">
+                    <div className="flex items-center space-x-1 text-muted-foreground">
                       <Star className="h-4 w-4" />
                       <span className="font-semibold">
                         {user._count.reviews}
                       </span>
-                      <span className="text-xs text-gray-600">রিভিউ</span>
+                      <span className="text-xs text-muted-foreground">রিভিউ</span>
                     </div>
                   </div>
                 </td>
@@ -286,8 +286,8 @@ export default function UserTable({
 
                 {/* Join Date */}
                 <td className="px-6 py-4">
-                  <div className="flex items-center space-x-2 text-sm text-gray-700">
-                    <Calendar className="h-4 w-4 text-[#819A91]" />
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span>{formatDate(user.createdAt)}</span>
                   </div>
                 </td>
@@ -298,7 +298,7 @@ export default function UserTable({
                     {/* View Button */}
                     <Link
                       href={`/admin/users/${user.id}`}
-                      className="inline-flex items-center px-3 py-2 rounded-lg bg-[#819A91] text-[#EEEFE0] hover:bg-[#2C4A3B] transition-all duration-300 group/action shadow-sm"
+                      className="inline-flex items-center px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 group/action shadow-sm"
                     >
                       <Eye className="h-4 w-4" />
                     </Link>
@@ -349,14 +349,14 @@ export default function UserTable({
 
       {/* Empty State */}
       {users.length === 0 && (
-        <div className="text-center py-12 bg-[#EEEFE0]">
-          <div className="w-16 h-16 mx-auto bg-[#D1D8BE] rounded-full flex items-center justify-center mb-4">
-            <UserIcon className="h-8 w-8 text-[#819A91]" />
+        <div className="text-center py-12 bg-background">
+          <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
+            <UserIcon className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold text-[#2C4A3B] mb-2">
+          <h3 className="text-lg font-semibold text-foreground mb-2">
             কোনো ব্যবহারকারী পাওয়া যায়নি
           </h3>
-          <p className="text-gray-600 max-w-md mx-auto">
+          <p className="text-muted-foreground max-w-md mx-auto">
             আপনার অনুসন্ধানের সাথে মিলছে এমন কোনো ব্যবহারকারী নেই। অনুগ্রহ করে
             বিভিন্ন ফিল্টার চেষ্টা করুন।
           </p>
@@ -366,20 +366,20 @@ export default function UserTable({
       {/* Ban Modal - Redesigned based on Screenshot & Fixes */}
       <dialog
         id="ban-modal"
-        className="modal modal-bottom sm:modal-middle  rounded-xl"
+        className="modal modal-bottom sm:modal-middle rounded-xl"
       >
-        <div className="modal-box p-6">
+        <div className="modal-box p-6 bg-card border-border">
           {/* Close Button at Top Right (✕) */}
           <form method="dialog">
-            <button className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4 text-gray-500 hover:text-gray-900 transition-colors">
+            <button className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4 text-muted-foreground hover:text-foreground transition-colors">
               ✕
             </button>
           </form>
 
           {/* Modal Header */}
-          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center border-b pb-3">
+          <h3 className="text-xl font-bold text-foreground mb-6 flex items-center border-b border-border pb-3">
             {/* Ban icon (h-6 w-6) - Adjusted size for header */}
-            <Ban className="h-6 w-6 mr-3 text-red-600" />
+            <Ban className="h-6 w-6 mr-3 text-destructive" />
             ব্যবহারকারী নিষিদ্ধ করুন
           </h3>
 
@@ -387,13 +387,13 @@ export default function UserTable({
             {/* Ban Reason Field */}
             <div>
               <label className="label">
-                <span className="label-text text-gray-700 font-semibold">
+                <span className="label-text text-foreground font-semibold">
                   নিষিদ্ধ করার কারণ
                 </span>
               </label>
               <textarea
                 placeholder="ব্যবহারকারী নিষিদ্ধ করার কারণ লিখুন..."
-                className="textarea textarea-bordered w-full border border-gray-600 p-2 rounded-lg bg-gray-100 focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-shadow"
+                className="textarea textarea-bordered w-full border-border bg-muted text-foreground focus:border-destructive focus:ring-1 focus:ring-destructive transition-shadow p-2 rounded-lg"
                 rows={3}
               />
             </div>
@@ -401,11 +401,11 @@ export default function UserTable({
             {/* Ban Duration Field */}
             <div>
               <label className="label">
-                <span className="label-text text-gray-700 font-semibold">
+                <span className="label-text text-foreground font-semibold">
                   নিষেধাজ্ঞার সময়কাল
                 </span>
               </label>
-              <select className="select select-bordered w-full border border-gray-600 p-2 rounded-lg focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-shadow">
+              <select className="select select-bordered w-full border-border bg-muted text-foreground focus:border-destructive focus:ring-1 focus:ring-destructive transition-shadow p-2 rounded-lg">
                 <option value="1">১ দিন</option>
                 <option value="7">৭ দিন</option>
                 <option value="30">৩০ দিন</option>
@@ -416,15 +416,15 @@ export default function UserTable({
             </div>
 
             {/* Warning Block - Adjusted to match screenshot style (simpler box) */}
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-4">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 mt-4">
               <div className="flex items-start space-x-3">
                 {/* Warning Icon (h-5 w-5) */}
-                <Ban className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                <Ban className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-red-800">সতর্কতা</p>
-                  <p className="text-xs text-red-700 mt-1">
+                  <p className="text-sm font-medium text-destructive">সতর্কতা</p>
+                  <p className="text-xs text-destructive/80 mt-1">
                     নিষিদ্ধ ব্যবহারকারী সিস্টেমে লগইন করতে বা নতুন অর্ডার দিতে
-                    পারবে না। বিদ্যমান অর্ডারগুলি প্রভাবিত হবে না।
+                    পারবে না। বিদ্যমান অর্ডারগুলি প্রভাবিত হবে না॥
                   </p>
                 </div>
               </div>
@@ -432,10 +432,10 @@ export default function UserTable({
           </div>
 
           {/* Modal Actions (Buttons) - FIXING THE BUTTON LAYOUT ISSUE */}
-          <div className="modal-action flex items-center justify-end border-t pt-4 gap-2 mt-6">
+          <div className="modal-action flex items-center justify-end border-t border-border pt-4 gap-2 mt-6">
             {/* Cancel Button */}
             <button
-              className="btn btn-ghost bg-green-600 hover:bg-green-800 p-2 rounded-xl text-white hover:text-white transition-colors"
+              className="btn btn-ghost bg-secondary hover:bg-secondary/80 p-2 rounded-xl text-secondary-foreground hover:text-secondary-foreground transition-colors"
               onClick={() => {
                 const modal = document.getElementById(
                   "ban-modal"
@@ -448,7 +448,7 @@ export default function UserTable({
 
             {/* Ban Button - Fixed: Using flex for alignment and ensuring proper button classes */}
             <button
-              className="btn flex items-center p-2 rounded-xl bg-red-600 text-white hover:bg-red-700 border-red-600 hover:border-red-700 transition-colors"
+              className="btn flex items-center p-2 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 border-destructive hover:border-destructive/90 transition-colors"
               // Add your Ban logic here
               onClick={() => {
                 const modal = document.getElementById(

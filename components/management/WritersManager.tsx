@@ -72,7 +72,7 @@ export default function WritersManager({
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
-      toast.error("দয়া করে লেখকের নাম পূরণ করুন");
+      toast.error("Please enter writer name");
       return;
     }
 
@@ -84,89 +84,85 @@ export default function WritersManager({
           name: form.name,
           image: form.image,
         });
-        toast.success("লেখক সফলভাবে আপডেট করা হয়েছে");
+        toast.success("Writer updated successfully");
       } else {
         await onCreate({
           name: form.name,
           image: form.image,
         });
-        toast.success("নতুন লেখক সফলভাবে যোগ করা হয়েছে");
+        toast.success("New writer added successfully");
       }
 
       setModalOpen(false);
       setForm({ name: "", image: "" });
     } catch {
-      toast.error("কিছু একটা সমস্যা হয়েছে");
+      toast.error("Something went wrong");
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteLocal = async (id: number) => {
-    if (!confirm("আপনি কি নিশ্চিত যে আপনি এই লেখকটি মুছে ফেলতে চান?")) return;
+    if (!confirm("Are you sure you want to delete this writer?")) return;
 
     try {
       await onDelete(id); // this now calls DELETE API and then re-fetches writers
-      toast.success("লেখক সফলভাবে মুছে ফেলা হয়েছে");
+      toast.success("Writer deleted successfully");
     } catch (err) {
-      toast.error("লেখক মুছতে সমস্যা হয়েছে");
+      toast.error("Failed to delete writer");
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#EEEFE0] to-[#D1D8BE]/30 p-6">
+    <div className="min-h-screen p-6" style={{ backgroundColor: 'hsl(var(--background))' }}>
       <div>
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-2 h-10 bg-gradient-to-b from-[#2C4A3B] to-[#819A91] rounded-full"></div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-[#2C4A3B] to-[#819A91] bg-clip-text text-transparent">
-              লেখক ব্যবস্থাপনা
-            </h1>
-            <div className="w-2 h-10 bg-gradient-to-b from-[#819A91] to-[#2C4A3B] rounded-full"></div>
-          </div>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-            আপনার লাইব্রেরির লেখক এবং লেখিকাদের দক্ষতার সাথে পরিচালনা করুন
+          <h1 className="text-4xl font-bold mb-4" style={{ color: 'hsl(var(--foreground))' }}>
+            Writer Management
+          </h1>
+          <p className="text-lg max-w-2xl mx-auto" style={{ color: 'hsl(var(--muted-foreground))' }}>
+            Manage your library's talented authors and writers
           </p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/80 shadow-lg rounded-2xl">
+          <Card className="rounded-2xl shadow" style={{ backgroundColor: 'hsl(var(--card))' }}>
             <CardContent className="p-6 flex justify-between items-center">
               <div>
-                <p className="text-sm text-gray-600">মোট লেখক</p>
-                <h3 className="text-2xl font-bold">{writers?.length || 0}</h3>
+                <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>Total Writers</p>
+                <h3 className="text-2xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>{writers?.length || 0}</h3>
               </div>
-              <div className="p-3 bg-gradient-to-r from-[#819A91] to-[#A7C1A8] rounded-full">
-                <Users className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full" style={{ backgroundColor: 'hsl(var(--primary))' }}>
+                <Users className="h-6 w-6" style={{ color: 'hsl(var(--primary-foreground))' }} />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/80 shadow-lg rounded-2xl">
+          <Card className="rounded-2xl shadow" style={{ backgroundColor: 'hsl(var(--card))' }}>
             <CardContent className="p-6 flex justify-between items-center">
               <div>
-                <p className="text-sm text-gray-600">মোট বই</p>
-                <h3 className="text-2xl font-bold">
+                <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>Total Books</p>
+                <h3 className="text-2xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>
                   {writers?.reduce(
                     (acc: number, w: any) => acc + (w._count?.products || 0),
                     0
                   ) || 0}
                 </h3>
               </div>
-              <div className="p-3 bg-gradient-to-r from-[#2C4A3B] to-[#819A91] rounded-full">
-                <BookOpen className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-full" style={{ backgroundColor: 'hsl(var(--primary))' }}>
+                <BookOpen className="h-6 w-6" style={{ color: 'hsl(var(--primary-foreground))' }} />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="col-span-2 bg-white/80 shadow-lg rounded-2xl">
+          <Card className="col-span-2 rounded-2xl shadow" style={{ backgroundColor: 'hsl(var(--card))' }}>
             <CardContent className="p-6 flex items-center gap-4">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'hsl(var(--muted-foreground))' }} />
                 <Input
-                  placeholder="লেখক খুঁজুন..."
+                  placeholder="Search writers..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 rounded-full"
@@ -174,9 +170,9 @@ export default function WritersManager({
               </div>
               <Button
                 onClick={openAddModal}
-                className="rounded-full bg-gradient-to-r from-[#2C4A3B] to-[#819A91] text-white px-6"
+                className="px-6"
               >
-                <Plus className="h-4 w-4 mr-1" /> নতুন লেখক
+                <Plus className="h-4 w-4 mr-1" /> New Writer
               </Button>
             </CardContent>
           </Card>
@@ -184,16 +180,17 @@ export default function WritersManager({
 
         {/* Loading */}
         {loading ? (
-          <div className="bg-white/80 rounded-2xl shadow p-12 text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#819A91] mx-auto"></div>
-            <p className="mt-4 text-lg">লেখক লোড হচ্ছে...</p>
+          <div className="rounded-2xl shadow p-12 text-center" style={{ backgroundColor: 'hsl(var(--card))' }}>
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 mx-auto" style={{ borderColor: 'hsl(var(--primary))' }}></div>
+            <p className="mt-4 text-lg" style={{ color: 'hsl(var(--foreground))' }}>Loading writers...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredWriters.map((writer) => (
               <Card
                 key={writer.id}
-                className="group bg-gradient-to-br from-white to-[#EEEFE0] rounded-2xl shadow-lg hover:shadow-2xl transition"
+                className="group rounded-2xl shadow hover:shadow-2xl transition"
+                style={{ backgroundColor: 'hsl(var(--card))' }}
               >
                 <div className="relative h-48">
                   {writer.image ? (
@@ -205,8 +202,8 @@ export default function WritersManager({
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   ) : (
-                    <div className="h-full w-full bg-[#819A91] flex items-center justify-center">
-                      <Users className="h-16 w-16 text-white/70" />
+                    <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: 'hsl(var(--muted))' }}>
+                      <Users className="h-16 w-16" style={{ color: 'hsl(var(--muted-foreground))' }} />
                     </div>
                   )}
 
@@ -214,14 +211,16 @@ export default function WritersManager({
                     <Button
                       size="sm"
                       onClick={() => openEditModal(writer)}
-                      className="rounded-full text-gray-600 hover:text-white bg-white/90 shadow"
+                      className="rounded-full shadow"
+                      style={{ backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}
                     >
                       <Edit3 className="h-3 w-3" />
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => handleDeleteLocal(writer.id)}
-                      className="rounded-full bg-red-500 text-white shadow"
+                      className="rounded-full shadow"
+                      style={{ backgroundColor: 'hsl(var(--destructive))', color: 'hsl(var(--destructive-foreground))' }}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -229,27 +228,27 @@ export default function WritersManager({
                 </div>
 
                 <CardContent className="p-5">
-                  <h3 className="font-bold text-xl text-gray-800 mb-2">
+                  <h3 className="font-bold text-xl mb-2" style={{ color: 'hsl(var(--foreground))' }}>
                     {writer.name}
                   </h3>
 
-                  <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
-                    <BookOpen className="h-3 w-3 text-gray-500" /> Total Books:
-                    <span>{writer._count?.products || 0}</span>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-full" style={{ backgroundColor: 'hsl(var(--muted))' }}>
+                    <BookOpen className="h-3 w-3" style={{ color: 'hsl(var(--muted-foreground))' }} /> Total Books:
+                    <span style={{ color: 'hsl(var(--foreground))' }}>{writer._count?.products || 0}</span>
                   </div>
 
                   <div className="flex gap-2 mt-3">
                     <Button
                       onClick={() => openEditModal(writer)}
                       variant="outline"
-                      className="w-full bg-[#52aa8a] text-white hover:bg-[#2d6852] hover:text-white"
+                      className="w-full"
                     >
-                      <Edit3 className="h-3 w-3 mr-1" /> এডিট
+                      <Edit3 className="h-3 w-3 mr-1" /> Edit
                     </Button>
                     <Button
                       onClick={() => handleDeleteLocal(writer.id)}
                       variant="outline"
-                      className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                      className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -262,16 +261,16 @@ export default function WritersManager({
 
         {/* Empty State */}
         {!loading && filteredWriters?.length === 0 && (
-          <Card className="bg-white/80 shadow rounded-2xl p-12 text-center">
-            <h3 className="text-2xl font-bold">কোন লেখক পাওয়া যায়নি</h3>
-            <p className="text-gray-600 mt-2 mb-6">
-              আপনার অনুসন্ধানের সাথে মিল নেই।
+          <Card className="rounded-2xl shadow p-12 text-center" style={{ backgroundColor: 'hsl(var(--card))' }}>
+            <h3 className="text-2xl font-bold mb-4" style={{ color: 'hsl(var(--foreground))' }}>No writers found</h3>
+            <p className="mt-2 mb-6" style={{ color: 'hsl(var(--muted-foreground))' }}>
+              No writers match your search.
             </p>
             <Button
               onClick={openAddModal}
-              className="rounded-full bg-gradient-to-r from-[#2C4A3B] to-[#819A91] text-white px-6"
+              className="px-6"
             >
-              <Plus className="h-4 w-4 mr-1" /> নতুন লেখক যোগ করুন
+              <Plus className="h-4 w-4 mr-1" /> Add New Writer
             </Button>
           </Card>
         )}
@@ -280,16 +279,16 @@ export default function WritersManager({
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="rounded-2xl shadow-xl w-full max-w-md" style={{ backgroundColor: 'hsl(var(--card))' }}>
             <div className="p-6 border-b">
-              <h3 className="text-2xl font-bold">
-                {editing ? "লেখক এডিট করুন" : "নতুন লেখক যোগ করুন"}
+              <h3 className="text-2xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>
+                {editing ? "Edit Writer" : "Add New Writer"}
               </h3>
             </div>
 
             <div className="p-6 space-y-5">
               <div>
-                <Label>লেখকের নাম *</Label>
+                <Label>Writer Name *</Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -297,7 +296,7 @@ export default function WritersManager({
               </div>
 
               <div>
-                <Label>ছবি আপলোড করুন *</Label>
+                <Label>Upload Image *</Label>
 
                 <Input
                   type="file"
@@ -312,7 +311,7 @@ export default function WritersManager({
                     formData.append("file", file);
 
                     try {
-                      toast.loading("ছবি আপলোড হচ্ছে...", {
+                      toast.loading("Uploading...", {
                         id: "upload-writer",
                       });
 
@@ -351,13 +350,13 @@ export default function WritersManager({
                       }
 
                       setForm((prev) => ({ ...prev, image: finalUrl }));
-                      toast.success("ছবি আপলোড সম্পন্ন!", {
+                      toast.success("Upload complete!", {
                         id: "upload-writer",
                       });
                     } catch (error) {
                       console.error('Error in form submission:', error);
                       console.error("Writer image upload error:", error);
-                      toast.error("ছবি আপলোড ব্যর্থ!", { id: "upload-writer" });
+                      toast.error("Upload failed!", { id: "upload-writer" });
                     }
                   }}
                 />
@@ -377,18 +376,18 @@ export default function WritersManager({
 
             <div className="p-6 border-t flex justify-end gap-3">
               <Button variant="outline" onClick={() => setModalOpen(false)}>
-                বাতিল
+                Cancel
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={!form.name || submitting}
-                className="bg-gradient-to-r from-[#2C4A3B] to-[#819A91] text-white"
+                className=""
               >
                 {submitting && (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                 )}
                 <Zap className="h-4 w-4 mr-1" />
-                {editing ? "আপডেট করুন" : "তৈরি করুন"}
+                {editing ? "Update" : "Create"}
               </Button>
             </div>
           </div>

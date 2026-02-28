@@ -82,7 +82,9 @@ const OrderManagement = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ordersCache, setOrdersCache] = useState<Map<string, { orders: Order[]; pagination: Pagination | null }>>(new Map());
+  const [ordersCache, setOrdersCache] = useState<
+    Map<string, { orders: Order[]; pagination: Pagination | null }>
+  >(new Map());
 
   // details modal states
   const [detailOpen, setDetailOpen] = useState(false);
@@ -124,7 +126,7 @@ const OrderManagement = () => {
       const cacheKey = JSON.stringify({
         page,
         statusFilter,
-        limit: 9
+        limit: 9,
       });
 
       // Check cache first
@@ -150,13 +152,15 @@ const OrderManagement = () => {
       }
 
       const data = await res.json();
-      
+
       // Update cache
-      setOrdersCache(prev => new Map(prev).set(cacheKey, {
-        orders: data.orders || [],
-        pagination: data.pagination || null,
-      }));
-      
+      setOrdersCache((prev) =>
+        new Map(prev).set(cacheKey, {
+          orders: data.orders || [],
+          pagination: data.pagination || null,
+        }),
+      );
+
       setOrders(data.orders || []);
       setPagination(data.pagination || null);
     } catch (err: unknown) {
@@ -192,9 +196,9 @@ const OrderManagement = () => {
     () =>
       filteredOrders.reduce(
         (sum, o) => sum + Number(o.grand_total ?? o.total ?? 0),
-        0
+        0,
       ),
-    [filteredOrders]
+    [filteredOrders],
   );
 
   // ------------------- HELPERS -------------------
@@ -203,40 +207,40 @@ const OrderManagement = () => {
   const statusBadgeClass = useCallback((status: string) => {
     switch (status) {
       case "PENDING":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20";
       case "PROCESSING":
-        return "bg-blue-100 text-blue-700";
+        return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20";
       case "SHIPPED":
-        return "bg-indigo-100 text-indigo-700";
+        return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:bg-indigo-400/10 dark:text-indigo-400 dark:border-indigo-400/20";
       case "DELIVERED":
-        return "bg-emerald-100 text-emerald-700";
+        return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20";
       case "CANCELLED":
-        return "bg-red-100 text-red-700";
+        return "bg-destructive/10 text-destructive border-destructive/20";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-muted/10 text-muted-foreground border-border";
     }
   }, []);
 
   const paymentBadgeClass = useCallback((status: string) => {
     return status === "PAID"
-      ? "bg-emerald-100 text-emerald-700"
-      : "bg-red-100 text-red-700";
+      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20"
+      : "bg-destructive/10 text-destructive border-destructive/20";
   }, []);
 
   const shipmentBadgeClass = useCallback((status: ShipmentStatusType) => {
     switch (status) {
       case "PENDING":
-        return "bg-yellow-100 text-yellow-700";
+        return "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20";
       case "IN_TRANSIT":
       case "OUT_FOR_DELIVERY":
-        return "bg-blue-100 text-blue-700";
+        return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20";
       case "DELIVERED":
-        return "bg-emerald-100 text-emerald-700";
+        return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20";
       case "RETURNED":
       case "CANCELLED":
-        return "bg-red-100 text-red-700";
+        return "bg-destructive/10 text-destructive border-destructive/20";
       default:
-        return "bg-gray-100 text-gray-700";
+        return "bg-muted/10 text-muted-foreground border-border";
     }
   }, []);
 
@@ -293,7 +297,7 @@ const OrderManagement = () => {
         // 2) Shipment (if any)
         const shipRes = await fetch(
           `/api/shipments?orderId=${selectedOrderId}&limit=1&page=1`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
 
         if (shipRes.ok) {
@@ -307,12 +311,12 @@ const OrderManagement = () => {
             setEditExpectedDate(
               found.expectedDate
                 ? new Date(found.expectedDate).toISOString().substring(0, 10)
-                : ""
+                : "",
             );
             setEditDeliveredDate(
               found.deliveredAt
                 ? new Date(found.deliveredAt).toISOString().substring(0, 10)
-                : ""
+                : "",
             );
           } else {
             setShipment(null);
@@ -332,7 +336,7 @@ const OrderManagement = () => {
         } else {
           setShipment(null);
         }
-        } catch (err: unknown) {
+      } catch (err: unknown) {
         const message =
           err instanceof Error && err.message
             ? err.message
@@ -380,7 +384,7 @@ const OrderManagement = () => {
               paymentStatus: editPaymentStatus,
               transactionId: editTransactionId || null,
             }
-          : prev
+          : prev,
       );
       setOrders((prev) =>
         prev.map((o) =>
@@ -390,8 +394,8 @@ const OrderManagement = () => {
                 status: editOrderStatus,
                 paymentStatus: editPaymentStatus,
               }
-            : o
-        )
+            : o,
+        ),
       );
 
       // Clear cache to force refresh on next load
@@ -480,12 +484,12 @@ const OrderManagement = () => {
 
           if (autoRes.ok) {
             setOrderDetail((prev) =>
-              prev ? { ...prev, status: "DELIVERED" } : prev
+              prev ? { ...prev, status: "DELIVERED" } : prev,
             );
             setOrders((prev) =>
               prev.map((o) =>
-                o.id === orderDetail.id ? { ...o, status: "DELIVERED" } : o
-              )
+                o.id === orderDetail.id ? { ...o, status: "DELIVERED" } : o,
+              ),
             );
           } else {
             console.warn("Order auto DELIVERED failed:", autoData);
@@ -496,42 +500,52 @@ const OrderManagement = () => {
       }
 
       // 4) Success modal দেখাও
-      setSuccessMessage("অর্ডার ও শিপমেন্ট তথ্য সফলভাবে আপডেট হয়েছে ✅");
-        setSuccessOpen(true);
-        } catch (err: any) {
+      setSuccessMessage("অর্ডার এবং শিপমেন্ট তথ্য সফলভাবে আপডেট হয়েছে ✅");
+      setSuccessOpen(true);
+    } catch (err: any) {
       alert(err?.message || "আপডেট করতে সমস্যা হয়েছে");
     } finally {
       setSaving(false);
     }
-  }, [orderDetail, editOrderStatus, editPaymentStatus, editTransactionId, shipment, editCourier, editTrackingNumber, editShipmentStatus, editExpectedDate, editDeliveredDate]);
+  }, [
+    orderDetail,
+    editOrderStatus,
+    editPaymentStatus,
+    editTransactionId,
+    shipment,
+    editCourier,
+    editTrackingNumber,
+    editShipmentStatus,
+    editExpectedDate,
+    editDeliveredDate,
+  ]);
 
   // ------------------- RENDER -------------------
 
   return (
-    <div className="min-h-screen w-full bg-[#F4F7ED] px-4 py-10 ">
+    <div className="min-h-screen w-full bg-background px-4 py-10 ">
       <div className="flex-col gap-8">
         {/* Heading */}
         <div className="text-center mb-8 just">
-          <h1 className="text-3xl font-semibold text-[#1D3B2A]">
-            | অর্ডার ব্যবস্থাপনা |
+          <h1 className="text-3xl font-semibold text-foreground">
+            | Order Management |
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            আপনার লাইব্রেরির সকল অর্ডার দেখুন, স্ট্যাটাস আপডেট করুন এবং শিপমেন্ট
-            ট্র্যাক করুন
+          <p className="mt-2 text-sm text-muted-foreground">
+            View all library orders, update status and track shipments
           </p>
         </div>
 
         {/* Top stats + search row */}
         <div className="flex flex-col gap-4 md:flex-row">
-          {/* মোট অর্ডার */}
-          <div className="flex w-full items-center justify-between rounded-2xl bg-white px-6 py-4 shadow-sm md:w-1/4">
+          {/* Total Orders */}
+          <div className="flex w-full items-center justify-between rounded-2xl bg-card px-6 py-4 shadow-sm border-border md:w-1/4">
             <div>
-              <p className="text-xs text-gray-500">মোট অর্ডার</p>
-              <p className="mt-1 text-2xl font-semibold text-gray-800">
+              <p className="text-xs text-muted-foreground">Total Orders</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">
                 {totalOrders}
               </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1D3B2A] text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <svg
                 className="h-6 w-6"
                 viewBox="0 0 24 24"
@@ -564,15 +578,15 @@ const OrderManagement = () => {
             </div>
           </div>
 
-          {/* মোট টাকা (এই পাতার) */}
-          <div className="flex w-full items-center justify-between rounded-2xl bg-white px-6 py-4 shadow-sm md:w-1/4">
+          {/* Total Amount (This Page) */}
+          <div className="flex w-full items-center justify-between rounded-2xl bg-card px-6 py-4 shadow-sm border-border md:w-1/4">
             <div>
-              <p className="text-xs text-gray-500">এই পাতার মোট টাকা</p>
-              <p className="mt-1 text-2xl font-semibold text-gray-800">
-                ৳ {pageTotalAmount.toLocaleString("bn-BD")}
+              <p className="text-xs text-muted-foreground">Page Total Amount</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">
+                ${pageTotalAmount.toLocaleString("en-US")}
               </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1D3B2A] text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <svg
                 className="h-6 w-6"
                 viewBox="0 0 24 24"
@@ -593,10 +607,10 @@ const OrderManagement = () => {
           </div>
 
           {/* search + status filter */}
-          <div className="flex flex-1 items-center gap-4 rounded-2xl bg-white px-6 py-4 shadow-sm">
-            <div className="flex flex-1 items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2">
+          <div className="flex flex-1 items-center gap-4 rounded-2xl bg-card px-6 py-4 shadow-sm border-border">
+            <div className="flex flex-1 items-center gap-2 rounded-full border border-border bg-muted px-4 py-2">
               <svg
-                className="h-4 w-4 text-gray-400"
+                className="h-4 w-4 text-muted-foreground"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -610,8 +624,8 @@ const OrderManagement = () => {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                placeholder="অর্ডার আইডি, নাম বা মোবাইল দিয়ে খুঁজুন..."
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
+                placeholder="Search by order ID, name or mobile..."
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
 
@@ -621,9 +635,9 @@ const OrderManagement = () => {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="rounded-full border border-gray-200 bg-[#1D3B2A] px-4 py-2 text-sm text-white shadow-sm"
+              className="rounded-full border border-border bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm"
             >
-              <option value="ALL">সব স্ট্যাটাস</option>
+              <option value="ALL">All Status</option>
               <option value="PENDING">Pending</option>
               <option value="PROCESSING">Processing</option>
               <option value="SHIPPED">Shipped</option>
@@ -638,70 +652,73 @@ const OrderManagement = () => {
           <div className="mt-6">
             {/* Stats Cards Skeleton */}
             <div className="flex flex-col gap-4 md:flex-row mb-6">
-              <div className="flex w-full items-center justify-between rounded-2xl bg-white px-6 py-4 shadow-sm md:w-1/4">
+              <div className="flex w-full items-center justify-between rounded-2xl bg-card px-6 py-4 shadow-sm border-border md:w-1/4">
                 <div>
-                  <div className="h-3 bg-gray-200 rounded w-16 mb-2 animate-pulse"></div>
-                  <div className="h-8 bg-gray-200 rounded w-12 animate-pulse"></div>
+                  <div className="h-3 bg-muted rounded w-16 mb-2 animate-pulse"></div>
+                  <div className="h-8 bg-muted rounded w-12 animate-pulse"></div>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200 animate-pulse"></div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted animate-pulse"></div>
               </div>
-              <div className="flex w-full items-center justify-between rounded-2xl bg-white px-6 py-4 shadow-sm md:w-1/4">
+              <div className="flex w-full items-center justify-between rounded-2xl bg-card px-6 py-4 shadow-sm border-border md:w-1/4">
                 <div>
-                  <div className="h-3 bg-gray-200 rounded w-20 mb-2 animate-pulse"></div>
-                  <div className="h-8 bg-gray-200 rounded w-16 animate-pulse"></div>
+                  <div className="h-3 bg-muted rounded w-20 mb-2 animate-pulse"></div>
+                  <div className="h-8 bg-muted rounded w-16 animate-pulse"></div>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200 animate-pulse"></div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted animate-pulse"></div>
               </div>
-              <div className="flex flex-1 items-center gap-4 rounded-2xl bg-white px-6 py-4 shadow-sm">
-                <div className="flex flex-1 items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2">
-                  <div className="h-4 w-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded flex-1 animate-pulse"></div>
+              <div className="flex flex-1 items-center gap-4 rounded-2xl bg-card px-6 py-4 shadow-sm border-border">
+                <div className="flex flex-1 items-center gap-2 rounded-full border border-border bg-muted px-4 py-2">
+                  <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
+                  <div className="h-4 bg-muted rounded flex-1 animate-pulse"></div>
                 </div>
-                <div className="h-8 bg-gray-200 rounded w-24 animate-pulse"></div>
+                <div className="h-8 bg-muted rounded w-24 animate-pulse"></div>
               </div>
             </div>
 
             {/* Order Cards Skeleton */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }, (_, i) => (
-                <div key={i} className="overflow-hidden rounded-2xl bg-white shadow-sm">
+                <div
+                  key={i}
+                  className="overflow-hidden rounded-2xl bg-card shadow-sm border-border"
+                >
                   {/* Header Gradient */}
-                  <div className="h-24 bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse"></div>
+                  <div className="h-24 bg-gradient-to-r from-muted to-muted/50 animate-pulse"></div>
 
                   <div className="-mt-10 px-5 pb-5">
                     {/* Avatar Circle */}
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-200 shadow-md animate-pulse"></div>
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted shadow-md animate-pulse"></div>
 
                     <div className="mt-3 space-y-2">
-                      <div className="h-5 bg-gray-200 rounded w-3/4 animate-pulse"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse"></div>
-                      <div className="h-3 bg-gray-200 rounded w-2/3 animate-pulse"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+                      <div className="h-5 bg-muted rounded w-3/4 animate-pulse"></div>
+                      <div className="h-3 bg-muted rounded w-1/2 animate-pulse"></div>
+                      <div className="h-3 bg-muted rounded w-2/3 animate-pulse"></div>
+                      <div className="h-3 bg-muted rounded w-1/2 animate-pulse"></div>
                     </div>
 
                     {/* Totals */}
-                    <div className="mt-3 rounded-xl bg-gray-50 px-3 py-2">
+                    <div className="mt-3 rounded-xl bg-muted/30 px-3 py-2">
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <div className="h-3 bg-gray-200 rounded w-20 animate-pulse"></div>
-                          <div className="h-3 bg-gray-200 rounded w-8 animate-pulse"></div>
+                          <div className="h-3 bg-muted rounded w-20 animate-pulse"></div>
+                          <div className="h-3 bg-muted rounded w-8 animate-pulse"></div>
                         </div>
                         <div className="flex items-center justify-between">
-                          <div className="h-3 bg-gray-200 rounded w-16 animate-pulse"></div>
-                          <div className="h-3 bg-gray-200 rounded w-12 animate-pulse"></div>
+                          <div className="h-3 bg-muted rounded w-16 animate-pulse"></div>
+                          <div className="h-3 bg-muted rounded w-12 animate-pulse"></div>
                         </div>
                       </div>
                     </div>
 
                     {/* Status Badges */}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <div className="h-6 bg-gray-200 rounded-full w-20 animate-pulse"></div>
-                      <div className="h-6 bg-gray-200 rounded-full w-16 animate-pulse"></div>
+                      <div className="h-6 bg-muted rounded-full w-20 animate-pulse"></div>
+                      <div className="h-6 bg-muted rounded-full w-16 animate-pulse"></div>
                     </div>
 
                     {/* Action Button */}
                     <div className="mt-4">
-                      <div className="h-8 bg-gray-200 rounded-full w-full animate-pulse"></div>
+                      <div className="h-8 bg-muted rounded-full w-full animate-pulse"></div>
                     </div>
                   </div>
                 </div>
@@ -710,7 +727,7 @@ const OrderManagement = () => {
           </div>
         )}
         {error && (
-          <div className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-center text-sm text-red-600">
+          <div className="mt-6 rounded-xl bg-destructive/10 px-4 py-3 text-center text-sm text-destructive border border-destructive/20">
             {error}
           </div>
         )}
@@ -719,42 +736,42 @@ const OrderManagement = () => {
         {!loading && !error && (
           <>
             {filteredOrders.length === 0 ? (
-              <div className="mt-8 text-center text-sm text-gray-500">
-                কোন অর্ডার পাওয়া যায়নি।
+              <div className="mt-8 text-center text-sm text-muted-foreground">
+                No orders found.
               </div>
             ) : (
               <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="overflow-hidden rounded-2xl bg-white shadow-sm"
+                    className="overflow-hidden rounded-2xl bg-card shadow-sm border-border"
                   >
-                    <div className="h-24 bg-gradient-to-r from-[#1D3B2A]/80 to-[#3C6B4A]/80"></div>
+                    <div className="h-24 bg-gradient-to-r from-primary/80 to-primary/60"></div>
 
                     <div className="-mt-10 px-5 pb-5">
                       {/* avatar circle */}
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-100 shadow-md">
-                        <span className="text-3xl font-semibold text-gray-500">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted shadow-md">
+                        <span className="text-3xl font-semibold text-muted-foreground">
                           {order.name?.[0]?.toUpperCase() || "O"}
                         </span>
                       </div>
 
                       <div className="mt-3">
-                        <h3 className="text-lg font-semibold text-gray-800">
-                          {order.name || "নাম নেই"}
+                        <h3 className="text-lg font-semibold text-foreground">
+                          {order.name || "No Name"}
                         </h3>
-                        <p className="mt-1 text-xs text-gray-500">
-                          অর্ডার আইডি:{" "}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Order ID:{" "}
                           <span className="font-medium">{order.id}</span>
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">
-                          মোবাইল:{" "}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Mobile:{" "}
                           <span className="font-medium">
                             {order.phone_number || "-"}
                           </span>
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">
-                          তারিখ:{" "}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Date:{" "}
                           <span className="font-medium">
                             {formatDate(order.createdAt)}
                           </span>
@@ -762,22 +779,22 @@ const OrderManagement = () => {
                       </div>
 
                       {/* totals */}
-                      <div className="mt-3 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                      <div className="mt-3 rounded-xl bg-muted/30 px-3 py-2 text-xs text-foreground">
                         <div className="flex items-center justify-between">
-                          <span>মোট পণ্যের সংখ্যা</span>
+                          <span>Total Items</span>
                           <span className="font-semibold">
                             {order.orderItems?.reduce(
                               (sum, item) => sum + Number(item.quantity || 0),
-                              0
+                              0,
                             ) || 0}
                           </span>
                         </div>
                         <div className="mt-1 flex items-center justify-between">
-                          <span>গ্র্যান্ড টোটাল</span>
+                          <span>Grand Total</span>
                           <span className="font-semibold">
-                            ৳{" "}
+                            ${" "}
                             {Number(order.grand_total ?? 0).toLocaleString(
-                              "bn-BD"
+                              "en-US",
                             )}
                           </span>
                         </div>
@@ -786,18 +803,18 @@ const OrderManagement = () => {
                       {/* status badges */}
                       <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
                         <span
-                          className={`rounded-full px-3 py-1 font-semibold ${statusBadgeClass(
-                            order.status
+                          className={`rounded-full border px-3 py-1 font-semibold ${statusBadgeClass(
+                            order.status,
                           )}`}
                         >
-                          স্ট্যাটাস: {order.status}
+                          Status: {order.status}
                         </span>
                         <span
-                          className={`rounded-full px-3 py-1 font-semibold ${paymentBadgeClass(
-                            order.paymentStatus
+                          className={`rounded-full border px-3 py-1 font-semibold ${paymentBadgeClass(
+                            order.paymentStatus,
                           )}`}
                         >
-                          পেমেন্ট: {order.paymentStatus}
+                          Payment: {order.paymentStatus}
                         </span>
                       </div>
 
@@ -805,10 +822,10 @@ const OrderManagement = () => {
                       <div className="mt-4 flex items-center gap-3">
                         <button
                           type="button"
-                          className="flex-1 rounded-full bg-[#1D3B2A] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#152a1f]"
+                          className="flex-1 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
                           onClick={() => openDetails(order.id)}
                         >
-                          বিস্তারিত
+                          Details
                         </button>
                       </div>
                     </div>
@@ -823,23 +840,23 @@ const OrderManagement = () => {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="rounded-full bg-white px-4 py-2 text-gray-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-full bg-card px-4 py-2 text-foreground shadow-sm border-border disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  পূর্বের
+                  Previous
                 </button>
-                <span className="text-gray-600">
-                  পেজ {page} / {pagination.pages}
+                <span className="text-muted-foreground">
+                  Page {page} / {pagination.pages}
                 </span>
                 <button
                   onClick={() =>
                     setPage((p) =>
-                      pagination ? Math.min(pagination.pages, p + 1) : p + 1
+                      pagination ? Math.min(pagination.pages, p + 1) : p + 1,
                     )
                   }
                   disabled={page === pagination.pages}
-                  className="rounded-full bg-white px-4 py-2 text-gray-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-full bg-card px-4 py-2 text-foreground shadow-sm border-border disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  পরের
+                  Next
                 </button>
               </div>
             )}
@@ -850,38 +867,38 @@ const OrderManagement = () => {
       {/* ------------- DETAILS MODAL ------------- */}
       {detailOpen && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-xl">
+          <div className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-card shadow-xl border-border">
             {/* Header */}
-            <div className="flex items-center justify-between border-b px-6 py-4">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div>
-                <h2 className="text-lg font-semibold text-[#1D3B2A]">
-                  অর্ডার বিস্তারিত
+                <h2 className="text-lg font-semibold text-foreground">
+                  Order Details
                 </h2>
                 {orderDetail && (
-                  <p className="text-xs text-gray-500">
-                    অর্ডার আইডি: {orderDetail.id} •{" "}
+                  <p className="text-xs text-muted-foreground">
+                    Order ID: {orderDetail.id} •{" "}
                     {formatDate(orderDetail.createdAt)}
                   </p>
                 )}
               </div>
               <button
                 onClick={handleCloseDetail}
-                className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 hover:bg-gray-200"
+                className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground hover:bg-muted/80"
               >
-                বন্ধ করুন ✕
+                Close ✕
               </button>
             </div>
 
             {/* Body */}
             <div className="max-h-[70vh] overflow-y-auto px-6 py-4">
               {detailLoading && (
-                <div className="py-8 text-center text-sm text-gray-600">
-                  বিস্তারিত লোড হচ্ছে...
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  Loading details...
                 </div>
               )}
 
               {detailError && (
-                <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">
+                <div className="mb-4 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive border border-destructive/20">
                   {detailError}
                 </div>
               )}
@@ -890,83 +907,83 @@ const OrderManagement = () => {
                 <div className="space-y-5 text-sm">
                   {/* 1. Customer + Address */}
                   <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-2xl bg-gray-50 p-4">
-                      <h3 className="mb-2 text-xs font-semibold text-gray-500">
-                        গ্রাহকের তথ্য
+                    <div className="rounded-2xl bg-muted/30 p-4">
+                      <h3 className="mb-2 text-xs font-semibold text-muted-foreground">
+                        Customer Information
                       </h3>
-                      <p className="text-sm font-semibold text-gray-800">
-                        {orderDetail.name || "নাম নেই"}
+                      <p className="text-sm font-semibold text-foreground">
+                        {orderDetail.name || "No Name"}
                       </p>
-                      <p className="mt-1 text-xs text-gray-600">
-                        মোবাইল: {orderDetail.phone_number || "-"}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Mobile: {orderDetail.phone_number || "-"}
                       </p>
                       {orderDetail.alt_phone_number && (
-                        <p className="mt-1 text-xs text-gray-600">
-                          বিকল্প মোবাইল: {orderDetail.alt_phone_number}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Alt Mobile: {orderDetail.alt_phone_number}
                         </p>
                       )}
                       {orderDetail.email && (
-                        <p className="mt-1 text-xs text-gray-600">
-                          ইমেইল: {orderDetail.email}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Email: {orderDetail.email}
                         </p>
                       )}
-                      <p className="mt-2 text-xs text-gray-600">
-                        পেমেন্ট মেথড:{" "}
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Payment Method:{" "}
                         <span className="font-medium">
                           {orderDetail.payment_method}
                         </span>
                       </p>
                     </div>
 
-                    <div className="rounded-2xl bg-gray-50 p-4">
-                      <h3 className="mb-2 text-xs font-semibold text-gray-500">
-                        ডেলিভারি ঠিকানা
+                    <div className="rounded-2xl bg-muted/30 p-4">
+                      <h3 className="mb-2 text-xs font-semibold text-muted-foreground">
+                        Delivery Address
                       </h3>
-                      <p className="text-xs text-gray-700">
+                      <p className="text-xs text-foreground">
                         {orderDetail.address_details}
                       </p>
-                      <p className="mt-1 text-xs text-gray-600">
-                        এলাকা: {orderDetail.area}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Area: {orderDetail.area}
                       </p>
-                      <p className="mt-1 text-xs text-gray-600">
-                        জেলা: {orderDetail.district}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        District: {orderDetail.district}
                       </p>
-                      <p className="mt-1 text-xs text-gray-600">
-                        দেশ: {orderDetail.country}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Country: {orderDetail.country}
                       </p>
                     </div>
                   </div>
 
                   {/* 1.5 Payment Screenshot (only show from DB URL) */}
                   {orderDetail.image && (
-                    <div className="rounded-2xl bg-gray-50 p-4">
-                      <h3 className="mb-3 text-xs font-semibold text-gray-500">
-                        পেমেন্ট স্ক্রিনশট
+                    <div className="rounded-2xl bg-muted/30 p-4">
+                      <h3 className="mb-3 text-xs font-semibold text-muted-foreground">
+                        Payment Screenshot
                       </h3>
 
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                         {/* Preview Card */}
-                        <div className="w-full max-w-xs overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div className="w-full max-w-xs overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                           <img
                             src={orderDetail.image}
                             alt="Payment screenshot"
-                            className="h-full w-full max-h-72 object-contain bg-gray-50"
+                            className="h-full w-full max-h-72 object-contain bg-muted"
                           />
                         </div>
 
                         {/* Right side: text + link */}
-                        <div className="space-y-3 text-xs text-gray-600">
+                        <div className="space-y-3 text-xs text-muted-foreground">
                           <p>
-                            গ্রাহক পেমেন্ট করার পর এই স্ক্রিনশট আপলোড করেছেন।
+                            Customer uploaded this screenshot after payment.
                           </p>
 
                           <a
                             href={orderDetail.image}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center rounded-full bg-[#1D3B2A] px-4 py-2 text-[11px] font-medium text-white hover:bg-[#152a1f]"
+                            className="inline-flex items-center rounded-full bg-primary px-4 py-2 text-[11px] font-medium text-primary-foreground hover:bg-primary/90"
                           >
-                            স্ক্রিনশট বড় করে দেখুন
+                            View Screenshot
                             <svg
                               className="ml-1 h-3 w-3"
                               viewBox="0 0 24 24"
@@ -997,56 +1014,57 @@ const OrderManagement = () => {
                   )}
 
                   {/* 2. Items */}
-                  <div className="rounded-2xl bg-gray-50 p-4">
-                    <h3 className="mb-3 text-xs font-semibold text-gray-500">
-                      অর্ডারের বইসমূহ
+                  <div className="rounded-2xl bg-muted/30 p-4">
+                    <h3 className="mb-3 text-xs font-semibold text-muted-foreground">
+                      Order Books
                     </h3>
                     <div className="space-y-2">
                       {orderDetail.orderItems?.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-xs"
+                          className="flex items-center justify-between rounded-xl bg-card px-3 py-2 text-xs"
                         >
                           <div>
-                            <p className="font-semibold text-gray-800">
-                              {item.product?.name || "পণ্যের নাম নেই"}
+                            <p className="font-semibold text-foreground">
+                              {item.product?.name ||
+                                "Product Name Not Available"}
                             </p>
-                            <p className="mt-0.5 text-[11px] text-gray-500">
-                              Qty: {item.quantity} × ৳{" "}
-                              {Number(item.price).toLocaleString("bn-BD")}
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              Qty: {item.quantity} × ${" "}
+                              {Number(item.price).toLocaleString("en-US")}
                             </p>
                           </div>
-                          <p className="text-[11px] font-semibold text-gray-800">
-                            ৳{" "}
-                            {Number(
-                              item.quantity * item.price
-                            ).toLocaleString("bn-BD")}
+                          <p className="text-[11px] font-semibold text-foreground">
+                            ${" "}
+                            {Number(item.quantity * item.price).toLocaleString(
+                              "en-US",
+                            )}
                           </p>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 border-t pt-2 text-xs text-gray-700">
+                    <div className="mt-3 border-t border-border pt-2 text-xs text-foreground">
                       <div className="flex justify-between">
                         <span>Subtotal</span>
                         <span>
-                          ৳ {Number(orderDetail.total).toLocaleString("bn-BD")}
+                          $ {Number(orderDetail.total).toLocaleString("en-US")}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Shipping</span>
                         <span>
-                          ৳{" "}
+                          ${" "}
                           {Number(orderDetail.shipping_cost).toLocaleString(
-                            "bn-BD"
+                            "en-US",
                           )}
                         </span>
                       </div>
                       <div className="mt-1 flex justify-between font-semibold">
                         <span>Grand Total</span>
                         <span>
-                          ৳{" "}
+                          ${" "}
                           {Number(orderDetail.grand_total).toLocaleString(
-                            "bn-BD"
+                            "en-US",
                           )}
                         </span>
                       </div>
@@ -1054,21 +1072,21 @@ const OrderManagement = () => {
                   </div>
 
                   {/* 3. Order meta (status, payment, transaction) */}
-                  <div className="rounded-2xl bg-gray-50 p-4">
-                    <h3 className="mb-3 text-xs font-semibold text-gray-500">
-                      অর্ডার স্ট্যাটাস
+                  <div className="rounded-2xl bg-muted/30 p-4">
+                    <h3 className="mb-3 text-xs font-semibold text-muted-foreground">
+                      Order Status
                     </h3>
                     <div className="grid gap-3 md:grid-cols-3">
                       <div className="space-y-1 text-xs">
-                        <p className="text-gray-600">Order Status</p>
+                        <p className="text-muted-foreground">Order Status</p>
                         <select
                           value={editOrderStatus}
                           onChange={(e) =>
                             setEditOrderStatus(
-                              e.target.value as OrderStatusType
+                              e.target.value as OrderStatusType,
                             )
                           }
-                          className="w-full rounded-xl border border-gray-200 bg-white px-2 py-2 text-xs"
+                          className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
                         >
                           <option value="PENDING">PENDING</option>
                           <option value="PROCESSING">PROCESSING</option>
@@ -1078,90 +1096,90 @@ const OrderManagement = () => {
                         </select>
                       </div>
                       <div className="space-y-1 text-xs">
-                        <p className="text-gray-600">Payment Status</p>
+                        <p className="text-muted-foreground">Payment Status</p>
                         <select
                           value={editPaymentStatus}
                           onChange={(e) =>
                             setEditPaymentStatus(
-                              e.target.value as PaymentStatusType
+                              e.target.value as PaymentStatusType,
                             )
                           }
-                          className="w-full rounded-xl border border-gray-200 bg-white px-2 py-2 text-xs"
+                          className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
                         >
                           <option value="PAID">PAID</option>
                           <option value="UNPAID">UNPAID</option>
                         </select>
                       </div>
                       <div className="space-y-1 text-xs">
-                        <p className="text-gray-600">Transaction ID</p>
+                        <p className="text-muted-foreground">Transaction ID</p>
                         <input
                           value={editTransactionId}
                           onChange={(e) => setEditTransactionId(e.target.value)}
                           placeholder="Bkash/Nagad txn id..."
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none"
+                          className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs outline-none"
                         />
                       </div>
                     </div>
-                    <p className="mt-1 text-[10px] text-gray-500">
-                      * এই অপশনগুলো শুধু admin সফলভাবে আপডেট করতে পারবে।
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      * Only admin can successfully update these options.
                     </p>
                   </div>
 
                   {/* 4. Shipment */}
-                  <div className="rounded-2xl bg-gray-50 p-4">
+                  <div className="rounded-2xl bg-muted/30 p-4">
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-xs font-semibold text-gray-500">
-                        শিপমেন্ট স্ট্যাটাস
+                      <h3 className="text-xs font-semibold text-muted-foreground">
+                        Shipment Status
                       </h3>
                       {shipment && (
                         <span
-                          className={`rounded-full px-3 py-1 text-[11px] font-semibold ${shipmentBadgeClass(
-                            shipment.status
+                          className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${shipmentBadgeClass(
+                            shipment.status,
                           )}`}
                         >
-                          বর্তমান: {shipment.status}
+                          Current: {shipment.status}
                         </span>
                       )}
                     </div>
 
                     {!shipment && (
-                      <p className="mb-3 text-[11px] text-gray-500">
-                        এই অর্ডারের জন্য এখনো কোন shipment তৈরি হয়নি। নিচের ফর্ম
-                        পূরণ করে নতুন shipment তৈরি করতে পারবেন।
+                      <p className="mb-3 text-[11px] text-muted-foreground">
+                        No shipment created for this order yet. Fill the form
+                        below to create a new shipment.
                       </p>
                     )}
 
                     <div className="grid gap-3 md:grid-cols-3">
                       <div className="space-y-1 text-xs">
-                        <p className="text-gray-600">Courier</p>
+                        <p className="text-muted-foreground">Courier</p>
                         <input
                           value={editCourier}
                           onChange={(e) => setEditCourier(e.target.value)}
                           placeholder="SA Paribahan / Sundarban..."
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none"
+                          className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs outline-none"
                         />
                       </div>
                       <div className="space-y-1 text-xs">
-                        <p className="text-gray-600">Tracking Number</p>
+                        <p className="text-muted-foreground">Tracking Number</p>
                         <input
                           value={editTrackingNumber}
                           onChange={(e) =>
                             setEditTrackingNumber(e.target.value)
                           }
                           placeholder="tracking no..."
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none"
+                          className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs outline-none"
                         />
                       </div>
                       <div className="space-y-1 text-xs">
-                        <p className="text-gray-600">Shipment Status</p>
+                        <p className="text-muted-foreground">Shipment Status</p>
                         <select
                           value={editShipmentStatus}
                           onChange={(e) =>
                             setEditShipmentStatus(
-                              e.target.value as ShipmentStatusType
+                              e.target.value as ShipmentStatusType,
                             )
                           }
-                          className="w-full rounded-xl border border-gray-200 bg-white px-2 py-2 text-xs"
+                          className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
                         >
                           <option value="PENDING">PENDING</option>
                           <option value="IN_TRANSIT">IN_TRANSIT</option>
@@ -1177,38 +1195,36 @@ const OrderManagement = () => {
 
                     <div className="mt-3 grid gap-3 md:grid-cols-3">
                       <div className="space-y-1 text-xs">
-                        <p className="text-gray-600">Expected Date</p>
+                        <p className="text-muted-foreground">Expected Date</p>
                         <input
                           type="date"
                           value={editExpectedDate}
                           onChange={(e) => setEditExpectedDate(e.target.value)}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none"
+                          className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs outline-none"
                         />
                       </div>
                       <div className="space-y-1 text-xs">
-                        <p className="text-gray-600">Delivered Date</p>
+                        <p className="text-muted-foreground">Delivered Date</p>
                         <input
                           type="date"
                           value={editDeliveredDate}
-                          onChange={(e) =>
-                            setEditDeliveredDate(e.target.value)
-                          }
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs outline-none"
+                          onChange={(e) => setEditDeliveredDate(e.target.value)}
+                          className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs outline-none"
                         />
                       </div>
                       {shipment && (
-                        <div className="space-y-1 text-xs text-gray-600">
+                        <div className="space-y-1 text-xs text-muted-foreground">
                           <p>Created At</p>
-                          <p className="rounded-xl bg-white px-3 py-2 text-[11px]">
+                          <p className="rounded-xl bg-card px-3 py-2 text-[11px]">
                             {formatDate(shipment.createdAt || "")}
                           </p>
                         </div>
                       )}
                     </div>
 
-                    <p className="mt-1 text-[10px] text-gray-500">
-                      * Shipment create/update করতে কেবল admin পারবে; অন্য ইউজার
-                      হলে API থেকে Forbidden আসবে।
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      * Only admin can create/update shipment; other users will
+                      get Forbidden from API.
                     </p>
                   </div>
 
@@ -1218,11 +1234,11 @@ const OrderManagement = () => {
                       type="button"
                       onClick={handleSaveAll}
                       disabled={saving}
-                      className="w-full rounded-full bg-[#1D3B2A] px-4 py-2 text-xs font-medium text-white hover:bg-[#152a1f] disabled:opacity-60"
+                      className="w-full rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                     >
                       {saving
-                        ? "সেভ হচ্ছে..."
-                        : "অর্ডার ও শিপমেন্ট সব আপডেট সেভ করুন"}
+                        ? "Saving..."
+                        : "Save All Order and Shipment Updates"}
                     </button>
                   </div>
                 </div>
@@ -1235,9 +1251,9 @@ const OrderManagement = () => {
       {/* ✅ Success Modal */}
       {successOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-xs rounded-2xl bg-white px-5 py-4 shadow-xl">
+          <div className="w-full max-w-xs rounded-2xl bg-card px-5 py-4 shadow-xl border-border">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
                 <svg
                   className="h-5 w-5"
                   viewBox="0 0 24 24"
@@ -1253,20 +1269,20 @@ const OrderManagement = () => {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">
-                  আপডেট সফল হয়েছে
+                <p className="text-sm font-semibold text-foreground">
+                  Update Successful
                 </p>
-                <p className="mt-0.5 text-xs text-gray-600">
-                  {successMessage || "তথ্যসমূহ সফলভাবে আপডেট করা হয়েছে।"}
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {successMessage || "Information updated successfully."}
                 </p>
               </div>
             </div>
             <div className="mt-4 flex justify-end">
               <button
                 onClick={() => setSuccessOpen(false)}
-                className="rounded-full bg-[#1D3B2A] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#152a1f]"
+                className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
               >
-                ঠিক আছে
+                OK
               </button>
             </div>
           </div>

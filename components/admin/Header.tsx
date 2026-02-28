@@ -58,7 +58,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
             BOED Admin
           </h1>
           <p className="text-xs text-muted-foreground hidden sm:block">
-            Publishing Management System
+            E-Commarce Management System
           </p>
           <h1 className="text-lg font-bold text-foreground sm:hidden">Admin</h1>
         </div>

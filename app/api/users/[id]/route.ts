@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
+import { z } from 'zod';
 
-const prisma = new PrismaClient();
+// Validation schema for user updates
+const updateUserSchema = z.object({
+  name: z.string().optional(),
+  role: z.enum(['user', 'admin']).optional(),
+  phone: z.string().optional(),
+  address: z.any().optional(),
+  banned: z.boolean().optional(),
+  banReason: z.string().nullable().optional(),
+  banExpires: z.number().nullable().optional(),
+  note: z.string().nullable().optional(),
+});
 
 // GET user by ID
 export async function GET(
@@ -11,7 +22,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -19,7 +30,7 @@ export async function GET(
         name: true,
         role: true,
         phone: true,
-        address: true,
+        addresses: true,
         banned: true,
         banReason: true,
         banExpires: true,
@@ -72,21 +83,24 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json();
-    const { name, role, phone, address, banned, banReason, banExpires, note } = body;
+    
+    // Validate request body
+    const validation = updateUserSchema.safeParse(body);
+    
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: validation.error.issues },
+        { status: 400 }
+      );
+    }
 
+    const updateData = validation.data;
     const { id } = await params;
 
-    const user = await prisma.user.update({
+    const user = await db.user.update({
       where: { id },
       data: {
-        name,
-        role,
-        phone,
-        address,
-        banned,
-        banReason,
-        banExpires,
-        note,
+        ...updateData,
         updatedAt: new Date(),
       },
       select: {
@@ -95,7 +109,7 @@ export async function PATCH(
         name: true,
         role: true,
         phone: true,
-        address: true,
+        addresses: true,
         banned: true,
         banReason: true,
         banExpires: true,
@@ -135,6 +149,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Unique constraint violation' },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -150,33 +171,67 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Check if user has orders before deleting
-    const userWithOrders = await prisma.user.findUnique({
+    // Check if user exists and has orders before deleting
+    const userWithOrders = await db.user.findUnique({
       where: { id },
       include: {
         orders: {
           take: 1,
         },
+        _count: {
+          select: {
+            orders: true,
+            reviews: true,
+            cart: true,
+            wishlist: true,
+          },
+        },
       },
     });
 
-    if (userWithOrders && userWithOrders.orders.length > 0) {
+    if (!userWithOrders) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (userWithOrders.orders.length > 0) {
       return NextResponse.json(
-        { error: 'Cannot delete user with existing orders' },
+        { 
+          error: 'Cannot delete user with existing orders',
+          details: {
+            orderCount: userWithOrders._count.orders,
+            reviewCount: userWithOrders._count.reviews,
+            cartCount: userWithOrders._count.cart,
+            wishlistCount: userWithOrders._count.wishlist,
+          }
+        },
         { status: 400 }
       );
     }
 
-    await prisma.user.delete({
+    await db.user.delete({
       where: { id },
     });
 
-    return NextResponse.json({ message: 'User deleted successfully' });
+    return NextResponse.json({ 
+      message: 'User deleted successfully',
+      deletedUser: {
+        id: userWithOrders.id,
+        email: userWithOrders.email,
+        name: userWithOrders.name,
+      }
+    });
   } catch (error: any) {
     console.error('Error deleting user:', error);
     
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { error: 'Cannot delete user due to foreign key constraints' },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(

@@ -35,13 +35,13 @@ const RelatedBlogsCard = () => (
           <BookOpen className="h-5 w-5 text-primary-foreground" />
         </div>
         <h3 className="text-lg font-semibold text-foreground">
-          সম্পর্কিত ব্লগ
+          Related Blogs
         </h3>
       </div>
     </div>
     <div className="p-5">
       <p className="text-sm text-muted-foreground leading-relaxed">
-        এই বিষয়ে আরও পড়ুন এবং আপনার জ্ঞান বৃদ্ধি করুন।
+        Explore more articles and expand your knowledge.
       </p>
     </div>
   </div>
@@ -141,8 +141,8 @@ const ProfessionalSummary: React.FC<ProfessionalSummaryProps> = ({
           <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary shadow-md">
             <BookOpen className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h2 className="text-2xl font-bold leading-none tracking-tight">
-            সারমর্ম
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent mb-3">
+            Summary
           </h2>
         </div>
       </div>
@@ -170,7 +170,7 @@ const ProfessionalSummary: React.FC<ProfessionalSummaryProps> = ({
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                 />
               </svg>
-              মূল বিষয়সমূহ
+              Key Points
             </h3>
             <ul className="space-y-3">
               {keyPoints.map((point, index) => (
@@ -195,7 +195,7 @@ const LoadingSkeleton = () => (
   <div className="space-y-8">
     <Button variant="outline" size="sm" className="mb-6">
       <ArrowLeft className="h-4 w-4 mr-2" />
-      পিছনে যান
+      Go Back
     </Button>
 
     <div className="space-y-4">
@@ -288,15 +288,15 @@ export default function BlogDetails() {
         : blog.summary;
 
     return {
-      title: `${blog.title} - কিতাবঘর | হিলফুল ফুজুল`,
+      title: `${blog.title} - Kitabghor | Hilful Fujul`,
       description: description,
       keywords: [
         blog.title,
-        "কিতাবঘর",
-        "হিলফুল ফুজুল",
-        "ইসলামিক ব্লগ",
-        "ইসলামিক বই",
-        "আধ্যাত্মিক জ্ঞান",
+        "Kitabghor",
+        "Hilful Fujul",
+        "Islamic Blog",
+        "Islamic Books",
+        "Spiritual Knowledge",
         blog.author,
         ...blog.title.split(" ").filter((word) => word.length > 3),
       ],
@@ -306,8 +306,8 @@ export default function BlogDetails() {
         description: description,
         url: blogUrl,
         type: "article",
-        siteName: "কিতাবঘর - হিলফুল ফুজুল",
-        locale: "bn_BD",
+        siteName: "Kitabghor - Hilful Fujul",
+        locale: "en_US",
         images: [
           {
             url: imageUrl,
@@ -321,7 +321,7 @@ export default function BlogDetails() {
           publishedTime: new Date(blog.createdAt).toISOString(),
           modifiedTime: new Date(blog.updatedAt).toISOString(),
           authors: [blog.author],
-          tags: ["ইসলামিক ব্লগ", "কিতাবঘর", "হিলফুল ফুজুল"],
+          tags: ["Islamic Blog", "Kitabghor", "Hilful Fujul"],
         },
       },
       twitter: {
@@ -356,7 +356,7 @@ export default function BlogDetails() {
         },
         publisher: {
           "@type": "Organization",
-          name: "কিতাবঘর - হিলফুল ফুজুল",
+          name: "Kitabghor - Hilful Fujul",
           url: "https://hilfulfujulbd.com",
           logo: {
             "@type": "ImageObject",
@@ -369,15 +369,15 @@ export default function BlogDetails() {
           "@type": "WebPage",
           "@id": seoData.canonical,
         },
-        inLanguage: "bn-BD",
+        inLanguage: "en-US",
         isPartOf: {
           "@type": "Blog",
           "@id": "https://hilfulfujulbd.com/kitabghor/blogs",
-          name: "কিতাবঘর ব্লগ",
+          name: "Kitabghor Blog",
         },
         wordCount: blog.content ? blog.content.split(" ").length : 0,
         keywords: seoData.keywords.join(", "),
-        articleSection: "ইসলামিক ব্লগ",
+        articleSection: "Islamic Blog",
       },
       breadcrumb: {
         "@context": "https://schema.org",
@@ -386,19 +386,19 @@ export default function BlogDetails() {
           {
             "@type": "ListItem",
             position: 1,
-            name: "হোম",
+            name: "Home",
             item: "https://hilfulfujulbd.com",
           },
           {
             "@type": "ListItem",
             position: 2,
-            name: "কিতাবঘর",
+            name: "Kitabghor",
             item: "https://hilfulfujulbd.com/",
           },
           {
             "@type": "ListItem",
             position: 3,
-            name: "ব্লগসমূহ",
+            name: "Blogs",
             item: "https://hilfulfujulbd.com/kitabghor/blogs",
           },
           {
@@ -444,7 +444,7 @@ export default function BlogDetails() {
             </svg>
           </div>
           <h2 className="mt-4 text-xl font-semibold text-foreground">
-            কিছু একটা সমস্যা হয়েছে
+            Failed to load page
           </h2>
           <p className="mt-2 text-muted-foreground">{error}</p>
           <div className="mt-6">
@@ -454,7 +454,7 @@ export default function BlogDetails() {
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              পিছনে যান
+              Go Back
             </Button>
           </div>
         </div>
@@ -550,7 +550,7 @@ export default function BlogDetails() {
               <div className="w-full h-96 border rounded-lg bg-muted flex items-center justify-center overflow-hidden">
                 <img
                   src={blog.ads}
-                  alt="ব্লগ বিজ্ঞাপন"
+                  alt="Blog Advertisement"
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -569,7 +569,7 @@ export default function BlogDetails() {
                 className="mb-8 gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                ব্লগে ফিরে যান
+                Go Back to Blogs
               </Button>
 
               <article className="space-y-8">
@@ -664,7 +664,7 @@ export default function BlogDetails() {
             className="mb-8 gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            ব্লগে ফিরে যান
+            Go Back to Blogs
           </Button>
 
           <article className="space-y-8">
@@ -738,7 +738,7 @@ export default function BlogDetails() {
 
           {/* 2. Recent Blogs (Below Content) */}
           <div className="mt-10">
-            <h2 className="text-2xl font-bold mb-6">সাম্প্রতিক ব্লগসমূহ</h2>
+            <h2 className="text-2xl font-bold mb-6">Recent Blogs</h2>
             <RecentBlogs />
           </div>
 

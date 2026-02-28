@@ -195,40 +195,40 @@ export default function AllBlogs() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/20 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header Skeleton */}
           <div className="text-center mb-12">
-            <div className="h-12 bg-gray-200 rounded-lg w-96 mx-auto mb-4 animate-pulse"></div>
-            <div className="h-1 bg-gray-200 rounded-full w-32 mx-auto animate-pulse"></div>
+            <div className="h-12 bg-muted rounded-lg w-96 mx-auto mb-4 animate-pulse"></div>
+            <div className="h-1 bg-muted rounded-full w-32 mx-auto animate-pulse"></div>
           </div>
 
           {/* Blog Cards Skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className="bg-white/80 rounded-3xl shadow-xl overflow-hidden border border-emerald-200/30">
+              <div key={i} className="bg-card rounded-3xl shadow-xl overflow-hidden border border-border">
                 {/* Image Skeleton */}
                 <div className="relative h-48 overflow-hidden">
-                  <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse"></div>
+                  <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 animate-pulse"></div>
                   <div className="absolute top-4 right-4">
-                    <div className="bg-gray-300 text-gray-300 text-xs font-bold px-3 py-1.5 rounded-full animate-pulse w-12 h-6"></div>
+                    <div className="bg-muted text-muted text-xs font-bold px-3 py-1.5 rounded-full animate-pulse w-12 h-6"></div>
                   </div>
                 </div>
 
                 {/* Content Skeleton */}
                 <div className="p-6">
-                  <div className="h-6 bg-gray-200 rounded-lg mb-3 animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-2 animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-2 animate-pulse w-5/6"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-4 animate-pulse w-4/6"></div>
+                  <div className="h-6 bg-muted rounded-lg mb-3 animate-pulse"></div>
+                  <div className="h-4 bg-muted rounded mb-2 animate-pulse"></div>
+                  <div className="h-4 bg-muted rounded mb-2 animate-pulse w-5/6"></div>
+                  <div className="h-4 bg-muted rounded mb-4 animate-pulse w-4/6"></div>
 
                   {/* Meta Info Skeleton */}
-                  <div className="flex items-center justify-between pt-4 border-t border-emerald-100">
+                  <div className="flex items-center justify-between pt-4 border-t border-border">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-gray-300 rounded-full animate-pulse"></div>
-                      <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                      <div className="w-2 h-2 bg-muted rounded-full animate-pulse"></div>
+                      <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
                     </div>
-                    <div className="w-5 h-5 bg-gray-300 rounded animate-pulse"></div>
+                    <div className="w-5 h-5 bg-muted rounded animate-pulse"></div>
                   </div>
                 </div>
               </div>
@@ -241,44 +241,44 @@ export default function AllBlogs() {
 
   if (blogs.length === 0) {
     return (
-      <div className="flex justify-center items-center min-h-96 bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/20">
-        <div className="text-center p-12 bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-emerald-200/50 max-w-md">
-          <div className="w-20 h-20 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
+      <div className="flex justify-center items-center min-h-96 bg-background">
+        <div className="text-center p-12 bg-card backdrop-blur-sm rounded-3xl shadow-2xl border border-border max-w-md">
+          <div className="w-20 h-20 bg-gradient-to-r from-primary/20 to-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <span className="text-3xl">📝</span>
           </div>
-          <h3 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-3">
-            কোনো ব্লগ পোস্ট পাওয়া যায়নি
+          <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent mb-3">
+            No blog posts found
           </h3>
-          <p className="text-gray-600 leading-relaxed">নতুন পোস্টের জন্য অপেক্ষা করুন।</p>
+          <p className="text-muted-foreground leading-relaxed">Waiting for new posts to be published.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-emerald-50/30 via-white to-teal-50/20 py-12 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Enhanced Header */}
         <header className="text-center mb-12 relative">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-0 left-1/4 w-32 h-32 bg-gradient-to-r from-emerald-400/20 to-teal-400/20 rounded-full blur-3xl"></div>
-            <div className="absolute top-0 right-1/4 w-40 h-40 bg-gradient-to-r from-teal-400/20 to-emerald-400/20 rounded-full blur-3xl"></div>
+            <div className="absolute top-0 left-1/4 w-32 h-32 bg-gradient-to-r from-primary/10 to-primary/5 rounded-full blur-3xl"></div>
+            <div className="absolute top-0 right-1/4 w-40 h-40 bg-gradient-to-r from-primary/5 to-primary/10 rounded-full blur-3xl"></div>
           </div>
           
           <div className="relative z-10">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-3 h-12 bg-gradient-to-b from-emerald-600 to-teal-600 rounded-full shadow-lg"></div>
-              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 bg-clip-text text-transparent">
-                সাম্প্রতিক ব্লগ পোস্ট
+              <div className="w-3 h-12 bg-gradient-to-b from-primary to-primary/80 rounded-full shadow-lg"></div>
+              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                Recent Blog Posts
               </h1>
-              <div className="w-3 h-12 bg-gradient-to-b from-teal-600 to-emerald-600 rounded-full shadow-lg"></div>
+              <div className="w-3 h-12 bg-gradient-to-b from-primary/80 to-primary rounded-full shadow-lg"></div>
             </div>
-            <div className="h-1 w-32 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-full mx-auto"></div>
+            <div className="h-1 w-32 bg-gradient-to-r from-primary to-primary/80 rounded-full mx-auto"></div>
           </div>
         </header>
 
         {/* Enhanced Blog Grid */}
-        <section aria-label="ব্লগ পোস্ট সমূহ">
+        <section aria-label="Blog Posts Collection">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {blogItems.map((blog) => (
               <article
@@ -287,9 +287,9 @@ export default function AllBlogs() {
               >
                 <Link
                   href={blog.href}
-                  aria-label={`পড়ুন: ${blog.title}`}
+                  aria-label={`Read: ${blog.title}`}
                 >
-                  <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden border border-emerald-200/30 hover:border-emerald-400/50 transform hover:scale-105 hover:-translate-y-2">
+                  <div className="bg-card backdrop-blur-sm rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden border border-border hover:border-primary/50 transform hover:scale-105 hover:-translate-y-2">
                     {/* Image Section */}
                     <div className="relative h-48 overflow-hidden">
                       {blog.image ? (
@@ -303,20 +303,20 @@ export default function AllBlogs() {
                           <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         </>
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                           <div className="text-center">
-                            <div className="w-16 h-16 bg-white/50 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-3">
                               <span className="text-2xl">📝</span>
                             </div>
-                            <span className="text-emerald-600 font-medium">No Image</span>
+                            <span className="text-muted-foreground font-medium">No Image</span>
                           </div>
                         </div>
                       )}
                       
                       {/* Blog Badge */}
                       <div className="absolute top-4 right-4">
-                        <span className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
-                          ব্লগ
+                        <span className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                          Blog
                         </span>
                       </div>
                     </div>
@@ -324,23 +324,23 @@ export default function AllBlogs() {
                     {/* Content Section */}
                     <div className="p-6">
                       <header>
-                        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 hover:text-emerald-600 transition-colors duration-300 line-clamp-2 group-hover:translate-x-1 transform">
+                        <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-3 hover:text-primary transition-colors duration-300 line-clamp-2 group-hover:translate-x-1 transform">
                           {blog.title}
                         </h2>
                       </header>
-                      <p className="text-gray-600 line-clamp-3 mb-4 leading-relaxed">
+                      <p className="text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
                         {blog.summary}
                       </p>
 
                       {/* Enhanced Meta Info */}
-                      <footer className="flex items-center justify-between pt-4 border-t border-emerald-100">
+                      <footer className="flex items-center justify-between pt-4 border-t border-border">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-full"></div>
-                          <time dateTime={new Date(blog.createdAt).toISOString()} className="text-sm font-medium text-emerald-600">
+                          <div className="w-2 h-2 bg-gradient-to-r from-primary to-primary/80 rounded-full"></div>
+                          <time dateTime={new Date(blog.createdAt).toISOString()} className="text-sm font-medium text-primary">
                             {blog.formattedDate}
                           </time>
                         </div>
-                        <div className="text-emerald-600 group-hover:translate-x-1 transition-transform duration-300">
+                        <div className="text-primary group-hover:translate-x-1 transition-transform duration-300">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
@@ -356,14 +356,14 @@ export default function AllBlogs() {
 
         {/* Enhanced Pagination */}
         {paginationButtons && (
-          <nav aria-label="ব্লগ পৃষ্ঠা সমূহ" className="flex justify-center items-center mt-16 gap-4">
+          <nav aria-label="Blog Pages" className="flex justify-center items-center mt-16 gap-4">
             <button
               onClick={() => setPage(page - 1)}
               disabled={page === 1}
-              aria-label="পূর্ববর্তী পৃষ্ঠা"
-              className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-2xl hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+              aria-label="Previous Page"
+              className="px-6 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-medium rounded-2xl hover:from-primary/90 hover:to-primary/70 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
             >
-              পূর্ববর্তী
+              Previous
             </button>
             
             <div className="flex items-center gap-2" role="list">
@@ -371,13 +371,13 @@ export default function AllBlogs() {
                 <button
                   key={pageNum}
                   onClick={() => setPage(pageNum)}
-                  aria-label={`পৃষ্ঠা ${pageNum}`}
+                  aria-label={`Page ${pageNum}`}
                   aria-current={isActive ? "page" : undefined}
                   role="listitem"
                   className={`w-10 h-10 rounded-full font-medium transition-all duration-300 ${
                     isActive
-                      ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg"
-                      : "bg-white/80 text-gray-700 hover:bg-emerald-100 border border-emerald-200"
+                      ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg"
+                      : "bg-card text-muted-foreground hover:bg-muted border border-border"
                   }`}
                 >
                   {pageNum}
@@ -388,10 +388,10 @@ export default function AllBlogs() {
             <button
               onClick={() => setPage(page + 1)}
               disabled={page === totalPages}
-              aria-label="পরবর্তী পৃষ্ঠা"
-              className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-2xl hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
+              aria-label="Next Page"
+              className="px-6 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-medium rounded-2xl hover:from-primary/90 hover:to-primary/70 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
             >
-              পরবর্তী
+              Next
             </button>
           </nav>
         )}

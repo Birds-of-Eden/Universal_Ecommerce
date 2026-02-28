@@ -4,32 +4,21 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   Users,
-  ShoppingBag,
-  BookOpen,
+  ShoppingCart,
+  Package,
   DollarSign,
   TrendingUp,
   TrendingDown,
-  Package,
-  Star,
-  MessageSquare,
-  Calendar,
-  ArrowUpRight,
-  ArrowDownRight,
-  RefreshCw,
-  Eye,
-  ShoppingCart,
-  Heart,
-  BarChart3,
-  PieChart,
   Activity,
+  Clock3,
+  RefreshCw,
+  ArrowRight,
+  ArrowUpRight,
+  Star,
   Target,
-  Award,
-  Clock,
-  CheckCircle,
+  CheckCircle2,
   XCircle,
-  Settings,
-  Download,
-  Filter,
+  AlertTriangle,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -39,8 +28,8 @@ interface DashboardStats {
   totalRevenue: number;
   pendingOrders: number;
   lowStockProducts: number;
-  recentOrders: any[];
-  topProducts: any[];
+  recentOrders: DashboardOrder[];
+  topProducts: DashboardProduct[];
   userGrowth: number;
   revenueGrowth: number;
   orderGrowth: number;
@@ -49,26 +38,66 @@ interface DashboardStats {
   successRate: number;
 }
 
+interface DashboardOrder {
+  id: number;
+  grandTotal: number;
+  status: string;
+  user?: {
+    name?: string | null;
+  } | null;
+}
+
+interface DashboardProduct {
+  id: number;
+  name: string;
+  soldCount: number;
+  ratingAvg: number;
+  price: number;
+}
+
 interface SalesDataItem {
-  month: string;
+  label: string;
   sales: number;
   revenue: number;
 }
 
-export default function GlassmorphismAdminDashboard() {
+const rangeOptions = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+  { value: "year", label: "Year" },
+] as const;
+
+const rangeTitleMap = {
+  today: "Today Overview",
+  week: "Weekly Performance",
+  month: "Monthly Performance",
+  year: "Yearly Performance",
+} as const;
+
+const compareLabelMap = {
+  today: "vs yesterday",
+  week: "vs last week",
+  month: "vs last month",
+  year: "vs last year",
+} as const;
+
+export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<
     "today" | "week" | "month" | "year"
   >("today");
-  const [activeChart, setActiveChart] = useState<"sales" | "revenue">("sales");
-  const [dashboardCache, setDashboardCache] = useState<Map<string, DashboardStats>>(new Map());
+  const [activeChart, setActiveChart] = useState<"sales" | "revenue">(
+    "revenue"
+  );
+  const [dashboardCache, setDashboardCache] = useState<
+    Map<string, DashboardStats>
+  >(new Map());
 
-  // Memoize fetch function with caching
   const fetchDashboardData = useCallback(async () => {
     const cacheKey = timeRange;
-    
-    // Check cache first
+
     if (dashboardCache.has(cacheKey)) {
       const cachedData = dashboardCache.get(cacheKey);
       if (cachedData) {
@@ -81,12 +110,9 @@ export default function GlassmorphismAdminDashboard() {
     try {
       setLoading(true);
       const response = await fetch(`/api/admindashboard?range=${timeRange}`);
-
       if (response.ok) {
-        const data = await response.json();
-        
-        // Update cache
-        setDashboardCache(prev => new Map(prev).set(cacheKey, data));
+        const data: DashboardStats = await response.json();
+        setDashboardCache((prev) => new Map(prev).set(cacheKey, data));
         setStats(data);
       }
     } catch (error) {
@@ -94,70 +120,69 @@ export default function GlassmorphismAdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [timeRange, dashboardCache]);
+  }, [dashboardCache, timeRange]);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Memoize formatting functions to prevent unnecessary re-creations
   const formatCurrency = useCallback((amount: number) => {
-    return new Intl.NumberFormat("bn-BD", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "BDT",
+      currency: "USD",
       minimumFractionDigits: 0,
-    }).format(amount);
+    }).format(amount || 0);
   }, []);
 
-  const formatNumber = useCallback((num: number) => {
-    return new Intl.NumberFormat("bn-BD").format(num);
+  const formatNumber = useCallback((value: number) => {
+    return new Intl.NumberFormat("en-US").format(value || 0);
   }, []);
 
   const getStatusColor = useCallback((status: string) => {
     const colors = {
-      DELIVERED: "bg-emerald-500/20 text-emerald-600 border-emerald-500/30",
-      PROCESSING: "bg-blue-500/20 text-blue-600 border-blue-500/30",
-      PENDING: "bg-amber-500/20 text-amber-600 border-amber-500/30",
-      SHIPPED: "bg-indigo-500/20 text-indigo-600 border-indigo-500/30",
-      CANCELLED: "bg-red-500/20 text-red-600 border-red-500/30",
+      DELIVERED:
+        "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20",
+      PROCESSING:
+        "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20",
+      PENDING:
+        "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20",
+      SHIPPED:
+        "bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:bg-indigo-400/10 dark:text-indigo-400 dark:border-indigo-400/20",
+      CANCELLED: "bg-destructive/10 text-destructive border-destructive/20",
     } as const;
-    return colors[status as keyof typeof colors] || "bg-gray-500/20 text-gray-600 border-gray-500/30";
+    return (
+      colors[status as keyof typeof colors] ||
+      "bg-muted/10 text-muted-foreground border-border"
+    );
   }, []);
 
   const getStatusText = (status: string) => {
     const texts = {
-      DELIVERED: "ডেলিভার্ড",
-      PROCESSING: "প্রসেসিং",
-      PENDING: "পেন্ডিং",
-      SHIPPED: "শিপড",
-      CANCELLED: "বাতিল",
+      DELIVERED: "Delivered",
+      PROCESSING: "Processing",
+      PENDING: "Pending",
+      SHIPPED: "Shipped",
+      CANCELLED: "Cancelled",
     };
     return texts[status as keyof typeof texts] || status;
   };
 
-  // Memoize expensive calculations - move all hooks to top before early returns
   const salesData = useMemo((): SalesDataItem[] => {
     if (!stats) return [];
-    
+
     const totalOrders = stats.totalOrders || 0;
     const totalRevenue = stats.totalRevenue || 0;
 
     if (timeRange === "today") {
-      return [
-        {
-          month: "আজ",
-          sales: totalOrders,
-          revenue: totalRevenue,
-        },
-      ];
+      return [{ label: "Today", sales: totalOrders, revenue: totalRevenue }];
     }
 
     if (timeRange === "week") {
-      const labels = ["সোম", "মঙ্গল", "বুধ", "বৃহস্পতি", "শুক্র", "শনি", "রবি"];
+      const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       const perDaySales = totalOrders / labels.length || 0;
       const perDayRevenue = totalRevenue / labels.length || 0;
       return labels.map((label, idx) => ({
-        month: label,
+        label,
         sales: Math.max(0, Math.round(perDaySales + (idx - 3) * 0.5)),
         revenue: Math.max(0, Math.round(perDayRevenue + (idx - 3) * 500)),
       }));
@@ -172,247 +197,65 @@ export default function GlassmorphismAdminDashboard() {
       ).getDate();
       const perDaySales = totalOrders / daysInMonth || 0;
       const perDayRevenue = totalRevenue / daysInMonth || 0;
-      return Array.from({ length: daysInMonth }, (_, i) => {
-        const day = i + 1;
-        return {
-          month: String(day),
-          sales: Math.max(0, Math.round(perDaySales)),
-          revenue: Math.max(0, Math.round(perDayRevenue)),
-        };
-      });
+      return Array.from({ length: daysInMonth }, (_, index) => ({
+        label: String(index + 1),
+        sales: Math.max(0, Math.round(perDaySales)),
+        revenue: Math.max(0, Math.round(perDayRevenue)),
+      }));
     }
 
-    // year
     const monthLabels = [
-      "জানু",
-      "ফেব্রু",
-      "মার্চ",
-      "এপ্রিল",
-      "মে",
-      "জুন",
-      "জুলা",
-      "আগস্ট",
-      "সেপ্টে",
-      "অক্টো",
-      "নভে",
-      "ডিসে",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
     const perMonthSales = totalOrders / monthLabels.length || 0;
     const perMonthRevenue = totalRevenue / monthLabels.length || 0;
     return monthLabels.map((label, idx) => ({
-      month: label,
+      label,
       sales: Math.max(0, Math.round(perMonthSales + idx)),
       revenue: Math.max(0, Math.round(perMonthRevenue + idx * 1000)),
     }));
-  }, [stats?.totalOrders, stats?.totalRevenue, timeRange, stats]);
+  }, [stats, timeRange]);
 
-  // Memoize category colors
-  const categoryColors = useMemo(() => [
-    "from-emerald-400 to-emerald-600",
-    "from-blue-400 to-blue-600",
-    "from-amber-400 to-amber-600",
-    "from-purple-400 to-purple-600",
-    "from-gray-400 to-gray-600",
-  ], []);
+  const maxSeriesValue = useMemo(() => {
+    const points = salesData.map((item) =>
+      activeChart === "sales" ? item.sales : item.revenue
+    );
+    return Math.max(...points, 1);
+  }, [activeChart, salesData]);
 
-  // Memoize time range buttons
-  const timeRangeButtons = useMemo(() => [
-    { value: "today", label: "আজ" },
-    { value: "week", label: "সপ্তাহ" },
-    { value: "month", label: "মাস" },
-    { value: "year", label: "বছর" },
-  ], []);
-
-  // Memoize expensive calculations
-  const totalSoldAcrossTop = useMemo(() => 
-    stats?.topProducts?.reduce(
-      (sum, p: any) => sum + (p.soldCount || 0),
-      0
-    ) || 0,
-    [stats?.topProducts]
-  );
-
-  const categoryData = useMemo(() => 
-    stats?.topProducts
-      ?.slice(0, 5)
-      .map((product: any, index: number) => ({
-        name: product.name,
-        value: product.soldCount || 0,
-        percentage: totalSoldAcrossTop > 0 
-          ? Math.round(((product.soldCount || 0) / totalSoldAcrossTop) * 100)
-          : 0,
-        color: categoryColors[index % categoryColors.length],
-      }))
-      .filter((item: any) => item.value > 0) || [],
-    [stats?.topProducts, totalSoldAcrossTop, categoryColors]
+  const totalSoldAcrossTop = useMemo(
+    () =>
+      stats?.topProducts?.reduce((sum, product) => sum + (product.soldCount || 0), 0) ||
+      0,
+    [stats]
   );
 
   if (loading && !stats) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#f8fff2f5] to-[#d9f3c1]/30 p-4 lg:p-6">
-        <div className="space-y-8">
-          {/* Header Skeleton */}
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-2 h-10 bg-gray-200 rounded animate-pulse"></div>
-              <div className="h-10 bg-gray-200 rounded w-48 animate-pulse"></div>
-              <div className="w-2 h-10 bg-gray-200 rounded animate-pulse"></div>
-            </div>
-            <div className="h-5 bg-gray-200 rounded w-64 mx-auto animate-pulse"></div>
-          </div>
-
-          {/* Controls Skeleton */}
-          <div className="flex items-center justify-center gap-6 mb-8">
-            <div className="flex items-center justify-center bg-gray-100 rounded-2xl p-1 shadow-lg">
-              {Array.from({ length: 4 }, (_, i) => (
-                <div
-                  key={i}
-                  className="px-4 py-2 h-10 bg-gray-200 rounded-xl w-16 animate-pulse"
-                ></div>
-              ))}
-            </div>
-            <div className="w-10 h-10 bg-gray-200 rounded-2xl animate-pulse"></div>
-          </div>
-
-          {/* Main Stats Grid Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="bg-white/80 rounded-2xl p-6 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="h-4 bg-gray-200 rounded w-20 mb-3 animate-pulse"></div>
-                    <div className="h-8 bg-gray-200 rounded w-24 mb-3 animate-pulse"></div>
-                    <div className="flex items-center space-x-2">
-                      <div className="h-4 bg-gray-200 rounded w-4 animate-pulse"></div>
-                      <div className="h-4 bg-gray-200 rounded w-8 animate-pulse"></div>
-                      <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
-                    </div>
-                  </div>
-                  <div className="w-12 h-12 bg-gray-200 rounded-full animate-pulse"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Analytics Chart Skeleton */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="h-6 bg-gray-200 rounded w-32 mb-2 animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded w-48 animate-pulse"></div>
-              </div>
-              <div className="flex space-x-2">
-                <div className="h-8 bg-gray-200 rounded w-16 animate-pulse"></div>
-                <div className="h-8 bg-gray-200 rounded w-12 animate-pulse"></div>
-              </div>
-            </div>
-            <div className="h-64 flex items-end justify-between space-x-2">
-              {Array.from({ length: 7 }, (_, i) => (
-                <div key={i} className="flex flex-col items-center flex-1">
-                  <div
-                    className="w-full bg-gray-200 rounded-t-lg animate-pulse"
-                    style={{
-                      height: `${Math.random() * 60 + 20}%`,
-                      minHeight: "20px",
-                    }}
-                  ></div>
-                  <div className="h-3 bg-gray-200 rounded w-8 mt-2 animate-pulse"></div>
-                  <div className="h-3 bg-gray-200 rounded w-6 mt-1 animate-pulse"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Additional Analytics Cards Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="bg-white/80 rounded-2xl p-6 shadow-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-full animate-pulse"></div>
-                  <div>
-                    <div className="h-4 bg-gray-200 rounded w-24 mb-2 animate-pulse"></div>
-                    <div className="h-5 bg-gray-200 rounded w-16 animate-pulse"></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Bottom Section Skeleton */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Recent Orders Skeleton */}
-            <div className="bg-white/80 rounded-2xl p-6 shadow-lg">
-              <div className="flex items-center justify-between mb-6">
-                <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
-              </div>
-              <div className="space-y-4">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
-                      <div>
-                        <div className="h-4 bg-gray-200 rounded w-24 mb-2 animate-pulse"></div>
-                        <div className="h-3 bg-gray-200 rounded w-20 animate-pulse"></div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="h-4 bg-gray-200 rounded w-16 mb-2 animate-pulse"></div>
-                      <div className="h-5 bg-gray-200 rounded w-12 animate-pulse"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Top Products Skeleton */}
-            <div className="bg-white/80 rounded-2xl p-6 shadow-lg">
-              <div className="flex items-center justify-between mb-6">
-                <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
-                <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
-              </div>
-              <div className="space-y-4">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl border border-gray-200"
-                  >
-                    <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2 animate-pulse"></div>
-                      <div className="flex items-center space-x-4">
-                        <div className="h-3 bg-gray-200 rounded w-16 animate-pulse"></div>
-                        <div className="h-3 bg-gray-200 rounded w-12 animate-pulse"></div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="h-4 bg-gray-200 rounded w-16 mb-2 animate-pulse"></div>
-                      <div className="h-3 bg-gray-200 rounded w-8 animate-pulse"></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Actions Skeleton */}
-          <div className="bg-white/80 rounded-2xl p-8 shadow-lg">
-            <div className="h-8 bg-gray-200 rounded w-32 mb-6 mx-auto animate-pulse"></div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Array.from({ length: 4 }, (_, i) => (
-                <div
-                  key={i}
-                  className="p-6 bg-gray-100 rounded-2xl text-center border border-gray-200"
-                >
-                  <div className="w-8 h-8 bg-gray-200 rounded mx-auto mb-3 animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded w-16 mx-auto animate-pulse"></div>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="space-y-6 p-4 md:p-6">
+        <div className="h-24 rounded-2xl border border-border bg-card animate-pulse" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div
+              key={i}
+              className="h-32 rounded-2xl border border-border bg-card animate-pulse"
+            />
+          ))}
+        </div>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="h-80 rounded-2xl border border-border bg-card animate-pulse xl:col-span-2" />
+          <div className="h-80 rounded-2xl border border-border bg-card animate-pulse" />
         </div>
       </div>
     );
@@ -420,498 +263,369 @@ export default function GlassmorphismAdminDashboard() {
 
   if (!stats) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#EEEFE0] to-[#D1D8BE]/30 flex items-center justify-center p-6">
-        <div className="text-center bg-white/80 rounded-3xl p-8 shadow-lg">
-          <div className="w-20 h-20 bg-gradient-to-r from-[#2C4A3B] to-[#819A91] rounded-full flex items-center justify-center mx-auto mb-4">
-            <XCircle className="h-8 w-8 text-white" />
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="text-center bg-card rounded-2xl p-8 border border-border">
+          <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <XCircle className="h-7 w-7 text-destructive" />
           </div>
-          <p className="text-gray-800 text-lg font-semibold mb-4">
-            ড্যাশবোর্ড ডেটা লোড করতে ব্যর্থ হয়েছে
+          <p className="text-foreground text-lg font-semibold mb-4">
+            Failed to load dashboard data
           </p>
           <button
             onClick={fetchDashboardData}
-            className="px-6 py-3 bg-gradient-to-r from-[#2C4A3B] to-[#819A91] text-white rounded-2xl hover:shadow-lg transition-all duration-300 font-semibold"
+            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition"
           >
-            আবার চেষ্টা করুন
+            Try Again
           </button>
         </div>
       </div>
     );
   }
 
-  const rangeTitleMap: Record<typeof timeRange, string> = {
-    today: "আজকের কর্মক্ষমতা",
-    week: "এই সপ্তাহের কর্মক্ষমতা",
-    month: "এই মাসের কর্মক্ষমতা",
-    year: "এই বছরের কর্মক্ষমতা",
-  };
-
-  const rangeSubtitleMap: Record<typeof timeRange, string> = {
-    today: "আজকে করা অর্ডার, আয় এবং ব্যবহারকারীর কার্যকলাপ",
-    week: "এই সপ্তাহের মোট পারফরম্যান্সের সারসংক্ষেপ",
-    month: "এই মাসের বিক্রয় ও ব্যবহারকারীর পরিসংখ্যান",
-    year: "এই বছরের সামগ্রিক বৃদ্ধি এবং পারফরম্যান্স",
-  };
-
-  const compareLabelMap: Record<typeof timeRange, string> = {
-    today: "গতকাল থেকে",
-    week: "গত সপ্তাহ থেকে",
-    month: "গত মাস থেকে",
-    year: "গত বছর থেকে",
-  };
+  const statCards = [
+    {
+      title: "Revenue",
+      value: formatCurrency(stats.totalRevenue),
+      growth: stats.revenueGrowth,
+      compare: compareLabelMap[timeRange],
+      icon: DollarSign,
+    },
+    {
+      title: "Orders",
+      value: formatNumber(stats.totalOrders),
+      growth: stats.orderGrowth,
+      compare: compareLabelMap[timeRange],
+      icon: ShoppingCart,
+    },
+    {
+      title: "Customers",
+      value: formatNumber(stats.totalUsers),
+      growth: stats.userGrowth,
+      compare: compareLabelMap[timeRange],
+      icon: Users,
+    },
+    {
+      title: "Products",
+      value: formatNumber(stats.totalProducts),
+      subtitle: `${stats.lowStockProducts} low stock`,
+      icon: Package,
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f8fff2f5] to-[#d9f3c1]/30 p-4 lg:p-6">
-      <div>
-        <div className="flex flex-col md:flex-row justify-between ">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-2 h-10 bg-gradient-to-b from-[#2C4A3B] to-[#819A91] rounded-full"></div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-[#2C4A3B] to-[#819A91] bg-clip-text text-transparent">
-                ড্যাশবোর্ড বিশ্লেষণ
-              </h1>
-              <div className="w-2 h-10 bg-gradient-to-b from-[#819A91] to-[#2C4A3B] rounded-full"></div>
-            </div>
-            <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-              রিয়েল-টাইম ডেটা এবং পারফরম্যান্স মেট্রিক্স
+    <div className="space-y-6 p-4 md:p-6">
+      <section className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">
+              Admin Dashboard
+            </p>
+            <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
+              {rangeTitleMap[timeRange]}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Business performance, operations health and sales snapshot.
             </p>
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-6 mb-8">
-            <div className="flex items-center justify-center bg-white/80 rounded-2xl p-1 shadow-lg">
-              {["today", "week", "month", "year"].map((range) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
+              {rangeOptions.map((range) => (
                 <button
-                  key={range}
-                  onClick={() => setTimeRange(range as any)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                    timeRange === range
-                      ? "bg-gradient-to-r from-[#2C4A3B] to-[#819A91] text-white shadow-md"
-                      : "text-gray-600 hover:text-gray-800"
+                  key={range.value}
+                  onClick={() => setTimeRange(range.value)}
+                  className={`rounded-lg px-3 py-1.5 text-sm transition ${
+                    timeRange === range.value
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {range === "today" && "আজ"}
-                  {range === "week" && "সপ্তাহ"}
-                  {range === "month" && "মাস"}
-                  {range === "year" && "বছর"}
+                  {range.label}
                 </button>
               ))}
             </div>
+            <button
+              onClick={fetchDashboardData}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-1.5 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          </div>
+        </div>
+      </section>
 
-            <div className="flex gap-2">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {statCards.map((card) => (
+          <article key={card.title} className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">{card.title}</p>
+                <p className="mt-2 text-2xl font-semibold text-foreground">{card.value}</p>
+                {typeof card.growth === "number" ? (
+                  <div className="mt-2 inline-flex items-center gap-1 text-xs">
+                    {card.growth >= 0 ? (
+                      <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                    ) : (
+                      <TrendingDown className="h-3.5 w-3.5 text-destructive" />
+                    )}
+                    <span className="font-medium text-foreground">
+                      {Math.abs(card.growth)}%
+                    </span>
+                    <span className="text-muted-foreground">{card.compare}</span>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">{card.subtitle}</p>
+                )}
+              </div>
+              <div className="rounded-xl border border-border bg-muted/40 p-2.5">
+                <card.icon className="h-5 w-5 text-foreground" />
+              </div>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-3">
+        <article className="rounded-2xl border border-border bg-card p-5 xl:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Sales Trend</h2>
+              <p className="text-sm text-muted-foreground">
+                {activeChart === "sales" ? "Units sold" : "Revenue"} by selected range
+              </p>
+            </div>
+            <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
               <button
-                onClick={fetchDashboardData}
-                disabled={loading}
-                className="p-2 bg-white/80 text-gray-600 hover:text-gray-800 hover:bg-white disabled:opacity-50 rounded-2xl shadow-lg transition-all duration-300"
+                onClick={() => setActiveChart("revenue")}
+                className={`rounded-md px-3 py-1 text-xs ${
+                  activeChart === "revenue"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }`}
               >
-                <RefreshCw
-                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
-                />
+                Revenue
+              </button>
+              <button
+                onClick={() => setActiveChart("sales")}
+                className={`rounded-md px-3 py-1 text-xs ${
+                  activeChart === "sales"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Sales
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Main Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-          {/* Total Revenue */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-semibold">মোট আয়</p>
-                <p className="text-3xl font-bold text-gray-800 mt-2 group-hover:scale-105 transition-transform duration-300">
-                  {formatCurrency(stats.totalRevenue)}
-                </p>
-                <div className="flex items-center mt-3">
-                  {stats.revenueGrowth >= 0 ? (
-                    <TrendingUp className="h-4 w-4 mr-1 text-emerald-600" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 mr-1 text-red-600" />
-                  )}
-                  <span className="text-sm text-gray-700 font-semibold">
-                    {Math.abs(stats.revenueGrowth)}%
-                  </span>
-                  <span className="text-gray-600 text-sm ml-2">
-                    {compareLabelMap[timeRange]}
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 bg-gradient-to-r from-[#819A91] to-[#A7C1A8] rounded-full group-hover:scale-110 transition-transform duration-300">
-                <DollarSign className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          {/* Total Orders */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-semibold">
-                  মোট অর্ডার
-                </p>
-                <p className="text-3xl font-bold text-gray-800 mt-2 group-hover:scale-105 transition-transform duration-300">
-                  {formatNumber(stats.totalOrders)}
-                </p>
-                <div className="flex items-center mt-3">
-                  {stats.orderGrowth >= 0 ? (
-                    <TrendingUp className="h-4 w-4 mr-1 text-emerald-600" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 mr-1 text-red-600" />
-                  )}
-                  <span className="text-sm text-gray-700 font-semibold">
-                    {Math.abs(stats.orderGrowth)}%
-                  </span>
-                  <span className="text-gray-600 text-sm ml-2">
-                    {compareLabelMap[timeRange]}
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 bg-gradient-to-r from-[#2C4A3B] to-[#819A91] rounded-full group-hover:scale-110 transition-transform duration-300">
-                <ShoppingBag className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          {/* Total Users */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-semibold">
-                  মোট ব্যবহারকারী
-                </p>
-                <p className="text-3xl font-bold text-gray-800 mt-2 group-hover:scale-105 transition-transform duration-300">
-                  {formatNumber(stats.totalUsers)}
-                </p>
-                <div className="flex items-center mt-3">
-                  {stats.userGrowth >= 0 ? (
-                    <TrendingUp className="h-4 w-4 mr-1 text-emerald-600" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 mr-1 text-red-600" />
-                  )}
-                  <span className="text-sm text-gray-700 font-semibold">
-                    {Math.abs(stats.userGrowth)}%
-                  </span>
-                  <span className="text-gray-600 text-sm ml-2">
-                    {compareLabelMap[timeRange]}
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 bg-gradient-to-r from-[#819A91] to-[#A7C1A8] rounded-full group-hover:scale-110 transition-transform duration-300">
-                <Users className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </div>
-
-          {/* Total Products */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-semibold">মোট বই</p>
-                <p className="text-3xl font-bold text-gray-800 mt-2 group-hover:scale-105 transition-transform duration-300">
-                  {formatNumber(stats.totalProducts)}
-                </p>
-                <div className="flex items-center mt-3">
-                  <Package className="h-4 w-4 mr-1 text-amber-600" />
-                  <span className="text-sm text-gray-700 font-semibold">
-                    {stats.lowStockProducts} লো স্টক
-                  </span>
-                  <span className="text-gray-600 text-sm ml-2">মনিটরিং</span>
-                </div>
-              </div>
-              <div className="p-3 bg-gradient-to-r from-[#2C4A3B] to-[#819A91] rounded-full group-hover:scale-110 transition-transform duration-300">
-                <BookOpen className="h-6 w-6 text-white" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Analytics Section */}
-        <div className="grid grid-cols-1 xl:grid-cols-1 gap-6 mb-8">
-          {/* Performance Metrics */}
-          <div className="xl:col-span-2 bg-white/80 rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">
-                  {rangeTitleMap[timeRange]}
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {rangeSubtitleMap[timeRange]}
-                </p>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setActiveChart("sales")}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                    activeChart === "sales"
-                      ? "bg-gradient-to-r from-[#2C4A3B] to-[#819A91] text-white shadow-md"
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                >
-                  বিক্রয়
-                </button>
-                <button
-                  onClick={() => setActiveChart("revenue")}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                    activeChart === "revenue"
-                      ? "bg-gradient-to-r from-[#2C4A3B] to-[#819A91] text-white shadow-md"
-                      : "text-gray-600 hover:text-gray-800"
-                  }`}
-                >
-                  আয়
-                </button>
-              </div>
-            </div>
-
-            {/* Bar Chart */}
-            <div className="h-64 flex items-end justify-between space-x-2">
-              {salesData.map((item: SalesDataItem, index: number) => (
-                <div key={index} className="flex flex-col items-center flex-1">
-                  <div
-                    className={`w-full rounded-t-lg transition-all duration-500 ${
-                      activeChart === "sales"
-                        ? "bg-gradient-to-t from-[#819A91] to-[#2C4A3B]"
-                        : "bg-gradient-to-t from-[#A7C1A8] to-[#819A91]"
-                    }`}
-                    style={{
-                      height: `${(activeChart === "sales" ? item.sales : item.revenue / 3000) * 0.8}%`,
-                      minHeight: "20px",
-                    }}
-                  ></div>
-                  <span className="text-xs text-gray-600 mt-2">
-                    {item.month}
-                  </span>
-                  <span className="text-xs font-semibold text-gray-700">
-                    {activeChart === "sales"
-                      ? item.sales
-                      : formatCurrency(item.revenue)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Additional Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Average Order Value */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-r from-[#2C4A3B] to-[#819A91] rounded-full">
-                <ShoppingCart className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 font-semibold">
-                  গড় অর্ডার মূল্য
-                </p>
-                <p className="text-xl font-bold text-gray-800">
-                  {formatCurrency(stats.averageOrderValue)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Conversion Rate */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-r from-[#819A91] to-[#A7C1A8] rounded-full">
-                <Target className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 font-semibold">
-                  কনভার্সন রেট
-                </p>
-                <p className="text-xl font-bold text-gray-800">
-                  {stats.conversionRate}%
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Pending Orders */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-r from-[#2C4A3B] to-[#819A91] rounded-full">
-                <Clock className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 font-semibold">
-                  পেন্ডিং অর্ডার
-                </p>
-                <p className="text-xl font-bold text-gray-800">
-                  {stats.pendingOrders}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Success Rate */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-gradient-to-r from-[#819A91] to-[#A7C1A8] rounded-full">
-                <Award className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 font-semibold">
-                  সাফল্যের হার
-                </p>
-                <p className="text-xl font-bold text-gray-800">
-                  {stats.successRate}%
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Section */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* Recent Orders */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-800">
-                সাম্প্রতিক অর্ডার
-              </h2>
-              <Link
-                href="/admin/orders"
-                className="flex items-center space-x-1 text-gray-600 hover:text-gray-800 transition-colors font-semibold"
-              >
-                <span className="text-sm">সব দেখুন</span>
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="space-y-4">
-              {stats.recentOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-200 hover:border-gray-300 transition-all duration-300"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-gradient-to-r from-[#2C4A3B] to-[#819A91] rounded-full">
-                      <ShoppingBag className="h-5 w-5 text-white" />
+          <div className="h-64">
+            <div className="flex h-full items-end gap-2">
+              {salesData.map((item) => {
+                const rawValue = activeChart === "sales" ? item.sales : item.revenue;
+                const height = Math.max(8, (rawValue / maxSeriesValue) * 100);
+                return (
+                  <div key={item.label} className="flex flex-1 flex-col items-center gap-2">
+                    <div className="w-full rounded-md bg-muted/60">
+                      <div
+                        className="w-full rounded-md bg-primary/80 transition-all"
+                        style={{ height: `${height}%`, minHeight: 12 }}
+                      />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800">
-                        অর্ডার #{order.id}
-                      </p>
-                      <p className="text-sm text-gray-600 font-medium">
-                        {order.user?.name || "গেস্ট"}
-                      </p>
-                    </div>
+                    <span className="text-[11px] text-muted-foreground">{item.label}</span>
                   </div>
-                  <div className="text-right">
-                    <p className="font-light text-white">
-                      {formatCurrency(order.grandTotal)}
-                    </p>
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-light border ${getStatusColor(order.status)}`}
-                    >
-                      {getStatusText(order.status)}
+                );
+              })}
+            </div>
+          </div>
+        </article>
+
+        <article className="space-y-4 rounded-2xl border border-border bg-card p-5">
+          <h2 className="text-lg font-semibold text-foreground">Operations</h2>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-border bg-muted/30 p-3">
+              <div className="mb-1 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Conversion Rate</span>
+                <span className="font-semibold text-foreground">{stats.conversionRate}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted">
+                <div
+                  className="h-2 rounded-full bg-primary"
+                  style={{ width: `${Math.min(100, Math.max(0, stats.conversionRate))}%` }}
+                />
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-muted/30 p-3">
+              <div className="mb-1 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Fulfillment Success</span>
+                <span className="font-semibold text-foreground">{stats.successRate}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-muted">
+                <div
+                  className="h-2 rounded-full bg-emerald-500"
+                  style={{ width: `${Math.min(100, Math.max(0, stats.successRate))}%` }}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-xl border border-border p-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock3 className="h-4 w-4" />
+                  Pending Orders
+                </div>
+                <p className="mt-1 text-xl font-semibold text-foreground">{stats.pendingOrders}</p>
+              </div>
+              <div className="rounded-xl border border-border p-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <AlertTriangle className="h-4 w-4" />
+                  Low Stock
+                </div>
+                <p className="mt-1 text-xl font-semibold text-foreground">{stats.lowStockProducts}</p>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <article className="rounded-2xl border border-border bg-card p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Recent Orders</h2>
+            <Link
+              href="/admin/orders"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              View all
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {stats.recentOrders.map((order) => (
+              <div
+                key={order.id}
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3"
+              >
+                <div>
+                  <p className="text-sm font-medium text-foreground">Order #{order.id}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {order.user?.name || "Guest Customer"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-foreground">
+                    {formatCurrency(order.grandTotal)}
+                  </p>
+                  <span
+                    className={`mt-1 inline-flex rounded-md border px-2 py-0.5 text-[11px] ${getStatusColor(order.status)}`}
+                  >
+                    {getStatusText(order.status)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="rounded-2xl border border-border bg-card p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Top Products</h2>
+            <Link
+              href="/admin/products"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              Manage
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {stats.topProducts.map((product, index) => (
+              <div
+                key={product.id}
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/20 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {index + 1}. {product.name}
+                  </p>
+                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Package className="h-3.5 w-3.5" />
+                      {product.soldCount} sold
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Star className="h-3.5 w-3.5 text-amber-500" />
+                      {product.ratingAvg}
                     </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Top Products */}
-          <div className="bg-white/80 rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-800">টপ বইসমূহ</h2>
-              <Link
-                href="/admin/products"
-                className="flex items-center space-x-1 text-gray-600 hover:text-gray-800 transition-colors font-semibold"
-              >
-                <span className="text-sm">সব দেখুন</span>
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="space-y-4">
-              {stats.topProducts.map((product, index) => (
-                <div
-                  key={product.id}
-                  className="flex items-center space-x-4 p-4 bg-gray-50 rounded-2xl border border-gray-200 hover:border-gray-300 transition-all duration-300"
-                >
-                  <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-[#2C4A3B] to-[#819A91] rounded-full flex items-center justify-center text-white font-bold text-sm">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 truncate">
-                      {product.name}
-                    </p>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <span className="flex items-center space-x-1 text-sm text-gray-600 font-medium">
-                        <ShoppingBag className="h-3 w-3" />
-                        <span>{formatNumber(product.soldCount)} বিক্রি</span>
-                      </span>
-                      <span className="flex items-center space-x-1 text-sm text-gray-600 font-medium">
-                        <Star className="h-3 w-3 text-amber-500" />
-                        <span>{product.ratingAvg}/5</span>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-800">
-                      {formatCurrency(product.price)}
-                    </p>
-                    <div className="flex items-center space-x-1 text-emerald-600 text-sm font-semibold">
-                      <TrendingUp className="h-3 w-3" />
-                      <span>+15%</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mt-8 bg-white/80 rounded-2xl p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-            দ্রুত কাজ
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              {
-                icon: BookOpen,
-                label: "নতুন বই",
-                href: "/admin/products/new",
-                color: "from-blue-400/40 to-cyan-400/60",
-              },
-              {
-                icon: ShoppingBag,
-                label: "অর্ডার",
-                href: "/admin/orders",
-                color: "from-emerald-400/40 to-emerald-600/60",
-              },
-              {
-                icon: Users,
-                label: "ব্যবহারকারী",
-                href: "/admin/users",
-                color: "from-amber-400/40 to-amber-600/60",
-              },
-              {
-                icon: MessageSquare,
-                label: "ব্লগ",
-                href: "/admin/blogs",
-                color: "from-purple-400/40 to-purple-600/60",
-              },
-            ].map((action, index) => (
-              <Link
-                key={index}
-                href={action.href}
-                className={`p-6 bg-gradient-to-br ${action.color} rounded-2xl text-center border border-white/20 hover:shadow-lg hover:scale-105 transition-all duration-300`}
-              >
-                <action.icon className="h-8 w-8 mx-auto mb-3 text-white" />
-                <p className="font-semibold text-sm text-white">
-                  {action.label}
+                <p className="text-sm font-semibold text-foreground">
+                  {formatCurrency(product.price)}
                 </p>
-              </Link>
+              </div>
             ))}
           </div>
-        </div>
-      </div>
+        </article>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-4">
+        <article className="rounded-2xl border border-border bg-card p-5 lg:col-span-2">
+          <h2 className="mb-3 text-lg font-semibold text-foreground">Growth KPIs</h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border p-3">
+              <div className="mb-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                <Activity className="h-4 w-4" />
+                Avg Order Value
+              </div>
+              <p className="text-lg font-semibold text-foreground">
+                {formatCurrency(stats.averageOrderValue)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border p-3">
+              <div className="mb-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                <Target className="h-4 w-4" />
+                Conversion
+              </div>
+              <p className="text-lg font-semibold text-foreground">{stats.conversionRate}%</p>
+            </div>
+            <div className="rounded-xl border border-border p-3">
+              <div className="mb-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4" />
+                Success Rate
+              </div>
+              <p className="text-lg font-semibold text-foreground">{stats.successRate}%</p>
+            </div>
+          </div>
+        </article>
+
+        <article className="rounded-2xl border border-border bg-card p-5 lg:col-span-2">
+          <h2 className="mb-3 text-lg font-semibold text-foreground">Top Product Share</h2>
+          <div className="space-y-3">
+            {stats.topProducts.slice(0, 4).map((product) => {
+              const percentage =
+                totalSoldAcrossTop > 0
+                  ? Math.round((product.soldCount / totalSoldAcrossTop) * 100)
+                  : 0;
+              return (
+                <div
+                  key={product.id}
+                  className="rounded-xl border border-border bg-muted/20 p-3"
+                >
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="truncate text-sm font-medium text-foreground">{product.name}</p>
+                    <p className="text-xs text-muted-foreground">{percentage}%</p>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted">
+                    <div
+                      className="h-2 rounded-full bg-primary"
+                      style={{ width: `${Math.min(100, percentage)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </article>
+      </section>
     </div>
   );
 }

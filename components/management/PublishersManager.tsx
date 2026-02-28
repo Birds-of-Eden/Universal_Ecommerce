@@ -75,7 +75,7 @@ export default function PublishersManager({
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
-      toast.error("নাম দিন");
+      toast.error("Name is required");
       return;
     }
     setSubmitting(true);
@@ -86,13 +86,13 @@ export default function PublishersManager({
           name: form.name,
           image: form.image,
         });
-        toast.success("আপডেট সম্পন্ন");
+        toast.success("Publisher updated successfully");
       } else {
         await onCreate({
           name: form.name,
           image: form.image,
         });
-        toast.success("নতুন প্রকাশক যোগ হয়েছে");
+        toast.success("New publisher added successfully");
       }
       setModalOpen(false);
     } finally {
@@ -110,10 +110,10 @@ export default function PublishersManager({
 
     try {
       await onDelete(deletingId); // wait for soft delete API
-      toast.success("প্রকাশকটি সফলভাবে ডিলিট করা হয়েছে");
+      toast.success("Publisher deleted successfully");
     } catch (error) {
       console.error("Error deleting publisher:", error);
-      toast.error("ডিলিট করতে সমস্যা হয়েছে");
+      toast.error("Failed to delete publisher");
     } finally {
       setDeleteModalOpen(false);
       setDeletingId(null);
@@ -121,62 +121,58 @@ export default function PublishersManager({
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-[#EEEFE0] to-[#D1D8BE]/30">
+    <div className="min-h-screen p-6" style={{ backgroundColor: 'hsl(var(--background))' }}>
       {/* Header */}
       <div className="text-center mb-12">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="w-2 h-10 bg-gradient-to-b from-[#2C4A3B] to-[#819A91] rounded-full"></div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-[#2C4A3B] to-[#819A91] bg-clip-text text-transparent">
-            প্রকাশক ব্যবস্থাপনা
-          </h1>
-          <div className="w-2 h-10 bg-gradient-to-b from-[#819A91] to-[#2C4A3B] rounded-full"></div>
-        </div>
-        <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-          প্রকাশকদের তালিকা দেখুন, যোগ করুন ও ম্যানেজ করুন
+        <h1 className="text-4xl font-bold mb-4" style={{ color: 'hsl(var(--foreground))' }}>
+          Publisher Management
+        </h1>
+        <p className="text-lg max-w-2xl mx-auto" style={{ color: 'hsl(var(--muted-foreground))' }}>
+          View, add and manage publishers
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <Card className="bg-white/80 shadow rounded-2xl">
+        <Card className="rounded-2xl shadow" style={{ backgroundColor: 'hsl(var(--card))' }}>
           <CardContent className="p-6 flex justify-between">
             <div>
-              <p className="text-gray-600 text-sm">মোট প্রকাশক</p>
-              <h2 className="text-2xl font-bold">{publishers.length}</h2>
+              <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>Total Publishers</p>
+              <h2 className="text-2xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>{publishers.length}</h2>
             </div>
-            <Users className="h-10 w-10 text-[#2C4A3B]" />
+            <Users className="h-10 w-10" style={{ color: 'hsl(var(--primary))' }} />
           </CardContent>
         </Card>
 
-        <Card className="bg-white/80 shadow rounded-2xl">
+        <Card className="rounded-2xl shadow" style={{ backgroundColor: 'hsl(var(--card))' }}>
           <CardContent className="p-6 flex justify-between">
             <div>
-              <p className="text-gray-600 text-sm">মোট বই সংখ্যা</p>
-              <h2 className="text-2xl font-bold">
+              <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>Total Books</p>
+              <h2 className="text-2xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>
                 {publishers.reduce(
                   (a: number, p: any) => a + (p.productCount || 0),
                   0
                 )}
               </h2>
             </div>
-            <BookOpen className="h-10 w-10 text-[#2C4A3B]" />
+            <BookOpen className="h-10 w-10" style={{ color: 'hsl(var(--primary))' }} />
           </CardContent>
         </Card>
 
-        <Card className="bg-white/80 shadow rounded-2xl">
+        <Card className="rounded-2xl shadow" style={{ backgroundColor: 'hsl(var(--card))' }}>
           <CardContent className="p-6 flex flex-row gap-4 items-center">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-3 text-gray-400" />
+              <Search className="absolute left-3 top-3" style={{ color: 'hsl(var(--muted-foreground))' }} />
               <Input
-                placeholder="অনুসন্ধান করুন..."
+                placeholder="Search publishers..."
                 className="pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
-            <Button onClick={openAdd} className="bg-[#2C4A3B] text-white px-5">
-              <Plus className="h-4 w-4 mr-1" /> নতুন
+            <Button onClick={openAdd} className="px-5">
+              <Plus className="h-4 w-4 mr-1" /> New
             </Button>
           </CardContent>
         </Card>
@@ -184,25 +180,25 @@ export default function PublishersManager({
 
       {/* Publishers Grid */}
       {loading ? (
-        <p className="text-center text-lg mt-20">লোড হচ্ছে...</p>
+        <p className="text-center text-lg mt-20" style={{ color: 'hsl(var(--foreground))' }}>Loading...</p>
       ) : filtered.length === 0 ? (
         <div className="col-span-full text-center py-12">
-          <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-700">
-            কোন প্রকাশক পাওয়া যায়নি
+          <BookOpen className="h-16 w-16 mx-auto mb-4" style={{ color: 'hsl(var(--muted-foreground))' }} />
+          <h3 className="text-lg font-medium" style={{ color: 'hsl(var(--foreground))' }}>
+            No publishers found
           </h3>
-          <p className="text-gray-500 mt-1 mb-6">
-            একটি নতুন প্রকাশক যোগ করতে নিচের বাটনে ক্লিক করুন
+          <p className="mt-1 mb-6" style={{ color: 'hsl(var(--muted-foreground))' }}>
+            Click the button below to add a new publisher
           </p>
-          <Button onClick={openAdd} className="bg-[#2C4A3B] text-white">
-            <Plus className="h-4 w-4 mr-1" /> নতুন প্রকাশক যোগ করুন
+          <Button onClick={openAdd}>
+            <Plus className="h-4 w-4 mr-1" /> Add New Publisher
           </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
           {filtered.map((pub) => (
-            <Card key={pub.id} className="rounded-2xl shadow bg-white">
-              <div className="h-48 bg-gray-100 rounded-t-2xl overflow-hidden flex items-center justify-center relative">
+            <Card key={pub.id} className="rounded-2xl shadow" style={{ backgroundColor: 'hsl(var(--card))' }}>
+              <div className="h-48 rounded-t-2xl overflow-hidden flex items-center justify-center relative" style={{ backgroundColor: 'hsl(var(--muted))' }}>
                 {pub.image ? (
                   <Image
                     src={pub.image}
@@ -211,22 +207,22 @@ export default function PublishersManager({
                     className="object-cover p-3"
                   />
                 ) : (
-                  <Users className="h-16 w-16 text-gray-400" />
+                  <Users className="h-16 w-16" style={{ color: 'hsl(var(--muted-foreground))' }} />
                 )}
               </div>
 
               <CardContent className="p-5">
-                <h3 className="text-xl font-bold">{pub.name}</h3>
-                <p className="text-gray-600 mt-1">
+                <h3 className="text-xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>{pub.name}</h3>
+                <p className="mt-1" style={{ color: 'hsl(var(--muted-foreground))' }}>
                   Total Books: {pub.productCount || 0}
                 </p>
 
                 <div className="flex gap-3 mt-4">
                   <Button
                     onClick={() => openEdit(pub)}
-                    className="bg-[#2C4A3B] text-white w-full"
+                    className="w-full"
                   >
-                    <Edit3 className="h-3 w-3 mr-1" /> এডিট
+                    <Edit3 className="h-3 w-3 mr-1" /> Edit
                   </Button>
 
                   <Button
@@ -235,7 +231,7 @@ export default function PublishersManager({
                       handleDeleteLocal(pub.id);
                     }}
                     variant="outline"
-                    className="border-red-500 text-red-500 hover:bg-red-50"
+                    className="border-destructive text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -249,16 +245,16 @@ export default function PublishersManager({
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+          <div className="rounded-2xl shadow-xl w-full max-w-md" style={{ backgroundColor: 'hsl(var(--card))' }}>
             <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold">
-                {editing ? "প্রকাশক আপডেট" : "নতুন প্রকাশক"}
+              <h2 className="text-2xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>
+                {editing ? "Update Publisher" : "New Publisher"}
               </h2>
             </div>
 
             <div className="p-6 space-y-5">
               <div>
-                <Label>প্রকাশকের নাম *</Label>
+                <Label>Publisher Name *</Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -266,7 +262,7 @@ export default function PublishersManager({
               </div>
 
               <div>
-                <Label>ছবি আপলোড করুন</Label>
+                <Label>Upload Image</Label>
 
                 <Input
                   type="file"
@@ -344,15 +340,15 @@ export default function PublishersManager({
 
             <div className="p-6 border-t flex justify-end gap-3">
               <Button variant="outline" onClick={() => setModalOpen(false)}>
-                বাতিল
+                Cancel
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={submitting || !form.name}
-                className="bg-[#2C4A3B] text-white"
+                className=""
               >
                 <Zap className="h-4 w-4 mr-1" />
-                {editing ? "আপডেট" : "তৈরি করুন"}
+                {editing ? "Update" : "Create"}
               </Button>
             </div>
           </div>
@@ -362,13 +358,13 @@ export default function PublishersManager({
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+          <div className="rounded-2xl shadow-xl w-full max-w-md p-6" style={{ backgroundColor: 'hsl(var(--card))' }}>
             <div className="text-center">
-              <Trash2 className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">মুছে ফেলুন</h3>
-              <p className="text-gray-600 mb-6">
-                আপনি কি নিশ্চিত যে আপনি এই প্রকাশকটিকে মুছে ফেলতে চান? এই কাজটি
-                পূর্বাবস্থায় ফেরানো যাবে না।
+              <Trash2 className="h-12 w-12 mx-auto mb-4" style={{ color: 'hsl(var(--destructive))' }} />
+              <h3 className="text-xl font-bold mb-2" style={{ color: 'hsl(var(--foreground))' }}>Delete</h3>
+              <p className="mb-6" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                Are you sure you want to delete this publisher? This action
+                cannot be undone.
               </p>
 
               <div className="flex justify-center gap-4">
@@ -377,13 +373,13 @@ export default function PublishersManager({
                   onClick={() => setDeleteModalOpen(false)}
                   className="px-6"
                 >
-                  বাতিল
+                  Cancel
                 </Button>
                 <Button
                   onClick={confirmDelete}
-                  className="bg-red-500 hover:bg-red-600 text-white px-6"
+                  className="px-6"
                 >
-                  মুছে ফেলুন
+                  Delete
                 </Button>
               </div>
             </div>

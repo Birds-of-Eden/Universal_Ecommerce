@@ -108,7 +108,7 @@ export default function ProductManager({
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-[#EEEFE0] to-[#D1D8BE]/30">
+    <div className="min-h-screen p-6 bg-background">
       {/* DELETE MODAL */}
       <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <AlertDialogContent>
@@ -123,7 +123,7 @@ export default function ProductManager({
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
@@ -141,22 +141,22 @@ export default function ProductManager({
 
       {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-white shadow">
+        <Card className="bg-card shadow-sm border">
           <CardContent className="p-6 flex justify-between items-center">
             <div>
               <p className="text-sm text-muted-foreground">Total Products</p>
               <h3 className="text-2xl font-bold">{filtered.length}</h3>
             </div>
-            <Layers className="h-8 w-8 text-[#819A91]" />
+            <Layers className="h-8 w-8 text-muted-foreground" />
           </CardContent>
         </Card>
       </div>
 
       {/* SEARCH + ADD */}
-      <Card className="mb-8 bg-white shadow">
+      <Card className="mb-8 bg-card shadow-sm border">
         <CardContent className="p-6 flex flex-col md:flex-row gap-4 md:items-center">
           <div className="flex-1 relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               className="pl-10"
               placeholder="Search product..."
@@ -201,9 +201,9 @@ export default function ProductManager({
           {filtered.map((p: any) => (
             <Card
               key={p.id}
-              className="bg-white shadow hover:shadow-xl transition rounded-2xl overflow-hidden"
+              className="bg-card shadow-sm hover:shadow-lg transition-all duration-200 rounded-2xl overflow-hidden border hover:border-primary/50"
             >
-              <div className="relative h-60 bg-gray-100">
+              <div className="relative h-60 bg-muted">
                 {p.image ? (
                   <Image
                     src={p.image}
@@ -212,8 +212,8 @@ export default function ProductManager({
                     className="object-cover"
                   />
                 ) : (
-                  <div className="h-full w-full flex items-center justify-center bg-[#819A91]">
-                    <ImageIcon className="h-12 w-12 text-white/70" />
+                  <div className="h-full w-full flex items-center justify-center bg-muted">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground/50" />
                   </div>
                 )}
               </div>
@@ -251,7 +251,7 @@ export default function ProductManager({
                   <Button
                     onClick={() => openDeleteModal(p)}
                     variant="outline"
-                    className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                    className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -263,7 +263,7 @@ export default function ProductManager({
       )}
 
       {!loading && filtered.length === 0 && (
-        <Card className="p-10 text-center bg-white shadow">
+        <Card className="p-10 text-center bg-card shadow-sm border">
           <h3 className="text-xl font-bold mb-2">No products found</h3>
           <Button onClick={openAdd}>
             <Plus className="h-4 w-4 mr-1" /> Add Product

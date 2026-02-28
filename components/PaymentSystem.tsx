@@ -288,17 +288,16 @@ export default function PaymentGatewayManager() {
 
   return (
     <div className="space-y-6 p-4 w-full">
-      {/* Header Skeleton */}
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Payment Gateways</h1>
+          <h1 className="text-3xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>Payment Gateway Management</h1>
         </div>
         <Button
           onClick={startCreating}
-          className="bg-blue-600 hover:bg-blue-700"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add Gateway
+          Add Payment Gateway
         </Button>
       </div>
 
@@ -320,7 +319,7 @@ export default function PaymentGatewayManager() {
                 placeholder="e.g., bKash, Nagad, Bank, Rocket, etc."
                 value={channel}
                 onChange={(e) => setChannel(e.target.value)}
-                className="bg-white"
+                className="bg-background"
               />
             </div>
 
@@ -333,7 +332,7 @@ export default function PaymentGatewayManager() {
                     placeholder="Enter account number"
                     value={account}
                     onChange={(e) => updateAccountNumber(index, e.target.value)}
-                    className="bg-white flex-1"
+                    className="bg-background flex-1"
                   />
                   <Button
                     type="button"
@@ -368,7 +367,6 @@ export default function PaymentGatewayManager() {
               </Button>
               <Button
                 onClick={handleSubmit}
-                className="bg-blue-600 hover:bg-blue-700"
               >
                 <Save className="h-4 w-4 mr-2" />
                 {editingId ? "Update Gateway" : "Create Gateway"}
@@ -383,15 +381,14 @@ export default function PaymentGatewayManager() {
         {payments.length === 0 ? (
           <Card className="col-span-2">
             <CardContent className="py-12 text-center">
-              <p className="text-gray-500 text-lg mb-4">
-                No payment gateways found
+              <p className="text-lg mb-4" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                No payment gateways configured yet
               </p>
               <Button
                 onClick={startCreating}
-                className="bg-blue-600 hover:bg-blue-700"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Create First Gateway
+                Setup Your First Payment Gateway
               </Button>
             </CardContent>
           </Card>
@@ -403,7 +400,7 @@ export default function PaymentGatewayManager() {
             >
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">
+                  <CardTitle className="text-lg" style={{ color: 'hsl(var(--foreground))' }}>
                     {payment.paymentGatewayData?.channel || "Unnamed Channel"}
                   </CardTitle>
                   <div className="flex gap-1">
@@ -418,13 +415,14 @@ export default function PaymentGatewayManager() {
                       variant="ghost"
                       size="sm"
                       onClick={() => deletePayment(payment.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="hover:text-destructive/80 hover:bg-destructive/10"
+                      style={{ color: 'hsl(var(--destructive))' }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                <div className="text-sm text-gray-500">ID: {payment.id}</div>
+                <div className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>ID: {payment.id}</div>
               </CardHeader>
 
               <CardContent className="space-y-3">
@@ -439,9 +437,10 @@ export default function PaymentGatewayManager() {
                       (account, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-2 bg-gray-50 rounded border"
+                          className="flex items-center justify-between p-2 rounded border"
+                          style={{ backgroundColor: 'hsl(var(--muted))' }}
                         >
-                          <span className="font-mono text-sm">{account}</span>
+                          <span className="font-mono text-sm" style={{ color: 'hsl(var(--foreground))' }}>{account}</span>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -449,7 +448,7 @@ export default function PaymentGatewayManager() {
                             className="h-8 w-8 p-0"
                           >
                             {copiedIndex === index ? (
-                              <Check className="h-3 w-3 text-green-600" />
+                              <Check className="h-3 w-3" style={{ color: 'hsl(var(--chart-1))' }} />
                             ) : (
                               <Copy className="h-3 w-3" />
                             )}
@@ -459,12 +458,12 @@ export default function PaymentGatewayManager() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">No account numbers</p>
+                  <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>No account numbers</p>
                 )}
 
                 {/* Created Date */}
                 <div className="pt-2 border-t">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs" style={{ color: 'hsl(var(--muted-foreground))' }}>
                     Created: {new Date(payment.createdAt).toLocaleDateString()}
                   </p>
                 </div>

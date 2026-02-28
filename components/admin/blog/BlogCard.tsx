@@ -101,20 +101,20 @@ export default function BlogCard() {
     return (
       <div className="space-y-6">
         {/* Header Skeleton */}
-        <div className="bg-gradient-to-r from-gray-200 to-gray-300 rounded-2xl shadow-lg p-6 animate-pulse">
+        <div className="bg-gradient-to-r from-muted to-muted/50 rounded-2xl shadow-lg p-6 animate-pulse border-border">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <div className="h-8 bg-gray-300 rounded w-48 mb-2"></div>
-              <div className="h-4 bg-gray-300 rounded w-64"></div>
+              <div className="h-8 bg-muted rounded w-48 mb-2"></div>
+              <div className="h-4 bg-muted rounded w-64"></div>
             </div>
-            <div className="h-12 bg-gray-300 rounded-full w-40"></div>
+            <div className="h-12 bg-muted rounded-full w-40"></div>
           </div>
 
           {/* Search Bar Skeleton */}
           <div className="mt-6">
             <div className="relative max-w-md">
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 bg-gray-300 rounded"></div>
-              <div className="h-12 bg-gray-300 rounded-xl w-full pl-10"></div>
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 bg-muted rounded"></div>
+              <div className="h-12 bg-muted rounded-xl w-full pl-10"></div>
             </div>
           </div>
         </div>
@@ -124,37 +124,37 @@ export default function BlogCard() {
           {Array.from({ length: 8 }, (_, i) => (
             <div
               key={i}
-              className="bg-white/90 border border-gray-200 rounded-2xl shadow-lg overflow-hidden"
+              className="bg-card border border-border rounded-2xl shadow-lg overflow-hidden"
             >
               {/* Image Skeleton */}
               <div className="relative h-48 overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse"></div>
+                <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 animate-pulse"></div>
               </div>
 
               {/* Content Skeleton */}
               <div className="p-5">
-                <div className="h-6 bg-gray-200 rounded w-3/4 mb-2 animate-pulse"></div>
+                <div className="h-6 bg-muted rounded w-3/4 mb-2 animate-pulse"></div>
                 <div className="space-y-2 mb-4">
-                  <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded w-5/6 animate-pulse"></div>
+                  <div className="h-4 bg-muted rounded w-full animate-pulse"></div>
+                  <div className="h-4 bg-muted rounded w-5/6 animate-pulse"></div>
                 </div>
 
                 {/* Meta Information Skeleton */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-1">
-                    <div className="w-4 h-4 bg-gray-200 rounded animate-pulse"></div>
-                    <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+                    <div className="w-4 h-4 bg-muted rounded animate-pulse"></div>
+                    <div className="h-4 bg-muted rounded w-16 animate-pulse"></div>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <div className="w-4 h-4 bg-gray-200 rounded animate-pulse"></div>
-                    <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                    <div className="w-4 h-4 bg-muted rounded animate-pulse"></div>
+                    <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
                   </div>
                 </div>
 
                 {/* Actions Skeleton */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <div className="h-4 bg-gray-200 rounded w-12 animate-pulse"></div>
-                  <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+                <div className="flex items-center justify-between pt-4 border-t border-border">
+                  <div className="h-4 bg-muted rounded w-12 animate-pulse"></div>
+                  <div className="h-4 bg-muted rounded w-16 animate-pulse"></div>
                 </div>
               </div>
             </div>
@@ -162,18 +162,18 @@ export default function BlogCard() {
         </div>
 
         {/* Pagination Skeleton */}
-        <div className="bg-white/90 border border-gray-200 rounded-2xl shadow-lg p-6">
+        <div className="bg-card border border-border rounded-2xl shadow-lg p-6">
           <div className="flex items-center justify-between">
-            <div className="h-10 bg-gray-200 rounded w-20 animate-pulse"></div>
+            <div className="h-10 bg-muted rounded w-20 animate-pulse"></div>
             <div className="flex items-center space-x-2">
               {Array.from({ length: 5 }, (_, i) => (
                 <div
                   key={i}
-                  className="w-10 h-10 bg-gray-200 rounded animate-pulse"
+                  className="w-10 h-10 bg-muted rounded animate-pulse"
                 ></div>
               ))}
             </div>
-            <div className="h-10 bg-gray-200 rounded w-20 animate-pulse"></div>
+            <div className="h-10 bg-muted rounded w-20 animate-pulse"></div>
           </div>
         </div>
       </div>
@@ -183,19 +183,19 @@ export default function BlogCard() {
   return (
     <div className="space-y-6">
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-[#0E4B4B] to-[#086666] rounded-2xl shadow-lg p-6 border border-[#F4F8F7]/10">
+      <div className="bg-card border border-border shadow-lg p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#F4F8F7] mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
               Blog Management
             </h1>
-            <p className="text-[#F4F8F7]/70 text-sm">
+            <p className="text-muted-foreground text-sm">
               Create and manage your blog posts
             </p>
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-[#C0704D] hover:bg-[#A85D3F] text-white font-semibold px-6 py-3 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-[#C0704D] hover:border-[#A85D3F] flex items-center space-x-2"
+            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground font-semibold px-6 py-3 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-secondary hover:border-secondary/80 flex items-center space-x-2"
           >
             <svg
               className="w-5 h-5"
@@ -218,7 +218,7 @@ export default function BlogCard() {
         <div className="mt-6">
           <div className="relative max-w-md">
             <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#819A91] w-5 h-5"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -238,7 +238,7 @@ export default function BlogCard() {
                 setSearchTerm(e.target.value);
                 setPage(1);
               }}
-              className="w-full pl-10 pr-4 py-3 bg-[#EEEFE0] border border-[#D1D8BE] rounded-xl focus:ring-2 focus:ring-[#819A91] focus:border-[#819A91] text-[#0D1414] placeholder-[#2D4A3C]/50 transition-all duration-300"
+              className="w-full pl-10 pr-4 py-3 bg-muted border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-foreground placeholder-muted-foreground transition-all duration-300"
             />
           </div>
         </div>
@@ -248,8 +248,8 @@ export default function BlogCard() {
       {blogs.length > 0 ? (
         <>
           {/* Results Summary */}
-          <div className="bg-white/90 backdrop-blur-sm border border-[#D1D8BE] rounded-2xl shadow-lg p-4">
-            <p className="text-sm text-[#2D4A3C]/70">
+          <div className="bg-card backdrop-blur-sm border border-border rounded-2xl shadow-lg p-4">
+            <p className="text-sm text-muted-foreground">
               Showing {(page - 1) * 12 + 1} to {Math.min(page * 12, totalCount)}{" "}
               of {totalCount} blogs
               {debouncedSearchTerm && ` for "${debouncedSearchTerm}"`}
@@ -260,7 +260,7 @@ export default function BlogCard() {
             {blogs.map((blog) => (
               <div
                 key={blog.id}
-                className="bg-white/90 backdrop-blur-sm border border-[#D1D8BE] rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 overflow-hidden group relative"
+                className="bg-card backdrop-blur-sm border border-border rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 overflow-hidden group relative"
               >
                 {/* Clickable overlay that doesn't interfere with buttons */}
                 <Link
@@ -278,9 +278,9 @@ export default function BlogCard() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-[#EEEFE0] to-[#D1D8BE] flex items-center justify-center">
+                    <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                       <svg
-                        className="w-12 h-12 text-[#819A91]"
+                        className="w-12 h-12 text-muted-foreground"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -294,20 +294,20 @@ export default function BlogCard() {
                       </svg>
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#0E4B4B]/10 to-[#086666]/10 opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-all duration-300" />
                 </div>
 
                 {/* Content */}
                 <div className="p-5">
-                  <h3 className="font-semibold text-[#0D1414] line-clamp-2 mb-2 group-hover:text-[#0E4B4B] transition-colors duration-300">
+                  <h3 className="font-semibold text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors duration-300">
                     {blog.title}
                   </h3>
-                  <p className="text-[#2D4A3C]/70 text-sm line-clamp-2 mb-4 leading-relaxed">
+                  <p className="text-muted-foreground text-sm line-clamp-2 mb-4 leading-relaxed">
                     {processBlogSummary(blog.summary, 160)}
                   </p>
 
                   {/* Meta Information */}
-                  <div className="flex items-center justify-between text-sm text-[#2D4A3C]/50 mb-4">
+                  <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
                     <span className="flex items-center space-x-1">
                       <svg
                         className="w-4 h-4"
@@ -339,16 +339,16 @@ export default function BlogCard() {
                         />
                       </svg>
                       <span>
-                        {new Date(blog.date).toLocaleDateString("bn-BD")}
+                        {new Date(blog.date).toLocaleDateString("en-US")}
                       </span>
                     </span>
                   </div>
 
                   {/* Actions - Wrapped in a div with higher z-index to stay above the clickable overlay */}
-                  <div className="relative z-10 flex items-center justify-between pt-4 border-t border-[#D1D8BE]">
+                  <div className="relative z-10 flex items-center justify-between pt-4 border-t border-border">
                     <Link
                       href={`/admin/blogs/edit/${blog.id}`}
-                      className="flex items-center space-x-2 text-[#0E4B4B] hover:text-[#086666] font-medium text-sm transition-colors duration-300"
+                      className="flex items-center space-x-2 text-primary hover:text-primary/80 font-medium text-sm transition-colors duration-300"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <svg
@@ -372,7 +372,7 @@ export default function BlogCard() {
                         e.stopPropagation();
                         handleDelete(blog.id);
                       }}
-                      className="flex items-center space-x-2 text-[#C0704D] hover:text-[#A85D3F] font-medium text-sm transition-colors duration-300"
+                      className="flex items-center space-x-2 text-destructive hover:text-destructive/80 font-medium text-sm transition-colors duration-300"
                     >
                       <svg
                         className="w-4 h-4"
@@ -396,10 +396,10 @@ export default function BlogCard() {
           </div>
         </>
       ) : (
-        <div className="bg-white/90 backdrop-blur-sm border border-[#D1D8BE] rounded-2xl shadow-lg p-12 text-center">
-          <div className="w-20 h-20 bg-[#EEEFE0] rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <div className="bg-card backdrop-blur-sm border border-border rounded-2xl shadow-lg p-12 text-center">
+          <div className="w-20 h-20 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-10 h-10 text-[#819A91]"
+              className="w-10 h-10 text-muted-foreground"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -412,15 +412,15 @@ export default function BlogCard() {
               />
             </svg>
           </div>
-          <h3 className="text-xl font-semibold text-[#0D1414] mb-2">
+          <h3 className="text-xl font-semibold text-foreground mb-2">
             No blogs found
           </h3>
-          <p className="text-[#2D4A3C]/70 mb-6">
+          <p className="text-muted-foreground mb-6">
             Get started by creating your first blog post
           </p>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-[#C0704D] hover:bg-[#A85D3F] text-white font-semibold px-6 py-3 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-[#C0704D] hover:border-[#A85D3F]"
+            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground font-semibold px-6 py-3 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-secondary hover:border-secondary/80"
           >
             Create Blog Post
           </button>
@@ -429,12 +429,12 @@ export default function BlogCard() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="bg-white/90 backdrop-blur-sm border border-[#D1D8BE] rounded-2xl shadow-lg p-6">
+        <div className="bg-card backdrop-blur-sm border border-border rounded-2xl shadow-lg p-6">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setPage(page - 1)}
               disabled={page === 1}
-              className="flex items-center space-x-2 px-4 py-2 border border-[#D1D8BE] rounded-xl text-[#0D1414] hover:bg-[#EEEFE0] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              className="flex items-center space-x-2 px-4 py-2 border border-border rounded-xl text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             >
               <svg
                 className="w-4 h-4"
@@ -459,11 +459,11 @@ export default function BlogCard() {
                 <>
                   <button
                     onClick={() => setPage(1)}
-                    className="w-10 h-10 rounded-xl font-medium transition-all duration-300 text-[#2D4A3C] hover:bg-[#EEEFE0]"
+                    className="w-10 h-10 rounded-xl font-medium transition-all duration-300 text-muted-foreground hover:bg-muted"
                   >
                     1
                   </button>
-                  {page > 4 && <span className="text-[#2D4A3C]/50">...</span>}
+                  {page > 4 && <span className="text-muted-foreground/50">...</span>}
                 </>
               )}
 
@@ -486,8 +486,8 @@ export default function BlogCard() {
                     onClick={() => setPage(pageNum)}
                     className={`w-10 h-10 rounded-xl font-medium transition-all duration-300 ${
                       page === pageNum
-                        ? "bg-gradient-to-r from-[#0E4B4B] to-[#086666] text-white shadow-lg"
-                        : "text-[#2D4A3C] hover:bg-[#EEEFE0]"
+                        ? "bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg"
+                        : "text-muted-foreground hover:bg-muted"
                     }`}
                   >
                     {pageNum}
@@ -499,11 +499,11 @@ export default function BlogCard() {
               {page < totalPages - 2 && (
                 <>
                   {page < totalPages - 3 && (
-                    <span className="text-[#2D4A3C]/50">...</span>
+                    <span className="text-muted-foreground/50">...</span>
                   )}
                   <button
                     onClick={() => setPage(totalPages)}
-                    className="w-10 h-10 rounded-xl font-medium transition-all duration-300 text-[#2D4A3C] hover:bg-[#EEEFE0]"
+                    className="w-10 h-10 rounded-xl font-medium transition-all duration-300 text-muted-foreground hover:bg-muted"
                   >
                     {totalPages}
                   </button>
@@ -514,7 +514,7 @@ export default function BlogCard() {
             <button
               onClick={() => setPage(page + 1)}
               disabled={page === totalPages}
-              className="flex items-center space-x-2 px-4 py-2 border border-[#D1D8BE] rounded-xl text-[#0D1414] hover:bg-[#EEEFE0] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              className="flex items-center space-x-2 px-4 py-2 border border-border rounded-xl text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             >
               <span>Next</span>
               <svg
@@ -537,7 +537,7 @@ export default function BlogCard() {
 
       {/* Blog Form Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 ">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="overflow-y-auto h-[80vh] w-[80vw]">
             <BlogForm
               onSuccess={() => {

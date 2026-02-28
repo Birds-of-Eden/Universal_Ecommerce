@@ -24,7 +24,7 @@ interface Blog {
 const RichTextEditor = dynamic(() => import("./JoditEditor"), {
   ssr: false,
   loading: () => (
-    <div className="h-[400px] border border-gray-300 rounded-lg p-4">
+    <div className="h-[400px] border border-border rounded-lg p-4 bg-card">
       Loading editor...
     </div>
   ),
@@ -141,10 +141,10 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
     }));
   };
 
-  // ✅ Main image upload → POST /api/upload (no folder param)
+  // Main image upload → POST /api/upload (no folder param)
   // /api/upload/${folder} → /api/upload/blogImages
 
-  // 🔹 Main image upload → /api/upload/${folder}
+  // Main image upload → /api/upload/${folder}
   const handleImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -170,13 +170,11 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
 
       const data = await res.json();
 
-      // ✅ এখানে এখন data.url চেক করবে, fileUrl না
       if (!data.url) {
         console.error("Invalid upload response:", data);
         throw new Error("Invalid upload response: url missing");
       }
 
-      // এই URL টা সরাসরি image field এ বসবে (DB-তে যাবে)
       setFormData((prev) => ({
         ...prev,
         image: data.url,
@@ -236,13 +234,13 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <h2 className="text-lg font-semibold p-4">{blog ? "Edit Blog" : "Create New Blog"}</h2>
+    <div className="bg-card rounded-lg shadow border-border">
+      <h2 className="text-lg font-semibold p-4 text-foreground">{blog ? "Edit Blog" : "Create New Blog"}</h2>
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         <div>
           <label
             htmlFor="title"
-            className="block text-sm font-medium text-gray-700 mb-2"
+            className="block text-sm font-medium text-foreground mb-2"
           >
             Title *
           </label>
@@ -253,16 +251,16 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
             value={formData.title}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
             placeholder="Enter blog title"
           />
 
           {/* Slug Preview */}
-          <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="mt-2 p-3 bg-muted rounded-lg border border-border">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-600">Slug:</span>
+              <span className="text-sm font-medium text-muted-foreground">Slug:</span>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               URL: /kitabghor/blogs/{slug}
             </p>
           </div>
@@ -272,7 +270,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
           <div>
             <label
               htmlFor="author"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Author *
             </label>
@@ -283,7 +281,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
               value={formData.author}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
               placeholder="Enter author name"
             />
           </div>
@@ -291,7 +289,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
           <div>
             <label
               htmlFor="date"
-              className="block text-sm font-medium text-gray-700 mb-2"
+              className="block text-sm font-medium text-foreground mb-2"
             >
               Publish Date *
             </label>
@@ -302,27 +300,27 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
               value={formData.date}
               onChange={handleChange}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Summary (optional)
           </label>
           <textarea
             name="summary"
             value={formData.summary}
             onChange={handleChange}
-            className="w-full px-3 py-2 border rounded-lg"
+            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground"
             placeholder="Write summary or leave empty for auto summary"
           />
         </div>
 
         {/* Content */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             Content *
           </label>
           {isClient && (
@@ -336,7 +334,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
 
         {/* Featured Image (upload + URL) */}
         <div className="space-y-2">
-          <Label>Featured Image *</Label>
+          <Label className="text-foreground">Featured Image *</Label>
 
           {/* Preview */}
           {formData.image && (
@@ -344,12 +342,12 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
               <img
                 src={formData.image}
                 alt="Blog featured"
-                className="w-24 h-24 rounded-md object-cover border"
+                className="w-24 h-24 rounded-md object-cover border border-border"
               />
               <button
                 type="button"
                 onClick={() => setFormData((prev) => ({ ...prev, image: "" }))}
-                className="text-xs text-red-600 hover:underline"
+                className="text-xs text-destructive hover:underline"
               >
                 Remove image
               </button>
@@ -359,19 +357,19 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
           {/* File upload → /api/upload */}
           <label
             htmlFor="blog-image-upload"
-            className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors cursor-pointer"
+            className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-dashed border-border rounded-lg hover:border-primary transition-colors cursor-pointer"
           >
             <div className="space-y-1 text-center">
               <div className="flex justify-center">
-                <Upload className="h-12 w-12 text-gray-400" />
+                <Upload className="h-12 w-12 text-muted-foreground" />
               </div>
-              <div className="flex text-sm text-gray-600 justify-center">
-                <span className="relative font-medium text-blue-600 hover:text-blue-700 focus-within:outline-none">
+              <div className="flex text-sm text-muted-foreground justify-center">
+                <span className="relative font-medium text-primary hover:text-primary/80 focus-within:outline-none">
                   Upload an image
                 </span>
                 <span className="pl-1">or drag and drop</span>
               </div>
-              <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+              <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 5MB</p>
             </div>
             <input
               id="blog-image-upload"
@@ -384,7 +382,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
           </label>
 
           {uploadingImage && (
-            <p className="text-xs text-gray-500 mt-1">Uploading image...</p>
+            <p className="text-xs text-muted-foreground mt-1">Uploading image...</p>
           )}
 
           {/* Optional: manual URL input */}
@@ -394,24 +392,24 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
             value={formData.image}
             onChange={handleChange}
             placeholder="Or paste image URL (optional)"
-            className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="mt-2 w-full px-3 py-2 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
           />
         </div>
 
         <div className="space-y-2">
-          <Label>Advertisement Image (optional)</Label>
+          <Label className="text-foreground">Advertisement Image (optional)</Label>
 
           {formData.ads && (
             <div className="mb-3 flex items-center gap-4">
               <img
                 src={formData.ads}
                 alt="Blog ad"
-                className="w-24 h-24 rounded-md object-cover border"
+                className="w-24 h-24 rounded-md object-cover border border-border"
               />
               <button
                 type="button"
                 onClick={() => setFormData((prev) => ({ ...prev, ads: "" }))}
-                className="text-xs text-red-600 hover:underline"
+                className="text-xs text-destructive hover:underline"
               >
                 Remove ad image
               </button>
@@ -420,19 +418,19 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
 
           <label
             htmlFor="blog-ad-image-upload"
-            className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors cursor-pointer"
+            className="mt-1 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-dashed border-border rounded-lg hover:border-primary transition-colors cursor-pointer"
           >
             <div className="space-y-1 text-center">
               <div className="flex justify-center">
-                <Upload className="h-12 w-12 text-gray-400" />
+                <Upload className="h-12 w-12 text-muted-foreground" />
               </div>
-              <div className="flex text-sm text-gray-600 justify-center">
-                <span className="relative font-medium text-blue-600 hover:text-blue-700 focus-within:outline-none">
+              <div className="flex text-sm text-muted-foreground justify-center">
+                <span className="relative font-medium text-primary hover:text-primary/80 focus-within:outline-none">
                   Upload an ad image
                 </span>
                 <span className="pl-1">or drag and drop</span>
               </div>
-              <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+              <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 5MB</p>
             </div>
             <input
               id="blog-ad-image-upload"
@@ -445,7 +443,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
           </label>
 
           {uploadingAdImage && (
-            <p className="text-xs text-gray-500 mt-1">Uploading ad image...</p>
+            <p className="text-xs text-muted-foreground mt-1">Uploading ad image...</p>
           )}
 
           <input
@@ -454,7 +452,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
             value={formData.ads}
             onChange={handleChange}
             placeholder="Or paste ad image URL (optional)"
-            className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="mt-2 w-full px-3 py-2 border border-border rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-background text-foreground"
           />
         </div>
 
@@ -462,14 +460,14 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            className="px-4 py-2 border border-border rounded-lg text-foreground hover:bg-muted"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
           >
             {loading ? "Saving..." : blog ? "Update Blog" : "Create Blog"}
           </button>

@@ -148,8 +148,8 @@ export default function SubscriberManagement() {
     return (
       <div className="flex justify-center items-center min-h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0E4B4B] mx-auto mb-4"></div>
-          <p className="text-[#0D1414]">Loading subscribers...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-foreground">Loading subscribers...</p>
         </div>
       </div>
     );
@@ -160,10 +160,10 @@ export default function SubscriberManagement() {
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold text-[#0D1414]">
+          <h2 className="text-lg sm:text-xl font-semibold text-foreground">
             Subscriber Management
           </h2>
-          <p className="text-[#2D4A3C]/70 text-sm">
+          <p className="text-muted-foreground text-sm">
             Total {subscribers.length} subscribers
           </p>
         </div>
@@ -171,7 +171,7 @@ export default function SubscriberManagement() {
           <Button
             onClick={exportSubscribers}
             variant="outline"
-            className="border-[#0E4B4B] text-[#0E4B4B] hover:bg-[#0E4B4B] hover:text-white rounded-lg transition-all duration-300 w-full sm:w-auto"
+            className="border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-lg transition-all duration-300 w-full sm:w-auto"
           >
             <Download className="h-4 w-4 mr-2" />
             <span className="sm:hidden">Export</span>
@@ -181,21 +181,21 @@ export default function SubscriberManagement() {
             <DialogTrigger asChild>
               <Button
                 onClick={() => setIsAddDialogOpen(true)}
-                className="bg-[#0E4B4B] hover:bg-[#086666] text-white font-semibold px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-[#0E4B4B] w-full sm:w-auto"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-primary w-full sm:w-auto"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Subscriber
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md mx-4 bg-white/95 backdrop-blur-sm border border-[#D1D8BE] rounded-2xl shadow-2xl">
-              <DialogHeader className="border-b border-[#D1D8BE] pb-4">
-                <DialogTitle className="text-lg sm:text-xl font-semibold text-[#0D1414]">
+            <DialogContent className="max-w-md mx-4 bg-background border border-border rounded-2xl shadow-2xl">
+              <DialogHeader className="border-b border-border pb-4">
+                <DialogTitle className="text-lg sm:text-xl font-semibold text-foreground">
                   Add New Subscriber
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddSubscriber} className="space-y-6 pt-4">
                 <div>
-                  <Label htmlFor="email" className="text-[#0D1414] font-medium">
+                  <Label htmlFor="email" className="text-foreground font-medium">
                     Email Address
                   </Label>
                   <Input
@@ -204,13 +204,13 @@ export default function SubscriberManagement() {
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
                     placeholder="Enter email address"
-                    className="bg-[#EEEFE0] border-[#D1D8BE] focus:border-[#819A91] text-[#0D1414] placeholder-[#2D4A3C]/50 transition-colors duration-300"
+                    className="bg-muted border-border focus:border-primary text-foreground placeholder-muted-foreground transition-colors duration-300"
                     required
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-[#0E4B4B] to-[#086666] hover:from-[#0A3A3A] hover:to-[#065252] text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-[#0E4B4B]"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border border-primary"
                 >
                   Add Subscriber
                 </Button>
@@ -225,31 +225,31 @@ export default function SubscriberManagement() {
         {subscribers.map((subscriber, index) => (
           <Card
             key={index}
-            className="bg-white/90 backdrop-blur-sm border border-[#D1D8BE] rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="bg-card border border-border rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
           >
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-[#0E4B4B] to-[#086666] rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
                     <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-[#0D1414] text-sm sm:text-base break-words">
+                    <p className="font-semibold text-foreground text-sm sm:text-base break-words">
                       {subscriber.email}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <div
                         className={`w-2 h-2 rounded-full flex-shrink-0 ${
                           subscriber.status === "subscribed"
-                            ? "bg-[#A7C1A8]"
-                            : "bg-[#C0704D]"
+                            ? "bg-green-500"
+                            : "bg-orange-500"
                         }`}
                       />
                       <span
                         className={`text-xs font-medium ${
                           subscriber.status === "subscribed"
-                            ? "text-[#0E4B4B]"
-                            : "text-[#C0704D]"
+                            ? "text-green-700 dark:text-green-400"
+                            : "text-orange-700 dark:text-orange-400"
                         }`}
                       >
                         {subscriber.status === "subscribed" ? "Subscribed" : "Unsubscribed"}
@@ -261,7 +261,7 @@ export default function SubscriberManagement() {
                   variant="destructive"
                   size="sm"
                   onClick={() => openDeleteDialog(subscriber.email)}
-                  className="bg-[#C0704D] hover:bg-[#A85D3F] text-white border-[#C0704D] hover:border-[#A85D3F] rounded-lg transition-all duration-300 flex-shrink-0"
+                  className="rounded-lg transition-all duration-300 flex-shrink-0"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -273,18 +273,18 @@ export default function SubscriberManagement() {
 
       {subscribers.length === 0 && (
         <div className="text-center py-8 sm:py-12">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#EEEFE0] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Mail className="w-8 h-8 sm:w-10 sm:h-10 text-[#819A91]" />
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground" />
           </div>
-          <h3 className="text-lg sm:text-xl font-semibold text-[#0D1414] mb-2">
+          <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2">
             No subscribers yet
           </h3>
-          <p className="text-[#2D4A3C]/70 mb-6 text-sm sm:text-base">
+          <p className="text-muted-foreground mb-6 text-sm sm:text-base">
             Add your first subscriber to get started
           </p>
           <Button
             onClick={() => setIsAddDialogOpen(true)}
-            className="bg-[#0E4B4B] hover:bg-[#086666] text-white font-semibold px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-[#0E4B4B] w-full sm:w-auto"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-primary w-full sm:w-auto"
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Subscriber
@@ -294,25 +294,25 @@ export default function SubscriberManagement() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="max-w-sm mx-4 bg-white/95 backdrop-blur-sm border border-[#D1D8BE] rounded-2xl shadow-2xl p-4 sm:p-6">
-          <DialogHeader className="border-b border-[#D1D8BE] pb-3 mb-4">
-            <DialogTitle className="text-lg sm:text-xl font-semibold text-[#C0704D]">
+        <DialogContent className="max-w-sm mx-4 bg-background border border-border rounded-2xl shadow-2xl p-4 sm:p-6">
+          <DialogHeader className="border-b border-border pb-3 mb-4">
+            <DialogTitle className="text-lg sm:text-xl font-semibold text-destructive">
               Confirm Deletion
             </DialogTitle>
           </DialogHeader>
-          <p className="text-[#0D1414] mb-6 text-sm sm:text-base">
+          <p className="text-foreground mb-6 text-sm sm:text-base">
             Are you sure you want to remove <strong className="break-words">{deletingEmail}</strong> from subscribers?
           </p>
           <div className="flex flex-col sm:flex-row justify-end gap-3">
             <Button
               onClick={() => setIsDeleteDialogOpen(false)}
-              className="bg-[#EEEFE0] text-[#0D1414] hover:bg-[#D1D8BE] rounded-lg transition-all w-full sm:w-auto"
+              className="bg-muted text-foreground hover:bg-muted/80 rounded-lg transition-all w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
               onClick={handleConfirmDelete}
-              className="bg-[#C0704D] hover:bg-[#A85D3F] text-white rounded-lg transition-all w-full sm:w-auto"
+              className="bg-destructive hover:bg-destructive/90 text-white rounded-lg transition-all w-full sm:w-auto"
             >
               Remove Subscriber
             </Button>
