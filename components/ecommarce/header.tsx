@@ -405,19 +405,21 @@ export default function Header() {
     "relative h-11 w-11 rounded-lg btn-primary border border-border flex items-center justify-center";
 
   // Theme toggle button component
-  const Button = ({ children, onClick, variant, size, className, title }: any) => (
-    <button
-      onClick={onClick}
-      className={className}
-      title={title}
-    >
+  const Button = ({
+    children,
+    onClick,
+    variant,
+    size,
+    className,
+    title,
+  }: any) => (
+    <button onClick={onClick} className={className} title={title}>
       {children}
     </button>
   );
 
   return (
     <header className="sticky top-0 z-50">
-
       {/* Main Header (Row1 + Row2) */}
       <div className="bg-primary text-primary-foreground border-b border-border">
         <div className="container mx-auto px-4 py-4 space-y-4">
@@ -445,7 +447,11 @@ export default function Header() {
                   variant="ghost"
                   size="icon"
                   className="rounded-full bg-muted hover:bg-accent text-foreground"
-                  title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  title={
+                    theme === "dark"
+                      ? "Switch to Light Mode"
+                      : "Switch to Dark Mode"
+                  }
                 >
                   {theme === "dark" ? (
                     <Sun className="h-5 w-5" />
@@ -593,14 +599,18 @@ export default function Header() {
                     {hasMounted && session ? (
                       <>
                         <div className="px-4 py-3 border-b border-border">
-                          <div className="text-sm font-semibold">{userName}</div>
+                          <div className="text-sm font-semibold">
+                            {userName}
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {userRole}
                           </div>
                         </div>
 
                         <Link
-                          href={userRole === "admin" ? "/admin" : "/kitabghor/user/"}
+                          href={
+                            userRole === "admin" ? "/admin" : "/kitabghor/user/"
+                          }
                           onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                         >
@@ -649,16 +659,15 @@ export default function Header() {
             {/* Home */}
             <Link
               href="/"
-              className={`flex items-center px-4 py-2 rounded-full transition-all duration-200 ${
-                pathname === "/"
-                  ? "btn-primary"
-                  : "hover:bg-muted hover:font-semibold"
-              }`}
+              className="relative flex items-center px-4 py-2 rounded-full btn-primary transition-all duration-200
+              after:absolute after:left-4 after:right-4 after:-bottom-1 after:h-[2px] 
+              after:bg-primary-foreground after:scale-x-0 after:origin-left 
+              after:transition-transform after:duration-300 
+              hover:after:scale-x-100"
             >
               <House className="h-4 w-4 mr-2" />
               হোম
             </Link>
-
             {/* categories */}
             {topCategories.map((cat) => (
               <div
@@ -668,7 +677,11 @@ export default function Header() {
               >
                 <Link
                   href={`/kitabghor/categories/${cat.slug}`}
-                  className="flex items-center px-4 py-2 rounded-full transition-all duration-200 btn-primary"
+                  className="relative flex items-center px-4 py-2 rounded-full btn-primary transition-all duration-200
+                  after:absolute after:left-4 after:right-4 after:-bottom-1 after:h-[2px] 
+                  after:bg-primary-foreground after:scale-x-0 after:origin-left 
+                  after:transition-transform after:duration-300 
+                  hover:after:scale-x-100"
                 >
                   {cat.name}
                 </Link>
