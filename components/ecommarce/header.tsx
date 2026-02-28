@@ -27,7 +27,6 @@ import {
 /* =========================
    CONFIG
 ========================= */
-// ✅ আপনার route যদি /api/category হয় তাহলে এটা করুন "/api/category"
 const CATEGORIES_API = "/api/categories";
 
 /* =========================
@@ -77,7 +76,7 @@ function buildCategoryTree(list: CategoryDTO[]): CategoryNode[] {
 }
 
 /* =========================
-   Flyout (same behaviour as your All Category)
+   Flyout
 ========================= */
 function CategoryFlyout({
   roots,
@@ -214,7 +213,7 @@ function CategoryFlyout({
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
 
   const { cartItems } = useCart();
   const { wishlistCount } = useWishlist();
@@ -245,8 +244,13 @@ export default function Header() {
   const catWrapRef = useRef<HTMLDivElement | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
 
-  // row-3 hover dropdown (dynamic categories)
+  // row-3 hover dropdown
   const [hoverTopCatId, setHoverTopCatId] = useState<number | null>(null);
+
+  // ✅ NEW: row3 refs + dropdown position
+  const row3Ref = useRef<HTMLDivElement | null>(null);
+  const catItemRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
+  const [dropdownLeft, setDropdownLeft] = useState(0);
 
   const userName = (session?.user as any)?.name || "ব্যবহারকারী";
   const userRole = (session?.user as any)?.role || "user";
@@ -355,6 +359,7 @@ export default function Header() {
       if (profileRef.current && !profileRef.current.contains(target)) {
         setProfileOpen(false);
       }
+
       const el = e.target as HTMLElement;
       if (!el.closest?.(".header-search-wrapper")) {
         setShowSearchDropdown(false);
@@ -398,25 +403,24 @@ export default function Header() {
     return topCategories.find((c) => c.id === hoverTopCatId) ?? null;
   }, [hoverTopCatId, topCategories]);
 
-  // reusable button classes using your utilities
+  // reusable button classes
   const topBtnClass =
     "h-10 px-5 rounded-lg btn-primary border border-border flex items-center gap-2 text-sm font-semibold";
   const iconBtnClass =
     "relative h-11 w-11 rounded-lg btn-primary border border-border flex items-center justify-center";
 
   // Theme toggle button component
-  const Button = ({
-    children,
-    onClick,
-    variant,
-    size,
-    className,
-    title,
-  }: any) => (
+  const Button = ({ children, onClick, className, title }: any) => (
     <button onClick={onClick} className={className} title={title}>
       {children}
     </button>
   );
+
+  const underlinePill =
+    "relative flex items-center px-4 py-2 rounded-full btn-primary transition-all duration-200 " +
+    "after:absolute after:left-4 after:right-4 after:-bottom-1 after:h-[2px] " +
+    "after:bg-primary-foreground after:scale-x-0 after:origin-left " +
+    "after:transition-transform after:duration-300 hover:after:scale-x-100";
 
   return (
     <header className="sticky top-0 z-50">
@@ -444,9 +448,7 @@ export default function Header() {
               {hasMounted && (
                 <Button
                   onClick={toggleTheme}
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full bg-muted hover:bg-accent text-foreground"
+                  className="rounded-full bg-muted hover:bg-accent text-foreground h-11 w-11 flex items-center justify-center border border-border"
                   title={
                     theme === "dark"
                       ? "Switch to Light Mode"
@@ -460,6 +462,7 @@ export default function Header() {
                   )}
                 </Button>
               )}
+
               <Link href="/kitabghor/blogs" className={topBtnClass}>
                 <Newspaper className="h-4 w-4" />
                 ব্লগ
@@ -649,48 +652,58 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Row 3: Home + Dynamic categories */}
+      {/* Row 3 */}
       <div className="bg-primary text-foreground border-b border-border hidden md:block">
         <div className="container mx-auto px-4">
           <div
+            ref={row3Ref}
             className="h-12 flex items-center gap-2 relative"
             onMouseLeave={() => setHoverTopCatId(null)}
           >
             {/* Home */}
-            <Link
-              href="/"
-              className="relative flex items-center px-4 py-2 rounded-full btn-primary transition-all duration-200
-              after:absolute after:left-4 after:right-4 after:-bottom-1 after:h-[2px] 
-              after:bg-primary-foreground after:scale-x-0 after:origin-left 
-              after:transition-transform after:duration-300 
-              hover:after:scale-x-100"
-            >
+            <Link href="/" className={underlinePill}>
               <House className="h-4 w-4 mr-2" />
               হোম
             </Link>
+
             {/* categories */}
             {topCategories.map((cat) => (
               <div
                 key={cat.id}
+                ref={(el) => {
+                  catItemRefs.current.set(cat.id, el);
+                }}
                 className="relative"
-                onMouseEnter={() => setHoverTopCatId(cat.id)}
+                onMouseEnter={() => {
+                  setHoverTopCatId(cat.id);
+
+                  // ✅ dropdown left set based on hovered item position
+                  requestAnimationFrame(() => {
+                    const wrap = row3Ref.current;
+                    const el = catItemRefs.current.get(cat.id);
+                    if (!wrap || !el) return;
+
+                    const wrapRect = wrap.getBoundingClientRect();
+                    const elRect = el.getBoundingClientRect();
+                    setDropdownLeft(elRect.left - wrapRect.left);
+                  });
+                }}
               >
                 <Link
                   href={`/kitabghor/categories/${cat.slug}`}
-                  className="relative flex items-center px-4 py-2 rounded-full btn-primary transition-all duration-200
-                  after:absolute after:left-4 after:right-4 after:-bottom-1 after:h-[2px] 
-                  after:bg-primary-foreground after:scale-x-0 after:origin-left 
-                  after:transition-transform after:duration-300 
-                  hover:after:scale-x-100"
+                  className={underlinePill}
                 >
                   {cat.name}
                 </Link>
               </div>
             ))}
 
-            {/* hover dropdown (same as All Category) */}
+            {/* hover dropdown */}
             {hoveredTop && hoveredTop.children.length > 0 && (
-              <div className="absolute left-0 top-[52px] z-50">
+              <div
+                className="absolute top-[52px] z-50"
+                style={{ left: dropdownLeft }}
+              >
                 <CategoryFlyout
                   roots={[hoveredTop]}
                   onNavigate={() => setHoverTopCatId(null)}
