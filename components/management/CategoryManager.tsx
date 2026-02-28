@@ -37,6 +37,7 @@ export default function CategoryManager({
   const [editing, setEditing] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [createParent, setCreateParent] = useState<Category | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
@@ -156,6 +157,14 @@ export default function CategoryManager({
             <Button
               size="sm"
               variant="outline"
+              onClick={() => openAddModal(node)}
+            >
+              <Plus size={14} />
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => openEditModal(node)}
             >
               <Edit3 size={14} />
@@ -188,6 +197,7 @@ export default function CategoryManager({
   const closeModal = () => {
     setModalOpen(false);
     setEditing(null);
+    setCreateParent(null);
     setSubmitting(false);
     setImageFile(null);
     setImagePreviewUrl(null);
@@ -195,18 +205,20 @@ export default function CategoryManager({
     setForm({ name: "", parentId: null, image: null });
   };
 
-  const openAddModal = () => {
+  const openAddModal = (parent: Category | null = null) => {
     setEditing(null);
+    setCreateParent(parent);
     setSubmitting(false);
     setImageFile(null);
     setImagePreviewUrl(null);
     setFileInputKey((k) => k + 1);
-    setForm({ name: "", parentId: null, image: null });
+    setForm({ name: "", parentId: parent?.id ?? null, image: null });
     setModalOpen(true);
   };
 
   const openEditModal = (cat: any) => {
     setEditing(cat);
+    setCreateParent(null);
     setSubmitting(false);
     setImageFile(null);
     setImagePreviewUrl(cat.image ?? null);
@@ -284,9 +296,9 @@ export default function CategoryManager({
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Category Management</h1>
 
-        <Button onClick={openAddModal}>
+        <Button onClick={() => openAddModal(null)}>
           <Plus size={16} className="mr-2" />
-          Add Category
+          Add Root Category
         </Button>
       </div>
 
@@ -327,7 +339,11 @@ export default function CategoryManager({
           >
             <div className="flex items-start justify-between mb-4">
               <h2 className="text-xl font-bold">
-                {editing ? "Edit Category" : "New Category"}
+                {editing
+                  ? "Edit Category"
+                  : createParent
+                    ? `Add Subcategory: ${createParent.name}`
+                    : "New Root Category"}
               </h2>
               <Button
                 size="icon"
@@ -402,28 +418,41 @@ export default function CategoryManager({
                 )}
               </div>
 
-              <div>
-                <Label>Parent</Label>
-                <select
-                  className="w-full border rounded-md px-3 py-2 bg-background"
-                  value={form.parentId ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      parentId: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                >
-                  <option value="">Root</option>
-                  {categories
-                    ?.filter((c: any) => !editing || c.id !== editing.id)
-                    .map((cat: any) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
+              {!editing && (
+                <div>
+                  <Label>Type</Label>
+                  <div className="mt-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                    {createParent
+                      ? `Subcategory under "${createParent.name}"`
+                      : "Root category"}
+                  </div>
+                </div>
+              )}
+
+              {editing && (
+                <div>
+                  <Label>Parent</Label>
+                  <select
+                    className="w-full border rounded-md px-3 py-2 bg-background"
+                    value={form.parentId ?? ""}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        parentId: e.target.value ? Number(e.target.value) : null,
+                      })
+                    }
+                  >
+                    <option value="">Root</option>
+                    {categories
+                      ?.filter((c: any) => c.id !== editing.id)
+                      .map((cat: any) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <Button
