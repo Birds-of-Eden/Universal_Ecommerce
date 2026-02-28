@@ -9,7 +9,7 @@ import slugify from "slugify";
 ========================= */
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     const id = Number(params.id);
@@ -17,7 +17,7 @@ export async function GET(
     if (isNaN(id)) {
       return NextResponse.json(
         { error: "Invalid category id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,7 +48,7 @@ export async function GET(
     if (!category) {
       return NextResponse.json(
         { error: "Category not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -56,6 +56,7 @@ export async function GET(
       id: category.id,
       name: category.name,
       slug: category.slug,
+      image: category.image, // ✅ added
       parentId: category.parentId,
       parentName: category.parent?.name || null,
       productCount: category._count.products,
@@ -68,7 +69,7 @@ export async function GET(
     console.error(error);
     return NextResponse.json(
       { error: "Failed to fetch category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -78,16 +79,16 @@ export async function GET(
 ========================= */
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     const id = Number(params.id);
-    const { name, parentId } = await req.json();
+    const { name, parentId, image } = await req.json();
 
     if (isNaN(id)) {
       return NextResponse.json(
         { error: "Invalid category id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -98,7 +99,7 @@ export async function PUT(
     if (!existing) {
       return NextResponse.json(
         { error: "Category not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -116,7 +117,7 @@ export async function PUT(
       if (duplicate) {
         return NextResponse.json(
           { error: "Category name already exists" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -126,6 +127,7 @@ export async function PUT(
       data: {
         name: name ?? existing.name,
         slug: slug ?? existing.slug,
+        image: image !== undefined ? image : existing.image, // ✅ added
         parentId: parentId ?? existing.parentId,
       },
     });
@@ -135,7 +137,7 @@ export async function PUT(
     console.error(error);
     return NextResponse.json(
       { error: "Failed to update category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -145,7 +147,7 @@ export async function PUT(
 ========================= */
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     const id = Number(params.id);
@@ -153,7 +155,7 @@ export async function DELETE(
     if (isNaN(id)) {
       return NextResponse.json(
         { error: "Invalid category id" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -164,7 +166,7 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json(
         { error: "Category not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -177,10 +179,10 @@ export async function DELETE(
       message: "Category soft deleted successfully",
     });
   } catch (error) {
-    console.error("Soft delete category error:", error);
+    console.error(error);
     return NextResponse.json(
       { error: "Failed to delete category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

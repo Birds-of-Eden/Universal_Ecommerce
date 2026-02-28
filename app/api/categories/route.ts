@@ -31,11 +31,13 @@ export async function GET() {
       id: c.id,
       name: c.name,
       slug: c.slug,
+      image: c.image, // ✅ added
       parentId: c.parentId,
       parentName: c.parent?.name || null,
       productCount: c._count.products,
       childrenCount: c.children.length,
       createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
     }));
 
     return NextResponse.json(formatted);
@@ -43,7 +45,7 @@ export async function GET() {
     console.error(error);
     return NextResponse.json(
       { error: "Failed to fetch categories" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -53,18 +55,17 @@ export async function GET() {
 ========================= */
 export async function POST(req: Request) {
   try {
-    const { name, parentId } = await req.json();
+    const { name, parentId, image } = await req.json();
 
     if (!name) {
       return NextResponse.json(
         { error: "Category name is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const slug = slugify(name, { lower: true, strict: true });
 
-    // Check duplicate slug
     const existing = await prisma.category.findUnique({
       where: { slug },
     });
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
     if (existing) {
       return NextResponse.json(
         { error: "Category already exists" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
       data: {
         name,
         slug,
+        image: image || null, // ✅ added
         parentId: parentId || null,
       },
     });
@@ -89,7 +91,7 @@ export async function POST(req: Request) {
     console.error(error);
     return NextResponse.json(
       { error: "Failed to create category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
