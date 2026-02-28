@@ -25,6 +25,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import ProductAddModal from "./ProductAddModal";
+import ProductRelationsModal from "./ProductRelationsModal";
+import AttributesManagerModal from "./AttributesManagerModal";
+import WarehouseManagerModal from "./WarehouseManagerModal";
+import DigitalAssetManagerModal from "./DigitalAssetManagerModal";
 
 export default function ProductManager({
   products,
@@ -42,9 +46,14 @@ export default function ProductManager({
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
+  const [manageOpen, setManageOpen] = useState(false);
+  const [managingProduct, setManagingProduct] = useState<any>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [attributesOpen, setAttributesOpen] = useState(false);
+  const [warehousesOpen, setWarehousesOpen] = useState(false);
+  const [digitalAssetsOpen, setDigitalAssetsOpen] = useState(false);
 
   const filtered = products
     ?.filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()))
@@ -68,6 +77,11 @@ export default function ProductManager({
   const closeDeleteModal = () => {
     setDeleteModalOpen(false);
     setDeletingProduct(null);
+  };
+
+  const openManage = (product: any) => {
+    setManagingProduct(product);
+    setManageOpen(true);
   };
 
   const handleDelete = async () => {
@@ -140,8 +154,8 @@ export default function ProductManager({
 
       {/* SEARCH + ADD */}
       <Card className="mb-8 bg-white shadow">
-        <CardContent className="p-6 flex gap-4 items-center">
-          <div className="flex-1 relative">
+        <CardContent className="p-6 flex flex-col md:flex-row gap-4 md:items-center">
+          <div className="flex-1 relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               className="pl-10"
@@ -150,9 +164,32 @@ export default function ProductManager({
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Button onClick={openAdd}>
-            <Plus className="h-4 w-4 mr-1" /> New Product
-          </Button>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setWarehousesOpen(true)}
+            >
+              Warehouses
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setAttributesOpen(true)}
+            >
+              Attributes
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setDigitalAssetsOpen(true)}
+            >
+              Digital Assets
+            </Button>
+            <Button onClick={openAdd}>
+              <Plus className="h-4 w-4 mr-1" /> New Product
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -191,7 +228,7 @@ export default function ProductManager({
                   <p>SKU: {p.sku || "-"}</p>
                   <p>Available: {p.available ? "Yes" : "No"}</p>
                   <p>Featured: {p.featured ? "Yes" : "No"}</p>
-                  <p>Stock: {calculateStock(p)}</p>
+                  {p.type === "PHYSICAL" && <p>Stock: {calculateStock(p)}</p>}
                 </div>
 
                 <p className="font-semibold text-lg mb-4">৳{p.basePrice}</p>
@@ -200,9 +237,16 @@ export default function ProductManager({
                   <Button
                     onClick={() => openEdit(p)}
                     variant="outline"
-                    className="w-full"
+                    className="flex-1"
                   >
                     <Edit3 className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                  <Button
+                    onClick={() => openManage(p)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Manage
                   </Button>
                   <Button
                     onClick={() => openDeleteModal(p)}
@@ -239,6 +283,46 @@ export default function ProductManager({
           publishers={publishers}
           vatClasses={vatClasses}
           digitalAssets={digitalAssets}
+        />
+      )}
+
+      {manageOpen && (
+        <ProductRelationsModal
+          open={manageOpen}
+          onClose={() => {
+            setManageOpen(false);
+            setManagingProduct(null);
+          }}
+          product={
+            managingProduct
+              ? {
+                  id: managingProduct.id,
+                  name: managingProduct.name,
+                  type: managingProduct.type,
+                }
+              : null
+          }
+        />
+      )}
+
+      {attributesOpen && (
+        <AttributesManagerModal
+          open={attributesOpen}
+          onClose={() => setAttributesOpen(false)}
+        />
+      )}
+
+      {warehousesOpen && (
+        <WarehouseManagerModal
+          open={warehousesOpen}
+          onClose={() => setWarehousesOpen(false)}
+        />
+      )}
+
+      {digitalAssetsOpen && (
+        <DigitalAssetManagerModal
+          open={digitalAssetsOpen}
+          onClose={() => setDigitalAssetsOpen(false)}
         />
       )}
     </div>

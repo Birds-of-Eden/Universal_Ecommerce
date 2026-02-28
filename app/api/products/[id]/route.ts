@@ -7,10 +7,11 @@ import slugify from "slugify";
 ========================= */
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await ctx.params;
+    const id = Number(idParam);
 
     if (isNaN(id)) {
       return NextResponse.json(
@@ -54,10 +55,11 @@ export async function GET(
 ========================= */
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await ctx.params;
+    const id = Number(idParam);
 
     if (isNaN(id)) {
       return NextResponse.json(
@@ -200,7 +202,60 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json(updated);
+    const effectiveType = (body.type ?? existing.type) as string;
+    if (body.stock !== undefined && effectiveType !== "PHYSICAL") {
+      return NextResponse.json(
+        { error: "Stock is only available for PHYSICAL products" },
+        { status: 400 }
+      );
+    }
+
+    if (body.stock !== undefined && effectiveType === "PHYSICAL") {
+      const newStock = Number(body.stock);
+      if (!Number.isFinite(newStock) || newStock < 0) {
+        return NextResponse.json(
+          { error: "Stock must be a number (0 or more)" },
+          { status: 400 }
+        );
+      }
+
+      const variant = await prisma.productVariant.findFirst({
+        where: { productId: id },
+        orderBy: { id: "asc" },
+      });
+
+      if (variant) {
+        const change = newStock - Number(variant.stock);
+        await prisma.productVariant.update({
+          where: { id: variant.id },
+          data: { stock: newStock },
+        });
+
+        if (change !== 0) {
+          await prisma.inventoryLog.create({
+            data: {
+              productId: id,
+              variantId: variant.id,
+              change,
+              reason: "Admin stock adjustment",
+            },
+          });
+        }
+      }
+    }
+
+    const withRelations = await prisma.product.findFirst({
+      where: { id, deleted: false },
+      include: {
+        category: true,
+        brand: true,
+        writer: true,
+        publisher: true,
+        variants: true,
+      },
+    });
+
+    return NextResponse.json(withRelations ?? updated);
   } catch (err) {
     console.error(err);
     return NextResponse.json(
@@ -215,10 +270,11 @@ export async function PUT(
 ========================= */
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await ctx.params;
+    const id = Number(idParam);
 
     if (isNaN(id)) {
       return NextResponse.json(

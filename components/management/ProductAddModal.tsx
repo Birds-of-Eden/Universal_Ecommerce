@@ -38,6 +38,7 @@ interface ProductForm {
   originalPrice: string;
   currency: string;
   weight: string;
+  stockQty: string;
   dimLength: string;
   dimWidth: string;
   dimHeight: string;
@@ -81,6 +82,7 @@ const emptyForm: ProductForm = {
   originalPrice: "",
   currency: "USD",
   weight: "",
+  stockQty: "0",
   dimLength: "",
   dimWidth: "",
   dimHeight: "",
@@ -138,6 +140,12 @@ export default function ProductAddModal({
     const dimUnit =
       d && typeof d === "object" && typeof d.unit === "string" ? d.unit : "cm";
 
+    const variants = Array.isArray(editing.variants) ? editing.variants : [];
+    const totalStock = variants.reduce(
+      (acc: number, v: any) => acc + (Number(v?.stock) || 0),
+      0,
+    );
+
     setForm({
       id: editing.id,
       name: editing.name ?? "",
@@ -149,6 +157,7 @@ export default function ProductAddModal({
       originalPrice: editing.originalPrice?.toString?.() ?? "",
       currency: editing.currency ?? "USD",
       weight: editing.weight?.toString?.() ?? "",
+      stockQty: String(totalStock),
       dimLength,
       dimWidth,
       dimHeight,
@@ -256,6 +265,17 @@ export default function ProductAddModal({
       return;
     }
 
+    const stock =
+      form.type === "PHYSICAL"
+        ? form.stockQty.trim()
+          ? Number(form.stockQty)
+          : 0
+        : undefined;
+    if (stock !== undefined && (!Number.isFinite(stock) || stock < 0)) {
+      toast.error("Stock must be a number (0 or more)");
+      return;
+    }
+
     const dimensions = buildDimensions();
     if (dimensions === undefined) {
       toast.error("Please enter valid dimensions");
@@ -264,7 +284,7 @@ export default function ProductAddModal({
 
     setLoading(true);
     try {
-      const payload = {
+      const payload: any = {
         name: form.name,
         description: form.description || "",
         shortDesc: form.shortDesc || null,
@@ -298,6 +318,7 @@ export default function ProductAddModal({
         gallery: form.gallery || [],
         videoUrl: form.videoUrl || null,
       };
+      if (stock !== undefined) payload.stock = stock;
 
       if (editing) {
         await onSubmit(editing.id, payload);
@@ -315,11 +336,11 @@ export default function ProductAddModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 relative max-h-[90vh] overflow-y-auto">
+      <div className="bg-background rounded-2xl shadow-xl w-full max-w-3xl p-6 relative max-h-[90vh] overflow-y-auto border">
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-black"
+          className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
           aria-label="Close"
         >
           <X className="h-5 w-5" />
@@ -341,7 +362,7 @@ export default function ProductAddModal({
           <div>
             <Label>Description</Label>
             <textarea
-              className="w-full border rounded p-2 min-h-[90px]"
+              className="w-full border rounded p-2 min-h-[90px] bg-background text-foreground border-border resize-none focus:outline-none focus:ring-2 focus:ring-primary"
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
@@ -352,7 +373,7 @@ export default function ProductAddModal({
           <div>
             <Label>Short Description</Label>
             <textarea
-              className="w-full border rounded p-2 min-h-[70px]"
+              className="w-full border rounded p-2 min-h-[70px] bg-background text-foreground border-border resize-none focus:outline-none focus:ring-2 focus:ring-primary"
               value={form.shortDesc}
               onChange={(e) =>
                 setForm({ ...form, shortDesc: e.target.value })
@@ -364,7 +385,7 @@ export default function ProductAddModal({
             <div>
               <Label>Type</Label>
               <select
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
                 value={form.type}
                 onChange={(e) =>
                   setForm({ ...form, type: e.target.value as ProductType })
@@ -428,6 +449,22 @@ export default function ProductAddModal({
             </div>
           </div>
 
+          {form.type === "PHYSICAL" && (
+            <div>
+              <Label>Stock Quantity</Label>
+              <Input
+                type="number"
+                value={form.stockQty}
+                onChange={(e) => setForm({ ...form, stockQty: e.target.value })}
+              />
+              {editing && Array.isArray(editing?.variants) && editing.variants.length > 1 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  This product has multiple variants; stock here shows total stock.
+                </p>
+              )}
+            </div>
+          )}
+
           <div>
             <Label>Dimensions</Label>
             <div className="grid grid-cols-2 gap-4">
@@ -464,7 +501,7 @@ export default function ProductAddModal({
               <div>
                 <Label className="text-xs text-muted-foreground">Unit</Label>
                 <select
-                  className="border p-2 rounded w-full"
+                  className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
                   value={form.dimUnit}
                   onChange={(e) =>
                     setForm({ ...form, dimUnit: e.target.value })
@@ -483,7 +520,7 @@ export default function ProductAddModal({
             <div>
               <Label>VAT Class</Label>
               <select
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
                 value={form.VatClassId}
                 onChange={(e) => setForm({ ...form, VatClassId: e.target.value })}
               >
@@ -509,7 +546,7 @@ export default function ProductAddModal({
             <div>
               <Label>Category *</Label>
               <select
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
                 value={form.categoryId}
                 onChange={(e) =>
                   setForm({ ...form, categoryId: e.target.value })
@@ -527,7 +564,7 @@ export default function ProductAddModal({
             <div>
               <Label>Brand</Label>
               <select
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
                 value={form.brandId}
                 onChange={(e) => setForm({ ...form, brandId: e.target.value })}
               >
@@ -546,7 +583,7 @@ export default function ProductAddModal({
               <div>
                 <Label>Writer</Label>
                 <select
-                  className="border p-2 rounded w-full"
+                  className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
                   value={form.writerId}
                   onChange={(e) =>
                     setForm({ ...form, writerId: e.target.value })
@@ -564,7 +601,7 @@ export default function ProductAddModal({
               <div>
                 <Label>Publisher</Label>
                 <select
-                  className="border p-2 rounded w-full"
+                  className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
                   value={form.publisherId}
                   onChange={(e) =>
                     setForm({ ...form, publisherId: e.target.value })
@@ -585,7 +622,7 @@ export default function ProductAddModal({
             <div>
               <Label>Digital Asset</Label>
               <select
-                className="border p-2 rounded w-full"
+                className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
                 value={form.digitalAssetId}
                 onChange={(e) =>
                   setForm({ ...form, digitalAssetId: e.target.value })
@@ -677,7 +714,7 @@ export default function ProductAddModal({
                   alt="preview"
                   width={120}
                   height={120}
-                  className="rounded border"
+                  className="rounded border border-border"
                 />
                 <Button
                   type="button"
@@ -705,7 +742,7 @@ export default function ProductAddModal({
                     alt="gallery"
                     width={100}
                     height={100}
-                    className="rounded border"
+                    className="rounded border border-border"
                   />
                   <Button
                     type="button"
@@ -736,7 +773,7 @@ export default function ProductAddModal({
             <Button
               type="submit"
               disabled={loading}
-              className="bg-[#2C4A3B] text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <Zap className="h-4 w-4 mr-1" />
               {editing ? "Update Product" : "Add Product"}

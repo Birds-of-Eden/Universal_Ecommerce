@@ -9,10 +9,11 @@ import slugify from "slugify";
 ========================= */
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await params;
+    const id = Number(idParam);
     const { name, logo } = await req.json();
 
     const existing = await prisma.brand.findFirst({
@@ -66,10 +67,11 @@ export async function PUT(
 ========================= */
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await params;
+    const id = Number(idParam);
 
     await prisma.brand.update({
       where: { id },

@@ -110,11 +110,16 @@ export async function GET(request: NextRequest) {
         }
       }),
       
-      // Low stock products
-      prisma.product.count({
-        where: {
-          stock: { lt: 10 }
-        }
+      // Low stock products (based on variant stocks)
+      prisma.product.findMany({
+        where: { deleted: false },
+        select: {
+          id: true,
+          type: true,
+          variants: {
+            select: { stock: true },
+          },
+        },
       }),
       
       // Recent orders
@@ -142,7 +147,8 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           name: true,
-          price: true,
+          basePrice: true,
+          currency: true,
           soldCount: true,
           ratingAvg: true
         }
@@ -187,13 +193,25 @@ export async function GET(request: NextRequest) {
       ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
       : currentRevenue > 0 ? 100 : 0;
 
+    const lowStockThreshold = 10;
+    const lowStockProductsCount = Array.isArray(lowStockProducts)
+      ? lowStockProducts.filter((p: any) => {
+          if (p?.type !== "PHYSICAL") return false;
+          const totalStock = (p?.variants || []).reduce(
+            (acc: number, v: any) => acc + (Number(v?.stock) || 0),
+            0,
+          );
+          return totalStock < lowStockThreshold;
+        }).length
+      : 0;
+
     const stats = {
       totalUsers,
       totalOrders,
       totalProducts,
       totalRevenue: currentRevenue,
       pendingOrders,
-      lowStockProducts,
+      lowStockProducts: lowStockProductsCount,
       recentOrders: recentOrders.map((order: any) => ({
         id: order.id,
         grandTotal: Number(order.grand_total),
@@ -203,7 +221,8 @@ export async function GET(request: NextRequest) {
       topProducts: topProducts.map((product: any) => ({
         id: product.id,
         name: product.name,
-        price: Number(product.price),
+        price: Number(product.basePrice),
+        currency: product.currency,
         soldCount: product.soldCount,
         ratingAvg: product.ratingAvg
       })),

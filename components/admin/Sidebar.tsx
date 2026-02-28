@@ -32,6 +32,7 @@ const menuItems = [
       { name: "Categories", href: "/admin/management/categories" },
       { name: "Publishers", href: "/admin/management/publishers" },
       { name: "Brands", href: "/admin/management/brands" },
+      { name: "Stock Management", href: "/admin/management/stock" },
       { name: "VAT Classes", href: "/admin/management/vatclasses" },
     ],
   },
@@ -66,22 +67,22 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
     }
   }, [isManagementActive, item.name]);
 
-  // Modern Theme Classes matching e-commerce header
+  // Using CSS variables from global.css
   const baseClasses =
     "flex items-center gap-3 px-4 py-3 transition-all duration-300 text-sm font-medium rounded-lg";
 
-  // Base link colors - matching header design
+  // Base link colors using theme variables
   const defaultLinkClasses =
-    "text-[#F4F8F7]/80 hover:text-[#F4F8F7] hover:bg-[#F4F8F7]/10 hover:scale-105";
+    "text-muted-foreground hover:text-foreground hover:bg-accent hover:scale-105";
 
-  // Active link colors - matching header accent
+  // Active link colors using theme variables
   const activeLinkClasses =
-    "text-[#F4F8F7] bg-[#C0704D] font-semibold shadow-lg border border-[#C0704D]/20";
+    "text-primary-foreground bg-primary font-semibold shadow-lg border border-primary/20";
 
   // Dropdown button colors
-  const buttonActiveClasses = "text-[#F4F8F7] bg-[#F4F8F7]/15 font-semibold";
+  const buttonActiveClasses = "text-foreground bg-accent font-semibold";
   const buttonDefaultClasses =
-    "text-[#F4F8F7]/80 hover:text-[#F4F8F7] hover:bg-[#F4F8F7]/10";
+    "text-muted-foreground hover:text-foreground hover:bg-accent";
 
   return (
     <div>
@@ -98,7 +99,7 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
             <div className="flex items-center gap-3">
               <div className={cn(
                 "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
-                isOpen ? "bg-[#C0704D] text-[#F4F8F7]" : "bg-[#F4F8F7]/10 text-[#5FA3A3]"
+                isOpen ? "bg-primary text-primary-foreground" : "bg-accent text-muted-foreground"
               )}>
                 <item.icon className="h-4 w-4" />
               </div>
@@ -124,14 +125,14 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
                     className={cn(
                       "block px-4 py-2 text-xs transition-all duration-300 rounded-lg",
                       isSubItemActive
-                        ? "text-[#F4F8F7] bg-[#C0704D] font-medium shadow-md border border-[#C0704D]/20"
-                        : "text-[#F4F8F7]/70 hover:text-[#F4F8F7] hover:bg-[#F4F8F7]/10 hover:translate-x-1"
+                        ? "text-primary-foreground bg-primary font-medium shadow-md border border-primary/20"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent hover:translate-x-1"
                     )}
                   >
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                        isSubItemActive ? "bg-[#F4F8F7]" : "bg-[#5FA3A3]"
+                        isSubItemActive ? "bg-primary-foreground" : "bg-muted-foreground"
                       )} />
                       {subItem.name}
                     </div>
@@ -154,14 +155,14 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
           <div className="flex items-center gap-3 flex-1">
             <div className={cn(
               "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
-              isActive ? "bg-[#F4F8F7] text-[#0E4B4B]" : "bg-[#F4F8F7]/10 text-[#5FA3A3]"
+              isActive ? "bg-primary-foreground text-primary" : "bg-accent text-muted-foreground"
             )}>
               <item.icon className="h-4 w-4" />
             </div>
             <span>{item.name}</span>
           </div>
           {isActive && (
-            <div className="w-2 h-2 bg-[#F4F8F7] rounded-full animate-pulse" />
+            <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse" />
           )}
         </Link>
       )}
@@ -198,21 +199,21 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
 
-  // Modern theme matching e-commerce header
-  const themeBg = "bg-gradient-to-b from-[#0E4B4B] to-[#086666]"; // Deep emerald gradient
-  const themeAccent = "text-[#F4F8F7]";
+  // Using CSS variables from global.css
+  const themeBg = "bg-background";
+  const themeBorder = "border-border";
 
   if (isMobile) {
     return (
       <div className={cn("h-full flex flex-col", themeBg)}>
         {/* Modern Header */}
-        <div className="h-20 flex flex-col items-center justify-center border-b border-[#F4F8F7]/10 px-4">
+        <div className="h-20 flex flex-col items-center justify-center border-b border-border px-4">
           <div className="text-center">
-            <h2 className={cn("font-bold text-lg", themeAccent)}>Hilful-Fuzul</h2>
-            <p className="text-xs text-[#F4F8F7]/70">Admin Panel</p>
+            <h2 className={cn("font-bold text-lg text-foreground")}>BOED</h2>
+            <p className="text-xs text-muted-foreground">Admin Panel</p>
           </div>
         </div>
-        <div className="flex-1  overflow-y-auto" onClick={onClose}>
+        <div className="flex-1 overflow-y-auto" onClick={onClose}>
           <SidebarContent pathname={pathname} onClose={onClose} />
         </div>
       </div>
@@ -223,22 +224,23 @@ export default function Sidebar({
   return (
     <aside
       className={cn(
-        "w-60 shadow-2xl h-screen fixed left-0 top-0 border-r border-[#F4F8F7]/10 flex flex-col",
-        themeBg
+        "w-60 shadow-lg h-screen fixed left-0 top-0 border-r flex flex-col",
+        themeBg,
+        themeBorder
       )}
     >
       {/* Modern Desktop Header */}
-      <div className="h-20 flex flex-col items-center justify-center border-b border-[#F4F8F7]/10 sticky top-0 z-10 backdrop-blur-sm bg-gradient-to-b from-[#0E4B4B] to-[#0E4B4B]/90 flex-shrink-0">
-        <h2 className={cn("font-bold text-xl", themeAccent)}>Admin Panel</h2>
+      <div className="h-20 flex flex-col items-center justify-center border-b border-border sticky top-0 z-10 bg-background flex-shrink-0">
+        <h2 className={cn("font-bold text-xl text-foreground")}>Admin Panel</h2>
       </div>
-      <div className="flex-1 ">
+      <div className="flex-1 overflow-y-auto">
         <SidebarContent pathname={pathname} />
       </div>
       
       {/* Footer */}
-      <div className="p-4 border-t border-[#F4F8F7]/10 flex-shrink-0">
-        <div className="text-center text-xs text-[#F4F8F7]/50">
-          <p>Hilful-Fuzul Publishing</p>
+      <div className="p-4 border-t border-border flex-shrink-0">
+        <div className="text-center text-xs text-muted-foreground">
+          <p>BOED Publishing</p>
           <p className="mt-1">v1.0.0</p>
         </div>
       </div>
