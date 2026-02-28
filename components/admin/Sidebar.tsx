@@ -20,23 +20,23 @@ import { useState, useEffect } from "react";
 
 // Updated menuItems with enhanced structure
 const menuItems = [
-  { name: "ড্যাশবোর্ড", href: "/admin", icon: LayoutDashboard },
-  { name: "ব্যবহারকারী", href: "/admin/users", icon: Users },
-  { name: "পণ্য", href: "/admin/products", icon: ShoppingBag },
-  { name: "অর্ডার", href: "/admin/orders", icon: FileText },
+  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { name: "Users", href: "/admin/users", icon: Users },
+  { name: "Products", href: "/admin/products", icon: ShoppingBag },
+  { name: "Orders", href: "/admin/orders", icon: FileText },
   {
-    name: "ব্যবস্থাপনা",
+    name: "Management",
     icon: ClipboardList,
     subItems: [
-      { name: "লেখক", href: "/admin/management/writers" },
-      { name: "ক্যাটেগরি", href: "/admin/management/categories" },
-      { name: "প্রকাশক", href: "/admin/management/publishers" },
+      { name: "Writers", href: "/admin/management/writers" },
+      { name: "Categories", href: "/admin/management/categories" },
+      { name: "Publishers", href: "/admin/management/publishers" },
     ],
   },
-  { name: "ব্লগ", href: "/admin/blogs", icon: BookOpen },
-  { name: "নিউজলেটার", href: "/admin/newsletter", icon: Mail },
-  { name: "কুপন", href: "/admin/coupons", icon: Tag },
-  { name: "সেটিংস", href: "/admin/settings", icon: Settings },
+  { name: "Blogs", href: "/admin/blogs", icon: BookOpen },
+  { name: "Newsletter", href: "/admin/newsletter", icon: Mail },
+  { name: "Coupons", href: "/admin/coupons", icon: Tag },
+  { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 interface MenuItemProps {
@@ -47,7 +47,7 @@ interface MenuItemProps {
 
 const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
   const isManagementActive = pathname.startsWith("/admin/management");
-  const initialOpenState = item.name === "ব্যবস্থাপনা" && isManagementActive;
+  const initialOpenState = item.name === "Management" && isManagementActive;
 
   const [isOpen, setIsOpen] = useState(initialOpenState);
   const hasSubItems = item.subItems && item.subItems.length > 0;
@@ -59,7 +59,7 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
     : isManagementActive;
 
   useEffect(() => {
-    if (item.name === "ব্যবস্থাপনা" && isManagementActive) {
+    if (item.name === "Management" && isManagementActive) {
       setIsOpen(true);
     }
   }, [isManagementActive, item.name]);
@@ -206,8 +206,8 @@ export default function Sidebar({
         {/* Modern Header */}
         <div className="h-20 flex flex-col items-center justify-center border-b border-[#F4F8F7]/10 px-4">
           <div className="text-center">
-            <h2 className={cn("font-bold text-lg", themeAccent)}>হিলফুল-ফুযুল</h2>
-            <p className="text-xs text-[#F4F8F7]/70">অ্যাডমিন প্যানেল</p>
+            <h2 className={cn("font-bold text-lg", themeAccent)}>Hilful-Fuzul</h2>
+            <p className="text-xs text-[#F4F8F7]/70">Admin Panel</p>
           </div>
         </div>
         <div className="flex-1  overflow-y-auto" onClick={onClose}>
@@ -227,7 +227,7 @@ export default function Sidebar({
     >
       {/* Modern Desktop Header */}
       <div className="h-20 flex flex-col items-center justify-center border-b border-[#F4F8F7]/10 sticky top-0 z-10 backdrop-blur-sm bg-gradient-to-b from-[#0E4B4B] to-[#0E4B4B]/90 flex-shrink-0">
-          <h2 className={cn("font-bold text-xl", themeAccent)}>অ্যাডমিন প্যানেল</h2>
+        <h2 className={cn("font-bold text-xl", themeAccent)}>Admin Panel</h2>
       </div>
       <div className="flex-1 ">
         <SidebarContent pathname={pathname} />
@@ -236,7 +236,7 @@ export default function Sidebar({
       {/* Footer */}
       <div className="p-4 border-t border-[#F4F8F7]/10 flex-shrink-0">
         <div className="text-center text-xs text-[#F4F8F7]/50">
-          <p>হিলফুল-ফুযুল প্রকাশনী</p>
+          <p>Hilful-Fuzul Publishing</p>
           <p className="mt-1">v1.0.0</p>
         </div>
       </div>

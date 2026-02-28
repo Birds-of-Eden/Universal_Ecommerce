@@ -6,124 +6,139 @@ import CategoryManager from "@/components/management/CategoryManager";
 interface Category {
   id: number;
   name: string;
-  description?: string;
-  image?: string;
-  parentId?: number;
+  slug?: string;
+  parentId?: number | null;
+  parentName?: string | null;
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    products: number;
+  };
+  childrenCount?: number;
 }
 
 interface CategoryCreatePayload {
   name: string;
+  parentId?: number | null;
 }
 
 interface CategoryUpdatePayload {
-  name: string;
+  name?: string;
+  parentId?: number | null;
 }
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [categoriesCache, setCategoriesCache] = useState<Map<string, Category[]>>(new Map());
 
-  // Memoize fetch function with caching
+  /* =========================
+     FETCH
+  ========================= */
+
   const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Check cache first
-      const cacheKey = "all";
-      if (categoriesCache.has(cacheKey)) {
-        const cachedData = categoriesCache.get(cacheKey);
-        if (cachedData) {
-          setCategories(cachedData);
-          setLoading(false);
-          return;
-        }
-      }
-
-      const res = await fetch("/api/categories");
+      const res = await fetch("/api/categories", { cache: "no-store" });
       const data = await res.json();
-      
-      // Update cache
-      setCategoriesCache(prev => new Map(prev).set(cacheKey, data));
-      setCategories(data);
+      setCategories(data || []);
     } catch (err) {
       console.error("Failed to fetch categories:", err);
     } finally {
       setLoading(false);
     }
-  }, [categoriesCache]);
+  }, []);
 
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
 
-  // Memoize CRUD operations
-  const handleCreate = useCallback(async (payload: CategoryCreatePayload) => {
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const newCat = await res.json();
+  /* =========================
+     CREATE
+  ========================= */
 
-    // Update state and cache
-    setCategories((prev) => [newCat, ...prev]);
-    setCategoriesCache(prev => {
-      const newCache = new Map(prev);
-      const current = newCache.get("all") || [];
-      newCache.set("all", [newCat, ...current]);
-      return newCache;
-    });
-  }, []);
+  const handleCreate = useCallback(
+    async (payload: CategoryCreatePayload) => {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-  const handleUpdate = useCallback(async (id: number, payload: CategoryUpdatePayload) => {
-    const res = await fetch(`/api/categories/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const updated = await res.json();
+      if (!res.ok) throw new Error("Create failed");
 
-    // Update state and cache
-    setCategories((prev) => prev.map((cat) => (cat.id === id ? updated : cat)));
-    setCategoriesCache(prev => {
-      const newCache = new Map(prev);
-      const current = newCache.get("all") || [];
-      newCache.set("all", current.map((cat) => (cat.id === id ? updated : cat)));
-      return newCache;
-    });
-  }, []);
+      const newCat = await res.json();
 
-  const handleDelete = useCallback(async (id: number) => {
-    await fetch(`/api/categories/${id}`, { method: "DELETE" });
-    
-    // Clear cache to force refresh
-    setCategoriesCache(new Map());
-    await fetchCategories(); // refresh list after soft delete
-  }, [fetchCategories]);
+      setCategories((prev) => [newCat, ...prev]);
+    },
+    []
+  );
 
-  // Memoize data to prevent unnecessary re-renders
+  /* =========================
+     UPDATE
+  ========================= */
+
+  const handleUpdate = useCallback(
+    async (id: number, payload: CategoryUpdatePayload) => {
+      const res = await fetch(`/api/categories/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Update failed");
+
+      const updated = await res.json();
+
+      setCategories((prev) =>
+        prev.map((cat) => (cat.id === id ? updated : cat))
+      );
+    },
+    []
+  );
+
+  /* =========================
+     DELETE (SOFT)
+  ========================= */
+
+  const handleDelete = useCallback(
+    async (id: number) => {
+      const res = await fetch(`/api/categories/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Delete failed");
+
+      setCategories((prev) => prev.filter((cat) => cat.id !== id));
+    },
+    []
+  );
+
+  /* =========================
+     MEMO
+  ========================= */
+
   const memoizedCategories = useMemo(() => categories, [categories]);
 
-  // Skeleton loader components
+  /* =========================
+     SKELETONS (THEME SAFE)
+  ========================= */
+
   const CategoryCardSkeleton = () => (
-    <div className="bg-white rounded-lg shadow-md p-6 animate-pulse">
-      <div className="flex items-center space-x-4">
-        <div className="w-16 h-16 bg-gray-200 rounded-lg"></div>
+    <div className="card bg-card border rounded-lg p-6 animate-pulse">
+      <div className="flex items-center gap-4">
+        <div className="w-16 h-16 bg-muted rounded-lg"></div>
         <div className="flex-1 space-y-2">
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+          <div className="h-4 bg-muted rounded w-3/4"></div>
+          <div className="h-3 bg-muted rounded w-1/2"></div>
         </div>
-        <div className="flex space-x-2">
-          <div className="h-8 w-8 bg-gray-200 rounded"></div>
-          <div className="h-8 w-8 bg-gray-200 rounded"></div>
+        <div className="flex gap-2">
+          <div className="h-8 w-8 bg-muted rounded"></div>
+          <div className="h-8 w-8 bg-muted rounded"></div>
         </div>
       </div>
       <div className="mt-4 space-y-2">
-        <div className="h-3 bg-gray-200 rounded"></div>
-        <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+        <div className="h-3 bg-muted rounded"></div>
+        <div className="h-3 bg-muted rounded w-5/6"></div>
       </div>
     </div>
   );

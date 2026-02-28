@@ -2,22 +2,44 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import slugify from "slugify";
 
+/* =========================
+   GET SINGLE CATEGORY
+========================= */
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const resolvedParams = await params;
-    const id = Number(resolvedParams.id);
+    const id = Number(params.id);
+
+    if (isNaN(id)) {
+      return NextResponse.json(
+        { error: "Invalid category id" },
+        { status: 400 }
+      );
+    }
 
     const category = await prisma.category.findFirst({
-       where: { id, deleted: false },
+      where: { id, deleted: false },
       include: {
+        parent: true,
+        children: {
+          where: { deleted: false },
+        },
+        _count: {
+          select: {
+            products: {
+              where: { deleted: false },
+            },
+          },
+        },
         products: {
           where: { deleted: false },
           include: {
-            writer: true, // writer table relation dhore nilam
+            writer: true,
+            brand: true,
           },
         },
       },
@@ -31,63 +53,134 @@ export async function GET(
     }
 
     return NextResponse.json({
-      category: {
-        id: category.id,
-        name: category.name,
-      },
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      parentId: category.parentId,
+      parentName: category.parent?.name || null,
+      productCount: category._count.products,
+      childrenCount: category.children.length,
       products: category.products,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
     });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
       { error: "Failed to fetch category" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
 
+/* =========================
+   UPDATE CATEGORY
+========================= */
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const resolvedParams = await params;
-    const { name } = await req.json();
-    const id = Number(resolvedParams.id);
+    const id = Number(params.id);
+    const { name, parentId } = await req.json();
 
-    const category = await prisma.category.update({
-      where: { id },
-      data: { name },
+    if (isNaN(id)) {
+      return NextResponse.json(
+        { error: "Invalid category id" },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.category.findFirst({
+      where: { id, deleted: false },
     });
 
-    return NextResponse.json(category);
-  } catch {
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Category not found" },
+        { status: 404 }
+      );
+    }
+
+    let slug;
+    if (name) {
+      slug = slugify(name, { lower: true, strict: true });
+
+      const duplicate = await prisma.category.findFirst({
+        where: {
+          slug,
+          NOT: { id },
+        },
+      });
+
+      if (duplicate) {
+        return NextResponse.json(
+          { error: "Category name already exists" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const updated = await prisma.category.update({
+      where: { id },
+      data: {
+        name: name ?? existing.name,
+        slug: slug ?? existing.slug,
+        parentId: parentId ?? existing.parentId,
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error(error);
     return NextResponse.json(
       { error: "Failed to update category" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
 
-// DELETE category (soft delete)
+/* =========================
+   SOFT DELETE CATEGORY
+========================= */
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const id = Number(params.id);
 
-    await prisma.category.update({
-      where: { id: Number(id) },
-      data: { deleted: true }, // ✔ soft delete
+    if (isNaN(id)) {
+      return NextResponse.json(
+        { error: "Invalid category id" },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.category.findFirst({
+      where: { id, deleted: false },
     });
 
-    return NextResponse.json({ message: "Category soft deleted" });
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Category not found" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.category.update({
+      where: { id },
+      data: { deleted: true },
+    });
+
+    return NextResponse.json({
+      message: "Category soft deleted successfully",
+    });
   } catch (error) {
     console.error("Soft delete category error:", error);
     return NextResponse.json(
       { error: "Failed to delete category" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

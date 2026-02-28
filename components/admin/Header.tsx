@@ -22,7 +22,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     }
   };
 
-  const userName = (session?.user as any)?.name || "ব্যবহারকারী";
+  const userName = (session?.user as any)?.name || "User";
   const userRole = (session?.user as any)?.role || "admin";
 
   return (
@@ -43,12 +43,12 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
         </div>
         <div className="flex flex-col">
           <h1 className="text-lg font-bold text-[#F4F8F7] hidden sm:block">
-            হিলফুল-ফুযুল অ্যাডমিন
+            Hilful-Fuzul Admin
           </h1>
           <p className="text-xs text-[#F4F8F7]/70 hidden sm:block">
-            প্রকাশনী ব্যবস্থাপনা সিস্টেম
+            Publishing Management System
           </p>
-          <h1 className="text-lg font-bold text-[#F4F8F7] sm:hidden">অ্যাডমিন</h1>
+          <h1 className="text-lg font-bold text-[#F4F8F7] sm:hidden">Admin</h1>
         </div>
       </div>
 
@@ -65,7 +65,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
             className="hidden sm:flex bg-[#F4F8F7]/10 hover:bg-[#F4F8F7]/20 text-[#F4F8F7] border border-[#F4F8F7]/20 hover:border-[#F4F8F7]/30 rounded-full px-4"
           >
             <Home className="w-4 h-4 mr-2" />
-            সাইটে যান
+            View Site
           </Button>
           <Button
             variant="ghost"
@@ -114,7 +114,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
           ) : (
             <>
               <LogOut className="w-4 h-4 mr-2" />
-              লগআউট
+              Logout
             </>
           )}
         </Button>

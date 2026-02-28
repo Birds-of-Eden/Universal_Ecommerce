@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit3, Trash2, Search, Zap, Grid2X2 } from "lucide-react";
+import { Plus, Edit3, Trash2, Search, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 export default function CategoryManager({
@@ -22,31 +22,28 @@ export default function CategoryManager({
 
   const [form, setForm] = useState({
     name: "",
-    image: "",
+    parentId: null as number | null,
   });
 
   const filtered = categories?.filter((cat: any) =>
-    cat.name.toLowerCase().includes(searchTerm.toLowerCase())
+    cat.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const openAddModal = () => {
     setEditing(null);
-    setForm({ name: "", image: "" });
+    setForm({ name: "", parentId: null });
     setModalOpen(true);
   };
 
   const openEditModal = (cat: any) => {
     setEditing(cat);
-    setForm({
-      name: cat.name,
-      image: cat.image || "",
-    });
+    setForm({ name: cat.name, parentId: cat.parentId || null });
     setModalOpen(true);
   };
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
-      toast.error("দয়া করে ক্যাটাগরির নাম লিখুন");
+      toast.error("Please enter category name");
       return;
     }
 
@@ -54,15 +51,15 @@ export default function CategoryManager({
 
     try {
       if (editing) {
-        await onUpdate(editing.id, { name: form.name });
+        await onUpdate(editing.id, { name: form.name, parentId: form.parentId });
         toast.success("Category updated");
       } else {
-        await onCreate({ name: form.name });
+        await onCreate({ name: form.name, parentId: form.parentId });
         toast.success("Category created");
       }
 
       setModalOpen(false);
-      setForm({ name: "", image: "" });
+      setForm({ name: "", parentId: null });
     } catch {
       toast.error("Error occurred");
     } finally {
@@ -82,81 +79,77 @@ export default function CategoryManager({
   };
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-[#EEEFE0] to-[#D1D8BE]/30">
+    <div className="min-h-screen p-8">
       {/* Header */}
       <div className="text-center mb-12">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="w-2 h-10 bg-gradient-to-b from-[#2C4A3B] to-[#819A91] rounded-full"></div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-[#2C4A3B] to-[#819A91] bg-clip-text text-transparent">
-            ক্যাটাগরি ব্যবস্থাপনা
-          </h1>
-          <div className="w-2 h-10 bg-gradient-to-b from-[#819A91] to-[#2C4A3B] rounded-full"></div>
-        </div>
-        <p className="text-gray-600 text-lg max-w-2xl mx-auto">
-          ক্যাটাগরি দেখুন, যোগ করুন ও ম্যানেজ করুন
+        <h1 className="text-4xl font-bold">
+          Category Management
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          View, add and manage categories
         </p>
       </div>
 
       {/* Top Bar */}
       <div className="flex justify-between gap-3 items-center mb-8">
-        <div className="relative w-64 border border-[#2C4A3B] rounded-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="ক্যাটাগরি খুঁজুন..."
-            className="pl-10"
+            placeholder="Search categories..."
+            className="pl-10 input-theme"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <Button onClick={openAddModal} className="bg-emerald-600 text-white">
+        <Button onClick={openAddModal} className="btn-primary">
           <Plus className="h-4 w-4 mr-1" />
-          নতুন ক্যাটাগরি
+          New Category
         </Button>
       </div>
 
       {/* Loading */}
       {loading ? (
-        <div className="text-center py-20">লোড হচ্ছে...</div>
+        <div className="text-center py-20 text-muted-foreground">Loading...</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((cat: any) => (
-            <Card key={cat.id} className="shadow">
-              <div className="h-40 bg-gray-100 flex justify-center items-center">
-                {cat.image ? (
-                  <img
-                    src={cat.image}
-                    className="h-full w-full object-cover"
-                    alt={cat.name}
-                  />
-                ) : (
-                  <img
-                    src="/assets/categories.png"
-                    alt="Default category"
-                    className="h-full w-full object-contain p-4"
-                  />
-                )}
+            <Card key={cat.id} className="card-theme shadow-md">
+              <div className="h-40 bg-muted flex justify-center items-center">
+                <img
+                  src="/assets/categories.png"
+                  alt="Category"
+                  className="h-full w-full object-contain p-4"
+                />
               </div>
 
               <CardContent className="p-5">
-                <h3 className="text-xl font-semibold">{cat.name}</h3>
+                <h3 className="text-xl font-semibold">
+                  {cat.parentName && (
+                    <span className="text-sm text-muted-foreground block">{cat.parentName} / </span>
+                  )}
+                  {cat.name}
+                </h3>
 
-                {/* 🔥 Updated: only count */}
-                <p className="text-gray-500 text-sm mb-4">
+                <p className="text-muted-foreground text-sm mb-4">
                   Total Products: {cat._count?.products || 0}
+                  {cat.childrenCount > 0 && (
+                    <span className="ml-2">• Subcategories: {cat.childrenCount}</span>
+                  )}
                 </p>
 
                 <div className="flex gap-2">
                   <Button
                     onClick={() => openEditModal(cat)}
-                    className="w-full bg-teal-600 text-white"
+                    className="w-full btn-primary"
                   >
-                    <Edit3 className="h-4 w-4 mr-1" /> এডিট
+                    <Edit3 className="h-4 w-4 mr-1" /> Edit
                   </Button>
+
                   <Button
                     onClick={() => handleDeleteLocal(cat.id)}
                     variant="outline"
-                    className="border-red-500 text-red-500"
+                    className="btn-danger"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -169,36 +162,58 @@ export default function CategoryManager({
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg w-full max-w-md">
-            <div className="p-5 border-b">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+          <div className="card-theme rounded-lg w-full max-w-md shadow-lg">
+            <div className="p-5 border-b border-[hsl(var(--color-border))]">
               <h3 className="text-2xl font-bold">
-                {editing ? "ক্যাটাগরি এডিট" : "নতুন ক্যাটাগরি"}
+                {editing ? "Edit Category" : "New Category"}
               </h3>
             </div>
 
             <div className="p-5 space-y-5">
               <div>
-                <Label>ক্যাটাগরি নাম</Label>
+                <Label>Category Name</Label>
                 <Input
+                  className="input-theme"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, name: e.target.value })
+                  }
                 />
+              </div>
+              <div>
+                <Label>Parent Category</Label>
+                <select
+                  className="w-full mt-1 px-3 py-2 border border-border rounded-md bg-background text-foreground input-theme"
+                  value={form.parentId ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, parentId: e.target.value ? Number(e.target.value) : null })
+                  }
+                >
+                  <option value="">None (Root Category)</option>
+                  {categories
+                    ?.filter((c: any) => !editing || c.id !== editing.id)
+                    .map((cat: any) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                </select>
               </div>
             </div>
 
-            <div className="p-5 border-t flex justify-end gap-3">
+            <div className="p-5 border-t border-[hsl(var(--color-border))] flex justify-end gap-3">
               <Button variant="outline" onClick={() => setModalOpen(false)}>
-                বাতিল
+                Cancel
               </Button>
 
               <Button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="bg-gradient-to-r from-teal-600 to-emerald-500 text-white"
+                className="btn-primary"
               >
                 <Zap className="h-4 w-4 mr-1" />
-                {editing ? "আপডেট" : "তৈরি করুন"}
+                {editing ? "Update" : "Create"}
               </Button>
             </div>
           </div>
