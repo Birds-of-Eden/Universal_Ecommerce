@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { X, Zap } from "lucide-react";
@@ -14,6 +20,10 @@ type ProductType = "PHYSICAL" | "DIGITAL" | "SERVICE";
 interface Entity {
   id: number;
   name: string;
+}
+
+interface CategoryEntity extends Entity {
+  parentId: number | null;
 }
 
 interface VatClass {
@@ -64,7 +74,7 @@ interface Props {
   onClose: () => void;
   onSubmit: (idOrData: any, data?: any) => Promise<void>;
   editing?: any;
-  categories: Entity[];
+  categories: CategoryEntity[];
   brands: Entity[];
   writers?: Entity[];
   publishers?: Entity[];
@@ -80,7 +90,7 @@ const emptyForm: ProductForm = {
   sku: "",
   basePrice: "",
   originalPrice: "",
-  currency: "USD",
+  currency: "BDT",
   weight: "",
   stockQty: "0",
   dimLength: "",
@@ -117,6 +127,36 @@ export default function ProductAddModal({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<ProductForm>(emptyForm);
+  const categoryOptions = useMemo(() => {
+    const childrenByParent = new Map<number | null, CategoryEntity[]>();
+
+    for (const category of categories) {
+      const key = category.parentId ?? null;
+      const existing = childrenByParent.get(key) ?? [];
+      existing.push(category);
+      childrenByParent.set(key, existing);
+    }
+
+    for (const list of childrenByParent.values()) {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    const ordered: { id: number; label: string }[] = [];
+    const visit = (parentId: number | null, level: number) => {
+      const children = childrenByParent.get(parentId) ?? [];
+      for (const child of children) {
+        ordered.push({
+          id: child.id,
+          label: `${"— ".repeat(level)}${child.name}`,
+        });
+        visit(child.id, level + 1);
+      }
+    };
+
+    visit(null, 0);
+    return ordered;
+  }, [categories]);
+
   const selectedCategory = categories.find(
     (c) => String(c.id) === String(form.categoryId),
   );
@@ -553,9 +593,9 @@ export default function ProductAddModal({
                 }
               >
                 <option value="">Select</option>
-                {categories.map((c) => (
+                {categoryOptions.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {c.label}
                   </option>
                 ))}
               </select>
