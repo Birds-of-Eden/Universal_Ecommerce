@@ -6,10 +6,11 @@ import { NextResponse } from "next/server";
 ========================= */
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await params;
+    const id = Number(idParam);
     const body = await req.json();
 
     const existing = await prisma.vatClass.findUnique({
@@ -61,10 +62,11 @@ export async function PUT(
 ========================= */
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await params;
+    const id = Number(idParam);
 
     await prisma.vatRate.deleteMany({
       where: { VatClassId: id },

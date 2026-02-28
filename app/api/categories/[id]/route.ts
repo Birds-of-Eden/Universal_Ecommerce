@@ -9,10 +9,11 @@ import slugify from "slugify";
 ========================= */
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await params;
+    const id = Number(idParam);
 
     if (isNaN(id)) {
       return NextResponse.json(
@@ -79,10 +80,11 @@ export async function GET(
 ========================= */
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await params;
+    const id = Number(idParam);
     const { name, parentId, image } = await req.json();
 
     if (isNaN(id)) {
@@ -147,10 +149,11 @@ export async function PUT(
 ========================= */
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const id = Number(params.id);
+    const { id: idParam } = await params;
+    const id = Number(idParam);
 
     if (isNaN(id)) {
       return NextResponse.json(

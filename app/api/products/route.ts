@@ -57,11 +57,29 @@ export async function POST(req: Request) {
       );
     }
 
+    const initialStock =
+      body.stock !== undefined && body.stock !== null ? Number(body.stock) : 0;
+    if (!Number.isFinite(initialStock) || initialStock < 0) {
+      return NextResponse.json(
+        { error: "Stock must be a number (0 or more)" },
+        { status: 400 }
+      );
+    }
+
+    const currency = body.currency || "USD";
+    const basePrice = Number(body.basePrice);
+
+    const variantSku = `${slug}-default-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 7)}`.toUpperCase();
+
+    const type = body.type || "PHYSICAL";
+
     const product = await prisma.product.create({
       data: {
         name: body.name,
         slug,
-        type: body.type || "PHYSICAL",
+        type,
         sku: body.sku || null,
 
         categoryId: Number(body.categoryId),
@@ -73,11 +91,11 @@ export async function POST(req: Request) {
         description: body.description || "",
         shortDesc: body.shortDesc || null,
 
-        basePrice: Number(body.basePrice),
+        basePrice,
         originalPrice: body.originalPrice
           ? Number(body.originalPrice)
           : null,
-        currency: body.currency || "USD",
+        currency,
 
         weight: body.weight ? Number(body.weight) : null,
         dimensions: body.dimensions || null,
@@ -98,6 +116,23 @@ export async function POST(req: Request) {
         image: body.image || null,
         gallery: body.gallery || [],
         videoUrl: body.videoUrl || null,
+
+        variants: {
+          create: {
+            sku: variantSku,
+            price: basePrice,
+            currency,
+            stock: type === "PHYSICAL" ? initialStock : 0,
+            options: {},
+          },
+        },
+      },
+      include: {
+        category: true,
+        brand: true,
+        writer: true,
+        publisher: true,
+        variants: true,
       },
     });
 

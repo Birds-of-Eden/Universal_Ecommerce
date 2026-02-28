@@ -23,19 +23,19 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (status === "loading") {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[#0E4B4B] to-[#086666]">
+      <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-[#0E4B4B] to-[#5FA3A3] rounded-2xl flex items-center justify-center mb-4 shadow-xl animate-pulse">
-            <div className="w-8 h-8 bg-[#F4F8F7]/20 rounded-lg animate-spin border-2 border-[#F4F8F7] border-t-transparent"></div>
+          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-xl animate-pulse">
+            <div className="w-8 h-8 bg-primary-foreground/20 rounded-lg animate-spin border-2 border-primary-foreground border-t-transparent"></div>
           </div>
-          <p className="text-[#F4F8F7] font-semibold">লোড হচ্ছে...</p>
+          <p className="text-foreground font-semibold">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-[#F8FFFE] to-[#F0F9F8] relative">
+    <div className="flex min-h-screen bg-background relative">
       {/* Mobile Sidebar Overlay */}
       {openMobile && (
         <div 
@@ -57,7 +57,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         <Header onMenuClick={toggleSidebar} />
-        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-[#F8FFFE] to-[#F0F9F8]">
+        <main className="flex-1 overflow-y-auto bg-background">
           <div>
             {children}
           </div>
