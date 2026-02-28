@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ChevronDown,
   Search,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,7 +20,7 @@ interface Category {
   id: number;
   name: string;
   parentId: number | null;
-  image?: string;
+  image?: string | null;
   productCount?: number;
   childrenCount?: number;
 }
@@ -35,11 +36,24 @@ export default function CategoryManager({
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const [form, setForm] = useState({
     name: "",
     parentId: null as number | null,
+    image: null as string | null,
   });
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
 
   /* =========================
      BUILD TREE
@@ -95,12 +109,12 @@ export default function CategoryManager({
         <div
           className={cn(
             "flex items-center justify-between py-2 px-3 rounded-md hover:bg-muted transition",
-            hasChildren && "cursor-pointer"
+            hasChildren && "cursor-pointer",
           )}
           style={{ paddingLeft: `${level * 24}px` }}
           onClick={() => hasChildren && toggle(node.id)}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {hasChildren ? (
               <button
                 onClick={(e) => {
@@ -117,6 +131,18 @@ export default function CategoryManager({
               </button>
             ) : (
               <div className="w-4" />
+            )}
+
+            {node.image ? (
+              <img
+                src={node.image}
+                alt={node.name}
+                className="h-7 w-7 rounded border object-cover bg-muted"
+              />
+            ) : (
+              <div className="h-7 w-7 rounded border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
+                {(node.name?.[0] || "?").toUpperCase()}
+              </div>
             )}
 
             <span className="font-medium">{node.name}</span>
@@ -159,16 +185,51 @@ export default function CategoryManager({
      CRUD
   ========================= */
 
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditing(null);
+    setSubmitting(false);
+    setImageFile(null);
+    setImagePreviewUrl(null);
+    setFileInputKey((k) => k + 1);
+    setForm({ name: "", parentId: null, image: null });
+  };
+
   const openAddModal = () => {
     setEditing(null);
-    setForm({ name: "", parentId: null });
+    setSubmitting(false);
+    setImageFile(null);
+    setImagePreviewUrl(null);
+    setFileInputKey((k) => k + 1);
+    setForm({ name: "", parentId: null, image: null });
     setModalOpen(true);
   };
 
   const openEditModal = (cat: any) => {
     setEditing(cat);
-    setForm({ name: cat.name, parentId: cat.parentId });
+    setSubmitting(false);
+    setImageFile(null);
+    setImagePreviewUrl(cat.image ?? null);
+    setFileInputKey((k) => k + 1);
+    setForm({ name: cat.name, parentId: cat.parentId, image: cat.image ?? null });
     setModalOpen(true);
+  };
+
+  const uploadCategoryImage = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.fileUrl) {
+      throw new Error(data?.error || "Image upload failed");
+    }
+
+    return data.fileUrl as string;
   };
 
   const handleSubmit = async () => {
@@ -177,15 +238,34 @@ export default function CategoryManager({
       return;
     }
 
-    if (editing) {
-      await onUpdate(editing.id, form);
-      toast.success("Category updated");
-    } else {
-      await onCreate(form);
-      toast.success("Category created");
-    }
+    try {
+      setSubmitting(true);
 
-    setModalOpen(false);
+      let imageUrl = form.image ?? null;
+      if (imageFile) {
+        imageUrl = await uploadCategoryImage(imageFile);
+      }
+
+      const payload = {
+        name: form.name,
+        parentId: form.parentId,
+        image: imageUrl,
+      };
+
+      if (editing) {
+        await onUpdate(editing.id, payload);
+        toast.success("Category updated");
+      } else {
+        await onCreate(payload);
+        toast.success("Category created");
+      }
+
+      closeModal();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save category");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDeleteLocal = async (id: number) => {
@@ -237,11 +317,27 @@ export default function CategoryManager({
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-card p-6 rounded-lg md:w-[40vw]">
-            <h2 className="text-xl font-bold mb-4">
-              {editing ? "Edit Category" : "New Category"}
-            </h2>
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center p-4"
+          onClick={closeModal}
+        >
+          <div
+            className="bg-card p-6 rounded-lg md:w-[40vw] relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <h2 className="text-xl font-bold">
+                {editing ? "Edit Category" : "New Category"}
+              </h2>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={closeModal}
+                aria-label="Close modal"
+              >
+                <X size={18} />
+              </Button>
+            </div>
 
             <div className="space-y-4">
               <div>
@@ -250,6 +346,60 @@ export default function CategoryManager({
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
+              </div>
+
+              <div>
+                <Label>Image</Label>
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-md border bg-muted overflow-hidden flex items-center justify-center">
+                    {imagePreviewUrl ? (
+                      <img
+                        src={imagePreviewUrl}
+                        alt="Category image preview"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">
+                        No image
+                      </span>
+                    )}
+                  </div>
+
+                  <Input
+                    key={fileInputKey}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      if (!file) return;
+                      if (imagePreviewUrl?.startsWith("blob:")) {
+                        URL.revokeObjectURL(imagePreviewUrl);
+                      }
+                      setImageFile(file);
+                      setImagePreviewUrl(URL.createObjectURL(file));
+                    }}
+                  />
+                </div>
+
+                {(imagePreviewUrl || form.image) && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="mt-2"
+                    onClick={() => {
+                      if (imagePreviewUrl?.startsWith("blob:")) {
+                        URL.revokeObjectURL(imagePreviewUrl);
+                      }
+                      setImageFile(null);
+                      setImagePreviewUrl(null);
+                      setFileInputKey((k) => k + 1);
+                      setForm({ ...form, image: null });
+                    }}
+                  >
+                    Remove image
+                  </Button>
+                )}
               </div>
 
               <div>
@@ -275,9 +425,24 @@ export default function CategoryManager({
                 </select>
               </div>
 
-              <Button onClick={handleSubmit} className="w-full">
-                {editing ? "Update" : "Create"}
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={closeModal}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  className="w-full"
+                  disabled={submitting}
+                >
+                  {submitting ? "Saving..." : editing ? "Update" : "Create"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
