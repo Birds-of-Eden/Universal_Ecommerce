@@ -1,56 +1,48 @@
-// app/api/banners/route.ts
+// app/api/banners/[id]/route.ts
 
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 /* =========================
-   GET ALL BANNERS
+   GET SINGLE BANNER
 ========================= */
-export async function GET(req: Request) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type");
-    const activeOnly = searchParams.get("active");
+    const { id: idParam } = await params;
+    const id = parseInt(idParam);
 
-    const where: any = {};
-
-    if (type) {
-      where.type = type;
-    }
-
-    if (activeOnly === "true") {
-      where.isActive = true;
-      where.OR = [{ startDate: null }, { startDate: { lte: new Date() } }];
-      where.AND = [
-        {
-          OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
-        },
-      ];
-    }
-
-    const banners = await prisma.banner.findMany({
-      where,
-      orderBy: { position: "asc" },
+    const banner = await prisma.banner.findUnique({
+      where: { id },
     });
 
-    return NextResponse.json(banners);
+    if (!banner) {
+      return NextResponse.json(
+        { error: "Banner not found" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(banner);
   } catch (error) {
-    console.error("GET banners error:", error);
+    console.error("GET banner error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch banners" },
+      { error: "Failed to fetch banner" },
       { status: 500 },
     );
   }
 }
 
 /* =========================
-   CREATE BANNER
+   UPDATE BANNER
 ========================= */
-export async function POST(req: Request) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id: idParam } = await params;
+    const id = parseInt(idParam);
     const body = await req.json();
 
-    const banner = await prisma.banner.create({
+    const banner = await prisma.banner.update({
+      where: { id },
       data: {
         title: body.title,
         subtitle: body.subtitle || null,
@@ -74,9 +66,31 @@ export async function POST(req: Request) {
 
     return NextResponse.json(banner);
   } catch (error) {
-    console.error("POST banner error:", error);
+    console.error("PUT banner error:", error);
     return NextResponse.json(
-      { error: "Failed to create banner" },
+      { error: "Failed to update banner" },
+      { status: 500 },
+    );
+  }
+}
+
+/* =========================
+   DELETE BANNER
+========================= */
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id: idParam } = await params;
+    const id = parseInt(idParam);
+
+    const banner = await prisma.banner.delete({
+      where: { id },
+    });
+
+    return NextResponse.json(banner);
+  } catch (error) {
+    console.error("DELETE banner error:", error);
+    return NextResponse.json(
+      { error: "Failed to delete banner" },
       { status: 500 },
     );
   }
