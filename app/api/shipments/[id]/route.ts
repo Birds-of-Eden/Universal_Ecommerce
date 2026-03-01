@@ -32,6 +32,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       where: { id },
       include: {
         order: true,
+        courierRef: true,
       },
     });
 
@@ -110,6 +111,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const {
       courier,
+      courierId,
       trackingNumber,
       status,
       shippedAt,
@@ -120,6 +122,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const data: any = {};
 
     if (courier !== undefined) data.courier = courier;
+    if (courierId !== undefined) {
+      const courierIdNum = Number(courierId);
+      if (Number.isNaN(courierIdNum) || courierIdNum <= 0) {
+        return NextResponse.json({ error: "Invalid courierId" }, { status: 400 });
+      }
+      const courierEntity = await prisma.courier.findUnique({
+        where: { id: courierIdNum },
+      });
+      if (!courierEntity || !courierEntity.isActive) {
+        return NextResponse.json(
+          { error: "Courier not found or inactive" },
+          { status: 400 },
+        );
+      }
+      data.courierId = courierEntity.id;
+      data.courier = courierEntity.name;
+    }
     if (trackingNumber !== undefined) data.trackingNumber = trackingNumber;
 
     if (status !== undefined) {

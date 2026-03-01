@@ -15,6 +15,7 @@ import {
   ClipboardList,
   Mail,
   Tag,
+  Truck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -24,6 +25,7 @@ const menuItems = [
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Products", href: "/admin/products", icon: ShoppingBag },
   { name: "Orders", href: "/admin/orders", icon: FileText },
+  { name: "Shipments", href: "/admin/shipments", icon: Truck },
   {
     name: "Management",
     icon: ClipboardList,
@@ -45,7 +47,7 @@ const menuItems = [
     subItems: [
       { name: "Payment Methods", href: "/admin/settings/payment" },
       { name: "Banner Settings", href: "/admin/settings/banner" },
-      { name: "Shipping Methods", href: "/admin/settings/shipping" },
+      { name: "Shipping Methods", href: "/admin/settings/shipments" },
       { name: "Tax Settings", href: "/admin/settings/tax" },
       { name: "General Settings", href: "/admin/settings/general" },
     ],
