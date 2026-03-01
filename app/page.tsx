@@ -7,6 +7,7 @@ import Header from "@/components/ecommarce/header";
 import Footer from "@/components/ecommarce/footer";
 import Head from "next/head";
 import Image from "next/image";
+import FeaturedCategories from "@/components/ecommarce/FeaturedCategories";
 
 type Category = {
   id: number;
@@ -165,7 +166,9 @@ export default function Home() {
         <div className="min-h-screen flex flex-col">
           <Header />
           <Hero />
-
+         <div className="mt-10 mb-10 p-5">
+           <FeaturedCategories />
+         </div>
           <DataProvider>
             {(data) => {
               const popupBanner = data.banners.find(
