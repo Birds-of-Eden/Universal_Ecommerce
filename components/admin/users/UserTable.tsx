@@ -51,7 +51,7 @@ export default function UserTable({
 
   const handleBanUser = async (userId: string, email: string) => {
     if (!banReason) {
-      alert("দয়া করে নিষিদ্ধ করার কারণ লিখুন");
+      alert("Please write a reason for banning the user");
       return;
     }
 
@@ -81,11 +81,11 @@ export default function UserTable({
         });
         setBanReason("");
       } else {
-        alert("ব্যবহারকারী নিষিদ্ধ করতে ব্যর্থ হয়েছে");
+        alert("Failed to ban user");
       }
     } catch (error) {
       console.error("Error banning user:", error);
-      alert("ব্যবহারকারী নিষিদ্ধ করতে ত্রুটি occurred");
+      alert("Error occurred while banning user");
     }
   };
 
@@ -110,18 +110,18 @@ export default function UserTable({
           banExpires: null,
         });
       } else {
-        alert("ব্যবহারকারীর নিষেধাজ্ঞা তুলতে ব্যর্থ হয়েছে");
+        alert("Failed to lift user ban");
       }
     } catch (error) {
       console.error("Error unbanning user:", error);
-      alert("ব্যবহারকারীর নিষেধাজ্ঞা তুলতে ত্রুটি occurred");
+      alert("Error occurred while lifting user ban");
     }
   };
 
   const handleDeleteUser = async (userId: string, email: string) => {
     if (
       !confirm(
-        `আপনি কি নিশ্চিত যে আপনি ব্যবহারকারী ${email} কে মুছে ফেলতে চান?`
+        `Are you sure you want to delete user ${email}?`
       )
     ) {
       return;
@@ -136,16 +136,16 @@ export default function UserTable({
         onUserDelete(userId);
       } else {
         const error = await response.json();
-        alert(error.error || "ব্যবহারকারী মুছতে ব্যর্থ হয়েছে");
+        alert(error.error || "Failed to delete user");
       }
     } catch (error) {
       console.error("Error deleting user:", error);
-      alert("ব্যবহারকারী মুছতে ত্রুটি occurred");
+      alert("Error occurred while deleting user");
     }
   };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("bn-BD", {
+    return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -169,11 +169,11 @@ export default function UserTable({
 
   const getStatusText = (user: User) => {
     if (user.banned && !isBanExpired(user.banExpires)) {
-      return user.banExpires ? "সাময়িক নিষিদ্ধ" : "স্থায়ী নিষিদ্ধ";
+      return user.banExpires ? "Temporarily Banned" : "Permanently Banned";
     } else if (user.emailVerified) {
-      return "যাচাইকৃত";
+      return "Verified";
     } else {
-      return "অযাচাইকৃত";
+      return "Unverified";
     }
   };
 
@@ -190,22 +190,22 @@ export default function UserTable({
           <thead>
             <tr className="bg-muted shadow-sm">
               <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
-                ব্যবহারকারী
+                User
               </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
-                ভূমিকা
+                Role
               </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
-                কার্যক্রম
+                Activities
               </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
-                অবস্থা
+                Status
               </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
-                যোগদান
+                Joined
               </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-foreground uppercase tracking-wider border-b border-border">
-                কর্ম
+                Actions
               </th>
             </tr>
           </thead>
@@ -226,7 +226,7 @@ export default function UserTable({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
                         <p className="text-sm font-semibold text-foreground truncate">
-                          {user.name || "নাম নেই"}
+                          {user.name || "No Name"}
                         </p>
                         {user.role === "admin" && (
                           <Shield className="h-3 w-3 text-purple-600" />
@@ -251,7 +251,7 @@ export default function UserTable({
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(user.role)}`}
                   >
-                    {user.role === "admin" ? "অ্যাডমিন" : "ব্যবহারকারী"}
+                    {user.role === "admin" ? "Admin" : "User"}
                   </span>
                 </td>
 
@@ -263,14 +263,14 @@ export default function UserTable({
                       <span className="font-semibold">
                         {user._count.orders}
                       </span>
-                      <span className="text-xs text-muted-foreground">অর্ডার</span>
+                      <span className="text-xs text-muted-foreground">Orders</span>
                     </div>
                     <div className="flex items-center space-x-1 text-muted-foreground">
                       <Star className="h-4 w-4" />
                       <span className="font-semibold">
                         {user._count.reviews}
                       </span>
-                      <span className="text-xs text-muted-foreground">রিভিউ</span>
+                      <span className="text-xs text-muted-foreground">Reviews</span>
                     </div>
                   </div>
                 </td>
@@ -308,7 +308,7 @@ export default function UserTable({
                       <button
                         onClick={() => handleUnbanUser(user.id)}
                         className="inline-flex items-center px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-all duration-300 group/action shadow-sm"
-                        title="নিষেধাজ্ঞা তুলুন"
+                        title="Unban"
                       >
                         <ShieldOff className="h-4 w-4" />
                       </button>
@@ -325,7 +325,7 @@ export default function UserTable({
                           }
                         }}
                         className="inline-flex items-center px-3 py-2 rounded-lg bg-yellow-600 text-white hover:bg-yellow-700 transition-all duration-300 group/action shadow-sm"
-                        title="নিষিদ্ধ করুন"
+                        title="Ban"
                       >
                         <Ban className="h-4 w-4" />
                       </button>
@@ -335,7 +335,7 @@ export default function UserTable({
                     <button
                       onClick={() => handleDeleteUser(user.id, user.email)}
                       className="inline-flex items-center px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all duration-300 group/action shadow-sm"
-                      title="মুছুন"
+                      title="Delete"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -354,11 +354,10 @@ export default function UserTable({
             <UserIcon className="h-8 w-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">
-            কোনো ব্যবহারকারী পাওয়া যায়নি
+            No users found
           </h3>
           <p className="text-muted-foreground max-w-md mx-auto">
-            আপনার অনুসন্ধানের সাথে মিলছে এমন কোনো ব্যবহারকারী নেই। অনুগ্রহ করে
-            বিভিন্ন ফিল্টার চেষ্টা করুন।
+            No users match your search criteria. Please try different filters.
           </p>
         </div>
       )}
@@ -380,7 +379,7 @@ export default function UserTable({
           <h3 className="text-xl font-bold text-foreground mb-6 flex items-center border-b border-border pb-3">
             {/* Ban icon (h-6 w-6) - Adjusted size for header */}
             <Ban className="h-6 w-6 mr-3 text-destructive" />
-            ব্যবহারকারী নিষিদ্ধ করুন
+            Ban User
           </h3>
 
           <div className="py-4 space-y-5">
@@ -388,11 +387,11 @@ export default function UserTable({
             <div>
               <label className="label">
                 <span className="label-text text-foreground font-semibold">
-                  নিষিদ্ধ করার কারণ
+                  Ban Reason
                 </span>
               </label>
               <textarea
-                placeholder="ব্যবহারকারী নিষিদ্ধ করার কারণ লিখুন..."
+                placeholder="Write reason for banning user..."
                 className="textarea textarea-bordered w-full border-border bg-muted text-foreground focus:border-destructive focus:ring-1 focus:ring-destructive transition-shadow p-2 rounded-lg"
                 rows={3}
               />
@@ -402,16 +401,16 @@ export default function UserTable({
             <div>
               <label className="label">
                 <span className="label-text text-foreground font-semibold">
-                  নিষেধাজ্ঞার সময়কাল
+                  Ban Duration
                 </span>
               </label>
               <select className="select select-bordered w-full border-border bg-muted text-foreground focus:border-destructive focus:ring-1 focus:ring-destructive transition-shadow p-2 rounded-lg">
-                <option value="1">১ দিন</option>
-                <option value="7">৭ দিন</option>
-                <option value="30">৩০ দিন</option>
-                <option value="90">৯০ দিন</option>
-                <option value="365">১ বছর</option>
-                <option value="permanent">স্থায়ী নিষেধাজ্ঞা</option>
+                <option value="1">1 day</option>
+                <option value="7">7 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="365">1 year</option>
+                <option value="permanent">Permanent Ban</option>
               </select>
             </div>
 
@@ -421,10 +420,10 @@ export default function UserTable({
                 {/* Warning Icon (h-5 w-5) */}
                 <Ban className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium text-destructive">সতর্কতা</p>
+                  <p className="text-sm font-medium text-destructive">Warning</p>
                   <p className="text-xs text-destructive/80 mt-1">
-                    নিষিদ্ধ ব্যবহারকারী সিস্টেমে লগইন করতে বা নতুন অর্ডার দিতে
-                    পারবে না। বিদ্যমান অর্ডারগুলি প্রভাবিত হবে না॥
+                    Banned users cannot log in to the system or place new orders.
+                    Existing orders will not be affected.
                   </p>
                 </div>
               </div>
@@ -443,7 +442,7 @@ export default function UserTable({
                 modal.close();
               }}
             >
-              বাতিল
+              Cancel
             </button>
 
             {/* Ban Button - Fixed: Using flex for alignment and ensuring proper button classes */}
@@ -458,7 +457,7 @@ export default function UserTable({
               }}
             >
               <Ban className="h-4 w-4 mr-2" />
-              নিষিদ্ধ করুন
+              Ban User
             </button>
           </div>
         </div>

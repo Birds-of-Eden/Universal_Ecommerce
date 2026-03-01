@@ -24,14 +24,14 @@ export default function UserFilters({
         <div className="lg:col-span-2">
           <label className="text-sm font-medium text-foreground mb-3 flex items-center">
             <Search className="h-4 w-4 mr-2" />
-            অনুসন্ধান
+            Search
           </label>
           <div className="relative">
             <input
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="ইমেইল বা নাম দ্বারা অনুসন্ধান করুন..."
+              placeholder="Search by email or name..."
               className="w-full pl-10 pr-4 py-3 rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground placeholder-muted-foreground shadow-sm"
             />
             <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
@@ -42,7 +42,7 @@ export default function UserFilters({
         <div>
           <label className="text-sm font-medium text-foreground mb-3 flex items-center">
             <Shield className="h-4 w-4 mr-2" />
-            ভূমিকা
+            Role
           </label>
           <div className="relative">
             <select
@@ -50,9 +50,9 @@ export default function UserFilters({
               onChange={(e) => onRoleChange(e.target.value)}
               className="w-full pl-10 pr-4 py-3 rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground appearance-none shadow-sm"
             >
-              <option value="">সকল ভূমিকা</option>
-              <option value="user">ব্যবহারকারী</option>
-              <option value="admin">অ্যাডমিন</option>
+              <option value="">All Roles</option>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
             </select>
             <User className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
             <div className="absolute right-3 top-3.5 pointer-events-none">
@@ -70,7 +70,7 @@ export default function UserFilters({
             className="w-full py-3 px-4 rounded-xl bg-background border-border text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 font-medium shadow-sm hover:shadow-md flex items-center justify-center space-x-2 group"
           >
             <RotateCcw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
-            <span>ফিল্টার রিসেট</span>
+            <span>Reset Filters</span>
           </button>
         </div>
       </div>
@@ -80,7 +80,7 @@ export default function UserFilters({
         <div className="mt-4 p-3 bg-muted bg-opacity-50 rounded-lg border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 text-sm">
-              <span className="text-foreground font-medium">সক্রিয় ফিল্টার:</span>
+              <span className="text-foreground font-medium">Active Filters:</span>
               {search && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary bg-opacity-20 text-foreground text-xs border-border border-opacity-30">
                   <Search className="h-3 w-3 mr-1" />
@@ -90,7 +90,7 @@ export default function UserFilters({
               {role && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary bg-opacity-20 text-foreground text-xs border-border border-opacity-30">
                   <Shield className="h-3 w-3 mr-1" />
-                  {role === 'admin' ? 'অ্যাডমিন' : 'ব্যবহারকারী'}
+                  {role === 'admin' ? 'Admin' : 'User'}
                 </span>
               )}
             </div>
@@ -99,7 +99,7 @@ export default function UserFilters({
               className="text-xs text-muted-foreground hover:text-foreground transition-colors duration-200 flex items-center space-x-1"
             >
               <RotateCcw className="h-3 w-3" />
-              <span>সব মুছুন</span>
+              <span>Clear All</span>
             </button>
           </div>
         </div>

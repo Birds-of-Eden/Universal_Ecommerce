@@ -46,9 +46,10 @@ const menuItems = [
     icon: Settings,
     subItems: [
       { name: "Payment Methods", href: "/admin/settings/payment" },
+      { name: "Warehouses", href: "/admin/settings/warehouses" },
       { name: "Banner Settings", href: "/admin/settings/banner" },
-      { name: "Shipping Methods", href: "/admin/settings/shipments" },
       { name: "Tax Settings", href: "/admin/settings/tax" },
+      { name: "Couriers", href: "/admin/settings/couriers" },
       { name: "General Settings", href: "/admin/settings/general" },
     ],
   },

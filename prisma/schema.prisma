@@ -55,6 +55,7 @@ enum ShipmentStatus {
 enum CourierType {
   PATHAO
   REDX
+  STEADFAST
   CUSTOM
 }
 

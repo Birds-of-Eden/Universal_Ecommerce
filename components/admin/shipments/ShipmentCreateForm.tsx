@@ -2,12 +2,34 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+type WarehouseOption = {
+  id: number;
+  name: string;
+  code: string;
+  address?: {
+    location: string;
+  } | null;
+  isDefault: boolean;
+};
+
 type CourierOption = {
   id: number;
   name: string;
-  type: "PATHAO" | "REDX" | "CUSTOM";
+  type: "PATHAO" | "REDX" | "STEADFAST" | "CUSTOM";
   baseUrl: string;
   isActive: boolean;
+};
+
+type OrderOption = {
+  id: number;
+  email: string;
+  name: string | null;
+  total: number;
+  status: string;
+  shipment?: {
+    id: number;
+    status: string;
+  } | null;
 };
 
 type ShipmentResponse = {
@@ -23,6 +45,10 @@ type ShipmentResponse = {
 export default function ShipmentCreateForm() {
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [loadingCouriers, setLoadingCouriers] = useState(true);
+  const [orders, setOrders] = useState<OrderOption[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
+  const [loadingWarehouses, setLoadingWarehouses] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ShipmentResponse | null>(null);
@@ -47,7 +73,37 @@ export default function ShipmentCreateForm() {
       }
     };
 
+    const loadOrders = async () => {
+      try {
+        setLoadingOrders(true);
+        const res = await fetch("/api/orders?hasShipment=false");
+        if (!res.ok) throw new Error("Failed to load orders");
+        const data = (await res.json()) as { orders: OrderOption[] };
+        setOrders(data.orders || []);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load orders");
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+
+    const loadWarehouses = async () => {
+      try {
+        setLoadingWarehouses(true);
+        const res = await fetch("/api/warehouses");
+        if (!res.ok) throw new Error("Failed to load warehouses");
+        const data = (await res.json()) as WarehouseOption[];
+        setWarehouses(data);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to load warehouses");
+      } finally {
+        setLoadingWarehouses(false);
+      }
+    };
+
     loadCouriers();
+    loadOrders();
+    loadWarehouses();
   }, []);
 
   const selectedCourier = useMemo(
@@ -99,17 +155,28 @@ export default function ShipmentCreateForm() {
         Select courier dynamically and create shipment for an existing order.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <form
+        onSubmit={handleSubmit}
+        className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2"
+      >
         <label className="flex flex-col gap-2 text-sm">
-          <span className="text-muted-foreground">Order ID</span>
-          <input
+          <span className="text-muted-foreground">Order</span>
+          <select
             value={orderId}
             onChange={(e) => setOrderId(e.target.value)}
-            type="number"
             required
             className="h-10 rounded-md border border-border bg-background px-3"
-            placeholder="e.g. 101"
-          />
+            disabled={loadingOrders}
+          >
+            <option value="">
+              {loadingOrders ? "Loading orders..." : "Select an order"}
+            </option>
+            {orders.map((order) => (
+              <option key={order.id} value={order.id}>
+                {order.id} - {order.name || order.email} (${order.total})
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="flex flex-col gap-2 text-sm">
@@ -133,13 +200,22 @@ export default function ShipmentCreateForm() {
         </label>
 
         <label className="flex flex-col gap-2 text-sm">
-          <span className="text-muted-foreground">Warehouse ID (optional)</span>
-          <input
+          <span className="text-muted-foreground">Warehouse (optional)</span>
+          <select
             value={warehouseId}
             onChange={(e) => setWarehouseId(e.target.value)}
-            type="number"
             className="h-10 rounded-md border border-border bg-background px-3"
-          />
+            disabled={loadingWarehouses}
+          >
+            <option value="">
+              {loadingWarehouses ? "Loading warehouses..." : "Select a warehouse"}
+            </option>
+            {warehouses.map((warehouse) => (
+              <option key={warehouse.id} value={warehouse.id}>
+                {warehouse.name} ({warehouse.code})
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="flex flex-col gap-2 text-sm md:col-span-2">
@@ -177,7 +253,12 @@ export default function ShipmentCreateForm() {
             <p>Status: {result.status}</p>
             <p>Tracking: {result.trackingNumber || "N/A"}</p>
             {result.trackingUrl && (
-              <a href={result.trackingUrl} target="_blank" rel="noreferrer" className="underline">
+              <a
+                href={result.trackingUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
                 Open tracking URL
               </a>
             )}

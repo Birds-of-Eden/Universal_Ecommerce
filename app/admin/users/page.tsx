@@ -98,7 +98,7 @@ export default function AdminUsersPage() {
       const response = await fetch(`/api/users?${params}`);
 
       if (!response.ok) {
-        throw new Error("ব্যবহারকারী ডেটা লোড করতে ব্যর্থ হয়েছে");
+        throw new Error("Failed to load user data");
       }
 
       const data = await response.json();
@@ -116,7 +116,7 @@ export default function AdminUsersPage() {
       setError(
         err instanceof Error
           ? err.message
-          : "ব্যবহারকারী ডেটা লোড করতে ত্রুটি হয়েছে"
+          : "Error loading user data"
       );
       console.error("Error fetching users:", err);
     } finally {
@@ -177,7 +177,7 @@ export default function AdminUsersPage() {
     setCreateError("");
 
     if (!newUser.email || !newUser.password) {
-      setCreateError("ইমেইল এবং পাসওয়ার্ড প্রয়োজন");
+      setCreateError("Email and password are required");
       return;
     }
 
@@ -186,7 +186,7 @@ export default function AdminUsersPage() {
       .filter((a) => a.length > 0);
 
     if (normalizedAddresses.length === 0) {
-      setCreateError("কমপক্ষে একটি ঠিকানা দিন");
+      setCreateError("Please provide at least one address");
       return;
     }
 
@@ -208,7 +208,7 @@ export default function AdminUsersPage() {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         setCreateError(
-          data?.error || "ব্যবহারকারী তৈরি করতে ব্যর্থ হয়েছে"
+          data?.error || "Failed to create user"
         );
         return;
       }
@@ -225,7 +225,7 @@ export default function AdminUsersPage() {
       await fetchUsers(true);
     } catch (err) {
       console.error("Error creating user:", err);
-      setCreateError("ব্যবহারকারী তৈরি করতে ত্রুটি হয়েছে");
+      setCreateError("Error creating user");
     } finally {
       setCreating(false);
     }
@@ -363,11 +363,10 @@ export default function AdminUsersPage() {
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                  ব্যবহারকারী ব্যবস্থাপনা
+                  User Management
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  আপনার ব্যবহারকারীদের পরিচালনা করুন, তাদের কার্যকলাপ দেখুন এবং
-                  অ্যাকাউন্ট মডারেট করুন
+                  Manage your users, view their activities, and moderate accounts
                 </p>
               </div>
             </div>
@@ -382,7 +381,7 @@ export default function AdminUsersPage() {
                 className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 shadow-sm font-medium"
               >
                 <UserPlus className="h-4 w-4" />
-                <span>নতুন ব্যবহারকারী</span>
+                <span>New User</span>
               </button>
 
               <button
@@ -393,7 +392,7 @@ export default function AdminUsersPage() {
                 <RefreshCw
                   className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
                 />
-                <span>{refreshing ? "রিফ্রেশ হচ্ছে..." : "রিফ্রেশ"}</span>
+                <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
               </button>
             </div>
           </div>
@@ -434,7 +433,7 @@ export default function AdminUsersPage() {
                 <Users className="h-4 w-4 text-foreground" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">মোট ব্যবহারকারী</p>
+                <p className="text-sm text-muted-foreground">Total Users</p>
                 <p className="text-lg font-semibold text-foreground">
                   {pagination.total}
                 </p>
@@ -448,7 +447,7 @@ export default function AdminUsersPage() {
                 <Users className="h-4 w-4 text-foreground" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">সক্রিয় ব্যবহারকারী</p>
+                <p className="text-sm text-muted-foreground">Active Users</p>
                 <p className="text-lg font-semibold text-foreground">
                   {
                     users.filter(
@@ -468,7 +467,7 @@ export default function AdminUsersPage() {
                 <Users className="h-4 w-4 text-foreground" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">অ্যাডমিন ব্যবহারকারী</p>
+                <p className="text-sm text-muted-foreground">Admin Users</p>
                 <p className="text-lg font-semibold text-foreground">
                   {users.filter((u) => u.role === "admin").length}
                 </p>
@@ -485,16 +484,16 @@ export default function AdminUsersPage() {
               <div>
                 <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                   <Users className="h-5 w-5" />
-                  <span>ব্যবহারকারী তালিকা</span>
+                  <span>User List</span>
                 </h2>
                 <p className="text-muted-foreground text-sm mt-1">
-                  মোট {pagination.total} জন ব্যবহারকারী পাওয়া গেছে
+                  Found {pagination.total} users
                 </p>
               </div>
 
               <div className="flex items-center space-x-4 text-sm">
                 <div className="bg-muted px-3 py-2 rounded-lg border-border shadow-sm">
-                  <span className="text-foreground font-medium">পৃষ্ঠা </span>
+                  <span className="text-foreground font-medium">Page </span>
                   <span className="text-muted-foreground">
                     {pagination.page} / {pagination.totalPages}
                   </span>
@@ -512,10 +511,10 @@ export default function AdminUsersPage() {
                   }
                   className="px-3 py-2 rounded-lg border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                 >
-                  <option value="10">১০ প্রতি পৃষ্ঠা</option>
-                  <option value="25">২৫ প্রতি পৃষ্ঠা</option>
-                  <option value="50">৫০ প্রতি পৃষ্ঠা</option>
-                  <option value="100">১০০ প্রতি পৃষ্ঠা</option>
+                  <option value="10">10 per page</option>
+                  <option value="25">25 per page</option>
+                  <option value="50">50 per page</option>
+                  <option value="100">100 per page</option>
                 </select>
               </div>
             </div>
@@ -528,19 +527,19 @@ export default function AdminUsersPage() {
                 <Users className="h-10 w-10 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">
-                কোনো ব্যবহারকারী পাওয়া যায়নি
+                No users found
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto mb-6">
                 {filters.search || filters.role
-                  ? "আপনার বর্তমান ফিল্টারের সাথে মিলছে এমন কোনো ব্যবহারকারী নেই। অনুগ্রহ করে বিভিন্ন ফিল্টার চেষ্টা করুন॥"
-                  : "এখনও কোনো ব্যবহারকারী রেজিস্ট্রেশন করেননি॥"}
+                  ? "No users match your current filters. Please try different filters."
+                  : "No users have registered yet."}
               </p>
               {(filters.search || filters.role) && (
                 <button
                   onClick={handleResetFilters}
                   className="px-6 py-2 rounded-xl bg-muted text-foreground hover:bg-muted/80 transition-all duration-300 font-medium"
                 >
-                  সব ফিল্টার সরান
+                  Clear All Filters
                 </button>
               )}
             </div>
@@ -578,10 +577,10 @@ export default function AdminUsersPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">
-                    নতুন ব্যবহারকারী যোগ করুন
+                    Add New User
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    ইমেইল ও পাসওয়ার্ড দিয়ে দ্রুত নতুন ব্যবহারকারী তৈরি করুন
+                    Quickly create a new user with email and password
                   </p>
                 </div>
               </div>
@@ -613,7 +612,7 @@ export default function AdminUsersPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    নাম (ঐচ্ছিক)
+                    Name (Optional)
                   </label>
                   <input
                     type="text"
@@ -622,13 +621,13 @@ export default function AdminUsersPage() {
                       setNewUser((prev) => ({ ...prev, name: e.target.value }))
                     }
                     className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
-                    placeholder="ব্যবহারকারীর নাম"
+                    placeholder="User name"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    ভূমিকা
+                    Role
                   </label>
                   <select
                     value={newUser.role}
@@ -637,8 +636,8 @@ export default function AdminUsersPage() {
                     }
                     className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                   >
-                    <option value="user">ব্যবহারকারী</option>
-                    <option value="admin">অ্যাডমিন</option>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
                   </select>
                 </div>
               </div>
@@ -646,7 +645,7 @@ export default function AdminUsersPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    ফোন (ঐচ্ছিক)
+                    Phone (Optional)
                   </label>
                   <input
                     type="tel"
@@ -655,13 +654,13 @@ export default function AdminUsersPage() {
                       setNewUser((prev) => ({ ...prev, phone: e.target.value }))
                     }
                     className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
-                    placeholder="ফোন নম্বর"
+                    placeholder="Phone number"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    পাসওয়ার্ড
+                    Password
                   </label>
                   <input
                     type="password"
@@ -670,7 +669,7 @@ export default function AdminUsersPage() {
                       setNewUser((prev) => ({ ...prev, password: e.target.value }))
                     }
                     className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
-                    placeholder="কমপক্ষে ৬ অক্ষর"
+                    placeholder="Minimum 6 characters"
                     required
                   />
                 </div>
@@ -682,7 +681,7 @@ export default function AdminUsersPage() {
                   <div key={index} className="flex items-center gap-2">
                     <div className="flex-1">
                       <label className="block text-sm font-medium text-foreground mb-1">
-                        {index === 0 ? "ঠিকানা (কমপক্ষে একটি)" : `অতিরিক্ত ঠিকানা ${index + 1}`}
+                        {index === 0 ? "Address (at least one)" : `Additional Address ${index + 1}`}
                       </label>
                       <input
                         type="text"
@@ -698,7 +697,7 @@ export default function AdminUsersPage() {
                           });
                         }}
                         className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
-                        placeholder="বাড়ি/রাস্তা/এলাকা"
+                        placeholder="House/Street/Area"
                       />
                     </div>
                     {newUser.addresses.length > 1 && (
@@ -712,7 +711,7 @@ export default function AdminUsersPage() {
                         }
                         className="mt-6 text-xs px-2 py-1 rounded-lg border-border text-destructive hover:bg-destructive/10"
                       >
-                        মুছুন
+                        Delete
                       </button>
                     )}
                   </div>
@@ -728,7 +727,7 @@ export default function AdminUsersPage() {
                   }
                   className="text-xs px-3 py-2 rounded-xl border-border text-foreground hover:bg-muted"
                 >
-                  + আরো ঠিকানা যোগ করুন
+                  + Add More Address
                 </button>
               </div>
 
@@ -744,7 +743,7 @@ export default function AdminUsersPage() {
                   onClick={() => setShowCreateModal(false)}
                   className="px-4 py-2 rounded-xl border-border text-muted-foreground hover:bg-muted transition-all duration-300 text-sm font-medium"
                 >
-                  বাতিল
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -754,7 +753,7 @@ export default function AdminUsersPage() {
                   {creating && (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   )}
-                  <span>{creating ? "তৈরি হচ্ছে..." : "ব্যবহারকারী তৈরি করুন"}</span>
+                  <span>{creating ? "Creating..." : "Create User"}</span>
                 </button>
               </div>
             </form>

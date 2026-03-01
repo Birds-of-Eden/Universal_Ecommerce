@@ -184,3 +184,49 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   }
 }
+
+// DELETE /api/shipments/:id
+export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+  try {
+    const { id: idStr } = await params;
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role as string | undefined;
+
+    // shipment deletion -> only admin
+    if (!session?.user || role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const id = Number(idStr);
+    if (Number.isNaN(id) || id <= 0) {
+      return NextResponse.json(
+        { error: "Invalid shipment id" },
+        { status: 400 }
+      );
+    }
+
+    // Check if shipment exists
+    const existingShipment = await prisma.shipment.findUnique({
+      where: { id },
+    });
+
+    if (!existingShipment) {
+      return NextResponse.json(
+        { error: "Shipment not found" },
+        { status: 404 }
+      );
+    }
+
+    await prisma.shipment.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting shipment:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
