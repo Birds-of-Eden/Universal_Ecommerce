@@ -39,7 +39,17 @@ const menuItems = [
   { name: "Blogs", href: "/admin/blogs", icon: BookOpen },
   { name: "Newsletter", href: "/admin/newsletter", icon: Mail },
   { name: "Coupons", href: "/admin/coupons", icon: Tag },
-  { name: "Settings", href: "/admin/settings", icon: Settings },
+  {
+    name: "Settings",
+    icon: Settings,
+    subItems: [
+      { name: "Payment Methods", href: "/admin/settings/payment" },
+      { name: "Banner Settings", href: "/admin/settings/banner" },
+      { name: "Shipping Methods", href: "/admin/settings/shipping" },
+      { name: "Tax Settings", href: "/admin/settings/tax" },
+      { name: "General Settings", href: "/admin/settings/general" },
+    ],
+  },
 ];
 
 interface MenuItemProps {
@@ -93,14 +103,18 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
             className={cn(
               "w-full justify-between",
               baseClasses,
-              isOpen ? buttonActiveClasses : buttonDefaultClasses
+              isOpen ? buttonActiveClasses : buttonDefaultClasses,
             )}
           >
             <div className="flex items-center gap-3">
-              <div className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
-                isOpen ? "bg-primary text-primary-foreground" : "bg-accent text-muted-foreground"
-              )}>
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
+                  isOpen
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-accent text-muted-foreground",
+                )}
+              >
                 <item.icon className="h-4 w-4" />
               </div>
               <span>{item.name}</span>
@@ -126,14 +140,18 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
                       "block px-4 py-2 text-xs transition-all duration-300 rounded-lg",
                       isSubItemActive
                         ? "text-primary-foreground bg-primary font-medium shadow-md border border-primary/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent hover:translate-x-1"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent hover:translate-x-1",
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <div className={cn(
-                        "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                        isSubItemActive ? "bg-primary-foreground" : "bg-muted-foreground"
-                      )} />
+                      <div
+                        className={cn(
+                          "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                          isSubItemActive
+                            ? "bg-primary-foreground"
+                            : "bg-muted-foreground",
+                        )}
+                      />
                       {subItem.name}
                     </div>
                   </Link>
@@ -149,14 +167,18 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
           className={cn(
             baseClasses,
             "w-full",
-            isActive ? activeLinkClasses : defaultLinkClasses
+            isActive ? activeLinkClasses : defaultLinkClasses,
           )}
         >
           <div className="flex items-center gap-3 flex-1">
-            <div className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
-              isActive ? "bg-primary-foreground text-primary" : "bg-accent text-muted-foreground"
-            )}>
+            <div
+              className={cn(
+                "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
+                isActive
+                  ? "bg-primary-foreground text-primary"
+                  : "bg-accent text-muted-foreground",
+              )}
+            >
               <item.icon className="h-4 w-4" />
             </div>
             <span>{item.name}</span>
@@ -226,7 +248,7 @@ export default function Sidebar({
       className={cn(
         "w-60 shadow-lg h-screen fixed left-0 top-0 border-r flex flex-col",
         themeBg,
-        themeBorder
+        themeBorder,
       )}
     >
       {/* Modern Desktop Header */}
@@ -236,7 +258,7 @@ export default function Sidebar({
       <div className="flex-1 overflow-y-auto">
         <SidebarContent pathname={pathname} />
       </div>
-      
+
       {/* Footer */}
       <div className="p-4 border-t border-border flex-shrink-0">
         <div className="text-center text-xs text-muted-foreground">

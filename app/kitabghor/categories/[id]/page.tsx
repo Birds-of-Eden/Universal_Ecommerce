@@ -82,7 +82,7 @@ export default function Page({ params }: PageProps) {
         setError(null);
 
         // 1) category + products
-        const res = await fetch(`/api/categories/${resolvedParams.id}`, {
+        const res = await fetch(`/api/categories/${resolvedParams.id}/products`, {
           cache: "no-store",
           signal,
         });

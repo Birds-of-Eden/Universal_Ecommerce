@@ -124,7 +124,7 @@ const BookFairPage = memo(function BookFairPage() {
         const detailResponses = await Promise.all(
           catList.map(async (cat) => {
             try {
-              const r = await fetch(`/api/categories/${cat.id}`, {
+              const r = await fetch(`/api/categories/${cat.id}/products`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
                 cache: "force-cache",

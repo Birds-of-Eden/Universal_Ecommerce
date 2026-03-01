@@ -17,10 +17,10 @@ async function getDescendantCategoryIds(rootId: number) {
       select: { id: true },
     });
 
-    for (const c of children) {
-      if (!allIds.has(c.id)) {
-        allIds.add(c.id);
-        queue.push(c.id);
+    for (const child of children) {
+      if (!allIds.has(child.id)) {
+        allIds.add(child.id);
+        queue.push(child.id);
       }
     }
   }
@@ -30,36 +30,31 @@ async function getDescendantCategoryIds(rootId: number) {
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ param: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { param } = await params;
+    const { id } = await params;
 
-    // ✅ param numeric হলে id হিসেবে ধরবো, না হলে slug
-    const numericId = Number(param);
-    const isNumeric = !Number.isNaN(numericId) && String(numericId) === param;
+    const numericId = Number(id);
+    const isNumeric = !Number.isNaN(numericId) && String(numericId) === id;
 
     const category = await prisma.category.findFirst({
       where: isNumeric
         ? { deleted: false, id: numericId }
-        : { deleted: false, slug: param },
+        : { deleted: false, slug: id },
       select: { id: true, name: true, slug: true },
     });
 
     if (!category) {
-      return NextResponse.json(
-        { error: "Category not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
 
-    // ✅ এই category + তার সব child/sub category id
-    const ids = await getDescendantCategoryIds(category.id);
+    const categoryIds = await getDescendantCategoryIds(category.id);
 
     const products = await prisma.product.findMany({
       where: {
         deleted: false,
-        categoryId: { in: ids },
+        categoryId: { in: categoryIds },
       },
       orderBy: { id: "desc" },
       include: {
@@ -73,7 +68,7 @@ export async function GET(
 
     return NextResponse.json({
       category,
-      categoryIds: ids,
+      categoryIds,
       total: products.length,
       products,
     });
@@ -81,7 +76,7 @@ export async function GET(
     console.error(error);
     return NextResponse.json(
       { error: "Failed to load category products" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
