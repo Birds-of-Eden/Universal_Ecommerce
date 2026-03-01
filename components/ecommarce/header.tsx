@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
@@ -24,9 +24,6 @@ import {
   Moon,
 } from "lucide-react";
 
-/* =========================
-   CONFIG
-========================= */
 const CATEGORIES_API = "/api/categories";
 
 /* =========================
@@ -75,30 +72,31 @@ function buildCategoryTree(list: CategoryDTO[]): CategoryNode[] {
   return roots;
 }
 
+const clamp = (v: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, v));
+
 /* =========================
-   Flyout (Desktop)
+   ✅ Sub + Child Flyout (No Parent Column)
+   Requirement: parent name list দেখাবে না
 ========================= */
-function CategoryFlyout({
-  roots,
+function SubChildFlyout({
+  parent,
   onNavigate,
 }: {
-  roots: CategoryNode[];
+  parent: CategoryNode;
   onNavigate: () => void;
 }) {
-  const [activeRootId, setActiveRootId] = useState<number | null>(null);
   const [activeSubId, setActiveSubId] = useState<number | null>(null);
 
-  const activeRoot = useMemo(() => {
-    if (!activeRootId) return null;
-    return roots.find((r) => r.id === activeRootId) ?? null;
-  }, [roots, activeRootId]);
-
   const activeSub = useMemo(() => {
-    if (!activeRoot || !activeSubId) return null;
-    return activeRoot.children.find((c) => c.id === activeSubId) ?? null;
-  }, [activeRoot, activeSubId]);
+    if (!activeSubId) return parent.children[0] ?? null;
+    return parent.children.find((c) => c.id === activeSubId) ?? null;
+  }, [parent.children, activeSubId]);
 
-  useEffect(() => setActiveSubId(null), [activeRootId]);
+  useEffect(() => {
+    // parent change হলে default first sub
+    setActiveSubId(parent.children[0]?.id ?? null);
+  }, [parent.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const colItemBase =
     "w-full flex items-center justify-between px-4 py-2 text-left text-sm transition";
@@ -107,111 +105,94 @@ function CategoryFlyout({
 
   return (
     <div
-      className="inline-flex w-fit bg-background text-foreground border border-border rounded-xl shadow-2xl overflow-hidden"
-      onMouseLeave={() => {
-        setActiveRootId(null);
-        setActiveSubId(null);
-      }}
+      className="inline-flex bg-background text-foreground border border-border rounded-xl shadow-2xl overflow-hidden"
+      onMouseLeave={onNavigate}
     >
-      {/* Parent */}
+      {/* Subcategories */}
       <div className="w-[280px] max-h-[380px] overflow-auto">
-        {roots.map((parent) => {
-          const isActive = parent.id === activeRootId;
-          return (
-            <button
-              key={parent.id}
-              type="button"
-              onMouseEnter={() => setActiveRootId(parent.id)}
-              className={`${colItemBase} ${
-                isActive ? colItemActive : colItemInactive
-              }`}
-            >
-              <span className="font-semibold truncate">{parent.name}</span>
-              <ChevronRight className="h-4 w-4 opacity-70" />
-            </button>
-          );
-        })}
+        <Link
+          href={`/kitabghor/categories/${parent.slug}`}
+          onClick={onNavigate}
+          className="block px-4 py-2 text-xs font-semibold text-primary border-b border-border hover:underline"
+        >
+          {parent.name} — সব দেখুন
+        </Link>
+
+        {parent.children.length === 0 ? (
+          <div className="px-4 py-3 text-sm text-muted-foreground">
+            সাব ক্যাটাগরি নেই
+          </div>
+        ) : (
+          parent.children.map((sub) => {
+            const isActive = sub.id === (activeSub?.id ?? null);
+            const hasChild = (sub.children?.length ?? 0) > 0;
+
+            return (
+              <button
+                key={sub.id}
+                type="button"
+                onMouseEnter={() => setActiveSubId(sub.id)}
+                className={`${colItemBase} ${
+                  isActive ? colItemActive : colItemInactive
+                }`}
+              >
+                <span className="truncate">{sub.name}</span>
+                {hasChild ? (
+                  <ChevronRight className="h-4 w-4 opacity-70" />
+                ) : (
+                  <span className="w-4" />
+                )}
+              </button>
+            );
+          })
+        )}
       </div>
 
-      {/* Sub */}
-      {activeRoot && (
-        <div className="w-[280px] max-h-[380px] overflow-auto border-l border-border bg-background">
-          <Link
-            href={`/kitabghor/categories/${activeRoot.slug}`}
-            onClick={onNavigate}
-            className="block px-4 py-2 text-xs font-semibold text-primary border-b border-border hover:underline"
-          >
-            {activeRoot.name} — সব দেখুন
-          </Link>
+      {/* Children */}
+      <div className="w-[280px] max-h-[380px] overflow-auto border-l border-border bg-background">
+        {activeSub ? (
+          <>
+            <Link
+              href={`/kitabghor/categories/${activeSub.slug}`}
+              onClick={onNavigate}
+              className="block px-4 py-2 text-xs font-semibold text-primary border-b border-border hover:underline"
+            >
+              {activeSub.name} — সব দেখুন
+            </Link>
 
-          {activeRoot.children.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
-              সাব ক্যাটাগরি নেই
-            </div>
-          ) : (
-            activeRoot.children.map((sub) => {
-              const isActive = sub.id === activeSubId;
-              const hasChild = (sub.children?.length ?? 0) > 0;
-
-              return (
-                <button
-                  key={sub.id}
-                  type="button"
-                  onMouseEnter={() => setActiveSubId(sub.id)}
-                  className={`${colItemBase} ${
-                    isActive ? colItemActive : colItemInactive
-                  }`}
-                >
-                  <span className="truncate">{sub.name}</span>
-                  {hasChild ? (
-                    <ChevronRight className="h-4 w-4 opacity-70" />
-                  ) : (
-                    <span className="w-4" />
-                  )}
-                </button>
-              );
-            })
-          )}
-        </div>
-      )}
-
-      {/* Child */}
-      {activeSub && (
-        <div className="w-[280px] max-h-[380px] overflow-auto border-l border-border bg-background">
-          <Link
-            href={`/kitabghor/categories/${activeSub.slug}`}
-            onClick={onNavigate}
-            className="block px-4 py-2 text-xs font-semibold text-primary border-b border-border hover:underline"
-          >
-            {activeSub.name} — সব দেখুন
-          </Link>
-
-          {activeSub.children.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
-              চাইল্ড ক্যাটাগরি নেই
-            </div>
-          ) : (
-            <div className="p-2">
-              {activeSub.children.map((child) => (
-                <Link
-                  key={child.id}
-                  href={`/kitabghor/categories/${child.slug}`}
-                  onClick={onNavigate}
-                  className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition"
-                >
-                  {child.name}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+            {activeSub.children.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-muted-foreground">
+                চাইল্ড ক্যাটাগরি নেই
+              </div>
+            ) : (
+              <div className="p-2">
+                {activeSub.children.map((child) => (
+                  <Link
+                    key={child.id}
+                    href={`/kitabghor/categories/${child.slug}`}
+                    onClick={onNavigate}
+                    className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition"
+                  >
+                    {child.name}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="px-4 py-3 text-sm text-muted-foreground">
+            সাব ক্যাটাগরি সিলেক্ট করুন
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
+/* =========================
+   Full Header
+========================= */
 export default function Header() {
-  const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -220,7 +201,7 @@ export default function Header() {
 
   const [hasMounted, setHasMounted] = useState(false);
   const [isPending, setIsPending] = useState(false);
-  const [theme, setTheme] = useState("light");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   // ✅ Mobile drawer
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -250,30 +231,59 @@ export default function Header() {
   // row-3 hover dropdown
   const [hoverTopCatId, setHoverTopCatId] = useState<number | null>(null);
 
-  // ✅ row3 refs + dropdown position
+  // ✅ row3 refs + dropdown position (viewport-fixed, clamped)
   const row3Ref = useRef<HTMLDivElement | null>(null);
   const catItemRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
-  const [dropdownLeft, setDropdownLeft] = useState(0);
+  const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null);
 
   const userName = (session?.user as any)?.name || "ব্যবহারকারী";
   const userRole = (session?.user as any)?.role || "user";
 
   useEffect(() => setHasMounted(true), []);
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.classList.toggle("dark", savedTheme === "dark");
-    }
-  }, []);
+// Load theme properly on mount
+useEffect(() => {
+  const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
 
-  const toggleTheme = () => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
+  // 1️⃣ If saved in localStorage
+  if (savedTheme) {
+    setTheme(savedTheme);
+
+    if (savedTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+
+    return;
+  }
+
+  // 2️⃣ Otherwise fallback to system preference
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const systemTheme: "light" | "dark" = prefersDark ? "dark" : "light";
+
+  setTheme(systemTheme);
+
+  if (systemTheme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+}, []);
+
+// Toggle
+const toggleTheme = () => {
+  const newTheme = theme === "dark" ? "light" : "dark";
+
+  setTheme(newTheme);
+  localStorage.setItem("theme", newTheme);
+
+  if (newTheme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+};
 
   useEffect(() => {
     const total =
@@ -373,7 +383,7 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ✅ body scroll lock when drawer open
+  // body scroll lock when drawer open
   useEffect(() => {
     if (!mobileMenuOpen) return;
     const prev = document.body.style.overflow;
@@ -418,9 +428,9 @@ export default function Header() {
 
   // reusable button classes
   const topBtnClass =
-    "h-10 px-5 rounded-lg btn-primary border border-border flex items-center gap-2 text-sm font-semibold";
+    "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent";
   const iconBtnClass =
-    "relative h-11 w-11 rounded-lg btn-primary border border-border flex items-center justify-center";
+    "relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent";
 
   // Theme toggle button component
   const Button = ({ children, onClick, className, title }: any) => (
@@ -430,15 +440,48 @@ export default function Header() {
   );
 
   const underlinePill =
-    "relative flex items-center px-4 py-2 rounded-full btn-primary transition-all duration-200 " +
+    "relative flex items-center px-4 py-2 transition-colors duration-200 " +
+    "text-foreground " +
     "after:absolute after:left-4 after:right-4 after:-bottom-1 after:h-[2px] " +
-    "after:bg-primary-foreground after:scale-x-0 after:origin-left " +
+    "after:bg-current after:scale-x-0 after:origin-left " +
     "after:transition-transform after:duration-300 hover:after:scale-x-100";
+
+  // Professional dropdown positioning (never cut)
+  const positionHoverDropdown = (catId: number) => {
+    const el = catItemRefs.current.get(catId);
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+
+    // flyout width: 280 + 280 = 560
+    const W = 560;
+    const margin = 8;
+
+    const left = clamp(rect.left, margin, window.innerWidth - W - margin);
+    const top = rect.bottom + 8; // below row3 item
+
+    setDropdownPos({ left, top });
+  };
+
+  // keep dropdown in place on scroll/resize
+  useEffect(() => {
+    if (!hoverTopCatId) return;
+
+    const onUpdate = () => positionHoverDropdown(hoverTopCatId);
+
+    window.addEventListener("resize", onUpdate);
+    window.addEventListener("scroll", onUpdate, true);
+
+    return () => {
+      window.removeEventListener("resize", onUpdate);
+      window.removeEventListener("scroll", onUpdate, true);
+    };
+  }, [hoverTopCatId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <header className="sticky top-0 z-50">
       {/* Main Header (Row1 + Row2) */}
-      <div className="bg-primary text-primary-foreground border-b border-border">
+      <div className="bg-background text-foreground border-b border-border">
         <div className="container mx-auto px-4 py-4 space-y-4">
           {/* Row 1 */}
           <div className="flex items-center justify-between gap-3">
@@ -504,7 +547,7 @@ export default function Header() {
 
               <Link
                 href="/kitabghor/cart"
-                className="relative h-10 w-10 rounded-lg btn-primary border border-border flex items-center justify-center"
+                className="relative h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
               >
                 <ShoppingCart className="h-5 w-5" />
                 {hasMounted && cartCount > 0 && (
@@ -516,7 +559,7 @@ export default function Header() {
 
               <Link
                 href="/kitabghor/wishlist"
-                className="relative h-10 w-10 rounded-lg btn-primary border border-border flex items-center justify-center"
+                className="relative h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
               >
                 <Heart className="h-5 w-5" />
                 {hasMounted && wishlistCount > 0 && (
@@ -529,7 +572,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
-                className="h-10 w-10 rounded-lg btn-primary border border-border flex items-center justify-center"
+                className="h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
                 aria-label="Open menu"
               >
                 <span className="text-xl leading-none">☰</span>
@@ -537,7 +580,7 @@ export default function Header() {
             </div>
           </div>
 
-          {/* ✅ Mobile Search */}
+          {/* Mobile Search */}
           <div className="md:hidden header-search-wrapper relative">
             <div className="relative">
               <input
@@ -553,7 +596,7 @@ export default function Header() {
 
               <button
                 type="button"
-                className="absolute right-1 top-1 h-9 w-11 rounded-md btn-primary border border-border flex items-center justify-center"
+                className="absolute right-1 top-1 h-9 w-11 rounded-md bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
                 onClick={() => {
                   if (searchResults.length > 0)
                     handleSelectProduct(searchResults[0]);
@@ -604,7 +647,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setCatOpen((p) => !p)}
-                className="h-11 w-[190px] px-4 rounded-lg btn-primary border border-border flex items-center justify-between"
+                className="h-11 w-[190px] px-4 rounded-lg bg-muted text-foreground border border-border flex items-center justify-between transition-colors hover:bg-accent"
               >
                 <span className="text-sm font-semibold">All Category</span>
                 <ChevronDown className="h-4 w-4 opacity-80" />
@@ -621,17 +664,27 @@ export default function Header() {
                       কোন ক্যাটাগরি নেই
                     </div>
                   ) : (
-                    <CategoryFlyout
-                      roots={categoryTree}
-                      onNavigate={() => setCatOpen(false)}
-                    />
+                    // simple list (you can keep your old flyout here if you want)
+                    <div className="bg-background text-foreground border border-border rounded-xl shadow-2xl overflow-hidden w-[320px] max-h-[420px] overflow-auto">
+                      {categoryTree.map((p) => (
+                        <Link
+                          key={p.id}
+                          href={`/kitabghor/categories/${p.slug}`}
+                          onClick={() => setCatOpen(false)}
+                          className="flex items-center justify-between px-4 py-2 text-sm hover:bg-muted transition"
+                        >
+                          <span className="font-semibold truncate">{p.name}</span>
+                          <ChevronRight className="h-4 w-4 opacity-60" />
+                        </Link>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}
             </div>
 
             {/* Search */}
-            <div className="flex-1 header-search-wrapper relative">
+            <div className="flex-1 header-search-wrapper relative border border-border">
               <div className="relative">
                 <input
                   value={searchTerm}
@@ -646,7 +699,7 @@ export default function Header() {
 
                 <button
                   type="button"
-                  className="absolute right-1 top-1 h-9 w-11 rounded-md btn-primary border border-border flex items-center justify-center"
+                  className="absolute right-1 top-1 h-9 w-11 rounded-md bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
                   onClick={() => {
                     if (searchResults.length > 0)
                       handleSelectProduct(searchResults[0]);
@@ -732,11 +785,7 @@ export default function Header() {
                         </div>
 
                         <Link
-                          href={
-                            userRole === "admin"
-                              ? "/admin"
-                              : "/kitabghor/user/"
-                          }
+                          href={userRole === "admin" ? "/admin" : "/kitabghor/user/"}
                           onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                         >
@@ -776,12 +825,11 @@ export default function Header() {
       </div>
 
       {/* Row 3 (Desktop only) */}
-      <div className="bg-primary text-foreground border-b border-border hidden md:block">
+      <div className="bg-background border-b border-border hidden md:block text-foreground">
         <div className="container mx-auto px-4">
           <div
             ref={row3Ref}
             className="h-12 flex items-center gap-2 relative"
-            onMouseLeave={() => setHoverTopCatId(null)}
           >
             {/* Home */}
             <Link href="/" className={underlinePill}>
@@ -799,16 +847,7 @@ export default function Header() {
                 className="relative"
                 onMouseEnter={() => {
                   setHoverTopCatId(cat.id);
-
-                  requestAnimationFrame(() => {
-                    const wrap = row3Ref.current;
-                    const el = catItemRefs.current.get(cat.id);
-                    if (!wrap || !el) return;
-
-                    const wrapRect = wrap.getBoundingClientRect();
-                    const elRect = el.getBoundingClientRect();
-                    setDropdownLeft(elRect.left - wrapRect.left);
-                  });
+                  requestAnimationFrame(() => positionHoverDropdown(cat.id));
                 }}
               >
                 <Link
@@ -819,42 +858,50 @@ export default function Header() {
                 </Link>
               </div>
             ))}
-
-            {/* hover dropdown */}
-            {hoveredTop && hoveredTop.children.length > 0 && (
-              <div
-                className="absolute top-[52px] z-50"
-                style={{ left: dropdownLeft }}
-              >
-                <CategoryFlyout
-                  roots={[hoveredTop]}
-                  onNavigate={() => setHoverTopCatId(null)}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* ✅ Mobile Drawer */}
+      {/* ✅ Hover dropdown (Fixed + Clamped) */}
+    {hoveredTop && hoveredTop.children.length > 0 && dropdownPos && (
+  <div
+    className="fixed z-[9999]"
+    style={{ left: dropdownPos.left, top: dropdownPos.top }}
+    onMouseEnter={() => {
+      // keep open
+      setHoverTopCatId(hoveredTop.id);
+    }}
+    onMouseLeave={() => {
+      setHoverTopCatId(null);
+      setDropdownPos(null);
+    }}
+  >
+    <SubChildFlyout
+      parent={hoveredTop}
+      onNavigate={() => {
+        setHoverTopCatId(null);
+        setDropdownPos(null);
+      }}
+    />
+  </div>
+)}
+
+      {/* Mobile Drawer (same as your previous; kept) */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
-          {/* overlay */}
           <button
             className="absolute inset-0 bg-black/50"
             onClick={() => setMobileMenuOpen(false)}
             aria-label="Close overlay"
             type="button"
           />
-
-          {/* panel */}
           <div className="absolute right-0 top-0 h-full w-[86%] max-w-[360px] bg-background text-foreground border-l border-border shadow-2xl flex flex-col">
             <div className="p-4 border-b border-border flex items-center justify-between">
               <div className="font-bold">মেনু</div>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="h-10 w-10 rounded-lg btn-primary border border-border flex items-center justify-center"
+                className="h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
                 aria-label="Close menu"
               >
                 ✕
@@ -862,7 +909,6 @@ export default function Header() {
             </div>
 
             <div className="p-4 space-y-3 overflow-auto">
-              {/* Quick links */}
               <Link
                 href="/"
                 onClick={() => setMobileMenuOpen(false)}
@@ -890,7 +936,6 @@ export default function Header() {
                 All Products
               </Link>
 
-              {/* Profile */}
               <div className="pt-2 border-t border-border" />
 
               {hasMounted && session ? (
@@ -936,7 +981,6 @@ export default function Header() {
                 </button>
               )}
 
-              {/* Categories */}
               <div className="pt-2 border-t border-border" />
               <div className="font-semibold px-1">ক্যাটাগরি</div>
 
