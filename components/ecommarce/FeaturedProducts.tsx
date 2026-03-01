@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import AddToCartButton from "@/components/ecommarce/AddToCartButton";
 
 type ProductDTO = {
   id: number | string;
@@ -156,15 +157,13 @@ export default function FeaturedProducts({
                   p.originalPrice !== null && p.originalPrice > p.basePrice;
 
                 return (
-                  <Link
+                  <div
                     key={p.id}
-                    href={`/kitabghor/products/${p.id}`}
                     className="
                       group relative rounded-xl border border-border bg-background
                       overflow-hidden shadow-sm hover:shadow-md
                       transition-all
                     "
-                    title={p.name}
                   >
                     {/* ✅ Badge only if discounted */}
                     {badge && (
@@ -182,42 +181,63 @@ export default function FeaturedProducts({
                       </div>
                     )}
 
-                    {/* Image */}
-                    <div className="relative w-full h-[180px] sm:h-[200px] bg-white">
-                      {p.image ? (
-                        <Image
-                          src={p.image}
-                          alt={p.name}
-                          fill
-                          className="object-contain p-4"
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">
-                          No Image
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="border-t border-border p-3 sm:p-4">
-                      <div className="text-sm sm:text-[13px] font-medium text-foreground line-clamp-2 min-h-[40px]">
-                        {p.name}
-                      </div>
-
-                      <div className="mt-3 flex items-end gap-2">
-                        <div className="text-red-600 font-bold text-base">
-                          {formatBDT(p.basePrice)}
-                        </div>
-
-                        {hasDiscount && (
-                          <div className="text-xs text-muted-foreground line-through">
-                            {formatBDT(p.originalPrice!)}
+                    <Link
+                      href={`/kitabghor/products/${p.id}`}
+                      className="block"
+                      title={p.name}
+                    >
+                      {/* Image */}
+                      <div className="relative w-full h-[180px] sm:h-[200px] bg-white">
+                        {p.image ? (
+                          <Image
+                            src={p.image}
+                            alt={p.name}
+                            fill
+                            className="object-contain p-4"
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">
+                            No Image
                           </div>
                         )}
                       </div>
+
+                      {/* Content */}
+                      <div className="border-t border-border p-3 sm:p-4">
+                        <div className="text-sm sm:text-[13px] font-medium text-foreground line-clamp-2 min-h-[40px]">
+                          {p.name}
+                        </div>
+
+                        <div className="mt-3 flex items-end gap-2">
+                          <div className="text-red-600 font-bold text-base">
+                            {formatBDT(p.basePrice)}
+                          </div>
+
+                          {hasDiscount && (
+                            <div className="text-xs text-muted-foreground line-through">
+                              {formatBDT(p.originalPrice!)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+
+                    <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+                      <div className="grid grid-cols-2 gap-2">
+                        <AddToCartButton
+                          productId={p.id}
+                          className="h-10 w-full rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-95 transition disabled:opacity-50"
+                        />
+                        <Link
+                          href={`/kitabghor/products/${p.id}`}
+                          className="h-10 w-full inline-flex items-center justify-center rounded-lg border border-border bg-background text-foreground text-sm font-semibold hover:bg-muted transition"
+                        >
+                          View Details
+                        </Link>
+                      </div>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
         </div>

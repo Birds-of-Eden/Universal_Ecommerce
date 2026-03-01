@@ -487,16 +487,16 @@ const toggleTheme = () => {
           {/* Row 1 */}
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex items-center gap-3 min-w-0">
-              <div className="relative h-10 w-10 rounded-lg overflow-hidden border border-border bg-background/10 shrink-0">
+              <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-border bg-background/10 shrink-0">
                 <Image
-                  src="/logo.png"
+                  src="/assets/examplelogo.jpg"
                   alt="Logo"
                   fill
                   className="object-contain p-1"
                 />
               </div>
-              <div className="text-xl sm:text-3xl font-extrabold tracking-wider truncate">
-                হিলফুল<span className="opacity-80">-ফুযুল</span>
+              <div className="text-md sm:text-3xl tracking-wider truncate">
+                BOED ECOMMERCE
               </div>
             </Link>
 
