@@ -6,6 +6,7 @@ import Hero from "@/components/ecommarce/hero";
 import Header from "@/components/ecommarce/header";
 import Footer from "@/components/ecommarce/footer";
 import Head from "next/head";
+import FeaturedCategories from "@/components/ecommarce/FeaturedCategories";
 
 type Category = {
   id: number;
@@ -204,30 +205,9 @@ export default function Home() {
         <div className="min-h-screen flex flex-col">
           <Header />
           <Hero />
-          <DataProvider>
-            {(data: {
-              categories: Category[];
-              allProducts: Product[];
-              ratings: Record<string, RatingInfo>;
-              loading: boolean;
-              error: string | null;
-            }) => (
-              <div className="container mx-auto py-12 px-4">
-                {data.loading && <p>Loading categories...</p>}
-                {data.error && <p className="text-red-500">{data.error}</p>}
-                {!data.loading &&
-                  !data.error &&
-                  data.categories.map((category) => (
-                    <CategoryBooks
-                      key={category.id}
-                      category={category}
-                      allProducts={data.allProducts}
-                      ratings={data.ratings}
-                    />
-                  ))}
-              </div>
-            )}
-          </DataProvider>
+          <div className="mt-5 mb-5 p-5">
+            <FeaturedCategories limit={16} onlyTopLevel={false} />
+          </div>
           <Footer />
         </div>
       </div>
