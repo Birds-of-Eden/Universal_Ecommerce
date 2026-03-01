@@ -76,7 +76,7 @@ function buildCategoryTree(list: CategoryDTO[]): CategoryNode[] {
 }
 
 /* =========================
-   Flyout
+   Flyout (Desktop)
 ========================= */
 function CategoryFlyout({
   roots,
@@ -222,6 +222,9 @@ export default function Header() {
   const [isPending, setIsPending] = useState(false);
   const [theme, setTheme] = useState("light");
 
+  // ✅ Mobile drawer
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   // cart count
   const [cartCount, setCartCount] = useState(0);
 
@@ -247,7 +250,7 @@ export default function Header() {
   // row-3 hover dropdown
   const [hoverTopCatId, setHoverTopCatId] = useState<number | null>(null);
 
-  // ✅ NEW: row3 refs + dropdown position
+  // ✅ row3 refs + dropdown position
   const row3Ref = useRef<HTMLDivElement | null>(null);
   const catItemRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const [dropdownLeft, setDropdownLeft] = useState(0);
@@ -370,6 +373,16 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // ✅ body scroll lock when drawer open
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileMenuOpen]);
+
   const handleSelectProduct = (p: ProductSummary) => {
     setSearchTerm("");
     setShowSearchDropdown(false);
@@ -428,9 +441,9 @@ export default function Header() {
       <div className="bg-primary text-primary-foreground border-b border-border">
         <div className="container mx-auto px-4 py-4 space-y-4">
           {/* Row 1 */}
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="relative h-10 w-10 rounded-lg overflow-hidden border border-border bg-background/10">
+          <div className="flex items-center justify-between gap-3">
+            <Link href="/" className="flex items-center gap-3 min-w-0">
+              <div className="relative h-10 w-10 rounded-lg overflow-hidden border border-border bg-background/10 shrink-0">
                 <Image
                   src="/logo.png"
                   alt="Logo"
@@ -438,13 +451,13 @@ export default function Header() {
                   className="object-contain p-1"
                 />
               </div>
-              <div className="text-3xl font-extrabold tracking-wider">
+              <div className="text-xl sm:text-3xl font-extrabold tracking-wider truncate">
                 হিলফুল<span className="opacity-80">-ফুযুল</span>
               </div>
             </Link>
 
+            {/* Desktop actions */}
             <div className="hidden md:flex items-center gap-3">
-              {/* Theme Toggle */}
               {hasMounted && (
                 <Button
                   onClick={toggleTheme}
@@ -472,9 +485,119 @@ export default function Header() {
                 All Products
               </Link>
             </div>
+
+            {/* Mobile actions */}
+            <div className="flex md:hidden items-center gap-2">
+              {hasMounted && (
+                <Button
+                  onClick={toggleTheme}
+                  className="rounded-lg bg-muted hover:bg-accent text-foreground h-10 w-10 flex items-center justify-center border border-border"
+                  title={theme === "dark" ? "Light" : "Dark"}
+                >
+                  {theme === "dark" ? (
+                    <Sun className="h-5 w-5" />
+                  ) : (
+                    <Moon className="h-5 w-5" />
+                  )}
+                </Button>
+              )}
+
+              <Link
+                href="/kitabghor/cart"
+                className="relative h-10 w-10 rounded-lg btn-primary border border-border flex items-center justify-center"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {hasMounted && cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                href="/kitabghor/wishlist"
+                className="relative h-10 w-10 rounded-lg btn-primary border border-border flex items-center justify-center"
+              >
+                <Heart className="h-5 w-5" />
+                {hasMounted && wishlistCount > 0 && (
+                  <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                    {wishlistCount}
+                  </span>
+                )}
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="h-10 w-10 rounded-lg btn-primary border border-border flex items-center justify-center"
+                aria-label="Open menu"
+              >
+                <span className="text-xl leading-none">☰</span>
+              </button>
+            </div>
           </div>
 
-          {/* Row 2 */}
+          {/* ✅ Mobile Search */}
+          <div className="md:hidden header-search-wrapper relative">
+            <div className="relative">
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                onFocus={() =>
+                  searchResults.length > 0 && setShowSearchDropdown(true)
+                }
+                placeholder="Search for products..."
+                className="w-full h-11 rounded-lg pl-4 pr-[54px] input-theme focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+
+              <button
+                type="button"
+                className="absolute right-1 top-1 h-9 w-11 rounded-md btn-primary border border-border flex items-center justify-center"
+                onClick={() => {
+                  if (searchResults.length > 0)
+                    handleSelectProduct(searchResults[0]);
+                }}
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+
+              {showSearchDropdown && (
+                <div className="absolute mt-2 w-full bg-background text-foreground rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-50">
+                  {searchLoading && !hasLoadedProducts ? (
+                    <div className="px-4 py-3 text-sm text-muted-foreground">
+                      লোড হচ্ছে...
+                    </div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-muted-foreground">
+                      কোন বই পাওয়া যায়নি
+                    </div>
+                  ) : (
+                    searchResults.map((book) => (
+                      <button
+                        key={book.id}
+                        type="button"
+                        onClick={() => handleSelectProduct(book)}
+                        className="w-full flex items-start px-4 py-2 text-left hover:bg-muted transition text-sm"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{book.name}</span>
+                          {book.writer?.name && (
+                            <span className="text-xs text-muted-foreground">
+                              লেখক: {book.writer.name}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Row 2 (Desktop only) */}
           <div className="hidden md:flex items-center gap-4">
             {/* All Category */}
             <div ref={catWrapRef} className="relative">
@@ -602,9 +725,7 @@ export default function Header() {
                     {hasMounted && session ? (
                       <>
                         <div className="px-4 py-3 border-b border-border">
-                          <div className="text-sm font-semibold">
-                            {userName}
-                          </div>
+                          <div className="text-sm font-semibold">{userName}</div>
                           <div className="text-xs text-muted-foreground">
                             {userRole}
                           </div>
@@ -612,7 +733,9 @@ export default function Header() {
 
                         <Link
                           href={
-                            userRole === "admin" ? "/admin" : "/kitabghor/user/"
+                            userRole === "admin"
+                              ? "/admin"
+                              : "/kitabghor/user/"
                           }
                           onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
@@ -652,7 +775,7 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Row 3 */}
+      {/* Row 3 (Desktop only) */}
       <div className="bg-primary text-foreground border-b border-border hidden md:block">
         <div className="container mx-auto px-4">
           <div
@@ -677,7 +800,6 @@ export default function Header() {
                 onMouseEnter={() => {
                   setHoverTopCatId(cat.id);
 
-                  // ✅ dropdown left set based on hovered item position
                   requestAnimationFrame(() => {
                     const wrap = row3Ref.current;
                     const el = catItemRefs.current.get(cat.id);
@@ -713,6 +835,189 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {/* ✅ Mobile Drawer */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[60] md:hidden">
+          {/* overlay */}
+          <button
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close overlay"
+            type="button"
+          />
+
+          {/* panel */}
+          <div className="absolute right-0 top-0 h-full w-[86%] max-w-[360px] bg-background text-foreground border-l border-border shadow-2xl flex flex-col">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <div className="font-bold">মেনু</div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="h-10 w-10 rounded-lg btn-primary border border-border flex items-center justify-center"
+                aria-label="Close menu"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3 overflow-auto">
+              {/* Quick links */}
+              <Link
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
+              >
+                <House className="h-4 w-4" />
+                হোম
+              </Link>
+
+              <Link
+                href="/kitabghor/blogs"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
+              >
+                <Newspaper className="h-4 w-4" />
+                ব্লগ
+              </Link>
+
+              <Link
+                href="/kitabghor/books"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
+              >
+                <Boxes className="h-4 w-4" />
+                All Products
+              </Link>
+
+              {/* Profile */}
+              <div className="pt-2 border-t border-border" />
+
+              {hasMounted && session ? (
+                <div className="space-y-2">
+                  <div className="px-3">
+                    <div className="text-sm font-semibold">{userName}</div>
+                    <div className="text-xs text-muted-foreground">{userRole}</div>
+                  </div>
+
+                  <Link
+                    href={userRole === "admin" ? "/admin" : "/kitabghor/user/"}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    ড্যাশবোর্ড
+                  </Link>
+
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={async () => {
+                      setMobileMenuOpen(false);
+                      await handleSignOut();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition text-left"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    লগআউট
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    router.push("/signin");
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition text-left"
+                >
+                  <LogIn className="h-4 w-4" />
+                  লগইন
+                </button>
+              )}
+
+              {/* Categories */}
+              <div className="pt-2 border-t border-border" />
+              <div className="font-semibold px-1">ক্যাটাগরি</div>
+
+              {categoryLoading ? (
+                <div className="text-sm text-muted-foreground px-1">লোড হচ্ছে...</div>
+              ) : topCategories.length === 0 ? (
+                <div className="text-sm text-muted-foreground px-1">কোন ক্যাটাগরি নেই</div>
+              ) : (
+                <div className="space-y-2">
+                  {topCategories.map((parent) => (
+                    <details
+                      key={parent.id}
+                      className="rounded-lg border border-border overflow-hidden"
+                    >
+                      <summary className="cursor-pointer select-none px-3 py-2 hover:bg-muted transition flex items-center justify-between">
+                        <span className="font-medium">{parent.name}</span>
+                        <ChevronDown className="h-4 w-4 opacity-70" />
+                      </summary>
+
+                      <div className="p-2 space-y-1 bg-background">
+                        <Link
+                          href={`/kitabghor/categories/${parent.slug}`}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition text-primary"
+                        >
+                          সব দেখুন
+                        </Link>
+
+                        {(parent.children?.length ?? 0) === 0 ? (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">
+                            সাব ক্যাটাগরি নেই
+                          </div>
+                        ) : (
+                          parent.children.map((sub) => (
+                            <details
+                              key={sub.id}
+                              className="rounded-lg border border-border"
+                            >
+                              <summary className="cursor-pointer select-none px-3 py-2 hover:bg-muted transition flex items-center justify-between text-sm">
+                                <span>{sub.name}</span>
+                                <ChevronDown className="h-4 w-4 opacity-70" />
+                              </summary>
+
+                              <div className="p-2 space-y-1">
+                                <Link
+                                  href={`/kitabghor/categories/${sub.slug}`}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition text-primary"
+                                >
+                                  সব দেখুন
+                                </Link>
+
+                                {(sub.children?.length ?? 0) === 0 ? (
+                                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                                    চাইল্ড ক্যাটাগরি নেই
+                                  </div>
+                                ) : (
+                                  sub.children.map((child) => (
+                                    <Link
+                                      key={child.id}
+                                      href={`/kitabghor/categories/${child.slug}`}
+                                      onClick={() => setMobileMenuOpen(false)}
+                                      className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition"
+                                    >
+                                      {child.name}
+                                    </Link>
+                                  ))
+                                )}
+                              </div>
+                            </details>
+                          ))
+                        )}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
