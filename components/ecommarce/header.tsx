@@ -666,7 +666,7 @@ const toggleTheme = () => {
                     </div>
                   ) : (
                     // simple list (you can keep your old flyout here if you want)
-                    <div className="bg-background text-foreground border border-border rounded-xl shadow-2xl overflow-hidden w-[320px] max-h-[420px] overflow-auto">
+                    <div className="bg-background text-foreground border border-border rounded-xl shadow-2xl w-[320px] max-h-[420px] overflow-auto">
                       {categoryTree.map((p) => (
                         <Link
                           key={p.id}
