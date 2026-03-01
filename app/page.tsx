@@ -8,6 +8,7 @@ import Footer from "@/components/ecommarce/footer";
 import Head from "next/head";
 import Image from "next/image";
 import FeaturedCategories from "@/components/ecommarce/FeaturedCategories";
+import FeaturedProducts from "@/components/ecommarce/FeaturedProducts";
 
 type Category = {
   id: number;
@@ -168,6 +169,9 @@ export default function Home() {
           <Hero />
          <div className="mt-10 mb-10 p-5">
            <FeaturedCategories />
+         </div>
+         <div className="mt-10 mb-10 p-5">
+          <FeaturedProducts/>
          </div>
           <DataProvider>
             {(data) => {

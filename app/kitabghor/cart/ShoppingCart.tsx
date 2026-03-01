@@ -84,7 +84,7 @@ export default function CartPage() {
           id: item.id,
           productId: item.productId,
           name: item.product?.name ?? "অজানা বই",
-          price: Number(item.product?.price ?? 0),
+          price: Number(item.product?.basePrice ?? 0),
           image: item.product?.image ?? "/placeholder.svg",
           quantity: Number(item.quantity ?? 1),
         }));

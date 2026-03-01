@@ -108,13 +108,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
 
         const mapped: ProductApiItem[] = data.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          price: Number(p.price ?? 0),
-          image: p.image ?? "/placeholder.svg",
-        }));
-
-        setProducts(mapped);
+  id: p.id,
+  name: p.name,
+  // ✅ use basePrice instead of price
+  price: Number(p.basePrice ?? 0),
+  image: p.image ?? "/placeholder.svg",
+}));
+setProducts(mapped);
       } catch (err) {
         console.error("Error fetching products for cart:", err);
       }
@@ -141,7 +141,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!product) {
       console.warn(
         "Product not found in CartProvider products state for id:",
-        productId
+        productId,
+        "Available products:", products.map(p => ({ id: p.id, name: p.name, price: p.price }))
       );
       return;
     }

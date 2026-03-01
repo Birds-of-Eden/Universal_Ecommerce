@@ -15,11 +15,6 @@ type CategoryDTO = {
   childrenCount: number;
 };
 
-function getDisplayName(c: CategoryDTO) {
-  // ✅ parent category name priority (user requirement)
-  return (c.parentName?.trim() ? c.parentName : c.name) ?? "Category";
-}
-
 function getInitials(name: string) {
   const parts = name.trim().split(" ").filter(Boolean);
   const a = parts[0]?.[0] ?? "C";
@@ -31,12 +26,10 @@ export default function FeaturedCategories({
   title = "Featured Category",
   subtitle = "Get Your Desired Product from Featured Category!",
   limit = 16,
-  onlyTopLevel = false, // true দিলে শুধু parent categories দেখাবে
 }: {
   title?: string;
   subtitle?: string;
   limit?: number;
-  onlyTopLevel?: boolean;
 }) {
   const [loading, setLoading] = useState(true);
   const [cats, setCats] = useState<CategoryDTO[]>([]);
@@ -72,41 +65,44 @@ export default function FeaturedCategories({
   }, []);
 
   const featured = useMemo(() => {
-    const list = [...cats];
-
-    // optional filter: only top-level (parentId null)
-    const filtered = onlyTopLevel ? list.filter((c) => c.parentId === null) : list;
+    // ✅ ONLY Parent categories (top-level)
+    const filtered = cats.filter((c) => c.parentId === null);
 
     // prioritize: have image first, then productCount, then latest id
     filtered.sort((a, b) => {
       const ai = a.image ? 1 : 0;
       const bi = b.image ? 1 : 0;
       if (bi !== ai) return bi - ai;
-      if ((b.productCount ?? 0) !== (a.productCount ?? 0))
+
+      if ((b.productCount ?? 0) !== (a.productCount ?? 0)) {
         return (b.productCount ?? 0) - (a.productCount ?? 0);
+      }
+
       return (b.id ?? 0) - (a.id ?? 0);
     });
 
     return filtered.slice(0, limit);
-  }, [cats, limit, onlyTopLevel]);
+  }, [cats, limit]);
 
   return (
     <section className="w-full">
       <div className="container mx-auto px-4">
         {/* Heading */}
         <div className="text-center mb-6">
-          <h2 className="text-lg sm:text-xl font-bold text-foreground">{title}</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">{subtitle}</p>
+          <h2 className="text-lg sm:text-xl font-bold text-foreground">
+            {title}
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            {subtitle}
+          </p>
         </div>
 
-        {/* States */}
         {error ? (
           <div className="rounded-xl border border-border bg-background p-4 text-sm text-destructive">
             {error}
           </div>
         ) : null}
 
-        {/* Grid */}
         <div
           className="
             grid gap-3 sm:gap-4
@@ -128,7 +124,7 @@ export default function FeaturedCategories({
                 </div>
               ))
             : featured.map((c) => {
-                const name = getDisplayName(c);
+                const name = c.name; // ✅ Parent name
                 return (
                   <Link
                     key={c.id}
@@ -161,7 +157,6 @@ export default function FeaturedCategories({
                       {name}
                     </div>
 
-                    {/* optional badge */}
                     <div className="mt-2 text-[10px] text-muted-foreground">
                       {c.productCount ?? 0} items
                     </div>
