@@ -13,7 +13,11 @@ interface Banner {
   isActive: boolean;
 }
 
-export default function Hero({ interval = 5000 }) {
+export default function Hero({ 
+  heroInterval = 5000,
+  banner1Interval = 3000,
+  banner2Interval = 4000 
+}) {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -44,15 +48,54 @@ export default function Hero({ interval = 5000 }) {
     [banners]
   );
 
-  const banner1 = useMemo(
-    () => banners.find((b) => b.type === "BANNER1"),
+  const banner1Slides = useMemo(
+    () =>
+      banners
+        .filter((b) => b.type === "BANNER1")
+        .sort((a, b) => a.position - b.position),
     [banners]
   );
 
-  const banner2 = useMemo(
-    () => banners.find((b) => b.type === "BANNER2"),
+  const banner2Slides = useMemo(
+    () =>
+      banners
+        .filter((b) => b.type === "BANNER2")
+        .sort((a, b) => a.position - b.position),
     [banners]
   );
+
+  const [currentBanner1, setCurrentBanner1] = useState(0);
+  const [currentBanner2, setCurrentBanner2] = useState(0);
+  const banner1TimerRef = useRef<NodeJS.Timeout | null>(null);
+  const banner2TimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-slide for BANNER1
+  useEffect(() => {
+    if (banner1Slides.length <= 1) return;
+
+    banner1TimerRef.current = setInterval(() => {
+      setCurrentBanner1((prev) => (prev + 1) % banner1Slides.length);
+    }, banner1Interval);
+
+    return () => {
+      if (banner1TimerRef.current) clearInterval(banner1TimerRef.current);
+    };
+  }, [banner1Slides, banner1Interval]);
+
+  // Auto-slide for BANNER2
+  useEffect(() => {
+    if (banner2Slides.length <= 1) return;
+
+    banner2TimerRef.current = setInterval(() => {
+      setCurrentBanner2((prev) => (prev + 1) % banner2Slides.length);
+    }, banner2Interval);
+
+    return () => {
+      if (banner2TimerRef.current) clearInterval(banner2TimerRef.current);
+    };
+  }, [banner2Slides, banner2Interval]);
+
+  const hasSideBanners = banner1Slides.length > 0 || banner2Slides.length > 0;
 
   /* ================= AUTO SLIDE ================= */
   useEffect(() => {
@@ -60,22 +103,22 @@ export default function Hero({ interval = 5000 }) {
 
     timerRef.current = setInterval(() => {
       setCurrent((prev) => (prev + 1) % heroSlides.length);
-    }, interval);
+    }, heroInterval);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [heroSlides, interval]);
+  }, [heroSlides, heroInterval]);
 
   if (heroSlides.length === 0) return null;
 
   return (
     <section className="w-full bg-muted/30 dark:bg-background">
       <div className="w-full p-6">
-        <div className="grid lg:grid-cols-3 gap-8 items-stretch">
+        <div className={`grid ${hasSideBanners ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-8 items-stretch`}>
           
           {/* ================= LEFT HERO ================= */}
-          <div className="lg:col-span-2 relative h-[350px] lg:h-[520px] rounded-xl overflow-hidden">
+          <div className={`relative ${hasSideBanners ? 'lg:col-span-2' : 'h-screen'} rounded-xl overflow-hidden`}>
             {heroSlides.map((slide, index) => (
               <div
                 key={slide.id}
@@ -110,36 +153,88 @@ export default function Hero({ interval = 5000 }) {
           </div>
 
           {/* ================= RIGHT SIDE ================= */}
-          <div className="flex flex-col gap-8">
-            
-            {banner1 && (
-              <Link
-                href="#"
-                className="relative h-[245px] rounded-xl overflow-hidden shadow-xl"
-              >
-                <Image
-                  src={banner1.image}
-                  alt={banner1.title}
-                  fill
-                  className="object-cover"
-                />
-              </Link>
-            )}
+          {hasSideBanners && (
+            <div className="flex flex-col gap-8">
+              
+              {banner1Slides.length > 0 && (
+                <div className="relative h-[245px] rounded-xl overflow-hidden shadow-xl">
+                  {banner1Slides.map((banner, index) => (
+                    <div
+                      key={banner.id}
+                      className={`absolute inset-0 transition-opacity duration-1000 ${
+                        index === currentBanner1 ? "opacity-100" : "opacity-0"
+                      }`}
+                    >
+                      <Link href="#">
+                        <Image
+                          src={banner.image}
+                          alt={banner.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </Link>
+                    </div>
+                  ))}
 
-            {banner2 && (
-              <Link
-                href="#"
-                className="relative h-[245px] rounded-xl overflow-hidden shadow-xl"
-              >
-                <Image
-                  src={banner2.image}
-                  alt={banner2.title}
-                  fill
-                  className="object-cover"
-                />
-              </Link>
-            )}
-          </div>
+                  {/* BANNER1 Slider Dots */}
+                  {banner1Slides.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+                      {banner1Slides.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentBanner1(i)}
+                          className={`h-1.5 rounded-full transition-all ${
+                            i === currentBanner1
+                              ? "w-6 bg-primary"
+                              : "w-2 bg-white/60 dark:bg-white/40"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {banner2Slides.length > 0 && (
+                <div className="relative h-[245px] rounded-xl overflow-hidden shadow-xl">
+                  {banner2Slides.map((banner, index) => (
+                    <div
+                      key={banner.id}
+                      className={`absolute inset-0 transition-opacity duration-1000 ${
+                        index === currentBanner2 ? "opacity-100" : "opacity-0"
+                      }`}
+                    >
+                      <Link href="#">
+                        <Image
+                          src={banner.image}
+                          alt={banner.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </Link>
+                    </div>
+                  ))}
+
+                  {/* BANNER2 Slider Dots */}
+                  {banner2Slides.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+                      {banner2Slides.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentBanner2(i)}
+                          className={`h-1.5 rounded-full transition-all ${
+                            i === currentBanner2
+                              ? "w-6 bg-primary"
+                              : "w-2 bg-white/60 dark:bg-white/40"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>
