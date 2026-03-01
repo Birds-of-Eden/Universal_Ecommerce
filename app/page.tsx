@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback, memo } from "react";
+import { useEffect, useState, useMemo, memo } from "react";
 import CategoryBooks from "@/components/ecommarce/category-books";
 import Hero from "@/components/ecommarce/hero";
 import Header from "@/components/ecommarce/header";
 import Footer from "@/components/ecommarce/footer";
 import Head from "next/head";
-import FeaturedCategories from "@/components/ecommarce/FeaturedCategories";
+import Image from "next/image";
 
 type Category = {
   id: number;
   name: string;
   productCount: number;
-  // baki field thakle ichha moto add korte paro
 };
 
 type Product = {
@@ -35,7 +34,22 @@ interface RatingInfo {
   totalReviews: number;
 }
 
-// Create a context-like data provider component
+interface Banner {
+  id: number;
+  title: string;
+  subtitle?: string | null;
+  description?: string | null;
+  image: string;
+  mobileImage?: string | null;
+  buttonText?: string | null;
+  buttonLink?: string | null;
+  position: number;
+  isActive: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  type: "HERO" | "BANNER1" | "BANNER2" | "POPUP";
+}
+
 const DataProvider = memo(function DataProvider({
   children,
 }: {
@@ -43,6 +57,7 @@ const DataProvider = memo(function DataProvider({
     categories: Category[];
     allProducts: Product[];
     ratings: Record<string, RatingInfo>;
+    banners: Banner[];
     loading: boolean;
     error: string | null;
   }) => React.ReactNode;
@@ -50,63 +65,46 @@ const DataProvider = memo(function DataProvider({
   const [categories, setCategories] = useState<Category[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [ratings, setRatings] = useState<Record<string, RatingInfo>>({});
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 🔹 Fetch all data once with caching
   useEffect(() => {
     const fetchAllData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Fetch categories
-        const categoriesRes = await fetch("/api/categories", {
-          cache: "force-cache",
-          next: { revalidate: 600 }, // Cache for 10 minutes
-        });
+        const [categoriesRes, productsRes, bannersRes] = await Promise.all([
+          fetch("/api/categories", { cache: "force-cache" }),
+          fetch("/api/products", { cache: "force-cache" }),
+          fetch("/api/banners", { cache: "no-store" }),
+        ]);
 
-        if (!categoriesRes.ok) {
-          throw new Error("Failed to fetch categories");
-        }
+        if (!categoriesRes.ok) throw new Error("Failed to fetch categories");
+        if (!productsRes.ok) throw new Error("Failed to fetch products");
+        if (!bannersRes.ok) throw new Error("Failed to fetch banners");
 
         const categoriesData: Category[] = await categoriesRes.json();
-
-        // Fetch products once
-        const productsRes = await fetch("/api/products", {
-          cache: "force-cache",
-          next: { revalidate: 300 }, // Cache for 5 minutes
-        });
-
-        if (!productsRes.ok) {
-          throw new Error("Failed to fetch products");
-        }
-
         const productsData: Product[] = await productsRes.json();
+        const bannersData: Banner[] = await bannersRes.json();
 
-        // Fetch ratings for first 20 products only (optimization)
         const productIds = productsData.slice(0, 20).map((p) => p.id);
 
         const ratingResults = await Promise.all(
           productIds.map(async (id) => {
             try {
               const ratingRes = await fetch(
-                `/api/reviews?productId=${id}&page=1&limit=1`,
-                { cache: "force-cache" }
+                `/api/reviews?productId=${id}&page=1&limit=1`
               );
-
-              if (!ratingRes.ok) {
-                return { id, avg: 0, total: 0 };
-              }
-
+              if (!ratingRes.ok) return { id, avg: 0, total: 0 };
               const ratingData = await ratingRes.json();
               return {
                 id,
                 avg: Number(ratingData.averageRating ?? 0),
                 total: Number(ratingData.pagination?.total ?? 0),
               };
-            } catch (err) {
-              console.error(`Error fetching rating for product ${id}:`, err);
+            } catch {
               return { id, avg: 0, total: 0 };
             }
           })
@@ -123,8 +121,9 @@ const DataProvider = memo(function DataProvider({
         setCategories(categoriesData);
         setAllProducts(productsData);
         setRatings(ratingsMap);
+        setBanners(bannersData.filter((b) => b.isActive));
       } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error(err);
         setError("Data load korte problem hocche");
       } finally {
         setLoading(false);
@@ -134,80 +133,112 @@ const DataProvider = memo(function DataProvider({
     fetchAllData();
   }, []);
 
-  // Memoized value to pass to children
   const value = useMemo(
     () => ({
       categories,
       allProducts,
       ratings,
+      banners,
       loading,
       error,
     }),
-    [categories, allProducts, ratings, loading, error]
+    [categories, allProducts, ratings, banners, loading, error]
   );
 
-  // Pass data via context or props (using props for simplicity)
   return <>{children(value)}</>;
 });
 
 DataProvider.displayName = "DataProvider";
 
 export default function Home() {
+  const [showPopup, setShowPopup] = useState(false);
+
   return (
     <>
       <Head>
-        <title>হিলফুল-ফুযুল প্রকাশনী | ইসলামিক বইয়ের অনলাইন বিক্রেতা - বাংলাদেশ</title>
-        <meta name="description" content="হিলফুল-ফুযুল প্রকাশনী - বাংলাদেশের সেরা ইসলামিক বইয়ের অনলাইন স্টোর। হাদিস, কুরআন, ফিকহ, ইসলামিক ইতিহাস ও জীবনীসহ নানা ধরনের বই সংগ্রহ করুন।" />
-        <meta name="keywords" content="ইসলামিক বই, হিলফুল-ফুযুল প্রকাশনী, অনলাইন বই স্টোর, বাংলাদেশ, হাদিস বই, কুরআন বই, ফিকহ বই, ইসলামিক সাহিত্য, ইসলামিক বই কিনুন" />
-        <meta name="author" content="হিলফুল-ফুযুল প্রকাশনী" />
-        <meta property="og:title" content="হিলফুল-ফুযুল প্রকাশনী | ইসলামিক বইয়ের অনলাইন বিক্রেতা - বাংলাদেশ" />
-        <meta property="og:description" content="হিলফুল-ফুযুল প্রকাশনী - বাংলাদেশের সেরা ইসলামিক বইয়ের অনলাইন স্টোর। হাদিস, কুরআন, ফিকহ, ইসলামিক ইতিহাস ও জীবনীসহ নানা ধরনের বই সংগ্রহ করুন।" />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={process.env.NEXT_PUBLIC_BASE_URL || 'https://hilfulfuzul.com'} />
-        <meta property="og:image" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://hilfulfuzul.com'}/images/books-collection.jpg`} />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:locale" content="bn_BD" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="হিলফুল-ফুযুল প্রকাশনী | ইসলামিক বইয়ের অনলাইন বিক্রেতা" />
-        <meta name="twitter:description" content="হিলফুল-ফুযুল প্রকাশনী - বাংলাদেশের সেরা ইসলামিক বইয়ের অনলাইন স্টোর।" />
-        <meta name="twitter:image" content={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://hilfulfuzul.com'}/images/books-collection.jpg`} />
-        <link rel="canonical" href={process.env.NEXT_PUBLIC_BASE_URL || 'https://hilfulfuzul.com'} />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebPage",
-              "name": "হিলফুল-ফুযুল প্রকাশনী - হোম",
-              "description": "হিলফুল-ফুযুল প্রকাশনী - বাংলাদেশের সেরা ইসলামিক বইয়ের অনলাইন স্টোর",
-              "url": process.env.NEXT_PUBLIC_BASE_URL || 'https://hilfulfuzul.com',
-              "isPartOf": {
-                "@type": "WebSite",
-                "name": "হিলফুল-ফুযুল প্রকাশনী",
-                "url": process.env.NEXT_PUBLIC_BASE_URL || 'https://hilfulfuzul.com'
-              },
-              "about": {
-                "@type": "Thing",
-                "name": "ইসলামিক বই",
-                "description": "ইসলামিক বই ও সাহিত্য"
-              },
-              "mainEntity": {
-                "@type": "ItemList",
-                "name": "ইসলামিক বই সংগ্রহ",
-                "description": "বিভিন্ন ক্যাটেগরির ইসলামিক বই"
-              }
-            }),
-          }}
-        />
+        <title>
+          হিলফুল-ফুযুল প্রকাশনী | ইসলামিক বইয়ের অনলাইন বিক্রেতা - বাংলাদেশ
+        </title>
       </Head>
+
       <div className="w-full">
         <div className="min-h-screen flex flex-col">
           <Header />
           <Hero />
-          <div className="mt-5 mb-5 p-5">
-            <FeaturedCategories limit={16} onlyTopLevel={false} />
-          </div>
+
+          <DataProvider>
+            {(data) => {
+              const popupBanner = data.banners.find(
+                (b) => b.type === "POPUP"
+              );
+
+              useEffect(() => {
+                if (popupBanner) {
+                  const timer = setTimeout(() => {
+                    setShowPopup(true);
+                  }, 1500);
+                  return () => clearTimeout(timer);
+                }
+              }, [popupBanner]);
+
+              return (
+                <>
+                  {/* POPUP MODAL */}
+                  {showPopup && popupBanner && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                      <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-4">
+                        <button
+                          onClick={() => setShowPopup(false)}
+                          className="absolute top-2 right-2 text-gray-600 hover:text-black text-xl"
+                        >
+                          ✕
+                        </button>
+
+                        <div className="relative w-full h-80">
+                          <Image
+                            src={popupBanner.image}
+                            alt={popupBanner.title}
+                            fill
+                            className="object-contain rounded"
+                          />
+                        </div>
+
+                        {popupBanner.buttonText &&
+                          popupBanner.buttonLink && (
+                            <div className="mt-4 text-center">
+                              <a
+                                href={popupBanner.buttonLink}
+                                className="inline-block bg-primary text-white px-6 py-2 rounded-md"
+                              >
+                                {popupBanner.buttonText}
+                              </a>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="container mx-auto">
+                    {data.loading && <p>Loading categories...</p>}
+                    {data.error && (
+                      <p className="text-red-500">{data.error}</p>
+                    )}
+                    {!data.loading &&
+                      !data.error &&
+                      data.categories.map((category) => (
+                        <CategoryBooks
+                          key={category.id}
+                          category={category}
+                          allProducts={data.allProducts}
+                          ratings={data.ratings}
+                        />
+                      ))}
+                  </div>
+                </>
+              );
+            }}
+          </DataProvider>
+
           <Footer />
         </div>
       </div>

@@ -234,6 +234,8 @@ export default function BannerManager({
                 }
               >
                 <option value="HERO">HERO</option>
+                <option value="BANNER1">BANNER1</option>
+                <option value="BANNER2">BANNER2</option>
                 <option value="CATEGORY">CATEGORY</option>
                 <option value="PROMOTION">PROMOTION</option>
                 <option value="POPUP">POPUP</option>
