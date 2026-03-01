@@ -96,7 +96,7 @@ const DataProvider = memo(function DataProvider({
           productIds.map(async (id) => {
             try {
               const ratingRes = await fetch(
-                `/api/reviews?productId=${id}&page=1&limit=1`
+                `/api/reviews?productId=${id}&page=1&limit=1`,
               );
               if (!ratingRes.ok) return { id, avg: 0, total: 0 };
               const ratingData = await ratingRes.json();
@@ -108,7 +108,7 @@ const DataProvider = memo(function DataProvider({
             } catch {
               return { id, avg: 0, total: 0 };
             }
-          })
+          }),
         );
 
         const ratingsMap: Record<string, RatingInfo> = {};
@@ -143,7 +143,7 @@ const DataProvider = memo(function DataProvider({
       loading,
       error,
     }),
-    [categories, allProducts, ratings, banners, loading, error]
+    [categories, allProducts, ratings, banners, loading, error],
   );
 
   return <>{children(value)}</>;
@@ -171,9 +171,7 @@ export default function Home() {
          </div>
           <DataProvider>
             {(data) => {
-              const popupBanner = data.banners.find(
-                (b) => b.type === "POPUP"
-              );
+              const popupBanner = data.banners.find((b) => b.type === "POPUP");
 
               useEffect(() => {
                 if (popupBanner) {
@@ -188,15 +186,17 @@ export default function Home() {
                 <>
                   {/* POPUP MODAL */}
                   {showPopup && popupBanner && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                      <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full p-4">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/80">
+                      <div className="relative card-theme rounded-lg shadow-xl max-w-[35vw] w-full p-6 border border-border">
+                        {/* Close Button */}
                         <button
                           onClick={() => setShowPopup(false)}
-                          className="absolute top-2 right-2 text-gray-600 hover:text-black text-xl"
+                          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground text-xl transition"
                         >
                           ✕
                         </button>
 
+                        {/* Image */}
                         <div className="relative w-full h-80">
                           <Image
                             src={popupBanner.image}
@@ -206,26 +206,33 @@ export default function Home() {
                           />
                         </div>
 
-                        {popupBanner.buttonText &&
-                          popupBanner.buttonLink && (
-                            <div className="mt-4 text-center">
-                              <a
-                                href={popupBanner.buttonLink}
-                                className="inline-block bg-primary text-white px-6 py-2 rounded-md"
-                              >
-                                {popupBanner.buttonText}
-                              </a>
-                            </div>
-                          )}
+                        {/* Button */}
+                        {popupBanner.buttonText && popupBanner.buttonLink && (
+                          <div className="mt-5 text-center">
+                            <a
+                              href={popupBanner.buttonLink}
+                              className="btn-primary px-6 py-2 rounded-md inline-block transition"
+                            >
+                              {popupBanner.buttonText}
+                            </a>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
+                  {/* Main Content */}
                   <div className="container mx-auto">
-                    {data.loading && <p>Loading categories...</p>}
-                    {data.error && (
-                      <p className="text-red-500">{data.error}</p>
+                    {data.loading && (
+                      <p className="text-muted-foreground">
+                        Loading categories...
+                      </p>
                     )}
+
+                    {data.error && (
+                      <p className="text-destructive">{data.error}</p>
+                    )}
+
                     {!data.loading &&
                       !data.error &&
                       data.categories.map((category) => (

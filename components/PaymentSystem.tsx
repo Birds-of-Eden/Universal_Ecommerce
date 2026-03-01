@@ -10,8 +10,16 @@ import { Plus, Trash2, Edit, Save, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 
 interface PaymentGatewayData {
-  channel: string;
-  accountNumbers: string[];
+  type?: string;
+  channel?: string;
+  accountNumbers?: string[];
+  storeId?: string;
+  storePassword?: string;
+  sandbox?: boolean;
+  successUrl?: string;
+  failUrl?: string;
+  cancelUrl?: string;
+  ipnUrl?: string;
 }
 
 interface Payment {
@@ -28,8 +36,21 @@ export default function PaymentGatewayManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Form states
+  const [gatewayType, setGatewayType] = useState<"MANUAL" | "SSLCOMMERZ">(
+    "MANUAL"
+  );
+
   const [channel, setChannel] = useState("");
   const [accountNumbers, setAccountNumbers] = useState<string[]>([""]);
+
+  const [sslStoreId, setSslStoreId] = useState("");
+  const [sslStorePassword, setSslStorePassword] = useState("");
+  const [sslSandbox, setSslSandbox] = useState(true);
+  const [sslSuccessUrl, setSslSuccessUrl] = useState("");
+  const [sslFailUrl, setSslFailUrl] = useState("");
+  const [sslCancelUrl, setSslCancelUrl] = useState("");
+  const [sslIpnUrl, setSslIpnUrl] = useState("");
+
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   // Fetch payments
@@ -55,10 +76,26 @@ export default function PaymentGatewayManager() {
 
   // Reset form
   const resetForm = () => {
+    setGatewayType("MANUAL");
     setChannel("");
     setAccountNumbers([""]);
+
+    setSslStoreId("");
+    setSslStorePassword("");
+    setSslSandbox(true);
+    setSslSuccessUrl("");
+    setSslFailUrl("");
+    setSslCancelUrl("");
+    setSslIpnUrl("");
+
     setEditingId(null);
     setIsDialogOpen(false);
+  };
+
+  const getGatewayType = (data: PaymentGatewayData | null | undefined) => {
+    const type = String((data as any)?.type || "").toUpperCase();
+    if (type === "SSLCOMMERZ") return "SSLCOMMERZ" as const;
+    return "MANUAL" as const;
   };
 
   // Add account number field
@@ -96,22 +133,43 @@ export default function PaymentGatewayManager() {
 
   // Create new payment
   const createPayment = async () => {
-    if (!channel.trim()) {
-      toast.error("Channel name is required");
-      return;
-    }
-
-    const validAccounts = accountNumbers.filter((acc) => acc.trim() !== "");
-    if (validAccounts.length === 0) {
-      toast.error("At least one account number is required");
-      return;
-    }
-
     try {
-      const paymentData = {
-        channel: channel.trim(),
-        accountNumbers: validAccounts,
-      };
+      let paymentData: PaymentGatewayData;
+
+      if (gatewayType === "MANUAL") {
+        if (!channel.trim()) {
+          toast.error("Channel name is required");
+          return;
+        }
+
+        const validAccounts = accountNumbers.filter((acc) => acc.trim() !== "");
+        if (validAccounts.length === 0) {
+          toast.error("At least one account number is required");
+          return;
+        }
+
+        paymentData = {
+          type: "MANUAL",
+          channel: channel.trim(),
+          accountNumbers: validAccounts,
+        };
+      } else {
+        if (!sslStoreId.trim() || !sslStorePassword.trim()) {
+          toast.error("Store ID and Store Password are required");
+          return;
+        }
+
+        paymentData = {
+          type: "SSLCOMMERZ",
+          storeId: sslStoreId.trim(),
+          storePassword: sslStorePassword.trim(),
+          sandbox: sslSandbox,
+          successUrl: sslSuccessUrl.trim() || undefined,
+          failUrl: sslFailUrl.trim() || undefined,
+          cancelUrl: sslCancelUrl.trim() || undefined,
+          ipnUrl: sslIpnUrl.trim() || undefined,
+        };
+      }
 
       const response = await fetch("/api/payment", {
         method: "POST",
@@ -138,22 +196,43 @@ export default function PaymentGatewayManager() {
 
   // Update existing payment
   const updatePayment = async (id: number) => {
-    if (!channel.trim()) {
-      toast.error("Channel name is required");
-      return;
-    }
-
-    const validAccounts = accountNumbers.filter((acc) => acc.trim() !== "");
-    if (validAccounts.length === 0) {
-      toast.error("At least one account number is required");
-      return;
-    }
-
     try {
-      const paymentData = {
-        channel: channel.trim(),
-        accountNumbers: validAccounts,
-      };
+      let paymentData: PaymentGatewayData;
+
+      if (gatewayType === "MANUAL") {
+        if (!channel.trim()) {
+          toast.error("Channel name is required");
+          return;
+        }
+
+        const validAccounts = accountNumbers.filter((acc) => acc.trim() !== "");
+        if (validAccounts.length === 0) {
+          toast.error("At least one account number is required");
+          return;
+        }
+
+        paymentData = {
+          type: "MANUAL",
+          channel: channel.trim(),
+          accountNumbers: validAccounts,
+        };
+      } else {
+        if (!sslStoreId.trim() || !sslStorePassword.trim()) {
+          toast.error("Store ID and Store Password are required");
+          return;
+        }
+
+        paymentData = {
+          type: "SSLCOMMERZ",
+          storeId: sslStoreId.trim(),
+          storePassword: sslStorePassword.trim(),
+          sandbox: sslSandbox,
+          successUrl: sslSuccessUrl.trim() || undefined,
+          failUrl: sslFailUrl.trim() || undefined,
+          cancelUrl: sslCancelUrl.trim() || undefined,
+          ipnUrl: sslIpnUrl.trim() || undefined,
+        };
+      }
 
       const response = await fetch(`/api/payment/${id}`, {
         method: "PUT",
@@ -206,13 +285,26 @@ export default function PaymentGatewayManager() {
     setEditingId(payment.id);
     
     if (payment.paymentGatewayData) {
-      setChannel(payment.paymentGatewayData.channel || "");
-      setAccountNumbers(
-        payment.paymentGatewayData.accountNumbers &&
-          payment.paymentGatewayData.accountNumbers.length > 0
-          ? payment.paymentGatewayData.accountNumbers
-          : [""]
-      );
+      const inferredType = getGatewayType(payment.paymentGatewayData);
+      setGatewayType(inferredType);
+
+      if (inferredType === "MANUAL") {
+        setChannel(payment.paymentGatewayData.channel || "");
+        setAccountNumbers(
+          payment.paymentGatewayData.accountNumbers &&
+            payment.paymentGatewayData.accountNumbers.length > 0
+            ? payment.paymentGatewayData.accountNumbers
+            : [""]
+        );
+      } else {
+        setSslStoreId(payment.paymentGatewayData.storeId || "");
+        setSslStorePassword(payment.paymentGatewayData.storePassword || "");
+        setSslSandbox(Boolean(payment.paymentGatewayData.sandbox ?? true));
+        setSslSuccessUrl(payment.paymentGatewayData.successUrl || "");
+        setSslFailUrl(payment.paymentGatewayData.failUrl || "");
+        setSslCancelUrl(payment.paymentGatewayData.cancelUrl || "");
+        setSslIpnUrl(payment.paymentGatewayData.ipnUrl || "");
+      }
     }
     
     setIsDialogOpen(true);
@@ -311,51 +403,157 @@ export default function PaymentGatewayManager() {
           </DialogHeader>
 
           <div className="space-y-4 mt-2">
-            {/* Channel Input */}
             <div className="space-y-2">
-              <Label htmlFor="channel">Channel Name *</Label>
-              <Input
-                id="channel"
-                placeholder="e.g., bKash, Nagad, Bank, Rocket, etc."
-                value={channel}
-                onChange={(e) => setChannel(e.target.value)}
-                className="bg-background"
-              />
+              <Label htmlFor="gatewayType">Gateway Type *</Label>
+              <select
+                id="gatewayType"
+                value={gatewayType}
+                onChange={(e) => {
+                  const next = e.target.value === "SSLCOMMERZ" ? "SSLCOMMERZ" : "MANUAL";
+                  setGatewayType(next);
+                }}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="MANUAL">Manual (bKash/Nagad/Rocket/Bank)</option>
+                <option value="SSLCOMMERZ">SSLCommerz</option>
+              </select>
             </div>
+
+            {/* Channel Input */}
+            {gatewayType === "MANUAL" && (
+              <div className="space-y-2">
+                <Label htmlFor="channel">Channel Name *</Label>
+                <Input
+                  id="channel"
+                  placeholder="e.g., bKash, Nagad, Bank, Rocket, etc."
+                  value={channel}
+                  onChange={(e) => setChannel(e.target.value)}
+                  className="bg-background"
+                />
+              </div>
+            )}
 
             {/* Account Numbers */}
-            <div className="space-y-3">
-              <Label>Account Numbers *</Label>
-              {accountNumbers.map((account, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    placeholder="Enter account number"
-                    value={account}
-                    onChange={(e) => updateAccountNumber(index, e.target.value)}
-                    className="bg-background flex-1"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeAccountNumber(index)}
-                    disabled={accountNumbers.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+            {gatewayType === "MANUAL" && (
+              <div className="space-y-3">
+                <Label>Account Numbers *</Label>
+                {accountNumbers.map((account, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Enter account number"
+                      value={account}
+                      onChange={(e) => updateAccountNumber(index, e.target.value)}
+                      className="bg-background flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeAccountNumber(index)}
+                      disabled={accountNumbers.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addAccountNumber}
-                className="w-full"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Another Account Number
-              </Button>
-            </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addAccountNumber}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Account Number
+                </Button>
+              </div>
+            )}
+
+            {gatewayType === "SSLCOMMERZ" && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sslStoreId">Store ID *</Label>
+                  <Input
+                    id="sslStoreId"
+                    placeholder="Your SSLCommerz Store ID"
+                    value={sslStoreId}
+                    onChange={(e) => setSslStoreId(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sslStorePassword">Store Password *</Label>
+                  <Input
+                    id="sslStorePassword"
+                    type="password"
+                    placeholder="Your SSLCommerz Store Password"
+                    value={sslStorePassword}
+                    onChange={(e) => setSslStorePassword(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-3 rounded-md border border-input bg-background px-3 py-2">
+                  <div>
+                    <div className="text-sm font-medium">Sandbox Mode</div>
+                    <div className="text-xs" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                      Keep enabled for testing; disable for live payments.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={sslSandbox}
+                    onChange={(e) => setSslSandbox(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sslSuccessUrl">Success URL</Label>
+                  <Input
+                    id="sslSuccessUrl"
+                    placeholder="https://your-domain.com/api/sslcommerz/success"
+                    value={sslSuccessUrl}
+                    onChange={(e) => setSslSuccessUrl(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sslFailUrl">Fail URL</Label>
+                  <Input
+                    id="sslFailUrl"
+                    placeholder="https://your-domain.com/api/sslcommerz/fail"
+                    value={sslFailUrl}
+                    onChange={(e) => setSslFailUrl(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sslCancelUrl">Cancel URL</Label>
+                  <Input
+                    id="sslCancelUrl"
+                    placeholder="https://your-domain.com/api/sslcommerz/cancel"
+                    value={sslCancelUrl}
+                    onChange={(e) => setSslCancelUrl(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="sslIpnUrl">IPN URL</Label>
+                  <Input
+                    id="sslIpnUrl"
+                    placeholder="https://your-domain.com/api/sslcommerz/ipn"
+                    value={sslIpnUrl}
+                    onChange={(e) => setSslIpnUrl(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex gap-2 pt-4 justify-end">
@@ -401,7 +599,9 @@ export default function PaymentGatewayManager() {
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg" style={{ color: 'hsl(var(--foreground))' }}>
-                    {payment.paymentGatewayData?.channel || "Unnamed Channel"}
+                    {getGatewayType(payment.paymentGatewayData) === "SSLCOMMERZ"
+                      ? "SSLCommerz"
+                      : payment.paymentGatewayData?.channel || "Unnamed Channel"}
                   </CardTitle>
                   <div className="flex gap-1">
                     <Button
@@ -427,38 +627,74 @@ export default function PaymentGatewayManager() {
 
               <CardContent className="space-y-3">
                 {/* Account Numbers List */}
-                {payment.paymentGatewayData?.accountNumbers &&
-                payment.paymentGatewayData.accountNumbers.length > 0 ? (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Account Numbers:
-                    </Label>
-                    {payment.paymentGatewayData.accountNumbers.map(
-                      (account, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 rounded border"
-                          style={{ backgroundColor: 'hsl(var(--muted))' }}
-                        >
-                          <span className="font-mono text-sm" style={{ color: 'hsl(var(--foreground))' }}>{account}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => copyToClipboard(account, index)}
-                            className="h-8 w-8 p-0"
+                {getGatewayType(payment.paymentGatewayData) === "MANUAL" ? (
+                  payment.paymentGatewayData?.accountNumbers &&
+                  payment.paymentGatewayData.accountNumbers.length > 0 ? (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Account Numbers:
+                      </Label>
+                      {payment.paymentGatewayData.accountNumbers.map(
+                        (account, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-2 rounded border"
+                            style={{ backgroundColor: "hsl(var(--muted))" }}
                           >
-                            {copiedIndex === index ? (
-                              <Check className="h-3 w-3" style={{ color: 'hsl(var(--chart-1))' }} />
-                            ) : (
-                              <Copy className="h-3 w-3" />
-                            )}
-                          </Button>
-                        </div>
-                      )
-                    )}
-                  </div>
+                            <span
+                              className="font-mono text-sm"
+                              style={{ color: "hsl(var(--foreground))" }}
+                            >
+                              {account}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(account, index)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {copiedIndex === index ? (
+                                <Check
+                                  className="h-3 w-3"
+                                  style={{ color: "hsl(var(--chart-1))" }}
+                                />
+                              ) : (
+                                <Copy className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ) : (
+                    <p
+                      className="text-sm"
+                      style={{ color: "hsl(var(--muted-foreground))" }}
+                    >
+                      No account numbers
+                    </p>
+                  )
                 ) : (
-                  <p className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>No account numbers</p>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Configuration:</Label>
+                    <div
+                      className="rounded border p-2"
+                      style={{ backgroundColor: "hsl(var(--muted))" }}
+                    >
+                      <div
+                        className="text-sm"
+                        style={{ color: "hsl(var(--foreground))" }}
+                      >
+                        Mode: {payment.paymentGatewayData?.sandbox ? "Sandbox" : "Live"}
+                      </div>
+                      <div
+                        className="text-xs"
+                        style={{ color: "hsl(var(--muted-foreground))" }}
+                      >
+                        Store ID: {payment.paymentGatewayData?.storeId || "—"}
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {/* Created Date */}
