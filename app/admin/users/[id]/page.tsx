@@ -111,22 +111,29 @@ export default function UserDetailPage() {
             })),
           };
 
-          // Normalize addresses array from Json
-          const rawAddress = (userData.address || {}) as {
-            addresses?: unknown;
-            address_1?: string;
-            address_2?: string;
-            address_3?: string;
-          };
+          // Normalize addresses array from UserAddress objects
           let addresses: string[] = [];
-          if (Array.isArray(rawAddress.addresses)) {
-            addresses = rawAddress.addresses.filter(
-              (a): a is string => typeof a === "string" && a.trim().length > 0
-            );
-          } else {
-            if (rawAddress.address_1) addresses.push(rawAddress.address_1);
-            if (rawAddress.address_2) addresses.push(rawAddress.address_2);
-            if (rawAddress.address_3) addresses.push(rawAddress.address_3);
+          if (userData.addresses && Array.isArray(userData.addresses)) {
+            addresses = userData.addresses
+              .filter((addr: any) => addr && addr.details)
+              .map((addr: any) => addr.details);
+          } else if (userData.address) {
+            // Handle legacy address format
+            const rawAddress = userData.address as {
+              addresses?: unknown;
+              address_1?: string;
+              address_2?: string;
+              address_3?: string;
+            };
+            if (Array.isArray(rawAddress.addresses)) {
+              addresses = rawAddress.addresses.filter(
+                (a): a is string => typeof a === "string" && a.trim().length > 0
+              );
+            } else {
+              if (rawAddress.address_1) addresses.push(rawAddress.address_1);
+              if (rawAddress.address_2) addresses.push(rawAddress.address_2);
+              if (rawAddress.address_3) addresses.push(rawAddress.address_3);
+            }
           }
           if (addresses.length === 0) {
             addresses = [""];
@@ -141,11 +148,11 @@ export default function UserDetailPage() {
             addresses,
           });
         } else {
-          toast.error("ব্যবহারকারী লোড করতে ব্যর্থ হয়েছে");
+          toast.error("Failed to load user");
         }
       } catch (error) {
         console.error("Error fetching user:", error);
-        toast.error("ব্যবহারকারী ডেটা লোড করতে ত্রুটি হয়েছে");
+        toast.error("Error loading user data");
       } finally {
         setLoading(false);
       }
@@ -159,14 +166,14 @@ export default function UserDetailPage() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const loadingId = toast.loading("ব্যবহারকারী আপডেট করা হচ্ছে...");
+      const loadingId = toast.loading("Updating user...");
 
       const trimmedAddresses = formData.addresses
         .map((a) => a.trim())
         .filter((a) => a.length > 0);
 
       if (trimmedAddresses.length === 0) {
-        toast.error("কমপক্ষে একটি ঠিকানা দিন");
+        toast.error("Please provide at least one address");
         setSaving(false);
         return;
       }
@@ -181,9 +188,7 @@ export default function UserDetailPage() {
           role: formData.role,
           phone: formData.phone,
           note: formData.note,
-          address: {
-            addresses: trimmedAddresses,
-          },
+          addresses: trimmedAddresses,
         }),
       });
 
@@ -208,13 +213,13 @@ export default function UserDetailPage() {
         setUser(normalizedUser);
         setEditing(false);
         toast.dismiss(loadingId);
-        toast.success("ব্যবহারকারী সফলভাবে আপডেট হয়েছে");
+        toast.success("User updated successfully");
       } else {
-        toast.error("ব্যবহারকারী আপডেট করতে ব্যর্থ হয়েছে");
+        toast.error("Failed to update user");
       }
     } catch (error) {
       console.error("Error updating user:", error);
-      toast.error("ব্যবহারকারী আপডেট করতে ত্রুটি হয়েছে");
+      toast.error("Error updating user");
     } finally {
       setSaving(false);
     }
@@ -229,7 +234,7 @@ export default function UserDetailPage() {
         },
         body: JSON.stringify({
           banned: true,
-          banReason: "ম্যানুয়ালি নিষিদ্ধ",
+          banReason: "Manually banned",
           banExpires: null,
         }),
       });
@@ -237,13 +242,13 @@ export default function UserDetailPage() {
       if (response.ok) {
         const updatedUser = await response.json();
         setUser(updatedUser);
-        toast.success("ব্যবহারকারী সফলভাবে নিষিদ্ধ হয়েছে");
+        toast.success("User banned successfully");
       } else {
-        toast.error("ব্যবহারকারী নিষিদ্ধ করতে ব্যর্থ হয়েছে");
+        toast.error("Failed to ban user");
       }
     } catch (error) {
       console.error("Error banning user:", error);
-      toast.error("ব্যবহারকারী নিষিদ্ধ করতে ত্রুটি হয়েছে");
+      toast.error("Error banning user");
     }
   };
 
@@ -264,13 +269,13 @@ export default function UserDetailPage() {
       if (response.ok) {
         const updatedUser = await response.json();
         setUser(updatedUser);
-        toast.success("ব্যবহারকারীর নিষেধাজ্ঞা সফলভাবে তুলে নেওয়া হয়েছে");
+        toast.success("User ban lifted successfully");
       } else {
-        toast.error("নিষেধাজ্ঞা তুলতে ব্যর্থ হয়েছে");
+        toast.error("Failed to lift ban");
       }
     } catch (error) {
       console.error("Error unbanning user:", error);
-      toast.error("নিষেধাজ্ঞা তুলতে ত্রুটি হয়েছে");
+      toast.error("Error lifting ban");
     }
   };
 
@@ -278,23 +283,23 @@ export default function UserDetailPage() {
     setPasswordError("");
 
     if (!passwordData.newPassword || !passwordData.confirmPassword) {
-      setPasswordError("উভয় পাসওয়ার্ড ফিল্ড পূরণ করুন");
+      setPasswordError("Please fill in both password fields");
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      setPasswordError("পাসওয়ার্ড অন্তত ৬ অক্ষরের হতে হবে");
+      setPasswordError("Password must be at least 6 characters");
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError("পাসওয়ার্ডগুলো মেলে না");
+      setPasswordError("Passwords do not match");
       return;
     }
 
     try {
       setChangingPassword(true);
-      const loadingId = toast.loading("পাসওয়ার্ড পরিবর্তন করা হচ্ছে...");
+      const loadingId = toast.loading("Changing password...");
 
       const response = await fetch(`/api/users/${params.id}/password`, {
         method: "PATCH",
@@ -309,23 +314,23 @@ export default function UserDetailPage() {
       toast.dismiss(loadingId);
 
       if (response.ok) {
-        toast.success("পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে");
+        toast.success("Password changed successfully");
         setShowPasswordModal(false);
         setPasswordData({ newPassword: "", confirmPassword: "" });
       } else {
         const data = await response.json().catch(() => ({}));
-        setPasswordError(data?.error || "পাসওয়ার্ড পরিবর্তন করতে ব্যর্থ হয়েছে");
+        setPasswordError(data?.error || "Failed to change password");
       }
     } catch (error) {
       console.error("Error changing password:", error);
-      setPasswordError("পাসওয়ার্ড পরিবর্তন করতে ত্রুটি হয়েছে");
+      setPasswordError("Error changing password");
     } finally {
       setChangingPassword(false);
     }
   };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("bn-BD", {
+    return new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -335,59 +340,59 @@ export default function UserDetailPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("bn-BD", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "BDT",
+      currency: "USD",
     }).format(amount);
   };
 
   const getStatusColor = (status: string) => {
     const colors = {
-      DELIVERED: "bg-green-100 text-green-800 border-green-200",
-      CANCELLED: "bg-red-100 text-red-800 border-red-200",
-      PENDING: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      CONFIRMED: "bg-blue-100 text-blue-800 border-blue-200",
-      PROCESSING: "bg-purple-100 text-purple-800 border-purple-200",
-      SHIPPED: "bg-indigo-100 text-indigo-800 border-indigo-200",
+      DELIVERED: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-700",
+      CANCELLED: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-700",
+      PENDING: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-700",
+      CONFIRMED: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border border-blue-200 dark:border-blue-700",
+      PROCESSING: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border border-purple-200 dark:border-purple-700",
+      SHIPPED: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-700",
     };
     return (
       colors[status as keyof typeof colors] ||
-      "bg-gray-100 text-gray-800 border-gray-200"
+      "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 border border-gray-200 dark:border-gray-700"
     );
   };
 
   const getStatusText = (status: string) => {
     const texts = {
-      DELIVERED: "ডেলিভার্ড",
-      CANCELLED: "বাতিল",
-      PENDING: "পেন্ডিং",
-      CONFIRMED: "কনফার্মড",
-      PROCESSING: "প্রসেসিং",
-      SHIPPED: "শিপড",
+      DELIVERED: "Delivered",
+      CANCELLED: "Cancelled",
+      PENDING: "Pending",
+      CONFIRMED: "Confirmed",
+      PROCESSING: "Processing",
+      SHIPPED: "Shipped",
     };
     return texts[status as keyof typeof texts] || status;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#fffffd] to-[#e5ffd6] p-6">
+      <div className="min-h-screen bg-background p-6">
         <div>
           <div className="flex flex-col justify-center items-center h-96 space-y-4">
             <div className="relative">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#2C4A3B] to-[#819A91] rounded-2xl flex items-center justify-center shadow-lg">
-                <UserIcon className="h-8 w-8 text-[#EEEFE0]" />
+              <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
+                <UserIcon className="h-8 w-8 text-primary-foreground" />
               </div>
-              <div className="absolute -inset-2 bg-[#819A91] rounded-2xl opacity-20 animate-pulse"></div>
+              <div className="absolute -inset-2 bg-primary/20 rounded-2xl animate-pulse"></div>
             </div>
             <div className="text-center space-y-2">
-              <div className="text-xl font-semibold text-[#2C4A3B]">
-                ব্যবহারকারী ডেটা লোড হচ্ছে...
+              <div className="text-xl font-semibold text-foreground">
+                Loading user data...
               </div>
-              <div className="text-[#819A91] text-sm">
-                অনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন
+              <div className="text-muted-foreground text-sm">
+                Please wait a moment
               </div>
             </div>
-            <RefreshCw className="h-6 w-6 text-[#819A91] animate-spin" />
+            <RefreshCw className="h-6 w-6 text-muted-foreground animate-spin" />
           </div>
         </div>
       </div>
@@ -396,17 +401,17 @@ export default function UserDetailPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#ffffff] to-[#ebffe2] p-6">
+      <div className="min-h-screen bg-background p-6">
         <div className="max-w-4xl mx-auto">
-          <div className="p-6 bg-red-50 border border-red-200 rounded-2xl shadow-sm">
+          <div className="p-6 bg-destructive/10 border border-destructive/20 rounded-2xl shadow-sm">
             <div className="flex items-center space-x-3">
-              <XCircle className="h-6 w-6 text-red-600" />
+              <XCircle className="h-6 w-6 text-destructive" />
               <div>
-                <h3 className="text-lg font-semibold text-red-800">
-                  ব্যবহারকারী পাওয়া যায়নি
+                <h3 className="text-lg font-semibold text-destructive">
+                  User not found
                 </h3>
-                <p className="text-red-600 mt-1">
-                  আপনি যে ব্যবহারকারী খুঁজছেন তা পাওয়া যায়নি।
+                <p className="text-destructive/80 mt-1">
+                  The user you are looking for could not be found.
                 </p>
               </div>
             </div>
@@ -417,35 +422,35 @@ export default function UserDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#EEEFE0] to-[#F5F6E9] p-4 sm:p-6">
+    <div className="min-h-screen bg-background p-4 sm:p-6">
       <div>
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => router.back()}
-            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-white border border-[#D1D8BE] text-[#819A91] hover:bg-[#819A91] hover:text-[#EEEFE0] transition-all duration-300 mb-6 shadow-sm font-medium"
+            className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-card border text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-300 mb-6 shadow-sm font-medium"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>ব্যবহারকারী তালিকায় ফিরে যান</span>
+            <span>Back to User List</span>
           </button>
 
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex items-start space-x-4">
               <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#2C4A3B] to-[#819A91] rounded-2xl flex items-center justify-center shadow-lg">
-                  <UserIcon className="h-8 w-8 text-[#EEEFE0]" />
+                <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
+                  <UserIcon className="h-8 w-8 text-primary-foreground" />
                 </div>
                 {user.banned && (
-                  <div className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full">
+                  <div className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground p-1 rounded-full">
                     <Ban className="h-4 w-4" />
                   </div>
                 )}
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-[#2C4A3B]">
-                  {user.name || "নাম নেই"}
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                  {user.name || "No Name"}
                 </h1>
-                <p className="text-[#819A91] mt-1 flex items-center space-x-2">
+                <p className="text-muted-foreground mt-1 flex items-center space-x-2">
                   <Mail className="h-4 w-4" />
                   <span>{user.email}</span>
                 </p>
@@ -453,17 +458,17 @@ export default function UserDetailPage() {
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
                       user.role === "admin"
-                        ? "bg-purple-100 text-purple-800 border-purple-200"
-                        : "bg-blue-100 text-blue-800 border-blue-200"
+                        ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-700"
+                        : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-700"
                     }`}
                   >
                     <Shield className="h-3 w-3 mr-1" />
-                    {user.role === "admin" ? "অ্যাডমিন" : "ব্যবহারকারী"}
+                    {user.role === "admin" ? "Admin" : "User"}
                   </span>
                   {user.banned && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 border border-red-200">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-700">
                       <Ban className="h-3 w-3 mr-1" />
-                      নিষিদ্ধ
+                      Banned
                     </span>
                   )}
                 </div>
@@ -474,35 +479,35 @@ export default function UserDetailPage() {
               {user.banned ? (
                 <button
                   onClick={() => setConfirmAction("unban")}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-all duration-300 shadow-sm font-medium"
+                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 transition-all duration-300 shadow-sm font-medium"
                 >
                   <CheckCircle className="h-4 w-4" />
-                  <span>নিষেধাজ্ঞা তুলুন</span>
+                  <span>Unban User</span>
                 </button>
               ) : (
                 <button
                   onClick={() => setConfirmAction("ban")}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all duration-300 shadow-sm font-medium"
+                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all duration-300 shadow-sm font-medium"
                 >
                   <Ban className="h-4 w-4" />
-                  <span>নিষিদ্ধ করুন</span>
+                  <span>Ban User</span>
                 </button>
               )}
 
               <button
                 onClick={() => setShowPasswordModal(true)}
-                className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300 shadow-sm font-medium"
+                className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 shadow-sm font-medium"
               >
                 <Lock className="h-4 w-4" />
-                <span>পাসওয়ার্ড পরিবর্তন</span>
+                <span>Change Password</span>
               </button>
 
               <button
                 onClick={() => setEditing(!editing)}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-xl border transition-all duration-300 shadow-sm font-medium ${
                   editing
-                    ? "bg-gray-100 text-gray-700 border-gray-300"
-                    : "bg-[#819A91] text-[#EEEFE0] border-[#819A91] hover:bg-[#2C4A3B]"
+                    ? "bg-muted text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                    : "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
                 }`}
               >
                 {editing ? (
@@ -510,7 +515,7 @@ export default function UserDetailPage() {
                 ) : (
                   <Edit className="h-4 w-4" />
                 )}
-                <span>{editing ? "বাতিল" : "এডিট"}</span>
+                <span>{editing ? "Cancel" : "Edit"}</span>
               </button>
             </div>
           </div>
@@ -520,31 +525,31 @@ export default function UserDetailPage() {
           {/* Main Content */}
           <div className="xl:col-span-2 space-y-6">
             {/* Profile Information */}
-            <div className="bg-white rounded-2xl shadow-lg border border-[#D1D8BE] p-6">
+            <div className="bg-card rounded-2xl shadow-lg border p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-[#2C4A3B] flex items-center space-x-2">
+                <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                   <UserIcon className="h-5 w-5" />
-                  <span>প্রোফাইল তথ্য</span>
+                  <span>Profile Information</span>
                 </h2>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-[#2C4A3B] mb-2 flex items-center">
+                  <label className="text-sm font-medium text-foreground mb-2 flex items-center">
                     <Mail className="h-4 w-4 mr-2" />
-                    ইমেইল
+                    Email
                   </label>
                   <input
                     type="email"
                     value={user.email}
                     disabled
-                    className="w-full px-4 py-3 rounded-xl border border-[#D1D8BE] bg-gray-50 text-gray-600"
+                    className="w-full px-4 py-3 rounded-xl border bg-muted text-muted-foreground"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#2C4A3B] mb-2">
-                    নাম
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Name
                   </label>
                   <input
                     type="text"
@@ -553,15 +558,15 @@ export default function UserDetailPage() {
                       setFormData((prev) => ({ ...prev, name: e.target.value }))
                     }
                     disabled={!editing}
-                    className="w-full px-4 py-3 rounded-xl border border-[#D1D8BE] focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:border-transparent transition-all duration-300"
-                    placeholder="ব্যবহারকারীর নাম"
+                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                    placeholder="User name"
                   />
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-[#2C4A3B] mb-2 flex items-center">
+                  <label className="text-sm font-medium text-foreground mb-2 flex items-center">
                     <Shield className="h-4 w-4 mr-2" />
-                    ভূমিকা
+                    Role
                   </label>
                   <select
                     value={formData.role}
@@ -569,17 +574,17 @@ export default function UserDetailPage() {
                       setFormData((prev) => ({ ...prev, role: e.target.value }))
                     }
                     disabled={!editing}
-                    className="w-full px-4 py-3 rounded-xl border border-[#D1D8BE] focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:border-transparent transition-all duration-300"
+                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
                   >
-                    <option value="user">ব্যবহারকারী</option>
-                    <option value="admin">অ্যাডমিন</option>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-[#2C4A3B] mb-2 flex items-center">
+                  <label className="text-sm font-medium text-foreground mb-2 flex items-center">
                     <Phone className="h-4 w-4 mr-2" />
-                    ফোন নম্বর
+                    Phone Number
                   </label>
                   <input
                     type="tel"
@@ -591,8 +596,8 @@ export default function UserDetailPage() {
                       }))
                     }
                     disabled={!editing}
-                    className="w-full px-4 py-3 rounded-xl border border-[#D1D8BE] focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:border-transparent transition-all duration-300"
-                    placeholder="ফোন নম্বর"
+                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                    placeholder="Phone number"
                   />
                 </div>
 
@@ -601,10 +606,10 @@ export default function UserDetailPage() {
                   {formData.addresses.map((addr, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <div className="flex-1">
-                        <label className="block text-sm font-medium text-[#2C4A3B] mb-2">
+                        <label className="block text-sm font-medium text-foreground mb-2">
                           {index === 0
-                            ? "ঠিকানা (কমপক্ষে একটি)"
-                            : `অতিরিক্ত ঠিকানা ${index + 1}`}
+                            ? "Address (at least one)"
+                            : `Additional Address ${index + 1}`}
                         </label>
                         <input
                           type="text"
@@ -618,8 +623,8 @@ export default function UserDetailPage() {
                             });
                           }}
                           disabled={!editing}
-                          className="w-full px-4 py-3 rounded-xl border border-[#D1D8BE] focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:border-transparent transition-all duration-300"
-                          placeholder="বাড়ি/রাস্তা/এলাকা"
+                          className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
+                          placeholder="House/Street/Area"
                         />
                       </div>
                       {editing && formData.addresses.length > 1 && (
@@ -631,9 +636,9 @@ export default function UserDetailPage() {
                               addresses: prev.addresses.filter((_, i) => i !== index),
                             }))
                           }
-                          className="mt-7 text-xs px-2 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50"
+                          className="mt-7 text-xs px-2 py-1 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10"
                         >
-                          মুছুন
+                          Delete
                         </button>
                       )}
                     </div>
@@ -648,16 +653,16 @@ export default function UserDetailPage() {
                           addresses: [...prev.addresses, ""],
                         }))
                       }
-                      className="text-xs px-3 py-2 rounded-xl border border-[#D1D8BE] text-[#2C4A3B] hover:bg-[#EEEFE0]"
+                      className="text-xs px-3 py-2 rounded-xl border text-foreground hover:bg-accent"
                     >
-                      + আরো ঠিকানা যোগ করুন
+                      + Add Another Address
                     </button>
                   )}
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-[#2C4A3B] mb-2">
-                    নোট
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Notes
                   </label>
                   <textarea
                     value={formData.note}
@@ -665,60 +670,60 @@ export default function UserDetailPage() {
                       setFormData((prev) => ({ ...prev, note: e.target.value }))
                     }
                     disabled={!editing}
-                    className="w-full px-4 py-3 rounded-xl border border-[#D1D8BE] focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:border-transparent transition-all duration-300 resize-none"
+                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 resize-none"
                     rows={4}
-                    placeholder="ব্যবহারকারী সম্পর্কে নোট..."
+                    placeholder="Notes about user..."
                   />
                 </div>
               </div>
 
               {editing && (
-                <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-[#D1D8BE]">
+                <div className="flex justify-end space-x-3 pt-6 mt-6 border-t">
                   <button
                     onClick={() => setEditing(false)}
-                    className="px-6 py-2 rounded-xl border border-[#D1D8BE] text-[#819A91] hover:bg-gray-50 transition-all duration-300 font-medium"
+                    className="px-6 py-2 rounded-xl border text-muted-foreground hover:bg-accent transition-all duration-300 font-medium"
                   >
-                    বাতিল
+                    Cancel
                   </button>
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="flex items-center space-x-2 px-6 py-2 rounded-xl bg-[#2C4A3B] text-[#EEEFE0] hover:bg-[#1A3325] transition-all duration-300 font-medium disabled:opacity-50"
+                    className="flex items-center space-x-2 px-6 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 font-medium disabled:opacity-50"
                   >
                     {saving ? (
                       <RefreshCw className="h-4 w-4 animate-spin" />
                     ) : (
                       <Save className="h-4 w-4" />
                     )}
-                    <span>{saving ? "সেভ হচ্ছে..." : "সেভ করুন"}</span>
+                    <span>{saving ? "Saving..." : "Save"}</span>
                   </button>
                 </div>
               )}
             </div>
 
             {/* Recent Orders */}
-            <div className="bg-white rounded-2xl shadow-lg border border-[#D1D8BE] p-6">
-              <h2 className="text-xl font-semibold text-[#2C4A3B] mb-6 flex items-center space-x-2">
+            <div className="bg-card rounded-2xl shadow-lg border p-6">
+              <h2 className="text-xl font-semibold text-foreground mb-6 flex items-center space-x-2">
                 <ShoppingBag className="h-5 w-5" />
-                <span>সাম্প্রতিক অর্ডার</span>
+                <span>Recent Orders</span>
               </h2>
 
               {user.orders.length === 0 ? (
                 <div className="text-center py-8">
-                  <ShoppingBag className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">কোনো অর্ডার পাওয়া যায়নি</p>
+                  <ShoppingBag className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground">No orders found</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {user.orders.map((order) => (
                     <div
                       key={order.id}
-                      className="flex items-center justify-between p-4 border border-[#D1D8BE] rounded-xl hover:bg-gray-50 transition-all duration-300"
+                      className="flex items-center justify-between p-4 border rounded-xl hover:bg-accent/50 transition-all duration-300"
                     >
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
-                          <div className="font-semibold text-[#2C4A3B]">
-                            অর্ডার #{order.id}
+                          <div className="font-semibold text-foreground">
+                            Order #{order.id}
                           </div>
                           <span
                             className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}
@@ -726,12 +731,12 @@ export default function UserDetailPage() {
                             {getStatusText(order.status)}
                           </span>
                         </div>
-                        <div className="flex items-center space-x-4 text-sm text-[#819A91]">
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center space-x-1">
                             <Calendar className="h-3 w-3" />
                             <span>{formatDate(order.orderDate)}</span>
                           </div>
-                          <div className="font-medium text-[#2C4A3B]">
+                          <div className="font-medium text-foreground">
                             {formatCurrency(order.grandTotal)}
                           </div>
                         </div>
@@ -746,48 +751,48 @@ export default function UserDetailPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* User Statistics */}
-            <div className="bg-white rounded-2xl shadow-lg border border-[#D1D8BE] p-6">
-              <h3 className="font-semibold text-[#2C4A3B] mb-4 flex items-center space-x-2">
+            <div className="bg-card rounded-2xl shadow-lg border p-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center space-x-2">
                 <ShoppingBag className="h-5 w-5" />
-                <span>ব্যবহারকারী পরিসংখ্যান</span>
+                <span>User Statistics</span>
               </h3>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center space-x-3">
-                    <ShoppingBag className="h-5 w-5 text-blue-600" />
-                    <span className="text-blue-800">মোট অর্ডার</span>
+                    <ShoppingBag className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-blue-800 dark:text-blue-200">Total Orders</span>
                   </div>
-                  <span className="text-lg font-bold text-blue-900">
+                  <span className="text-lg font-bold text-blue-900 dark:text-blue-100">
                     {user._count.orders}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
                   <div className="flex items-center space-x-3">
-                    <Star className="h-5 w-5 text-green-600" />
-                    <span className="text-green-800">রিভিউ</span>
+                    <Star className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <span className="text-green-800 dark:text-green-200">Reviews</span>
                   </div>
-                  <span className="text-lg font-bold text-green-900">
+                  <span className="text-lg font-bold text-green-900 dark:text-green-100">
                     {user._count.reviews}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
                   <div className="flex items-center space-x-3">
-                    <ShoppingCart className="h-5 w-5 text-purple-600" />
-                    <span className="text-purple-800">কার্ট আইটেম</span>
+                    <ShoppingCart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    <span className="text-purple-800 dark:text-purple-200">Cart Items</span>
                   </div>
-                  <span className="text-lg font-bold text-purple-900">
+                  <span className="text-lg font-bold text-purple-900 dark:text-purple-100">
                     {user._count.cart}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-pink-50 rounded-lg border border-pink-200">
+                <div className="flex items-center justify-between p-3 bg-pink-50 dark:bg-pink-950 rounded-lg border border-pink-200 dark:border-pink-800">
                   <div className="flex items-center space-x-3">
-                    <Heart className="h-5 w-5 text-pink-600" />
-                    <span className="text-pink-800">উইশলিস্ট</span>
+                    <Heart className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+                    <span className="text-pink-800 dark:text-pink-200">Wishlist</span>
                   </div>
-                  <span className="text-lg font-bold text-pink-900">
+                  <span className="text-lg font-bold text-pink-900 dark:text-pink-100">
                     {user._count.wishlist}
                   </span>
                 </div>
@@ -795,63 +800,63 @@ export default function UserDetailPage() {
             </div>
 
             {/* Account Status */}
-            <div className="bg-white rounded-2xl shadow-lg border border-[#D1D8BE] p-6">
-              <h3 className="font-semibold text-[#2C4A3B] mb-4 flex items-center space-x-2">
+            <div className="bg-card rounded-2xl shadow-lg border p-6">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center space-x-2">
                 <Shield className="h-5 w-5" />
-                <span>অ্যাকাউন্ট অবস্থা</span>
+                <span>Account Status</span>
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#819A91]">ইমেইল যাচাইকৃত</span>
+                  <span className="text-muted-foreground">Email Verified</span>
                   <div
                     className={`flex items-center space-x-1 ${
-                      user.emailVerified ? "text-green-600" : "text-yellow-600"
+                      user.emailVerified ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
                     }`}
                   >
                     {user.emailVerified ? (
                       <>
                         <CheckCircle className="h-4 w-4" />
-                        <span className="text-sm font-medium">হ্যাঁ</span>
+                        <span className="text-sm font-medium">Yes</span>
                       </>
                     ) : (
                       <>
                         <XCircle className="h-4 w-4" />
-                        <span className="text-sm font-medium">না</span>
+                        <span className="text-sm font-medium">No</span>
                       </>
                     )}
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-[#819A91]">নিষিদ্ধ</span>
+                  <span className="text-muted-foreground">Banned</span>
                   <div
                     className={`flex items-center space-x-1 ${
-                      user.banned ? "text-red-600" : "text-green-600"
+                      user.banned ? "text-destructive" : "text-green-600 dark:text-green-400"
                     }`}
                   >
                     {user.banned ? (
                       <>
                         <Ban className="h-4 w-4" />
-                        <span className="text-sm font-medium">হ্যাঁ</span>
+                        <span className="text-sm font-medium">Yes</span>
                       </>
                     ) : (
                       <>
                         <CheckCircle className="h-4 w-4" />
-                        <span className="text-sm font-medium">না</span>
+                        <span className="text-sm font-medium">No</span>
                       </>
                     )}
                   </div>
                 </div>
 
                 {user.banned && user.banReason && (
-                  <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                  <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
                     <div className="flex items-start space-x-2">
-                      <Ban className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                      <Ban className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-medium text-red-800">
-                          নিষিদ্ধ করার কারণ
+                        <p className="text-sm font-medium text-destructive">
+                          Ban Reason
                         </p>
-                        <p className="text-sm text-red-700 mt-1">
+                        <p className="text-sm text-destructive/80 mt-1">
                           {user.banReason}
                         </p>
                       </div>
@@ -859,20 +864,20 @@ export default function UserDetailPage() {
                   </div>
                 )}
 
-                <div className="pt-4 border-t border-[#D1D8BE] space-y-3">
+                <div className="pt-4 border-t space-y-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-[#819A91] flex items-center space-x-1">
+                    <span className="text-muted-foreground flex items-center space-x-1">
                       <Clock className="h-3 w-3" />
-                      <span>সদস্য sejak</span>
+                      <span>Member since</span>
                     </span>
-                    <span className="text-[#2C4A3B] font-medium">
+                    <span className="text-foreground font-medium">
                       {formatDate(user.createdAt)}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-[#819A91]">সর্বশেষ আপডেট</span>
-                    <span className="text-[#2C4A3B] font-medium">
+                    <span className="text-muted-foreground">Last updated</span>
+                    <span className="text-foreground font-medium">
                       {formatDate(user.updatedAt)}
                     </span>
                   </div>
@@ -886,13 +891,13 @@ export default function UserDetailPage() {
       {/* Ban/Unban Confirm Modal */}
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-2xl border border-[#D1D8BE] max-w-md w-full mx-4 p-6">
+          <div className="bg-card rounded-2xl shadow-2xl border max-w-md w-full mx-4 p-6">
             <div className="flex items-start space-x-3">
               <div
                 className={`p-2 rounded-full ${
                   confirmAction === "ban"
-                    ? "bg-red-100 text-red-600"
-                    : "bg-green-100 text-green-600"
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400"
                 }`}
               >
                 {confirmAction === "ban" ? (
@@ -902,15 +907,15 @@ export default function UserDetailPage() {
                 )}
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-[#2C4A3B] mb-1">
+                <h3 className="text-lg font-semibold text-foreground mb-1">
                   {confirmAction === "ban"
-                    ? "ব্যবহারকারী নিষিদ্ধ করবেন?"
-                    : "নিষেধাজ্ঞা তুলবেন?"}
+                    ? "Ban this user?"
+                    : "Lift ban?"}
                 </h3>
-                <p className="text-sm text-[#819A91]">
+                <p className="text-sm text-muted-foreground">
                   {confirmAction === "ban"
-                    ? "এই ব্যবহারকারী সিস্টেমে লগইন করতে বা নতুন অর্ডার দিতে পারবে না। আপনি কি নিশ্চিত যে আপনি এই ব্যবহারকারীকে নিষিদ্ধ করতে চান?"
-                    : "এই ব্যবহারকারীর নিষেধাজ্ঞা তুলে দিলে সে পুনরায় সিস্টেম ব্যবহার করতে পারবে। আপনি কি নিশ্চিত?"}
+                    ? "This user will not be able to log in to the system or place new orders. Are you sure you want to ban this user?"
+                    : "This user will be able to use the system again after lifting the ban. Are you sure?"}
                 </p>
               </div>
             </div>
@@ -918,9 +923,9 @@ export default function UserDetailPage() {
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={() => setConfirmAction(null)}
-                className="px-4 py-2 rounded-xl border border-[#D1D8BE] text-[#819A91] hover:bg-gray-50 transition-all duration-300 text-sm font-medium"
+                className="px-4 py-2 rounded-xl border text-muted-foreground hover:bg-accent transition-all duration-300 text-sm font-medium"
               >
-                বাতিল
+                Cancel
               </button>
               <button
                 onClick={async () => {
@@ -934,11 +939,11 @@ export default function UserDetailPage() {
                 }}
                 className={`px-4 py-2 rounded-xl text-sm font-medium text-white transition-all duration-300 ${
                   confirmAction === "ban"
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-green-600 hover:bg-green-700"
+                    ? "bg-destructive hover:bg-destructive/90"
+                    : "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
                 }`}
               >
-                {confirmAction === "ban" ? "নিষিদ্ধ করুন" : "নিষেধাজ্ঞা তুলুন"}
+                {confirmAction === "ban" ? "Ban User" : "Lift Ban"}
               </button>
             </div>
           </div>
@@ -948,17 +953,17 @@ export default function UserDetailPage() {
       {/* Password Change Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-2xl border border-[#D1D8BE] max-w-md w-full mx-4 p-6">
+          <div className="bg-card rounded-2xl shadow-2xl border max-w-md w-full mx-4 p-6">
             <div className="flex items-start space-x-3">
-              <div className="p-2 rounded-full bg-blue-100 text-blue-600">
+              <div className="p-2 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400">
                 <Lock className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-[#2C4A3B] mb-1">
-                  পাসওয়ার্ড পরিবর্তন করুন
+                <h3 className="text-lg font-semibold text-foreground mb-1">
+                  Change Password
                 </h3>
-                <p className="text-sm text-[#819A91]">
-                  {user.name || user.email} এর জন্য নতুন পাসওয়ার্ড সেট করুন
+                <p className="text-sm text-muted-foreground">
+                  Set new password for {user.name || user.email}
                 </p>
               </div>
               <button
@@ -967,7 +972,7 @@ export default function UserDetailPage() {
                   setPasswordError("");
                   setPasswordData({ newPassword: "", confirmPassword: "" });
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-muted-foreground hover:text-foreground"
               >
                 ✕
               </button>
@@ -975,8 +980,8 @@ export default function UserDetailPage() {
 
             <div className="mt-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#2C4A3B] mb-2">
-                  নতুন পাসওয়ার্ড
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  New Password
                 </label>
                 <div className="relative">
                   <input
@@ -988,12 +993,12 @@ export default function UserDetailPage() {
                         newPassword: e.target.value,
                       }))
                     }
-                    className="w-full px-4 py-3 rounded-xl border border-[#D1D8BE] focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:border-transparent pr-12"
-                    placeholder="কমপক্ষে ৬ অক্ষর"
+                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent pr-12"
+                    placeholder="At least 6 characters"
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#819A91] hover:text-[#2C4A3B]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
@@ -1006,8 +1011,8 @@ export default function UserDetailPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#2C4A3B] mb-2">
-                  পাসওয়ার্ড নিশ্চিত করুন
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Confirm Password
                 </label>
                 <div className="relative">
                   <input
@@ -1019,12 +1024,12 @@ export default function UserDetailPage() {
                         confirmPassword: e.target.value,
                       }))
                     }
-                    className="w-full px-4 py-3 rounded-xl border border-[#D1D8BE] focus:outline-none focus:ring-2 focus:ring-[#2C4A3B] focus:border-transparent pr-12"
-                    placeholder="পাসওয়ার্ড আবার লিখুন"
+                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent pr-12"
+                    placeholder="Re-enter password"
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#819A91] hover:text-[#2C4A3B]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (
@@ -1037,8 +1042,8 @@ export default function UserDetailPage() {
               </div>
 
               {passwordError && (
-                <div className="p-3 bg-red-50 rounded-lg border border-red-200">
-                  <p className="text-sm text-red-600">{passwordError}</p>
+                <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+                  <p className="text-sm text-destructive">{passwordError}</p>
                 </div>
               )}
             </div>
@@ -1050,19 +1055,19 @@ export default function UserDetailPage() {
                   setPasswordError("");
                   setPasswordData({ newPassword: "", confirmPassword: "" });
                 }}
-                className="px-4 py-2 rounded-xl border border-[#D1D8BE] text-white bg-green-600 hover:bg-green-500 transition-all duration-300 text-sm font-medium"
+                className="px-4 py-2 rounded-xl border text-muted-foreground hover:bg-accent transition-all duration-300 text-sm font-medium"
               >
-                বাতিল
+                Cancel
               </button>
               <button
                 onClick={handleChangePassword}
                 disabled={changingPassword}
-                className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-500 transition-all duration-300 text-sm font-medium disabled:opacity-50 flex items-center space-x-2"
+                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 text-sm font-medium disabled:opacity-50 flex items-center space-x-2"
               >
                 {changingPassword && (
                   <RefreshCw className="h-4 w-4 animate-spin" />
                 )}
-                <span>{changingPassword ? "পরিবর্তন হচ্ছে..." : "পাসওয়ার্ড পরিবর্তন"}</span>
+                <span>{changingPassword ? "Changing..." : "Change Password"}</span>
               </button>
             </div>
           </div>

@@ -53,7 +53,7 @@ export default function RootLayout({
               </CartProvider>
             </TreeProvider>
           </Providers>
-          <Toaster position="top-right" richColors />
+          <Toaster position="bottom-right" richColors />
         </ThemeProvider>
       </body>
     </html>

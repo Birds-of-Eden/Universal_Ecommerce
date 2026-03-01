@@ -595,7 +595,7 @@ export default function AdminUsersPage() {
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  ইমেইল
+                  Email
                 </label>
                 <input
                   type="email"

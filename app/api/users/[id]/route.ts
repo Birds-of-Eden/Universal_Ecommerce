@@ -7,7 +7,7 @@ const updateUserSchema = z.object({
   name: z.string().optional(),
   role: z.enum(['user', 'admin']).optional(),
   phone: z.string().optional(),
-  address: z.any().optional(),
+  addresses: z.any().optional(),
   banned: z.boolean().optional(),
   banReason: z.string().nullable().optional(),
   banExpires: z.number().nullable().optional(),
@@ -94,8 +94,40 @@ export async function PATCH(
       );
     }
 
-    const updateData = validation.data;
+    let updateData = validation.data;
     const { id } = await params;
+
+    // Handle addresses separately if provided
+    let addressesUpdate = {};
+    if (updateData.addresses && Array.isArray(updateData.addresses)) {
+      // Delete existing addresses
+      await db.userAddress.deleteMany({
+        where: { userId: id }
+      });
+
+      // Create new addresses from string array
+      const newAddresses = updateData.addresses
+        .filter((addr: string) => addr && addr.trim().length > 0)
+        .map((addr: string, index: number) => ({
+          userId: id,
+          label: index === 0 ? "Home" : `Address ${index + 1}`,
+          country: "Bangladesh", // Default country
+          district: "Unknown", // Should be parsed from address or made required
+          area: "Unknown", // Should be parsed from address or made required
+          details: addr.trim(),
+          isDefault: index === 0
+        }));
+
+      if (newAddresses.length > 0) {
+        await db.userAddress.createMany({
+          data: newAddresses
+        });
+      }
+
+      // Remove addresses from updateData to avoid Prisma error
+      const { addresses, ...otherUpdateData } = updateData;
+      updateData = otherUpdateData;
+    }
 
     const user = await db.user.update({
       where: { id },
