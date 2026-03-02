@@ -547,7 +547,7 @@ const OrderManagement = () => {
       }
 
       // 3) Auto: shipment DELIVERED হলে order.status = DELIVERED করে দাও
-      if (editShipmentStatus === "DELIVERED") {
+      if (editShipmentStatus === "DELIVERED" && editOrderStatus === "SHIPPED") {
         try {
           const autoRes = await fetch(`/api/orders/${orderDetail.id}`, {
             method: "PATCH",
