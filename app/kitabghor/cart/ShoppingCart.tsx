@@ -17,13 +17,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "@/lib/auth-client";
 
 interface LocalCartItem {
-  id: number | string;
+  id: number | string; // server cart item id
   productId: number;
   name: string;
   price: number;
@@ -32,7 +32,6 @@ interface LocalCartItem {
 }
 
 export default function CartPage() {
-  // ✅ added replaceCart
   const {
     cartItems,
     removeFromCart,
@@ -55,40 +54,56 @@ export default function CartPage() {
   );
   const [loadingServerCart, setLoadingServerCart] = useState(false);
 
-  // ✅ prevent infinite sync loop
+  // ✅ prevent repeated login sync
   const didAuthSyncRef = useRef(false);
+
+  // ✅ prevent repeated context replace (stuck/freeze fix)
+  const lastReplacedRef = useRef<string>("");
 
   useEffect(() => setHasMounted(true), []);
 
-  // ✅ Sync server cart -> context cart (for header count etc.)
+  // ----------------------------
+  // ✅ Server cart -> Context cart (ONLY when changed)
+  // ----------------------------
+  const mappedServerForContext = useMemo(() => {
+    if (!Array.isArray(serverCartItems)) return null;
+    return serverCartItems.map((i) => ({
+      id: i.id,
+      productId: i.productId,
+      name: i.name,
+      price: i.price,
+      quantity: i.quantity,
+      image: i.image || "/placeholder.svg",
+    }));
+  }, [serverCartItems]);
+
   useEffect(() => {
     if (!hasMounted) return;
     if (!isAuthenticated) return;
-    if (!Array.isArray(serverCartItems)) return;
+    if (!mappedServerForContext) return;
 
-    replaceCart(
-      serverCartItems.map((i) => ({
-        id: i.id,
-        productId: i.productId,
-        name: i.name,
-        price: i.price,
-        quantity: i.quantity,
-        image: i.image || "/placeholder.svg",
-      }))
-    );
-  }, [isAuthenticated, serverCartItems, hasMounted, replaceCart]);
+    const nextStr = JSON.stringify(mappedServerForContext);
+    if (lastReplacedRef.current === nextStr) return; // ✅ same data, do nothing
 
-  // ✅ Main login sync (run once per login)
+    lastReplacedRef.current = nextStr;
+    replaceCart(mappedServerForContext);
+  }, [hasMounted, isAuthenticated, mappedServerForContext, replaceCart]);
+
+  // ----------------------------
+  // ✅ Main auth sync (run once per login)
+  // ----------------------------
   useEffect(() => {
     if (!hasMounted) return;
 
     if (!isAuthenticated) {
-      didAuthSyncRef.current = false; // reset on logout
+      didAuthSyncRef.current = false;
       setServerCartItems(null);
+      // also reset compare cache
+      lastReplacedRef.current = "";
       return;
     }
 
-    if (didAuthSyncRef.current) return; // ✅ run only once per login
+    if (didAuthSyncRef.current) return;
     didAuthSyncRef.current = true;
 
     const fetchServerCart = async () => {
@@ -114,11 +129,7 @@ export default function CartPage() {
           quantity: Number(item.quantity ?? 1),
         }));
 
-        setServerCartItems((prev) => {
-          const prevStr = JSON.stringify(prev || []);
-          const newStr = JSON.stringify(mapped);
-          return prevStr === newStr ? prev : mapped;
-        });
+        setServerCartItems(mapped);
       } catch (err) {
         console.error("Error loading server cart:", err);
       } finally {
@@ -130,17 +141,18 @@ export default function CartPage() {
       try {
         setLoadingServerCart(true);
 
-        // 1) load current server cart
+        // fetch existing server cart
         const serverRes = await fetch("/api/cart", { cache: "no-store" });
         if (!serverRes.ok) throw new Error("Failed to fetch server cart");
-
         const serverData = await serverRes.json();
         const existingItems = Array.isArray(serverData.items)
           ? serverData.items
           : [];
 
-        // 2) push guest cart items to server if missing
-        const itemsToSync = (cartItems as any[]).filter(
+        // push local items if missing (use snapshot)
+        const localSnapshot: any[] = Array.isArray(cartItems) ? cartItems : [];
+
+        const itemsToSync = localSnapshot.filter(
           (localItem) =>
             !existingItems.some(
               (serverItem: any) =>
@@ -159,11 +171,9 @@ export default function CartPage() {
           });
         }
 
-        // 3) IMPORTANT: do NOT depend on cartItems effect loop anymore
-        // clear local guest cart after syncing
+        // clear local after sync
         clearCart();
 
-        // 4) reload server cart
         await fetchServerCart();
       } catch (err) {
         console.error("Error syncing guest cart to server:", err);
@@ -173,13 +183,12 @@ export default function CartPage() {
       }
     };
 
-    // If guest cart empty => just fetch server cart, else sync then fetch
-    if ((cartItems as any[]).length === 0) {
-      fetchServerCart();
-    } else {
-      syncGuestCartToServer();
-    }
-    // ✅ deps intentionally only auth + mount to avoid update depth loop
+    // run
+    const localSnapshot: any[] = Array.isArray(cartItems) ? cartItems : [];
+    if (localSnapshot.length === 0) fetchServerCart();
+    else syncGuestCartToServer();
+
+    // ✅ keep deps minimal to avoid loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, hasMounted]);
 
@@ -192,7 +201,9 @@ export default function CartPage() {
   if (!hasMounted) return null;
 
   const itemsToRender: LocalCartItem[] =
-    isAuthenticated && serverCartItems ? serverCartItems : (cartItems as any);
+    isAuthenticated && serverCartItems !== null
+      ? serverCartItems
+      : ((cartItems as any) || []);
 
   const subtotal = itemsToRender.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -230,6 +241,8 @@ export default function CartPage() {
       }
 
       clearCart();
+      // reset compare cache so replaceCart doesn't reapply old
+      lastReplacedRef.current = "";
       toast.success("Cart cleared.");
     } catch (error) {
       console.error("Error clearing cart:", error);
@@ -254,8 +267,7 @@ export default function CartPage() {
         );
       }
 
-      // ✅ DO NOT Number() - server id can be string
-      removeFromCart(itemId);
+      removeFromCart(itemId); // ✅ no Number()
       toast.success("Item removed.");
     } catch (error) {
       console.error("Error removing cart item:", error);
@@ -293,7 +305,6 @@ export default function CartPage() {
         );
       }
 
-      // ✅ keep local context synced too (id can be string/number)
       updateQuantity(itemId, newQuantity);
     } catch (error) {
       console.error("Error updating quantity:", error);
@@ -319,9 +330,7 @@ export default function CartPage() {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to apply coupon.");
-      }
+      if (!response.ok) throw new Error(data.error || "Failed to apply coupon.");
 
       if (data.success) {
         setDiscountAmount(data.coupon.discountAmount);
@@ -378,7 +387,7 @@ export default function CartPage() {
             <p className="text-muted-foreground mb-6">
               Add some products to get started.
             </p>
-            <Link href="/kitabghor/products">
+            <Link href="/">
               <Button className="rounded-md btn-primary">
                 Continue Shopping <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -499,59 +508,57 @@ export default function CartPage() {
 
               {/* Coupon Card */}
               <div className="rounded-xl border border-border bg-card shadow-sm">
-                <div>
-                  <div className="p-6 md:border-r md:border-border">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-muted-foreground">
-                        <Tag className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="font-semibold">Have a Coupon?</div>
-                        <div className="text-sm text-muted-foreground">
-                          Apply your coupon for an instant discount.
-                        </div>
+                <div className="p-6 md:border-r md:border-border">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 text-muted-foreground">
+                      <Tag className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">Have a Coupon?</div>
+                      <div className="text-sm text-muted-foreground">
+                        Apply your coupon for an instant discount.
                       </div>
                     </div>
+                  </div>
 
-                    <div className="mt-4">
-                      {appliedCoupon ? (
-                        <div className="rounded-md border border-border bg-muted/40 p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm">
-                              <span className="font-semibold">
-                                {appliedCoupon.code}
+                  <div className="mt-4">
+                    {appliedCoupon ? (
+                      <div className="rounded-md border border-border bg-muted/40 p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm">
+                            <span className="font-semibold">
+                              {appliedCoupon.code}
+                            </span>
+                            {appliedCoupon.discountType === "percentage" && (
+                              <span className="ml-2 text-muted-foreground">
+                                ({appliedCoupon.discountValue}%)
                               </span>
-                              {appliedCoupon.discountType === "percentage" && (
-                                <span className="ml-2 text-muted-foreground">
-                                  ({appliedCoupon.discountValue}%)
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              onClick={removeCoupon}
-                              className="text-sm text-foreground hover:underline"
-                            >
-                              Remove
-                            </button>
+                            )}
                           </div>
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            Coupon applied successfully.
-                          </div>
+                          <button
+                            onClick={removeCoupon}
+                            className="text-sm text-foreground hover:underline"
+                          >
+                            Remove
+                          </button>
                         </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="PROMO / COUPON Code"
-                            value={couponCode}
-                            onChange={(e) => setCouponCode(e.target.value)}
-                            className="rounded-md input-theme"
-                          />
-                          <Button onClick={applyCoupon} className="rounded-md">
-                            Apply Coupon
-                          </Button>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Coupon applied successfully.
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="PROMO / COUPON Code"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value)}
+                          className="rounded-md input-theme"
+                        />
+                        <Button onClick={applyCoupon} className="rounded-md">
+                          Apply Coupon
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
