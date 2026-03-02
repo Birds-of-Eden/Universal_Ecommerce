@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { toast } from "sonner";
@@ -10,55 +10,135 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type Writer = {
-  id: number;
-  name: string;
-};
+type Category = { id: number; name: string; slug?: string };
 
-type Book = {
+type AvailabilityKey = "in_stock" | "pre_order" | "up_coming";
+
+type Product = {
   id: number;
   name: string;
   image: string | null;
+
+  // ✅ UI needs these
   price: number;
   original_price?: number | null;
-  discount: number;
-  writer: Writer;
+
+  discount?: number; // %
+  currencySymbol?: string; // ৳
+  availability?: AvailabilityKey;
   stock?: number;
+
+  specs?: string[];
+  saveLabel?: string | null;
 };
 
-type Category = {
-  id: number;
-  name: string;
-};
-
-interface RatingInfo {
-  averageRating: number;
-  totalReviews: number;
+// ---------- helpers ----------
+function toNumber(v: any, fallback = 0) {
+  const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
+function currencyToSymbol(currency?: string) {
+  // আপনার দরকার হলে আরও add করবেন
+  if (!currency) return "৳";
+  if (currency.toUpperCase() === "BDT") return "৳";
+  if (currency.toUpperCase() === "USD") return "$";
+  if (currency.toUpperCase() === "EUR") return "€";
+  return "৳";
+}
+
+function pickProductsArray(data: any): any[] {
+  if (Array.isArray(data?.products)) return data.products;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data?.products)) return data.data.products;
+  if (Array.isArray(data?.data?.items)) return data.data.items;
+  return [];
+}
+
+function computeStockFromVariants(p: any): number | undefined {
+  const variants = Array.isArray(p?.variants) ? p.variants : [];
+  if (!variants.length) return typeof p?.stock === "number" ? p.stock : undefined;
+
+  const total = variants.reduce((sum: number, v: any) => {
+    const s = toNumber(v?.stock, 0);
+    return sum + s;
+  }, 0);
+
+  return total;
+}
+
+function resolvePriceFromApi(p: any) {
+  // ✅ priority: variants[0].price -> basePrice -> price(any)
+  const variants = Array.isArray(p?.variants) ? p.variants : [];
+  const variantPrice = variants.length ? toNumber(variants[0]?.price, NaN) : NaN;
+
+  const basePrice = toNumber(p?.basePrice, NaN);
+  const fallbackPrice = toNumber(p?.price, NaN);
+
+  const finalPrice = Number.isFinite(variantPrice)
+    ? variantPrice
+    : Number.isFinite(basePrice)
+    ? basePrice
+    : Number.isFinite(fallbackPrice)
+    ? fallbackPrice
+    : 0;
+
+  const original = toNumber(p?.originalPrice, NaN);
+  const originalAlt = toNumber(p?.original_price, NaN);
+
+  const finalOriginal = Number.isFinite(original)
+    ? original
+    : Number.isFinite(originalAlt)
+    ? originalAlt
+    : null;
+
+  return { finalPrice, finalOriginal };
+}
+
+function computeDiscount(price: number, original: number | null, apiDiscount: any) {
+  const d = toNumber(apiDiscount, NaN);
+  if (Number.isFinite(d)) return d;
+
+  if (original && original > 0 && original > price) {
+    return Math.round(((original - price) / original) * 100);
+  }
+  return 0;
+}
+
+function buildSpecs(p: any): string[] {
+  // API তে specs না থাকলে সুন্দর কিছু bullet দেখানোর জন্য
+  const out: string[] = [];
+  if (p?.sku) out.push(`SKU: ${p.sku}`);
+  if (p?.type) out.push(`Type: ${p.type}`);
+  if (p?.shortDesc) out.push(String(p.shortDesc));
+  else if (p?.description) out.push(String(p.description));
+  return out.slice(0, 4);
+}
+
+// ---------- component ----------
 export default function Page({ params }: PageProps) {
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null);
+
   const [category, setCategory] = useState<Category | null>(null);
-  const [categoryBooks, setCategoryBooks] = useState<Book[]>([]);
+  const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
   const [categoryCount, setCategoryCount] = useState<number | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [ratings, setRatings] = useState<Record<string, RatingInfo>>({});
-  const isMounted = useRef(true);
 
+  const isMounted = useRef(true);
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
-  // Resolve params
+  // resolve params
   useEffect(() => {
-    const resolveParams = async () => {
-      const param = await params;
-      setResolvedParams(param);
-    };
-    resolveParams();
+    (async () => {
+      const p = await params;
+      setResolvedParams(p);
+    })();
   }, [params]);
 
-  // ✅ Load single category + books + ratings (optimized)
+  // fetch category + products
   useEffect(() => {
     if (!resolvedParams?.id) return;
 
@@ -66,99 +146,102 @@ export default function Page({ params }: PageProps) {
     const signal = abortController.signal;
     isMounted.current = true;
 
-    // Add timeout to prevent infinite loading
     const timeoutId = setTimeout(() => {
-      if (isMounted.current && loading) {
-        console.error('Request timeout - taking too long to fetch category data');
+      if (isMounted.current) {
         setError("লোড হতে অনেক সময় লাগছে। দয়া করে পুনরায় চেষ্টা করুন।");
         setLoading(false);
       }
-    }, 10000); // 10 seconds timeout
+    }, 10000);
 
-    // Memoized fetch function
     const fetchCategoryData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // 1) category + products
         const res = await fetch(`/api/categories/${resolvedParams.id}/products`, {
           cache: "no-store",
           signal,
         });
+
         if (!res.ok) {
           if (res.status === 404) {
             setCategory(null);
-            setCategoryBooks([]);
-            setError("বিভাগ পাওয়া যায়নি");
+            setCategoryProducts([]);
+            setError("ক্যাটাগরি পাওয়া যায়নি");
             return;
           }
-          throw new Error("Failed to fetch category");
+          const text = await res.text().catch(() => "");
+          console.error("API error:", res.status, text);
+          throw new Error("Failed to fetch category products");
         }
 
-        const data: { category: Category; products: Book[] } = await res.json();
-        setCategory(data.category);
-        setCategoryBooks(data.products);
+        const data: any = await res.json();
 
-        // 2) সব ক্যাটাগরি কাউন্ট (header info) - with caching
+        // ✅ category matches your response
+        const cat: Category | null =
+          data?.category ?? data?.data?.category ?? data?.cat ?? null;
+
+        const rawList = pickProductsArray(data);
+
+        const normalized: Product[] = rawList.map((p: any) => {
+          const { finalPrice, finalOriginal } = resolvePriceFromApi(p);
+
+          const currencySymbol = p?.currencySymbol
+            ? p.currencySymbol
+            : currencyToSymbol(p?.currency);
+
+          const discount = computeDiscount(finalPrice, finalOriginal, p?.discount);
+
+          const stock = computeStockFromVariants(p);
+
+          const availability: AvailabilityKey =
+            p?.available === false
+              ? "up_coming"
+              : typeof stock === "number" && stock === 0
+              ? "up_coming"
+              : "in_stock";
+
+          const saveLabel =
+            discount > 0 && finalOriginal
+              ? `Save: ${Math.max(0, finalOriginal - finalPrice)}${currencySymbol}`
+              : null;
+
+          return {
+            id: toNumber(p?.id),
+            name: String(p?.name ?? ""),
+            image: p?.image ?? null,
+            price: finalPrice, // ✅ FIXED
+            original_price: finalOriginal, // ✅ FIXED
+            discount,
+            currencySymbol,
+            availability,
+            stock,
+            specs: Array.isArray(p?.specs) ? p.specs : buildSpecs(p),
+            saveLabel,
+          };
+        });
+
+        setCategory(cat);
+        setCategoryProducts(normalized);
+
+        // category count (optional)
         const resAll = await fetch("/api/categories", {
-          cache: "force-cache", // Cache this as it doesn't change often
-          next: { revalidate: 300 }, // Revalidate every 5 minutes
+          cache: "force-cache",
+          next: { revalidate: 300 },
           signal,
         });
+
         if (resAll.ok) {
           const allCats: Category[] = await resAll.json();
           setCategoryCount(allCats.length);
         }
-
-        // 3) এই ক্যাটাগরির বইগুলোর রেটিং লোড (batch API)
-        const ids = Array.from(
-          new Set(
-            data.products
-              .map((b) => Number(b.id))
-              .filter((id) => !!id && !Number.isNaN(id))
-          )
-        );
-
-        if (ids.length > 0) {
-          try {
-            const batchRes = await fetch("/api/reviews/batch", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ productIds: ids }),
-              cache: "no-store",
-              signal,
-            });
-
-            if (batchRes.ok) {
-              const batchData = await batchRes.json();
-              if (batchData.success) {
-                setRatings(batchData.data);
-              } else {
-                setRatings({});
-              }
-            } else {
-              setRatings({});
-            }
-          } catch (err: any) {
-            if (!isMounted.current || err.name === 'AbortError') return;
-            console.error("Error fetching batch ratings:", err);
-            setRatings({});
-          }
-        } else {
-          setRatings({});
-        }
       } catch (err: any) {
-        if (!isMounted.current || err.name === 'AbortError') return;
+        if (!isMounted.current || err?.name === "AbortError") return;
         console.error(err);
         setError("ডাটা লোড করতে সমস্যা হচ্ছে");
       } finally {
         clearTimeout(timeoutId);
-        if (isMounted.current) {
-          setLoading(false);
-        }
+        if (isMounted.current) setLoading(false);
       }
     };
 
@@ -169,144 +252,51 @@ export default function Page({ params }: PageProps) {
       abortController.abort();
       clearTimeout(timeoutId);
     };
-  }, [resolvedParams?.id, loading]);
+  }, [resolvedParams?.id]);
 
-  // Memoized toggle wishlist function
+  // wishlist
   const toggleWishlist = useCallback(
-    (bookId: number) => {
-      if (isInWishlist(bookId)) {
-        removeFromWishlist(bookId);
+    (productId: number) => {
+      if (isInWishlist(productId)) {
+        removeFromWishlist(productId);
         toast.success("উইশলিস্ট থেকে সরানো হয়েছে");
       } else {
-        addToWishlist(bookId);
+        addToWishlist(productId);
         toast.success("উইশলিস্টে যোগ করা হয়েছে");
       }
     },
     [isInWishlist, removeFromWishlist, addToWishlist]
   );
 
-  // Memoized add to cart function
+  // add to cart
   const handleAddToCart = useCallback(
-    async (book: Book) => {
+    async (product: Product) => {
       try {
-        // ১) server-side cart এ যোগ করার চেষ্টা (login থাকলে সফল হবে)
         const res = await fetch("/api/cart", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            productId: book.id,
-            quantity: 1,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId: product.id, quantity: 1 }),
         });
 
-        // 401 মানে user লগইন না, তখন error দেখাবো না।
         if (!res.ok && res.status !== 401) {
           const data = await res.json().catch(() => null);
-          const message = data?.error || "কার্টে যোগ করতে সমস্যা হয়েছে";
-          throw new Error(message);
+          throw new Error(data?.error || "কার্টে যোগ করতে সমস্যা হয়েছে");
         }
 
-        // ২) সবসময় local cart context update হবে (login থাকুক/না থাকুক)
-        addToCart(book.id, 1);
-
-        toast.success(`"${book.name}" কার্টে যোগ করা হয়েছে`);
+        addToCart(product.id, 1);
+        toast.success(`"${product.name}" কার্টে যোগ করা হয়েছে`);
       } catch (err) {
         console.error("Error adding to cart:", err);
-        toast.error(
-          err instanceof Error ? err.message : "কার্টে যোগ করতে সমস্যা হয়েছে"
-        );
+        toast.error(err instanceof Error ? err.message : "কার্টে যোগ করতে সমস্যা হয়েছে");
       }
     },
     [addToCart]
   );
 
-  // ⏳ Enhanced Skeleton Loader state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#F4F8F7]/30 to-white py-8 md:py-12 lg:py-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Skeleton Header */}
-          <div className="mb-8 md:mb-12">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-4">
-                <div className="h-6 w-24 bg-gray-200 rounded-lg animate-pulse"></div>
-                <div className="w-1 h-8 bg-gradient-to-b from-[#0E4B4B] to-[#5FA3A3] rounded-full"></div>
-              </div>
-              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-lg border border-[#5FA3A3]/30">
-                <div className="h-4 w-4 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
-                <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
-              </div>
-            </div>
-            <div className="bg-gradient-to-r from-[#0E4B4B] to-[#5FA3A3] rounded-2xl p-6 md:p-8 text-white">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                  <div className="h-8 w-8 bg-white/10 rounded animate-pulse"></div>
-                </div>
-                <div>
-                  <div className="h-8 w-64 bg-white/20 rounded-lg animate-pulse mb-2"></div>
-                  <div className="h-4 w-48 bg-white/10 rounded-lg animate-pulse"></div>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-6 text-sm">
-                <div className="h-4 w-24 bg-white/10 rounded-lg animate-pulse"></div>
-                <div className="h-4 w-20 bg-white/10 rounded-lg animate-pulse"></div>
-                <div className="h-4 w-24 bg-white/10 rounded-lg animate-pulse"></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Skeleton Books Grid */}
-          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, index) => (
-              <div key={index} className="group overflow-hidden border-0 bg-gradient-to-br from-white to-[#F4F8F7] shadow-lg rounded-2xl">
-                {/* Skeleton Badges */}
-                <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-                  <div className="w-16 h-6 bg-gray-200 rounded-full animate-pulse"></div>
-                  <div className="w-16 h-6 bg-gray-200 rounded-full animate-pulse"></div>
-                </div>
-                {/* Skeleton Wishlist Button */}
-                <div className="absolute top-3 right-3 z-10">
-                  <div className="w-10 h-10 bg-white/80 rounded-full animate-pulse"></div>
-                </div>
-                {/* Skeleton Book Image */}
-                <div className="relative w-full overflow-hidden bg-white p-4">
-                  <div className="relative aspect-[3/4] w-full bg-gray-200 animate-pulse"></div>
-                </div>
-                <div className="p-4 sm:p-5">
-                  {/* Skeleton Rating */}
-                  <div className="flex items-center gap-1 mb-3 min-h-[18px]">
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <div key={star} className="h-3 w-3 bg-gray-200 rounded animate-pulse"></div>
-                      ))}
-                    </div>
-                    <div className="h-3 w-20 bg-gray-200 rounded animate-pulse ml-1"></div>
-                  </div>
-                  {/* Skeleton Book Name */}
-                  <div className="h-6 w-full bg-gray-200 rounded-lg animate-pulse mb-2"></div>
-                  <div className="h-6 w-3/4 bg-gray-200 rounded-lg animate-pulse mb-3"></div>
-                  {/* Skeleton Author */}
-                  <div className="h-4 w-32 bg-gray-200 rounded-lg animate-pulse mb-3"></div>
-                  {/* Skeleton Price */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-baseline gap-2">
-                      <div className="h-6 w-16 bg-gray-200 rounded-lg animate-pulse"></div>
-                      <div className="h-4 w-12 bg-gray-200 rounded-lg animate-pulse"></div>
-                    </div>
-                    <div className="h-6 w-20 bg-gray-200 rounded-lg animate-pulse"></div>
-                  </div>
-                </div>
-                {/* Skeleton Button */}
-                <div className="p-4 sm:p-5 pt-0">
-                  <div className="w-full h-12 bg-gray-200 rounded-xl animate-pulse"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="min-h-screen bg-[#f7f7fb] flex items-center justify-center">
+        <p className="text-gray-600">ডাটা লোড হচ্ছে...</p>
       </div>
     );
   }
@@ -314,11 +304,10 @@ export default function Page({ params }: PageProps) {
   return (
     <CategoryPage
       category={category}
-      categoryBooks={categoryBooks}
+      categoryProducts={categoryProducts}
       categoryCount={categoryCount}
       loading={loading}
       error={error}
-      ratings={ratings}
       toggleWishlist={toggleWishlist}
       handleAddToCart={handleAddToCart}
       isInWishlist={isInWishlist}

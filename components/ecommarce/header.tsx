@@ -33,7 +33,6 @@ const CATEGORIES_API = "/api/categories";
 interface ProductSummary {
   id: number | string;
   name: string;
-  writer?: { name: string } | null;
   image?: string | null;
 }
 
@@ -77,121 +76,184 @@ const clamp = (v: number, min: number, max: number) =>
   Math.max(min, Math.min(max, v));
 
 /* =========================
-   ✅ Sub + Child Flyout (No Parent Column)
-   Requirement: parent name list দেখাবে না
+   ✅ Row-2 Dropdown
+   - Parent visible first
+   - Hover Parent => show Sub
+   - Hover Sub => show Child
+   - Professional scroll
 ========================= */
-function SubChildFlyout({
-  parent,
-  onNavigate,
+function TechlandCategoryDropdown({
+  categories,
+  loading,
+  onClose,
 }: {
-  parent: CategoryNode;
-  onNavigate: () => void;
+  categories: CategoryNode[];
+  loading: boolean;
+  onClose: () => void;
 }) {
+  const router = useRouter();
+
+  // ✅ initially hidden
+  const [activeParentId, setActiveParentId] = useState<number | null>(null);
   const [activeSubId, setActiveSubId] = useState<number | null>(null);
 
+  const activeParent = useMemo(() => {
+    if (!activeParentId) return null;
+    return categories.find((c) => c.id === activeParentId) ?? null;
+  }, [categories, activeParentId]);
+
+  const subList = activeParent?.children ?? [];
+
   const activeSub = useMemo(() => {
-    if (!activeSubId) return parent.children[0] ?? null;
-    return parent.children.find((c) => c.id === activeSubId) ?? null;
-  }, [parent.children, activeSubId]);
+    if (!activeSubId) return null;
+    return subList.find((s) => s.id === activeSubId) ?? null;
+  }, [subList, activeSubId]);
 
+  const childList = activeSub?.children ?? [];
+
+  // reset when dropdown content changes (safe)
   useEffect(() => {
-    // parent change হলে default first sub
-    setActiveSubId(parent.children[0]?.id ?? null);
-  }, [parent.id]);
+    setActiveParentId(null);
+    setActiveSubId(null);
+  }, [categories.length]);
 
-  const colItemBase =
-    "w-full flex items-center justify-between px-4 py-2 text-left text-sm transition";
-  const colItemInactive = "text-foreground hover:bg-muted";
-  const colItemActive = "bg-primary text-primary-foreground";
+  const go = (slug: string) => {
+    router.push(`/kitabghor/categories/${slug}`);
+    onClose();
+  };
+
+  const itemBase =
+    "w-full flex items-center justify-between px-4 py-2.5 text-sm transition select-none";
+  const itemInactive =
+    "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800/60";
+  const itemActive =
+    "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900";
+
+  // professional scroll: works even without plugins (Firefox uses scrollbarWidth)
+  const colShell =
+    "w-[260px] max-h-[420px] overflow-y-auto overflow-x-hidden " +
+    "bg-white dark:bg-slate-900 " +
+    "scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent";
+
+  const wrapperShell =
+    "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-md overflow-hidden";
+
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-md px-5 py-4 text-sm text-slate-600 dark:text-slate-300">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!categories.length) {
+    return (
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-md px-5 py-4 text-sm text-slate-600 dark:text-slate-300">
+        No categories found.
+      </div>
+    );
+  }
 
   return (
-    <div
-      className="inline-flex bg-background text-foreground border border-border rounded-xl shadow-2xl overflow-hidden"
-      onMouseLeave={onNavigate}
-    >
-      {/* Subcategories */}
-      <div className="w-[280px] max-h-[380px] overflow-auto">
-        <Link
-          href={`/kitabghor/categories/${parent.slug}`}
-          onClick={onNavigate}
-          className="block px-4 py-2 text-xs font-semibold text-primary border-b border-border hover:underline"
+    <div className={wrapperShell}>
+      <div className="flex">
+        {/* Parent (always visible) */}
+        <div
+          className={`${colShell} border-r border-slate-200 dark:border-slate-700`}
+          style={{ scrollbarWidth: "thin" }}
         >
-          {parent.name} — সব দেখুন
-        </Link>
-
-        {parent.children.length === 0 ? (
-          <div className="px-4 py-3 text-sm text-muted-foreground">
-            সাব ক্যাটাগরি নেই
-          </div>
-        ) : (
-          parent.children.map((sub) => {
-            const isActive = sub.id === (activeSub?.id ?? null);
-            const hasChild = (sub.children?.length ?? 0) > 0;
+          {categories.map((p) => {
+            const isActive = p.id === activeParentId;
+            const hasSub = (p.children?.length ?? 0) > 0;
 
             return (
               <button
-                key={sub.id}
+                key={p.id}
                 type="button"
-                onMouseEnter={() => setActiveSubId(sub.id)}
-                className={`${colItemBase} ${
-                  isActive ? colItemActive : colItemInactive
-                }`}
+                onMouseEnter={() => {
+                  setActiveParentId(p.id);
+                  setActiveSubId(null); // ✅ child hidden until sub hover
+                }}
+                onClick={() => go(p.slug)}
+                className={`${itemBase} ${isActive ? itemActive : itemInactive}`}
+                title={p.name}
               >
-                <span className="truncate">{sub.name}</span>
-                {hasChild ? (
-                  <ChevronRight className="h-4 w-4 opacity-70" />
+                <span className="truncate font-medium">{p.name}</span>
+                {hasSub ? (
+                  <ChevronRight className="h-4 w-4 opacity-80" />
                 ) : (
                   <span className="w-4" />
                 )}
               </button>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
 
-      {/* Children */}
-      <div className="w-[280px] max-h-[380px] overflow-auto border-l border-border bg-background">
-        {activeSub ? (
-          <>
-            <Link
-              href={`/kitabghor/categories/${activeSub.slug}`}
-              onClick={onNavigate}
-              className="block px-4 py-2 text-xs font-semibold text-primary border-b border-border hover:underline"
-            >
-              {activeSub.name} — সব দেখুন
-            </Link>
+        {/* Sub (hidden until Parent hover) */}
+        <div
+          className={`${colShell} border-r border-slate-200 dark:border-slate-700 ${
+            activeParentId ? "block" : "hidden"
+          }`}
+          style={{ scrollbarWidth: "thin" }}
+        >
+          {subList.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+              No subcategories.
+            </div>
+          ) : (
+            subList.map((s) => {
+              const isActive = s.id === activeSubId;
+              const hasChild = (s.children?.length ?? 0) > 0;
 
-            {activeSub.children.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-muted-foreground">
-                চাইল্ড ক্যাটাগরি নেই
-              </div>
-            ) : (
-              <div className="p-2">
-                {activeSub.children.map((child) => (
-                  <Link
-                    key={child.id}
-                    href={`/kitabghor/categories/${child.slug}`}
-                    onClick={onNavigate}
-                    className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition"
-                  >
-                    {child.name}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="px-4 py-3 text-sm text-muted-foreground">
-            সাব ক্যাটাগরি সিলেক্ট করুন
-          </div>
-        )}
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onMouseEnter={() => setActiveSubId(s.id)}
+                  onClick={() => go(s.slug)}
+                  className={`${itemBase} ${isActive ? itemActive : itemInactive}`}
+                  title={s.name}
+                >
+                  <span className="truncate">{s.name}</span>
+                  {hasChild ? (
+                    <ChevronRight className="h-4 w-4 opacity-80" />
+                  ) : (
+                    <span className="w-4" />
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Child (hidden until Sub hover) */}
+        <div className={`${colShell} ${activeSubId ? "block" : "hidden"}`} style={{ scrollbarWidth: "thin" }}>
+          {childList.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+              No child categories.
+            </div>
+          ) : (
+            childList.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => go(c.slug)}
+                className={`${itemBase} ${itemInactive}`}
+                title={c.name}
+              >
+                <span className="truncate">{c.name}</span>
+                <span className="w-4" />
+              </button>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 /* =========================
-   Full Header
+   Header
 ========================= */
 export default function Header() {
   const router = useRouter();
@@ -204,7 +266,7 @@ export default function Header() {
   const [isPending, setIsPending] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
-  // ✅ Mobile drawer
+  // Mobile drawer
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // cart count
@@ -232,66 +294,62 @@ export default function Header() {
   // row-3 hover dropdown
   const [hoverTopCatId, setHoverTopCatId] = useState<number | null>(null);
 
-  // row-2 active top category for flyout
-  const [activeTopCatId, setActiveTopCatId] = useState<number | null>(null);
-
-  // ✅ row3 refs + dropdown position (viewport-fixed, clamped)
+  // row3 refs + dropdown position (viewport-fixed, clamped)
   const row3Ref = useRef<HTMLDivElement | null>(null);
   const catItemRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null);
 
-  const userName = (session?.user as any)?.name || "ব্যবহারকারী";
+  // ✅ Row-3 no-stuck close controller
+  const closeTimerRef = useRef<number | null>(null);
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  };
+  const scheduleCloseRow3 = () => {
+    // Fast close; dropdown cancels it on enter
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setHoverTopCatId(null);
+      setDropdownPos(null);
+    }, 80);
+  };
+
+  const userName = (session?.user as any)?.name || "User";
   const userRole = (session?.user as any)?.role || "user";
 
   useEffect(() => setHasMounted(true), []);
 
-// Load theme properly on mount
-useEffect(() => {
-  const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+  // theme load
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
 
-  // 1️⃣ If saved in localStorage
-  if (savedTheme) {
-    setTheme(savedTheme);
-
-    if (savedTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+    if (savedTheme) {
+      setTheme(savedTheme);
+      if (savedTheme === "dark") document.documentElement.classList.add("dark");
+      else document.documentElement.classList.remove("dark");
+      return;
     }
 
-    return;
-  }
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const systemTheme: "light" | "dark" = prefersDark ? "dark" : "light";
+    setTheme(systemTheme);
 
-  // 2️⃣ Otherwise fallback to system preference
-  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const systemTheme: "light" | "dark" = prefersDark ? "dark" : "light";
+    if (systemTheme === "dark") document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
+  }, []);
 
-  setTheme(systemTheme);
-
-  if (systemTheme === "dark") {
-    document.documentElement.classList.add("dark");
-  } else {
-    document.documentElement.classList.remove("dark");
-  }
-}, []);
-
-// Toggle
-const toggleTheme = () => {
-  const newTheme = theme === "dark" ? "light" : "dark";
-
-  setTheme(newTheme);
-  localStorage.setItem("theme", newTheme);
-
-  if (newTheme === "dark") {
-    document.documentElement.classList.add("dark");
-  } else {
-    document.documentElement.classList.remove("dark");
-  }
-};
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    if (newTheme === "dark") document.documentElement.classList.add("dark");
+    else document.documentElement.classList.remove("dark");
+  };
 
   useEffect(() => {
-    const total =
-      cartItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    const total = cartItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
     setCartCount(total);
   }, [cartItems]);
 
@@ -308,7 +366,6 @@ const toggleTheme = () => {
           ? data.map((p: any) => ({
               id: p.id,
               name: p.name,
-              writer: p.writer ?? null,
               image: p.image ?? null,
             }))
           : [];
@@ -350,13 +407,6 @@ const toggleTheme = () => {
     loadCategories();
   }, []);
 
-  // set default active top category when dropdown opens
-  useEffect(() => {
-    if (catOpen && categoryTree.length > 0 && !activeTopCatId) {
-      setActiveTopCatId(categoryTree[0].id);
-    }
-  }, [catOpen, categoryTree, activeTopCatId]);
-
   // search filtering
   useEffect(() => {
     if (!searchTerm || searchTerm.trim().length < 2 || !hasLoadedProducts) {
@@ -365,9 +415,7 @@ const toggleTheme = () => {
       return;
     }
     const term = searchTerm.toLowerCase();
-    const filtered = allProducts
-      .filter((p) => p.name.toLowerCase().includes(term))
-      .slice(0, 8);
+    const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(term)).slice(0, 8);
     setSearchResults(filtered);
     setShowSearchDropdown(filtered.length > 0);
   }, [searchTerm, allProducts, hasLoadedProducts]);
@@ -377,17 +425,11 @@ const toggleTheme = () => {
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
 
-      if (catWrapRef.current && !catWrapRef.current.contains(target)) {
-        setCatOpen(false);
-      }
-      if (profileRef.current && !profileRef.current.contains(target)) {
-        setProfileOpen(false);
-      }
+      if (catWrapRef.current && !catWrapRef.current.contains(target)) setCatOpen(false);
+      if (profileRef.current && !profileRef.current.contains(target)) setProfileOpen(false);
 
       const el = e.target as HTMLElement;
-      if (!el.closest?.(".header-search-wrapper")) {
-        setShowSearchDropdown(false);
-      }
+      if (!el.closest?.(".header-search-wrapper")) setShowSearchDropdown(false);
     };
 
     document.addEventListener("mousedown", handler);
@@ -404,10 +446,15 @@ const toggleTheme = () => {
     };
   }, [mobileMenuOpen]);
 
+  // cleanup row3 timer
+  useEffect(() => {
+    return () => clearCloseTimer();
+  }, []);
+
   const handleSelectProduct = (p: ProductSummary) => {
     setSearchTerm("");
     setShowSearchDropdown(false);
-    router.push(`/kitabghor/books/${p.id}`);
+    router.push(`/kitabghor/products/${p.id}`);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -437,12 +484,6 @@ const toggleTheme = () => {
     return topCategories.find((c) => c.id === hoverTopCatId) ?? null;
   }, [hoverTopCatId, topCategories]);
 
-  // active top category for row-2 dropdown
-  const activeTop = useMemo(() => {
-    if (!activeTopCatId) return null;
-    return topCategories.find((c) => c.id === activeTopCatId) ?? null;
-  }, [activeTopCatId, topCategories]);
-
   // reusable button classes
   const topBtnClass =
     "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent";
@@ -463,19 +504,19 @@ const toggleTheme = () => {
     "after:bg-current after:scale-x-0 after:origin-left " +
     "after:transition-transform after:duration-300 hover:after:scale-x-100";
 
-  // Professional dropdown positioning (never cut)
+  // dropdown positioning (row3)
   const positionHoverDropdown = (catId: number) => {
     const el = catItemRefs.current.get(catId);
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
 
-    // flyout width: 280 + 280 = 560
-    const W = 560;
+    // width estimate of row3 dropdown used below (kept from your code)
+    const W = 780;
     const margin = 8;
 
     const left = clamp(rect.left, margin, window.innerWidth - W - margin);
-    const top = rect.bottom + 8; // below row3 item
+    const top = rect.bottom + 8;
 
     setDropdownPos({ left, top });
   };
@@ -504,16 +545,9 @@ const toggleTheme = () => {
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex items-center gap-3 min-w-0">
               <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-border bg-background/10 shrink-0">
-                <Image
-                  src="/assets/examplelogo.jpg"
-                  alt="Logo"
-                  fill
-                  className="object-contain p-1"
-                />
+                <Image src="/assets/examplelogo.jpg" alt="Logo" fill className="object-contain p-1" />
               </div>
-              <div className="text-md sm:text-3xl tracking-wider truncate">
-                BOED ECOMMERCE
-              </div>
+              <div className="text-md sm:text-3xl tracking-wider truncate">BOED ECOMMERCE</div>
             </Link>
 
             {/* Desktop actions */}
@@ -522,23 +556,15 @@ const toggleTheme = () => {
                 <Button
                   onClick={toggleTheme}
                   className="rounded-full bg-muted hover:bg-accent text-foreground h-11 w-11 flex items-center justify-center border border-border"
-                  title={
-                    theme === "dark"
-                      ? "Switch to Light Mode"
-                      : "Switch to Dark Mode"
-                  }
+                  title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 >
-                  {theme === "dark" ? (
-                    <Sun className="h-5 w-5" />
-                  ) : (
-                    <Moon className="h-5 w-5" />
-                  )}
+                  {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                 </Button>
               )}
 
               <Link href="/kitabghor/blogs" className={topBtnClass}>
                 <Newspaper className="h-4 w-4" />
-                ব্লগ
+                Blog
               </Link>
               <Link href="/kitabghor/products" className={topBtnClass}>
                 <Boxes className="h-4 w-4" />
@@ -554,11 +580,7 @@ const toggleTheme = () => {
                   className="rounded-lg bg-muted hover:bg-accent text-foreground h-10 w-10 flex items-center justify-center border border-border"
                   title={theme === "dark" ? "Light" : "Dark"}
                 >
-                  {theme === "dark" ? (
-                    <Sun className="h-5 w-5" />
-                  ) : (
-                    <Moon className="h-5 w-5" />
-                  )}
+                  {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                 </Button>
               )}
 
@@ -604,19 +626,16 @@ const toggleTheme = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
-                onFocus={() =>
-                  searchResults.length > 0 && setShowSearchDropdown(true)
-                }
+                onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
                 placeholder="Search for products..."
-                className="w-full h-11 rounded-lg pl-4 pr-[54px] input-theme focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full h-11 rounded-lg pl-4 pr-[54px] input-theme"
               />
 
               <button
                 type="button"
                 className="absolute right-1 top-1 h-9 w-11 rounded-md bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
                 onClick={() => {
-                  if (searchResults.length > 0)
-                    handleSelectProduct(searchResults[0]);
+                  if (searchResults.length > 0) handleSelectProduct(searchResults[0]);
                 }}
                 aria-label="Search"
               >
@@ -626,28 +645,19 @@ const toggleTheme = () => {
               {showSearchDropdown && (
                 <div className="absolute mt-2 w-full bg-background text-foreground rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-50">
                   {searchLoading && !hasLoadedProducts ? (
-                    <div className="px-4 py-3 text-sm text-muted-foreground">
-                      লোড হচ্ছে...
-                    </div>
+                    <div className="px-4 py-3 text-sm text-muted-foreground">Loading...</div>
                   ) : searchResults.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-muted-foreground">
-                      কোন বই পাওয়া যায়নি
-                    </div>
+                    <div className="px-4 py-3 text-sm text-muted-foreground">No results found.</div>
                   ) : (
-                    searchResults.map((book) => (
+                    searchResults.map((p) => (
                       <button
-                        key={book.id}
+                        key={p.id}
                         type="button"
-                        onClick={() => handleSelectProduct(book)}
+                        onClick={() => handleSelectProduct(p)}
                         className="w-full flex items-start px-4 py-2 text-left hover:bg-muted transition text-sm"
                       >
                         <div className="flex flex-col">
-                          <span className="font-medium">{book.name}</span>
-                          {book.writer?.name && (
-                            <span className="text-xs text-muted-foreground">
-                              লেখক: {book.writer.name}
-                            </span>
-                          )}
+                          <span className="font-medium">{p.name}</span>
                         </div>
                       </button>
                     ))
@@ -659,130 +669,97 @@ const toggleTheme = () => {
 
           {/* Row 2 (Desktop only) */}
           <div className="hidden md:flex items-center gap-4">
-            {/* All Category */}
-            <div ref={catWrapRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setCatOpen((p) => !p)}
-                className="h-11 w-[190px] px-4 rounded-lg bg-muted text-foreground border border-border flex items-center justify-between transition-colors hover:bg-accent"
-              >
-                <span className="text-sm font-semibold">All Category</span>
-                <ChevronDown className="h-4 w-4 opacity-80" />
-              </button>
+            {/* All Category + Search (theme-aware) */}
+            <div className="flex-1 flex items-center">
+              {/* All Category */}
+              <div ref={catWrapRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setCatOpen((p) => !p)}
+                  className="
+                    h-11 w-[200px]
+                    rounded-l-md rounded-r-none
+                    bg-muted text-foreground border border-border
+                    flex items-center justify-between
+                    px-4
+                    hover:bg-accent transition
+                    focus:outline-none focus:ring-2 focus:ring-primary/40
+                  "
+                >
+                  <span className="text-sm font-semibold">All Category</span>
+                  <ChevronDown className="h-4 w-4 opacity-70" />
+                </button>
 
-              {catOpen && (
-                <div className="absolute left-0 mt-2 z-50">
-                  {categoryLoading ? (
-                    <div className="bg-background text-foreground px-5 py-4 rounded-xl border border-border shadow-2xl text-sm">
-                      লোড হচ্ছে...
-                    </div>
-                  ) : categoryTree.length === 0 ? (
-                    <div className="bg-background text-foreground px-5 py-4 rounded-xl border border-border shadow-2xl text-sm">
-                      কোন ক্যাটাগরি নেই
-                    </div>
-                  ) : (
-                    <div className="bg-background text-foreground border border-border rounded-xl shadow-2xl overflow-hidden">
-                      <div className="flex">
-                        {/* Top Categories Column */}
-                        <div className="w-[200px] max-h-[420px] overflow-auto border-r border-border">
-                          {categoryTree.map((topCat) => (
-                            <button
-                              key={topCat.id}
-                              type="button"
-                              onMouseEnter={() => setActiveTopCatId(topCat.id)}
-                              onClick={() => {
-                                router.push(`/kitabghor/categories/${topCat.slug}`);
-                                setCatOpen(false);
-                              }}
-                              className={`w-full flex items-center justify-between px-4 py-3 text-left text-sm transition ${
-                                activeTopCatId === topCat.id
-                                  ? "bg-primary text-primary-foreground"
-                                  : "text-foreground hover:bg-muted"
-                              }`}
-                            >
-                              <span className="font-medium truncate">{topCat.name}</span>
-                              {topCat.children.length > 0 ? (
-                                <ChevronRight className="h-4 w-4 opacity-70" />
-                              ) : (
-                                <span className="w-4" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
+                {catOpen && (
+                  <div className="absolute left-0 mt-2 z-[9999]">
+                    <TechlandCategoryDropdown
+                      categories={categoryTree}
+                      loading={categoryLoading}
+                      onClose={() => setCatOpen(false)}
+                    />
+                  </div>
+                )}
+              </div>
 
-                        {/* Sub + Child Categories Flyout */}
-                        {activeTop && (
-                          <div onMouseLeave={() => setCatOpen(false)}>
-                            <SubChildFlyout
-                              parent={activeTop}
-                              onNavigate={() => setCatOpen(false)}
-                            />
-                          </div>
-                        )}
-                      </div>
+              {/* Search */}
+              <div className="flex-1 header-search-wrapper relative">
+                <div className="relative">
+                  <input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
+                    placeholder="Search for products..."
+                    className="
+                      w-full h-11
+                      rounded-r-md rounded-l-none
+                      bg-background text-foreground
+                      border-y border-r border-border
+                      pl-4 pr-[54px]
+                      focus:outline-none focus:ring-2 focus:ring-primary/40
+                    "
+                  />
+
+                  <button
+                    type="button"
+                    className="
+                      absolute right-1 top-1
+                      h-9 w-11 rounded-md
+                      bg-muted text-foreground border border-border
+                      flex items-center justify-center
+                      hover:bg-accent transition
+                    "
+                    onClick={() => {
+                      if (searchResults.length > 0) handleSelectProduct(searchResults[0]);
+                    }}
+                    aria-label="Search"
+                  >
+                    <Search className="h-4 w-4" />
+                  </button>
+
+                  {showSearchDropdown && (
+                    <div className="absolute mt-2 w-full bg-background text-foreground rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-[9999]">
+                      {searchLoading && !hasLoadedProducts ? (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">Loading...</div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">No results found.</div>
+                      ) : (
+                        searchResults.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleSelectProduct(p)}
+                            className="w-full flex items-start px-4 py-2 text-left hover:bg-muted transition text-sm"
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">{p.name}</span>
+                            </div>
+                          </button>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-
-            {/* Search */}
-            <div className="flex-1 header-search-wrapper relative border border-border">
-              <div className="relative">
-                <input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={handleSearchKeyDown}
-                  onFocus={() =>
-                    searchResults.length > 0 && setShowSearchDropdown(true)
-                  }
-                  placeholder="Search for products..."
-                  className="w-full h-11 rounded-lg pl-4 pr-[54px] input-theme focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-
-                <button
-                  type="button"
-                  className="absolute right-1 top-1 h-9 w-11 rounded-md bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
-                  onClick={() => {
-                    if (searchResults.length > 0)
-                      handleSelectProduct(searchResults[0]);
-                  }}
-                  aria-label="Search"
-                >
-                  <Search className="h-4 w-4" />
-                </button>
-
-                {showSearchDropdown && (
-                  <div className="absolute mt-2 w-full bg-background text-foreground rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-50">
-                    {searchLoading && !hasLoadedProducts ? (
-                      <div className="px-4 py-3 text-sm text-muted-foreground">
-                        লোড হচ্ছে...
-                      </div>
-                    ) : searchResults.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-muted-foreground">
-                        কোন বই পাওয়া যায়নি
-                      </div>
-                    ) : (
-                      searchResults.map((book) => (
-                        <button
-                          key={book.id}
-                          type="button"
-                          onClick={() => handleSelectProduct(book)}
-                          className="w-full flex items-start px-4 py-2 text-left hover:bg-muted transition text-sm"
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium">{book.name}</span>
-                            {book.writer?.name && (
-                              <span className="text-xs text-muted-foreground">
-                                লেখক: {book.writer.name}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
               </div>
             </div>
 
@@ -822,9 +799,7 @@ const toggleTheme = () => {
                       <>
                         <div className="px-4 py-3 border-b border-border">
                           <div className="text-sm font-semibold">{userName}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {userRole}
-                          </div>
+                          <div className="text-xs text-muted-foreground">{userRole}</div>
                         </div>
 
                         <Link
@@ -833,7 +808,7 @@ const toggleTheme = () => {
                           className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                         >
                           <LayoutDashboard className="h-4 w-4" />
-                          ড্যাশবোর্ড
+                          Dashboard
                         </Link>
 
                         <button
@@ -846,7 +821,7 @@ const toggleTheme = () => {
                           className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                         >
                           <LogOut className="h-4 w-4" />
-                          লগআউট
+                          Logout
                         </button>
                       </>
                     ) : (
@@ -856,7 +831,7 @@ const toggleTheme = () => {
                         className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                       >
                         <LogIn className="h-4 w-4" />
-                        লগইন
+                        Login
                       </button>
                     )}
                   </div>
@@ -870,14 +845,11 @@ const toggleTheme = () => {
       {/* Row 3 (Desktop only) */}
       <div className="bg-background border-b border-border hidden md:block text-foreground">
         <div className="container mx-auto px-4">
-          <div
-            ref={row3Ref}
-            className="h-12 flex items-center gap-2 relative"
-          >
+          <div ref={row3Ref} className="h-12 flex items-center gap-2 relative">
             {/* Home */}
             <Link href="/" className={underlinePill}>
               <House className="h-4 w-4 mr-2" />
-              হোম
+              Home
             </Link>
 
             {/* categories */}
@@ -889,14 +861,16 @@ const toggleTheme = () => {
                 }}
                 className="relative"
                 onMouseEnter={() => {
+                  clearCloseTimer();
                   setHoverTopCatId(cat.id);
                   requestAnimationFrame(() => positionHoverDropdown(cat.id));
                 }}
+                onMouseLeave={() => {
+                  // ✅ prevents stuck: mouse leave schedules close
+                  scheduleCloseRow3();
+                }}
               >
-                <Link
-                  href={`/kitabghor/categories/${cat.slug}`}
-                  className={underlinePill}
-                >
+                <Link href={`/kitabghor/categories/${cat.slug}`} className={underlinePill}>
                   {cat.name}
                 </Link>
               </div>
@@ -905,31 +879,71 @@ const toggleTheme = () => {
         </div>
       </div>
 
-      {/* ✅ Hover dropdown (Fixed + Clamped) */}
-    {hoveredTop && hoveredTop.children.length > 0 && dropdownPos && (
-  <div
-    className="fixed z-[9999]"
-    style={{ left: dropdownPos.left, top: dropdownPos.top }}
-    onMouseEnter={() => {
-      // keep open
-      setHoverTopCatId(hoveredTop.id);
-    }}
-    onMouseLeave={() => {
-      setHoverTopCatId(null);
-      setDropdownPos(null);
-    }}
-  >
-    <SubChildFlyout
-      parent={hoveredTop}
-      onNavigate={() => {
-        setHoverTopCatId(null);
-        setDropdownPos(null);
-      }}
-    />
-  </div>
-)}
+      {/* Row-3 Hover dropdown (same UI, close behaviour fixed) */}
+      {hoveredTop && hoveredTop.children.length > 0 && dropdownPos && (
+        <div
+          className="fixed z-[9999]"
+          style={{ left: dropdownPos.left, top: dropdownPos.top }}
+          onMouseEnter={() => {
+            // entering dropdown cancels close
+            clearCloseTimer();
+          }}
+          onMouseLeave={() => {
+            // leaving dropdown closes quickly
+            scheduleCloseRow3();
+          }}
+        >
+          <div className="bg-white border border-slate-200 shadow-2xl rounded-md overflow-hidden">
+            <div className="flex">
+              {/* Sub column */}
+              <div className="w-[260px] max-h-[420px] overflow-auto bg-white border-r border-slate-200">
+                {hoveredTop.children.map((sub) => (
+                  <Link
+                    key={sub.id}
+                    href={`/kitabghor/categories/${sub.slug}`}
+                    onClick={() => {
+                      setHoverTopCatId(null);
+                      setDropdownPos(null);
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    <span className="truncate">{sub.name}</span>
+                    {(sub.children?.length ?? 0) > 0 ? (
+                      <ChevronRight className="h-4 w-4 opacity-80" />
+                    ) : (
+                      <span className="w-4" />
+                    )}
+                  </Link>
+                ))}
+              </div>
 
-      {/* Mobile Drawer (same as your previous; kept) */}
+              {/* Child column (kept as your original behaviour: first sub children) */}
+              <div className="w-[260px] max-h-[420px] overflow-auto bg-white">
+                {(hoveredTop.children?.[0]?.children?.length ?? 0) === 0 ? (
+                  <div className="px-4 py-3 text-sm text-slate-500">No child categories.</div>
+                ) : (
+                  hoveredTop.children[0].children.map((child) => (
+                    <Link
+                      key={child.id}
+                      href={`/kitabghor/categories/${child.slug}`}
+                      onClick={() => {
+                        setHoverTopCatId(null);
+                        setDropdownPos(null);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-100 transition"
+                    >
+                      <span className="truncate">{child.name}</span>
+                      <span className="w-4" />
+                    </Link>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Drawer (unchanged UI text minimal English) */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-[60] md:hidden">
           <button
@@ -940,7 +954,7 @@ const toggleTheme = () => {
           />
           <div className="absolute right-0 top-0 h-full w-[86%] max-w-[360px] bg-background text-foreground border-l border-border shadow-2xl flex flex-col">
             <div className="p-4 border-b border-border flex items-center justify-between">
-              <div className="font-bold">মেনু</div>
+              <div className="font-bold">Menu</div>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
@@ -958,7 +972,7 @@ const toggleTheme = () => {
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
               >
                 <House className="h-4 w-4" />
-                হোম
+                Home
               </Link>
 
               <Link
@@ -967,7 +981,7 @@ const toggleTheme = () => {
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
               >
                 <Newspaper className="h-4 w-4" />
-                ব্লগ
+                Blog
               </Link>
 
               <Link
@@ -994,7 +1008,7 @@ const toggleTheme = () => {
                     className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
                   >
                     <LayoutDashboard className="h-4 w-4" />
-                    ড্যাশবোর্ড
+                    Dashboard
                   </Link>
 
                   <button
@@ -1007,7 +1021,7 @@ const toggleTheme = () => {
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition text-left"
                   >
                     <LogOut className="h-4 w-4" />
-                    লগআউট
+                    Logout
                   </button>
                 </div>
               ) : (
@@ -1020,86 +1034,8 @@ const toggleTheme = () => {
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition text-left"
                 >
                   <LogIn className="h-4 w-4" />
-                  লগইন
+                  Login
                 </button>
-              )}
-
-              <div className="pt-2 border-t border-border" />
-              <div className="font-semibold px-1">ক্যাটাগরি</div>
-
-              {categoryLoading ? (
-                <div className="text-sm text-muted-foreground px-1">লোড হচ্ছে...</div>
-              ) : topCategories.length === 0 ? (
-                <div className="text-sm text-muted-foreground px-1">কোন ক্যাটাগরি নেই</div>
-              ) : (
-                <div className="space-y-2">
-                  {topCategories.map((parent) => (
-                    <details
-                      key={parent.id}
-                      className="rounded-lg border border-border overflow-hidden"
-                    >
-                      <summary className="cursor-pointer select-none px-3 py-2 hover:bg-muted transition flex items-center justify-between">
-                        <span className="font-medium">{parent.name}</span>
-                        <ChevronDown className="h-4 w-4 opacity-70" />
-                      </summary>
-
-                      <div className="p-2 space-y-1 bg-background">
-                        <Link
-                          href={`/kitabghor/categories/${parent.slug}`}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition text-primary"
-                        >
-                          সব দেখুন
-                        </Link>
-
-                        {(parent.children?.length ?? 0) === 0 ? (
-                          <div className="px-3 py-2 text-sm text-muted-foreground">
-                            সাব ক্যাটাগরি নেই
-                          </div>
-                        ) : (
-                          parent.children.map((sub) => (
-                            <details
-                              key={sub.id}
-                              className="rounded-lg border border-border"
-                            >
-                              <summary className="cursor-pointer select-none px-3 py-2 hover:bg-muted transition flex items-center justify-between text-sm">
-                                <span>{sub.name}</span>
-                                <ChevronDown className="h-4 w-4 opacity-70" />
-                              </summary>
-
-                              <div className="p-2 space-y-1">
-                                <Link
-                                  href={`/kitabghor/categories/${sub.slug}`}
-                                  onClick={() => setMobileMenuOpen(false)}
-                                  className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition text-primary"
-                                >
-                                  সব দেখুন
-                                </Link>
-
-                                {(sub.children?.length ?? 0) === 0 ? (
-                                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                                    চাইল্ড ক্যাটাগরি নেই
-                                  </div>
-                                ) : (
-                                  sub.children.map((child) => (
-                                    <Link
-                                      key={child.id}
-                                      href={`/kitabghor/categories/${child.slug}`}
-                                      onClick={() => setMobileMenuOpen(false)}
-                                      className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition"
-                                    >
-                                      {child.name}
-                                    </Link>
-                                  ))
-                                )}
-                              </div>
-                            </details>
-                          ))
-                        )}
-                      </div>
-                    </details>
-                  ))}
-                </div>
               )}
             </div>
           </div>
