@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 
 // GET single shipment
 export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } },
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const shipment = await prisma.shipment.findUnique({
-      where: { id: Number(params.id) },
+      where: { id: Number(id) },
       include: {
         order: true,
         warehouse: true,
@@ -44,13 +45,14 @@ export async function GET(
 // UPDATE shipment
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const body = await req.json();
 
     const shipment = await prisma.shipment.update({
-      where: { id: Number(params.id) },
+      where: { id: Number(id) },
       data: {
         courier: body.courier,
         trackingNumber: body.trackingNumber,
@@ -74,12 +76,13 @@ export async function PATCH(
 
 // DELETE shipment
 export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } },
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     await prisma.shipment.delete({
-      where: { id: Number(params.id) },
+      where: { id: Number(id) },
     });
 
     return NextResponse.json({ message: "Shipment deleted" });
