@@ -24,10 +24,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { paymentGatewayData } = body;
+    const { paymentGatewayData, orderId, amount } = body;
 
     const payment = await prisma.payment.create({
       data: {
+        ...(orderId && { orderId }),
+        ...(amount && { amount }),
         paymentGatewayData,
       },
     });

@@ -404,7 +404,7 @@ model Order {
   total          Decimal  @db.Decimal(10, 2)
   shipping_cost  Decimal  @db.Decimal(10, 2)
   grand_total    Decimal  @db.Decimal(10, 2)
-  currency       String   @default("USD") @db.VarChar(3)
+  currency       String   @default("BDT") @db.VarChar(3)
   Vat_total      Decimal? @db.Decimal(10, 2)
   discount_total Decimal? @db.Decimal(10, 2)
 
@@ -424,15 +424,15 @@ model Order {
 
 model Payment {
   id                 Int          @id @default(autoincrement())
-  orderId            Int
-  amount             Decimal      @db.Decimal(10, 2)
-  currency           String       @default("USD") @db.VarChar(3)
+  orderId            Int?
+  amount             Decimal?     @db.Decimal(10, 2)
+  currency           String       @default("BDT") @db.VarChar(3)
   provider           String?
   status             PaymentState @default(INITIATED)
   externalId         String?      @unique
   paymentGatewayData Json?
 
-  order   Order    @relation(fields: [orderId], references: [id])
+  order   Order?    @relation(fields: [orderId], references: [id])
   refunds Refund[]
 
   createdAt DateTime @default(now())
@@ -446,7 +446,7 @@ model OrderItem {
   variantId      Int?
   quantity       Int      @default(1)
   price          Decimal  @db.Decimal(10, 2)
-  currency       String   @default("USD") @db.VarChar(3)
+  currency       String   @default("BDT") @db.VarChar(3)
   VatAmount      Decimal? @db.Decimal(10, 2)
   discountAmount Decimal? @db.Decimal(10, 2)
 
@@ -553,21 +553,21 @@ model Shipment {
   courier        String
   courierId      Int?
   trackingNumber String?
-  externalId     String?        // courier consignment id
-  trackingUrl    String?        // courier tracking page
+  externalId     String? // courier consignment id
+  trackingUrl    String? // courier tracking page
   status         ShipmentStatus @default(PENDING)
 
-  courierStatus  String?        // raw courier status
-  lastSyncedAt   DateTime?
+  courierStatus String? // raw courier status
+  lastSyncedAt  DateTime?
 
-  shippedAt      DateTime?
-  expectedDate   DateTime?
-  deliveredAt    DateTime?
+  shippedAt    DateTime?
+  expectedDate DateTime?
+  deliveredAt  DateTime?
 
-  order          Order          @relation(fields: [orderId], references: [id])
-  warehouse      Warehouse?     @relation(fields: [warehouseId], references: [id])
-  courierRef     Courier?       @relation("ShipmentToCourier", fields: [courierId], references: [id])
-  items          ShipmentItem[]
+  order      Order          @relation(fields: [orderId], references: [id])
+  warehouse  Warehouse?     @relation(fields: [warehouseId], references: [id])
+  courierRef Courier?       @relation("ShipmentToCourier", fields: [courierId], references: [id])
+  items      ShipmentItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -585,10 +585,10 @@ model Courier {
   clientId  String?
   isActive  Boolean     @default(true)
 
-  shipments Shipment[]  @relation("ShipmentToCourier")
+  shipments Shipment[] @relation("ShipmentToCourier")
 
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Warehouse {
@@ -603,6 +603,31 @@ model Warehouse {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ShippingRate {
+  id Int @id @default(autoincrement())
+
+  // Location scope
+  country String @default("BD")
+  area    String
+
+  // Pricing config
+  baseCost    Decimal @db.Decimal(10, 2)
+  weightSlabs Json?
+
+  // Free shipping
+  freeMinOrder Decimal? @db.Decimal(10, 2)
+
+  // Rule control
+  isActive Boolean @default(true)
+  priority Int     @default(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([country, area])
+  @@index([isActive, priority])
 }
 
 model StockLevel {

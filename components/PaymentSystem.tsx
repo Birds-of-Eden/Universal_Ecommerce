@@ -575,7 +575,7 @@ export default function PaymentGatewayManager() {
       </Dialog>
 
       {/* Payment Gateways List */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         {payments.length === 0 ? (
           <Card className="col-span-2">
             <CardContent className="py-12 text-center">
@@ -615,14 +615,11 @@ export default function PaymentGatewayManager() {
                       variant="ghost"
                       size="sm"
                       onClick={() => deletePayment(payment.id)}
-                      className="hover:text-destructive/80 hover:bg-destructive/10"
-                      style={{ color: 'hsl(var(--destructive))' }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                <div className="text-sm" style={{ color: 'hsl(var(--muted-foreground))' }}>ID: {payment.id}</div>
               </CardHeader>
 
               <CardContent className="space-y-3">
