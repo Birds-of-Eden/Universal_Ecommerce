@@ -197,7 +197,7 @@ export default function FeaturedProducts({
                   <div
                     key={p.id}
                     className="
-                      group relative rounded-xl border border-border bg-background
+                      group relative card-theme rounded-xl
                       overflow-hidden shadow-sm hover:shadow-md
                       transition-all
                     "
@@ -209,7 +209,7 @@ export default function FeaturedProducts({
                           className="
                             inline-flex items-center
                             h-6 px-2 text-[11px] font-semibold
-                            text-white bg-purple-700
+                            text-primary-foreground bg-primary
                             rounded-br-xl
                           "
                         >
@@ -221,14 +221,14 @@ export default function FeaturedProducts({
                     {/* Wishlist button */}
                     <button
                       onClick={() => handleWishlistToggle(p.id, isWishlisted)}
-                      className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center transition-all hover:scale-110"
+                      className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full bg-card/80 backdrop-blur-sm border border-border flex items-center justify-center transition-all hover:scale-110"
                       title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                     >
                       <Heart 
                         className={`h-4 w-4 transition-colors ${
                           isWishlisted 
-                            ? "fill-red-500 text-red-500" 
-                            : "text-muted-foreground hover:text-red-500"
+                            ? "fill-destructive text-destructive" 
+                            : "text-muted-foreground hover:text-destructive"
                         }`}
                       />
                     </button>
@@ -239,7 +239,7 @@ export default function FeaturedProducts({
                       title={p.name}
                     >
                       {/* Image */}
-                      <div className="relative w-full h-[180px] sm:h-[200px] bg-white">
+                      <div className="relative w-full h-[180px] sm:h-[200px] bg-card">
                         {p.image ? (
                           <Image
                             src={p.image}
@@ -262,7 +262,7 @@ export default function FeaturedProducts({
                         </div>
 
                         <div className="mt-3 flex items-end gap-2">
-                          <div className="text-red-600 font-bold text-base">
+                          <div className="text-destructive font-bold text-base">
                             {formatBDT(p.basePrice)}
                           </div>
 
@@ -279,11 +279,11 @@ export default function FeaturedProducts({
                       <div className="grid grid-cols-2 gap-2">
                         <AddToCartButton
                           productId={p.id}
-                          className="h-10 w-full rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-95 transition disabled:opacity-50"
+                          className="h-10 w-full btn-primary text-sm font-semibold hover:opacity-95 rounded-lg transition disabled:opacity-50"
                         />
                         <Link
                           href={`/kitabghor/products/${p.id}`}
-                          className="h-10 w-full inline-flex items-center justify-center rounded-lg border border-border bg-background text-foreground text-sm font-semibold hover:bg-muted transition"
+                          className="h-10 w-full inline-flex items-center justify-center rounded-lg border border-border bg-card text-card-foreground text-sm font-semibold hover:bg-accent transition"
                         >
                           View Details
                         </Link>
