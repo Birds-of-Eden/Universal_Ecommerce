@@ -10,6 +10,7 @@ import Image from "next/image";
 import FeaturedCategories from "@/components/ecommarce/FeaturedCategories";
 import FeaturedProducts from "@/components/ecommarce/FeaturedProducts";
 import FeaturedLatestBest from "@/components/ecommarce/FeaturedLatestBest";
+import PopupBanner from "@/components/ecommarce/PopupBanner";
 
 type Category = {
   id: number;
@@ -154,8 +155,6 @@ const DataProvider = memo(function DataProvider({
 DataProvider.displayName = "DataProvider";
 
 export default function Home() {
-  const [showPopup, setShowPopup] = useState(false);
-
   return (
     <>
       <Head>
@@ -178,83 +177,35 @@ export default function Home() {
           <FeaturedLatestBest/>
          </div>
           <DataProvider>
-            {(data) => {
-              const popupBanner = data.banners.find((b) => b.type === "POPUP");
-
-              useEffect(() => {
-                if (popupBanner) {
-                  const timer = setTimeout(() => {
-                    setShowPopup(true);
-                  }, 1500);
-                  return () => clearTimeout(timer);
-                }
-              }, [popupBanner]);
-
-              return (
-                <>
-                  {/* POPUP MODAL */}
-                  {showPopup && popupBanner && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/80">
-                      <div className="relative card-theme rounded-lg shadow-xl max-w-[35vw] w-full p-6 border border-border">
-                        {/* Close Button */}
-                        <button
-                          onClick={() => setShowPopup(false)}
-                          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground text-xl transition"
-                        >
-                          ✕
-                        </button>
-
-                        {/* Image */}
-                        <div className="relative w-full h-80">
-                          <Image
-                            src={popupBanner.image}
-                            alt={popupBanner.title}
-                            fill
-                            className="object-contain rounded"
-                          />
-                        </div>
-
-                        {/* Button */}
-                        {popupBanner.buttonText && popupBanner.buttonLink && (
-                          <div className="mt-5 text-center">
-                            <a
-                              href={popupBanner.buttonLink}
-                              className="btn-primary px-6 py-2 rounded-md inline-block transition"
-                            >
-                              {popupBanner.buttonText}
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+            {(data) => (
+              <>
+                <PopupBanner banners={data.banners} />
+                
+                {/* Main Content */}
+                <div className="container mx-auto">
+                  {data.loading && (
+                    <p className="text-muted-foreground">
+                      Loading categories...
+                    </p>
                   )}
 
-                  {/* Main Content */}
-                  <div className="container mx-auto">
-                    {data.loading && (
-                      <p className="text-muted-foreground">
-                        Loading categories...
-                      </p>
-                    )}
+                  {data.error && (
+                    <p className="text-destructive">{data.error}</p>
+                  )}
 
-                    {data.error && (
-                      <p className="text-destructive">{data.error}</p>
-                    )}
-
-                    {!data.loading &&
-                      !data.error &&
-                      data.categories.map((category) => (
-                        <CategoryBooks
-                          key={category.id}
-                          category={category}
-                          allProducts={data.allProducts}
-                          ratings={data.ratings}
-                        />
-                      ))}
-                  </div>
-                </>
-              );
-            }}
+                  {!data.loading &&
+                    !data.error &&
+                    data.categories.map((category) => (
+                      <CategoryBooks
+                        key={category.id}
+                        category={category}
+                        allProducts={data.allProducts}
+                        ratings={data.ratings}
+                      />
+                    ))}
+                </div>
+              </>
+            )}
           </DataProvider>
 
           <Footer />
