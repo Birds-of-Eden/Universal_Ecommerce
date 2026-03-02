@@ -157,12 +157,6 @@ DataProvider.displayName = "DataProvider";
 export default function Home() {
   return (
     <>
-      <Head>
-        <title>
-          হিলফুল-ফুযুল প্রকাশনী | ইসলামিক বইয়ের অনলাইন বিক্রেতা - বাংলাদেশ
-        </title>
-      </Head>
-
       <div className="w-full">
         <div className="min-h-screen flex flex-col">
           <Header />
