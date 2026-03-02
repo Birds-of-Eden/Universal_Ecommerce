@@ -1,6 +1,6 @@
 // app/kitabghor/books/page.tsx
 import { Metadata } from "next";
-import BooksPageClient from "./BooksClient";
+import BooksPageClient from "./AllProducts";
 
 export const metadata: Metadata = {
   title: "সকল বই - কিতাবঘর | হিলফুল ফুজুল",
