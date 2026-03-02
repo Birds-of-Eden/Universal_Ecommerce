@@ -97,7 +97,7 @@ function SubChildFlyout({
   useEffect(() => {
     // parent change হলে default first sub
     setActiveSubId(parent.children[0]?.id ?? null);
-  }, [parent.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [parent.id]);
 
   const colItemBase =
     "w-full flex items-center justify-between px-4 py-2 text-left text-sm transition";
@@ -232,6 +232,9 @@ export default function Header() {
   // row-3 hover dropdown
   const [hoverTopCatId, setHoverTopCatId] = useState<number | null>(null);
 
+  // row-2 active top category for flyout
+  const [activeTopCatId, setActiveTopCatId] = useState<number | null>(null);
+
   // ✅ row3 refs + dropdown position (viewport-fixed, clamped)
   const row3Ref = useRef<HTMLDivElement | null>(null);
   const catItemRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
@@ -347,6 +350,13 @@ const toggleTheme = () => {
     loadCategories();
   }, []);
 
+  // set default active top category when dropdown opens
+  useEffect(() => {
+    if (catOpen && categoryTree.length > 0 && !activeTopCatId) {
+      setActiveTopCatId(categoryTree[0].id);
+    }
+  }, [catOpen, categoryTree, activeTopCatId]);
+
   // search filtering
   useEffect(() => {
     if (!searchTerm || searchTerm.trim().length < 2 || !hasLoadedProducts) {
@@ -427,6 +437,12 @@ const toggleTheme = () => {
     return topCategories.find((c) => c.id === hoverTopCatId) ?? null;
   }, [hoverTopCatId, topCategories]);
 
+  // active top category for row-2 dropdown
+  const activeTop = useMemo(() => {
+    if (!activeTopCatId) return null;
+    return topCategories.find((c) => c.id === activeTopCatId) ?? null;
+  }, [activeTopCatId, topCategories]);
+
   // reusable button classes
   const topBtnClass =
     "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent";
@@ -477,7 +493,7 @@ const toggleTheme = () => {
       window.removeEventListener("resize", onUpdate);
       window.removeEventListener("scroll", onUpdate, true);
     };
-  }, [hoverTopCatId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hoverTopCatId]);
 
   return (
     <header className="sticky top-0 z-50">
@@ -524,7 +540,7 @@ const toggleTheme = () => {
                 <Newspaper className="h-4 w-4" />
                 ব্লগ
               </Link>
-              <Link href="/kitabghor/books" className={topBtnClass}>
+              <Link href="/kitabghor/products" className={topBtnClass}>
                 <Boxes className="h-4 w-4" />
                 All Products
               </Link>
@@ -665,19 +681,45 @@ const toggleTheme = () => {
                       কোন ক্যাটাগরি নেই
                     </div>
                   ) : (
-                    // simple list (you can keep your old flyout here if you want)
-                    <div className="bg-background text-foreground border border-border rounded-xl shadow-2xl w-[320px] max-h-[420px] overflow-auto">
-                      {categoryTree.map((p) => (
-                        <Link
-                          key={p.id}
-                          href={`/kitabghor/categories/${p.slug}`}
-                          onClick={() => setCatOpen(false)}
-                          className="flex items-center justify-between px-4 py-2 text-sm hover:bg-muted transition"
-                        >
-                          <span className="font-semibold truncate">{p.name}</span>
-                          <ChevronRight className="h-4 w-4 opacity-60" />
-                        </Link>
-                      ))}
+                    <div className="bg-background text-foreground border border-border rounded-xl shadow-2xl overflow-hidden">
+                      <div className="flex">
+                        {/* Top Categories Column */}
+                        <div className="w-[200px] max-h-[420px] overflow-auto border-r border-border">
+                          {categoryTree.map((topCat) => (
+                            <button
+                              key={topCat.id}
+                              type="button"
+                              onMouseEnter={() => setActiveTopCatId(topCat.id)}
+                              onClick={() => {
+                                router.push(`/kitabghor/categories/${topCat.slug}`);
+                                setCatOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-4 py-3 text-left text-sm transition ${
+                                activeTopCatId === topCat.id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-foreground hover:bg-muted"
+                              }`}
+                            >
+                              <span className="font-medium truncate">{topCat.name}</span>
+                              {topCat.children.length > 0 ? (
+                                <ChevronRight className="h-4 w-4 opacity-70" />
+                              ) : (
+                                <span className="w-4" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Sub + Child Categories Flyout */}
+                        {activeTop && (
+                          <div onMouseLeave={() => setCatOpen(false)}>
+                            <SubChildFlyout
+                              parent={activeTop}
+                              onNavigate={() => setCatOpen(false)}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
