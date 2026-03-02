@@ -22,9 +22,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "@/lib/auth-client";
 
-// Server cart item local shape
 interface LocalCartItem {
-  id: number | string; // cartItem id (DB)
+  id: number | string;
   productId: number;
   name: string;
   price: number;
@@ -35,8 +34,7 @@ interface LocalCartItem {
 export default function CartPage() {
   const { cartItems, removeFromCart, updateQuantity, clearCart } = useCart();
 
-  // Auth session
-  const { status } = useSession(); // "loading" | "authenticated" | "unauthenticated"
+  const { status } = useSession();
   const isAuthenticated = status === "authenticated";
   const router = useRouter();
 
@@ -45,7 +43,6 @@ export default function CartPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [hasMounted, setHasMounted] = useState(false);
 
-  // Server cart items
   const [serverCartItems, setServerCartItems] = useState<LocalCartItem[] | null>(
     null
   );
@@ -53,7 +50,6 @@ export default function CartPage() {
 
   useEffect(() => setHasMounted(true), []);
 
-  // Load server cart when authenticated
   useEffect(() => {
     if (!hasMounted) return;
 
@@ -97,7 +93,6 @@ export default function CartPage() {
       }
     };
 
-    // Sync guest cart to server after login (avoids duplicates)
     const syncGuestCartToServer = async () => {
       if (cartItems.length === 0) {
         await fetchServerCart();
@@ -147,7 +142,6 @@ export default function CartPage() {
     syncGuestCartToServer();
   }, [isAuthenticated, hasMounted, cartItems, clearCart]);
 
-  // Listen for server-side cart cleared events
   useEffect(() => {
     const handler = () => setServerCartItems([]);
     window.addEventListener("serverCartCleared", handler);
@@ -156,7 +150,6 @@ export default function CartPage() {
 
   if (!hasMounted) return null;
 
-  // Render list: server cart if logged in, else local context cart
   const itemsToRender: LocalCartItem[] =
     isAuthenticated && serverCartItems ? serverCartItems : (cartItems as any);
 
@@ -169,7 +162,6 @@ export default function CartPage() {
   const total = subtotal - discountAmount + shippingCost;
   const isCartEmpty = itemsToRender.length === 0;
 
-  // Checkout -> login if needed
   const handleCheckout = async () => {
     if (!isAuthenticated) {
       sessionStorage.setItem("pendingCheckout", JSON.stringify(cartItems));
@@ -181,7 +173,6 @@ export default function CartPage() {
     router.push("/kitabghor/checkout");
   };
 
-  // Clear cart -> API + context + local server state
   const handleClearCart = async () => {
     if (itemsToRender.length === 0) return;
 
@@ -205,13 +196,11 @@ export default function CartPage() {
     }
   };
 
-  // Remove single item -> API + context + local server state
   const handleRemoveItem = async (itemId: string | number) => {
     try {
       if (isAuthenticated) {
         const res = await fetch(`/api/cart/${itemId}`, { method: "DELETE" });
 
-        // If 404, still remove locally to fix desync
         if (!res.ok && res.status !== 404) {
           const data = await res.json().catch(() => null);
           console.error("Remove cart item failed:", data || res.statusText);
@@ -232,7 +221,6 @@ export default function CartPage() {
     }
   };
 
-  // Quantity update -> API + context + local server state
   const handleUpdateQuantity = async (
     itemId: string | number,
     newQuantity: number
@@ -314,9 +302,9 @@ export default function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40 text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumbs (like screenshot) */}
+        {/* Breadcrumbs */}
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
           <Link
             href="/"
@@ -330,7 +318,9 @@ export default function CartPage() {
 
         {/* Page title */}
         <div className="mb-6">
-          <h1 className="text-3xl font-semibold tracking-tight">Shopping Cart</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Shopping Cart
+          </h1>
           {isAuthenticated && loadingServerCart && (
             <p className="mt-2 text-sm text-muted-foreground">
               Syncing your cart...
@@ -339,24 +329,24 @@ export default function CartPage() {
         </div>
 
         {isCartEmpty ? (
-          <div className="rounded-xl border border-border bg-background p-10 text-center shadow-sm">
+          <div className="rounded-xl border border-border bg-card p-10 text-center shadow-sm">
             <ShoppingCart className="h-14 w-14 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
             <p className="text-muted-foreground mb-6">
               Add some products to get started.
             </p>
             <Link href="/">
-              <Button className="rounded-md">
+              <Button className="rounded-md btn-primary">
                 Continue Shopping <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Items + Coupon/Voucher */}
+            {/* Left */}
             <div className="lg:col-span-2 space-y-6">
               {/* Items Card */}
-              <div className="rounded-xl border border-border bg-background shadow-sm">
+              <div className="rounded-xl border border-border bg-card shadow-sm">
                 <div className="flex items-center justify-between px-6 py-5 border-b border-border">
                   <div>
                     <h2 className="text-lg font-semibold">Your Products</h2>
@@ -378,7 +368,7 @@ export default function CartPage() {
                     <div key={item.id} className="px-6 py-5">
                       <div className="flex items-center gap-4">
                         {/* Image */}
-                        <div className="relative h-16 w-16 rounded-md overflow-hidden border border-border bg-muted">
+                        <div className="relative h-16 w-16 rounded-md overflow-hidden border border-border bg-background">
                           <Image
                             src={item.image || "/placeholder.svg"}
                             alt={item.name}
@@ -387,7 +377,7 @@ export default function CartPage() {
                           />
                         </div>
 
-                        {/* Name + meta */}
+                        {/* Name */}
                         <div className="min-w-0 flex-1">
                           <Link
                             href={`/kitabghor/products/${item.productId}`}
@@ -402,8 +392,8 @@ export default function CartPage() {
                           </div>
                         </div>
 
-                        {/* Qty control (matches screenshot style) */}
-                        <div className="flex items-center rounded-md border border-border overflow-hidden">
+                        {/* Qty */}
+                        <div className="flex items-center rounded-md border border-border overflow-hidden bg-background">
                           <button
                             className="h-10 w-10 grid place-items-center hover:bg-muted transition disabled:opacity-40"
                             onClick={() =>
@@ -452,7 +442,7 @@ export default function CartPage() {
                   ))}
                 </div>
 
-                {/* Bottom left link like screenshot */}
+                {/* Bottom left link */}
                 <div className="px-6 py-5 border-t border-border">
                   <Link
                     href="/"
@@ -464,13 +454,12 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Coupon/Voucher Card (matches screenshot two columns) */}
-              <div className="rounded-xl border border-border bg-background shadow-sm">
-                <div className="md:grid-cols-2 gap-0">
-                  {/* Coupon */}
+              {/* Coupon Card */}
+              <div className="rounded-xl border border-border bg-card shadow-sm">
+                <div>
                   <div className="p-6 md:border-r md:border-border">
                     <div className="flex items-start gap-3">
-                      <div className="mt-0.5 text-orange-600">
+                      <div className="mt-0.5 text-muted-foreground">
                         <Tag className="h-5 w-5" />
                       </div>
                       <div>
@@ -497,7 +486,7 @@ export default function CartPage() {
                             </div>
                             <button
                               onClick={removeCoupon}
-                              className="text-sm text-destructive hover:underline"
+                              className="text-sm text-foreground hover:underline"
                             >
                               Remove
                             </button>
@@ -512,7 +501,7 @@ export default function CartPage() {
                             placeholder="PROMO / COUPON Code"
                             value={couponCode}
                             onChange={(e) => setCouponCode(e.target.value)}
-                            className="rounded-md"
+                            className="rounded-md input-theme"
                           />
                           <Button onClick={applyCoupon} className="rounded-md">
                             Apply Coupon
@@ -522,13 +511,14 @@ export default function CartPage() {
                     </div>
                   </div>
 
+                
                 </div>
               </div>
             </div>
 
-            {/* Right: Order Summary */}
+            {/* Right */}
             <div className="lg:col-span-1">
-              <div className="rounded-xl border border-border bg-background shadow-sm sticky top-6">
+              <div className="rounded-xl border border-border bg-card shadow-sm sticky top-6">
                 <div className="px-6 py-5 border-b border-border">
                   <h2 className="text-lg font-semibold">Order Summary</h2>
                 </div>
@@ -544,12 +534,13 @@ export default function CartPage() {
                   {discountAmount > 0 && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">
-                        Discount{appliedCoupon?.discountType === "percentage"
+                        Discount
+                        {appliedCoupon?.discountType === "percentage"
                           ? ` (${appliedCoupon.discountValue}%)`
                           : ""}
                         :
                       </span>
-                      <span className="font-semibold text-green-600">
+                      <span className="font-semibold">
                         -৳{discountAmount.toLocaleString()}
                       </span>
                     </div>
@@ -564,7 +555,7 @@ export default function CartPage() {
 
                   <div className="border-t border-border pt-4 flex items-center justify-between">
                     <span className="text-sm font-semibold">Total:</span>
-                    <span className="text-xl font-bold text-orange-600">
+                    <span className="text-xl font-bold">
                       ৳{total.toLocaleString()}
                     </span>
                   </div>
@@ -578,7 +569,7 @@ export default function CartPage() {
                     </Link>
 
                     <Button
-                      className="flex-1 rounded-md"
+                      className="flex-1 rounded-md btn-primary"
                       onClick={handleCheckout}
                       disabled={isCartEmpty}
                     >
@@ -587,7 +578,6 @@ export default function CartPage() {
                     </Button>
                   </div>
 
-                  {/* Trust row (simple, professional) */}
                   <div className="pt-4 border-t border-border">
                     <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
@@ -603,7 +593,6 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Optional note (matches screenshot spacing) */}
               <div className="mt-4 text-xs text-muted-foreground">
                 Shipping may vary based on location and weight.
               </div>
