@@ -16,6 +16,7 @@ import {
   Mail,
   Tag,
   Truck,
+  MessageCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -25,6 +26,7 @@ const menuItems = [
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Products", href: "/admin/products", icon: ShoppingBag },
   { name: "Orders", href: "/admin/orders", icon: FileText },
+  { name: "Chats", href: "/admin/chats", icon: MessageCircle },
   { name: "Shipments", href: "/admin/shipments", icon: Truck },
   {
     name: "Management",

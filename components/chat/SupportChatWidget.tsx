@@ -1,0 +1,516 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
+import { MessageCircle, Send, Star, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+
+type ChatStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
+type SenderRole = "admin" | "user" | "guest" | string;
+
+type ChatConversation = {
+  id: string;
+  status: ChatStatus;
+  priority: "LOW" | "NORMAL" | "HIGH";
+  guestEmail?: string | null;
+  guestName?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageAt?: string | null;
+};
+
+type ChatMessage = {
+  id: string;
+  senderRole: SenderRole;
+  message: string;
+  attachmentUrl?: string | null;
+  createdAt: string;
+};
+
+const QUICK_ACTIONS = [
+  "Track Order",
+  "Return / Refund",
+  "Payment Issue",
+  "Talk to Agent",
+];
+
+const LS_GUEST_NAME = "support_chat_guest_name";
+const LS_GUEST_EMAIL = "support_chat_guest_email";
+const LS_CONVERSATION_ID = "support_chat_conversation_id";
+
+function getRoleForSession(role: string | undefined): SenderRole {
+  if (role?.toLowerCase() === "admin") return "admin";
+  return role ? "user" : "guest";
+}
+
+function formatChatTime(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMessage =
+      typeof payload?.error === "string" ? payload.error : "Request failed.";
+    throw new Error(errorMessage);
+  }
+  return payload as T;
+}
+
+export default function SupportChatWidget() {
+  const pathname = usePathname();
+  const { data: session, status } = useSession();
+
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<ChatConversation | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [draftMessage, setDraftMessage] = useState("");
+  const [orderReference, setOrderReference] = useState("");
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [rating, setRating] = useState<number>(5);
+  const [feedback, setFeedback] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+
+  const messageEndRef = useRef<HTMLDivElement | null>(null);
+  const role = getRoleForSession((session?.user as { role?: string } | undefined)?.role);
+  const shouldRender = useMemo(() => {
+    if (!pathname) return false;
+    if (pathname.startsWith("/admin")) return false;
+    if (pathname.startsWith("/signin")) return false;
+    if (pathname.startsWith("/sign-up")) return false;
+    if (pathname.startsWith("/forgot-password")) return false;
+    if (pathname.startsWith("/reset-password")) return false;
+    return true;
+  }, [pathname]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setGuestName(localStorage.getItem(LS_GUEST_NAME) || "");
+    setGuestEmail(localStorage.getItem(LS_GUEST_EMAIL) || "");
+    setHydrated(true);
+  }, []);
+
+  const syncConversationToLocal = useCallback((conversationId: string | null) => {
+    if (typeof window === "undefined") return;
+    if (!conversationId) {
+      localStorage.removeItem(LS_CONVERSATION_ID);
+      return;
+    }
+    localStorage.setItem(LS_CONVERSATION_ID, conversationId);
+  }, []);
+
+  const loadMessages = useCallback(
+    async (conversationId: string, silent = true) => {
+      const params = new URLSearchParams();
+      params.set("limit", "120");
+      params.set("markRead", "true");
+      if (!session?.user?.id && guestEmail) params.set("guestEmail", guestEmail);
+
+      if (!silent) setLoading(true);
+      try {
+        const data = await fetchJson<{ conversation: ChatConversation; messages: ChatMessage[] }>(
+          `/api/chat/conversations/${conversationId}/messages?${params.toString()}`,
+        );
+        setConversation(data.conversation);
+        setMessages(data.messages);
+        setError(null);
+      } catch (fetchError) {
+        setError(fetchError instanceof Error ? fetchError.message : "Failed to load messages.");
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [guestEmail, session?.user?.id],
+  );
+
+  const hydrateConversation = useCallback(async () => {
+    if (status === "loading") return;
+    setLoading(true);
+    setError(null);
+    try {
+      if (session?.user?.id) {
+        const list = await fetchJson<ChatConversation[]>(
+          `/api/chat/conversations?limit=10`,
+        );
+        const preferred =
+          list.find((item) => item.status !== "CLOSED") ??
+          list[0] ??
+          null;
+        setConversation(preferred);
+        syncConversationToLocal(preferred?.id ?? null);
+        if (preferred) {
+          await loadMessages(preferred.id, true);
+        } else {
+          setMessages([]);
+        }
+      } else {
+        if (!hydrated) return;
+        const existingId =
+          typeof window !== "undefined" ? localStorage.getItem(LS_CONVERSATION_ID) : null;
+        if (existingId && guestEmail) {
+          await loadMessages(existingId, true);
+        } else {
+          setConversation(null);
+          setMessages([]);
+        }
+      }
+    } catch (fetchError) {
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Failed to load conversation.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [guestEmail, hydrated, loadMessages, session?.user?.id, status, syncConversationToLocal]);
+
+  useEffect(() => {
+    if (!open) return;
+    void hydrateConversation();
+  }, [hydrateConversation, open]);
+
+  useEffect(() => {
+    if (!open || !conversation?.id) return;
+    const interval = setInterval(() => {
+      void loadMessages(conversation.id, true);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [conversation?.id, loadMessages, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, open]);
+
+  const persistGuestProfile = useCallback(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(LS_GUEST_NAME, guestName.trim());
+    localStorage.setItem(LS_GUEST_EMAIL, guestEmail.trim().toLowerCase());
+  }, [guestEmail, guestName]);
+
+  const createConversation = useCallback(
+    async (payload?: { message?: string; quickAction?: string; orderReference?: string }) => {
+      const body: Record<string, unknown> = {
+        message: payload?.message ?? "",
+        quickAction: payload?.quickAction ?? "",
+        orderReference: payload?.orderReference ?? "",
+      };
+
+      if (!session?.user?.id) {
+        body.guestName = guestName.trim();
+        body.guestEmail = guestEmail.trim().toLowerCase();
+      }
+
+      const created = await fetchJson<ChatConversation>("/api/chat/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      setConversation(created);
+      syncConversationToLocal(created.id);
+      await loadMessages(created.id, false);
+      return created;
+    },
+    [guestEmail, guestName, loadMessages, session?.user?.id, syncConversationToLocal],
+  );
+
+  const sendMessage = useCallback(
+    async (quickAction?: string) => {
+      const messageText =
+        draftMessage.trim() ||
+        (quickAction ? `I need help regarding ${quickAction.toLowerCase()}.` : "");
+
+      if (!messageText && !quickAction) return;
+
+      setSending(true);
+      setError(null);
+      try {
+        if (!conversation?.id) {
+          await createConversation({
+            message: messageText,
+            quickAction: quickAction ?? "",
+            orderReference: orderReference.trim(),
+          });
+        } else {
+          const body: Record<string, unknown> = {
+            message: messageText,
+            quickAction: quickAction ?? "",
+            orderReference: orderReference.trim(),
+          };
+          if (!session?.user?.id) {
+            body.guestEmail = guestEmail.trim().toLowerCase();
+          }
+          await fetchJson(`/api/chat/conversations/${conversation.id}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          await loadMessages(conversation.id, true);
+        }
+        setDraftMessage("");
+      } catch (sendError) {
+        setError(sendError instanceof Error ? sendError.message : "Failed to send message.");
+      } finally {
+        setSending(false);
+      }
+    },
+    [
+      conversation?.id,
+      createConversation,
+      draftMessage,
+      guestEmail,
+      loadMessages,
+      orderReference,
+      session?.user?.id,
+    ],
+  );
+
+  const closeConversation = useCallback(async () => {
+    if (!conversation?.id) return;
+    setSending(true);
+    setError(null);
+    try {
+      const body: Record<string, unknown> = {
+        status: "CLOSED",
+        rating,
+        feedback: feedback.trim(),
+      };
+      if (!session?.user?.id) {
+        body.guestEmail = guestEmail.trim().toLowerCase();
+      }
+      const updated = await fetchJson<ChatConversation>(`/api/chat/conversations/${conversation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      setConversation(updated);
+      setShowFeedback(false);
+      setFeedback("");
+      await loadMessages(updated.id, true);
+    } catch (closeError) {
+      setError(closeError instanceof Error ? closeError.message : "Failed to close chat.");
+    } finally {
+      setSending(false);
+    }
+  }, [conversation?.id, feedback, guestEmail, loadMessages, rating, session?.user?.id]);
+
+  if (!shouldRender) return null;
+
+  const guestReady = guestName.trim().length > 1 && guestEmail.includes("@");
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <button
+          type="button"
+          className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-[#0E4B4B] px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-[#0A3838]"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Live Support
+        </button>
+      </SheetTrigger>
+
+      <SheetContent side="right" className="w-full sm:max-w-[430px] p-0">
+        <SheetHeader className="bg-gradient-to-r from-[#0E4B4B] to-[#145A5A] text-white">
+          <div>
+            <SheetTitle className="text-white">Customer Support</SheetTitle>
+            <SheetDescription className="px-0 py-1 text-xs text-white/80">
+              Average response under 15 minutes
+            </SheetDescription>
+          </div>
+          <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-[11px] text-emerald-100">
+            Online
+          </span>
+        </SheetHeader>
+
+        {!session?.user?.id && (!guestReady || !hydrated) ? (
+          <div className="space-y-3 p-4">
+            <p className="text-sm font-medium text-foreground">
+              Start with a quick intro
+            </p>
+            <input
+              value={guestName}
+              onChange={(event) => setGuestName(event.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              placeholder="Your name"
+            />
+            <input
+              value={guestEmail}
+              onChange={(event) => setGuestEmail(event.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              placeholder="Email address"
+              type="email"
+            />
+            <Button
+              className="w-full"
+              onClick={() => {
+                persistGuestProfile();
+                void hydrateConversation();
+              }}
+            >
+              Start Chat
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="border-b px-4 py-3">
+              <div className="mb-2 flex flex-wrap gap-2">
+                {QUICK_ACTIONS.map((action) => (
+                  <button
+                    key={action}
+                    type="button"
+                    className="rounded-full border border-[#0E4B4B]/20 bg-[#0E4B4B]/5 px-3 py-1 text-xs font-medium text-[#0E4B4B] transition hover:bg-[#0E4B4B]/10"
+                    onClick={() => void sendMessage(action)}
+                    disabled={sending}
+                  >
+                    {action}
+                  </button>
+                ))}
+              </div>
+              <input
+                value={orderReference}
+                onChange={(event) => setOrderReference(event.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
+                placeholder="Optional order reference (e.g. #1234)"
+              />
+            </div>
+
+            <div className="h-[52vh] overflow-y-auto bg-[#F7FAFA] p-4">
+              {loading && messages.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Loading chat...</p>
+              ) : messages.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Send your first message. Our team will reply shortly.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {messages.map((item) => {
+                    const mine = item.senderRole === role;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
+                            mine
+                              ? "bg-[#0E4B4B] text-white"
+                              : "bg-white text-foreground"
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap">{item.message}</p>
+                          {item.attachmentUrl ? (
+                            <a
+                              href={item.attachmentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`mt-1 block text-xs underline ${
+                                mine ? "text-white/90" : "text-[#0E4B4B]"
+                              }`}
+                            >
+                              View attachment
+                            </a>
+                          ) : null}
+                          <p className={`mt-1 text-[11px] ${mine ? "text-white/75" : "text-muted-foreground"}`}>
+                            {formatChatTime(item.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messageEndRef} />
+                </div>
+              )}
+            </div>
+
+            <div className="border-t bg-background p-4">
+              {error ? <p className="mb-2 text-xs text-red-600">{error}</p> : null}
+              {showFeedback ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-foreground">Rate support:</span>
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setRating(value)}
+                        className={value <= rating ? "text-amber-500" : "text-gray-300"}
+                      >
+                        <Star className="h-4 w-4 fill-current" />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={feedback}
+                    onChange={(event) => setFeedback(event.target.value)}
+                    rows={3}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    placeholder="Optional feedback"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => void closeConversation()}
+                      disabled={sending}
+                    >
+                      Submit & Close
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowFeedback(false)}
+                    >
+                      Continue Chat
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      value={draftMessage}
+                      onChange={(event) => setDraftMessage(event.target.value)}
+                      rows={2}
+                      className="min-h-[44px] flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      placeholder="Type your message..."
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          void sendMessage();
+                        }
+                      }}
+                    />
+                    <Button size="icon" onClick={() => void sendMessage()} disabled={sending}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {conversation ? (
+                    <button
+                      type="button"
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowFeedback(true)}
+                    >
+                      <XCircle className="h-3.5 w-3.5" />
+                      End chat & leave feedback
+                    </button>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}

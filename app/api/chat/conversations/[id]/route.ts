@@ -1,0 +1,169 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import type { ChatPriority, ChatStatus, Prisma } from "@prisma/client";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { canAccessConversation, getChatActor, normalizeGuestEmail } from "@/lib/chat";
+
+const CHAT_STATUSES: ChatStatus[] = ["OPEN", "IN_PROGRESS", "CLOSED"];
+const CHAT_PRIORITIES: ChatPriority[] = ["LOW", "NORMAL", "HIGH"];
+
+function toCleanText(value: unknown, max = 500): string {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, max);
+}
+
+function buildFeedbackMessage(rating: number | null, feedback: string): string {
+  const lines: string[] = [];
+  if (rating !== null) lines.push(`CSAT rating: ${rating}/5`);
+  if (feedback) lines.push(`Feedback: ${feedback}`);
+  return lines.join("\n").trim();
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+    const actor = getChatActor(session?.user as { id?: string; role?: string } | undefined);
+    const guestEmail = normalizeGuestEmail(new URL(request.url).searchParams.get("guestEmail"));
+
+    const conversation = await prisma.chatConversation.findUnique({
+      where: { id },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        assignedTo: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+    }
+
+    if (!canAccessConversation(conversation, actor, guestEmail)) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+
+    return NextResponse.json(conversation);
+  } catch (error) {
+    console.error("CHAT CONVERSATION GET ERROR:", error);
+    return NextResponse.json({ error: "Failed to load conversation." }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
+    const actor = getChatActor(session?.user as { id?: string; role?: string } | undefined);
+    const body = await request.json().catch(() => ({}));
+
+    const guestEmail = normalizeGuestEmail(body.guestEmail);
+    const requestedStatus = typeof body.status === "string" ? body.status : null;
+    const requestedPriority = typeof body.priority === "string" ? body.priority : null;
+    const requestedAssignedToId =
+      typeof body.assignedToId === "string" ? body.assignedToId.trim() : body.assignedToId;
+    const feedback = toCleanText(body.feedback, 1000);
+    const ratingRaw = Number(body.rating);
+    const rating =
+      Number.isFinite(ratingRaw) && ratingRaw >= 1 && ratingRaw <= 5 ? Math.round(ratingRaw) : null;
+
+    const conversation = await prisma.chatConversation.findUnique({
+      where: { id },
+      select: { id: true, userId: true, guestEmail: true },
+    });
+
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+    }
+
+    if (!canAccessConversation(conversation, actor, guestEmail)) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+
+    const updateData: Prisma.ChatConversationUpdateInput = {};
+
+    if (actor.isAdmin) {
+      if (requestedStatus && CHAT_STATUSES.includes(requestedStatus as ChatStatus)) {
+        updateData.status = requestedStatus as ChatStatus;
+        updateData.closedAt = requestedStatus === "CLOSED" ? new Date() : null;
+      }
+
+      if (requestedPriority && CHAT_PRIORITIES.includes(requestedPriority as ChatPriority)) {
+        updateData.priority = requestedPriority as ChatPriority;
+      }
+
+      if (requestedAssignedToId !== undefined) {
+        if (requestedAssignedToId === null || requestedAssignedToId === "") {
+          updateData.assignedTo = { disconnect: true };
+        } else if (typeof requestedAssignedToId === "string") {
+          const user = await prisma.user.findUnique({
+            where: { id: requestedAssignedToId },
+            select: { id: true },
+          });
+          if (!user) {
+            return NextResponse.json({ error: "Assigned user not found." }, { status: 400 });
+          }
+          updateData.assignedTo = { connect: { id: requestedAssignedToId } };
+        }
+      }
+    } else {
+      if (requestedStatus && requestedStatus !== "CLOSED") {
+        return NextResponse.json(
+          { error: "Only closing chat is allowed for customers." },
+          { status: 403 },
+        );
+      }
+      if (requestedStatus === "CLOSED" || feedback || rating !== null) {
+        updateData.status = "CLOSED";
+        updateData.closedAt = new Date();
+      }
+    }
+
+    const feedbackMessage = buildFeedbackMessage(rating, feedback);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (Object.keys(updateData).length > 0) {
+        await tx.chatConversation.update({
+          where: { id },
+          data: updateData,
+        });
+      }
+
+      if (feedbackMessage) {
+        await tx.chatMessage.create({
+          data: {
+            conversationId: id,
+            senderId: actor.userId,
+            senderRole: actor.senderRole,
+            message: feedbackMessage,
+          },
+        });
+        await tx.chatConversation.update({
+          where: { id },
+          data: {
+            lastMessageAt: new Date(),
+          },
+        });
+      }
+
+      return tx.chatConversation.findUnique({
+        where: { id },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          assignedTo: { select: { id: true, name: true, email: true } },
+        },
+      });
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error("CHAT CONVERSATION PATCH ERROR:", error);
+    return NextResponse.json({ error: "Failed to update conversation." }, { status: 500 });
+  }
+}

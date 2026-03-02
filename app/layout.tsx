@@ -8,6 +8,7 @@ import TreeProvider from "@/providers/treeProvider";
 import { CartProvider } from "@/components/ecommarce/CartContext";
 import { WishlistProvider } from "@/components/ecommarce/WishlistContext";
 import { Providers } from "./providers";
+import SupportChatWidget from "@/components/chat/SupportChatWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,6 +50,7 @@ export default function RootLayout({
               <CartProvider>
                 <WishlistProvider>
                   <main className="flex-1">{children}</main>
+                  <SupportChatWidget />
                 </WishlistProvider>
               </CartProvider>
             </TreeProvider>
