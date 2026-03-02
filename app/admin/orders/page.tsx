@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 
 type OrderStatusType =
   | "PENDING"
+  | "CONFIRMED"
   | "PROCESSING"
   | "SHIPPED"
   | "DELIVERED"
@@ -40,9 +41,13 @@ interface Order {
   area: string;
   address_details: string;
   payment_method: string;
+  order_date: string;
   total: number;
   shipping_cost: number;
   grand_total: number;
+  currency: string;
+  Vat_total?: number | null;
+  discount_total?: number | null;
   status: OrderStatusType;
   paymentStatus: PaymentStatusType;
   transactionId?: string | null;
@@ -59,7 +64,13 @@ interface Shipment {
   id: number;
   orderId: number;
   courier: string;
+  courierId?: number | null;
+  warehouseId?: number | null;
   trackingNumber?: string | null;
+  trackingUrl?: string | null;
+  externalId?: string | null;
+  courierStatus?: string | null;
+  lastSyncedAt?: string | null;
   status: ShipmentStatusType;
   shippedAt?: string | null;
   expectedDate?: string | null;
@@ -72,6 +83,20 @@ interface Pagination {
   limit: number;
   total: number;
   pages: number;
+}
+
+interface CourierOption {
+  id: number;
+  name: string;
+  type: "PATHAO" | "REDX" | "STEADFAST" | "CUSTOM";
+  isActive: boolean;
+}
+
+interface WarehouseOption {
+  id: number;
+  name: string;
+  code: string;
+  isDefault: boolean;
 }
 
 const OrderManagement = () => {
@@ -107,6 +132,10 @@ const OrderManagement = () => {
   const [editTransactionId, setEditTransactionId] = useState<string>("");
 
   // editable fields (shipment)
+  const [couriers, setCouriers] = useState<CourierOption[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
+  const [editCourierId, setEditCourierId] = useState<string>("");
+  const [editWarehouseId, setEditWarehouseId] = useState<string>("");
   const [editCourier, setEditCourier] = useState("");
   const [editTrackingNumber, setEditTrackingNumber] = useState("");
   const [editShipmentStatus, setEditShipmentStatus] =
@@ -208,6 +237,8 @@ const OrderManagement = () => {
     switch (status) {
       case "PENDING":
         return "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20";
+      case "CONFIRMED":
+        return "bg-cyan-500/10 text-cyan-600 border-cyan-500/20 dark:bg-cyan-400/10 dark:text-cyan-400 dark:border-cyan-400/20";
       case "PROCESSING":
         return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20";
       case "SHIPPED":
@@ -254,6 +285,14 @@ const OrderManagement = () => {
     });
   }, []);
 
+  const formatMoney = useCallback((amount?: number | null, currency = "BDT") => {
+    const value = Number(amount ?? 0);
+    return `${currency} ${value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }, []);
+
   // ------------------- DETAILS MODAL LOGIC -------------------
 
   // Memoize handler functions
@@ -267,6 +306,10 @@ const OrderManagement = () => {
     setSelectedOrderId(null);
     setOrderDetail(null);
     setShipment(null);
+    setCouriers([]);
+    setWarehouses([]);
+    setEditCourierId("");
+    setEditWarehouseId("");
     setDetailError(null);
   }, []);
 
@@ -294,17 +337,38 @@ const OrderManagement = () => {
         setEditPaymentStatus(orderData.paymentStatus);
         setEditTransactionId(orderData.transactionId || "");
 
-        // 2) Shipment (if any)
-        const shipRes = await fetch(
-          `/api/shipments?orderId=${selectedOrderId}&limit=1&page=1`,
-          { cache: "no-store" },
-        );
+        // 2) Supporting options + Shipment (if any)
+        const [courierRes, warehouseRes, shipRes] = await Promise.all([
+          fetch("/api/couriers", { cache: "no-store" }),
+          fetch("/api/warehouses", { cache: "no-store" }),
+          fetch(`/api/shipments?orderId=${selectedOrderId}&limit=1&page=1`, {
+            cache: "no-store",
+          }),
+        ]);
+
+        if (courierRes.ok) {
+          const cData = await courierRes.json().catch(() => []);
+          setCouriers(Array.isArray(cData) ? cData : []);
+        } else {
+          setCouriers([]);
+        }
+
+        if (warehouseRes.ok) {
+          const wData = await warehouseRes.json().catch(() => []);
+          setWarehouses(Array.isArray(wData) ? wData : []);
+        } else {
+          setWarehouses([]);
+        }
 
         if (shipRes.ok) {
           const sd = await shipRes.json();
           const found: Shipment | undefined = sd.shipments?.[0];
           if (found) {
             setShipment(found);
+            setEditCourierId(found.courierId ? String(found.courierId) : "");
+            setEditWarehouseId(
+              found.warehouseId ? String(found.warehouseId) : "",
+            );
             setEditCourier(found.courier || "");
             setEditTrackingNumber(found.trackingNumber || "");
             setEditShipmentStatus(found.status);
@@ -320,6 +384,8 @@ const OrderManagement = () => {
             );
           } else {
             setShipment(null);
+            setEditCourierId("");
+            setEditWarehouseId("");
             setEditCourier("");
             setEditTrackingNumber("");
             setEditShipmentStatus("PENDING");
@@ -328,6 +394,8 @@ const OrderManagement = () => {
           }
         } else if (shipRes.status === 404) {
           setShipment(null);
+          setEditCourierId("");
+          setEditWarehouseId("");
           setEditCourier("");
           setEditTrackingNumber("");
           setEditShipmentStatus("PENDING");
@@ -405,6 +473,8 @@ const OrderManagement = () => {
       let savedShipment: Shipment | null = shipment;
 
       const hasShipmentInput =
+        editCourierId ||
+        editWarehouseId ||
         editCourier ||
         editTrackingNumber ||
         editExpectedDate ||
@@ -419,7 +489,9 @@ const OrderManagement = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            courier: editCourier,
+            courierId: editCourierId ? Number(editCourierId) : undefined,
+            warehouseId: editWarehouseId ? Number(editWarehouseId) : null,
+            courier: editCourier || undefined,
             trackingNumber: editTrackingNumber || null,
             status: editShipmentStatus,
             expectedDate: editExpectedDate || null,
@@ -434,6 +506,8 @@ const OrderManagement = () => {
 
         savedShipment = {
           ...shipment,
+          courierId: editCourierId ? Number(editCourierId) : shipment.courierId,
+          warehouseId: editWarehouseId ? Number(editWarehouseId) : null,
           courier: editCourier,
           trackingNumber: editTrackingNumber || null,
           status: editShipmentStatus,
@@ -442,6 +516,9 @@ const OrderManagement = () => {
         };
         setShipment(savedShipment);
       } else if (hasShipmentInput) {
+        if (!editCourierId && !editCourier) {
+          throw new Error("Please select a courier before creating shipment");
+        }
         // POST new shipment (only if some shipment data is provided)
         const res = await fetch("/api/shipments", {
           method: "POST",
@@ -450,7 +527,9 @@ const OrderManagement = () => {
           },
           body: JSON.stringify({
             orderId: orderDetail.id,
-            courier: editCourier,
+            courierId: editCourierId ? Number(editCourierId) : undefined,
+            warehouseId: editWarehouseId ? Number(editWarehouseId) : undefined,
+            courier: editCourier || undefined,
             trackingNumber: editTrackingNumber || undefined,
             status: editShipmentStatus,
             expectedDate: editExpectedDate || undefined,
@@ -513,6 +592,8 @@ const OrderManagement = () => {
     editPaymentStatus,
     editTransactionId,
     shipment,
+    editCourierId,
+    editWarehouseId,
     editCourier,
     editTrackingNumber,
     editShipmentStatus,
@@ -583,7 +664,7 @@ const OrderManagement = () => {
             <div>
               <p className="text-xs text-muted-foreground">Page Total Amount</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">
-                ${pageTotalAmount.toLocaleString("en-US")}
+                {formatMoney(pageTotalAmount, "BDT")}
               </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -639,6 +720,7 @@ const OrderManagement = () => {
             >
               <option value="ALL">All Status</option>
               <option value="PENDING">Pending</option>
+              <option value="CONFIRMED">Confirmed</option>
               <option value="PROCESSING">Processing</option>
               <option value="SHIPPED">Shipped</option>
               <option value="DELIVERED">Delivered</option>
@@ -773,7 +855,7 @@ const OrderManagement = () => {
                         <p className="mt-1 text-xs text-muted-foreground">
                           Date:{" "}
                           <span className="font-medium">
-                            {formatDate(order.createdAt)}
+                            {formatDate(order.order_date || order.createdAt)}
                           </span>
                         </p>
                       </div>
@@ -792,9 +874,9 @@ const OrderManagement = () => {
                         <div className="mt-1 flex items-center justify-between">
                           <span>Grand Total</span>
                           <span className="font-semibold">
-                            ${" "}
-                            {Number(order.grand_total ?? 0).toLocaleString(
-                              "en-US",
+                            {formatMoney(
+                              Number(order.grand_total ?? 0),
+                              order.currency || "BDT",
                             )}
                           </span>
                         </div>
@@ -877,7 +959,7 @@ const OrderManagement = () => {
                 {orderDetail && (
                   <p className="text-xs text-muted-foreground">
                     Order ID: {orderDetail.id} •{" "}
-                    {formatDate(orderDetail.createdAt)}
+                    {formatDate(orderDetail.order_date || orderDetail.createdAt)}
                   </p>
                 )}
               </div>
@@ -931,6 +1013,18 @@ const OrderManagement = () => {
                         Payment Method:{" "}
                         <span className="font-medium">
                           {orderDetail.payment_method}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Currency:{" "}
+                        <span className="font-medium">
+                          {orderDetail.currency || "BDT"}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Order Date:{" "}
+                        <span className="font-medium">
+                          {formatDate(orderDetail.order_date || orderDetail.createdAt)}
                         </span>
                       </p>
                     </div>
@@ -1030,14 +1124,17 @@ const OrderManagement = () => {
                                 "Product Name Not Available"}
                             </p>
                             <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              Qty: {item.quantity} × ${" "}
-                              {Number(item.price).toLocaleString("en-US")}
+                              Qty: {item.quantity} ×{" "}
+                              {formatMoney(
+                                Number(item.price),
+                                orderDetail.currency || "BDT",
+                              )}
                             </p>
                           </div>
                           <p className="text-[11px] font-semibold text-foreground">
-                            ${" "}
-                            {Number(item.quantity * item.price).toLocaleString(
-                              "en-US",
+                            {formatMoney(
+                              Number(item.quantity * item.price),
+                              orderDetail.currency || "BDT",
                             )}
                           </p>
                         </div>
@@ -1046,27 +1143,33 @@ const OrderManagement = () => {
                     <div className="mt-3 border-t border-border pt-2 text-xs text-foreground">
                       <div className="flex justify-between">
                         <span>Subtotal</span>
+                        <span>{formatMoney(Number(orderDetail.total), orderDetail.currency || "BDT")}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Discount</span>
                         <span>
-                          $ {Number(orderDetail.total).toLocaleString("en-US")}
+                          {formatMoney(
+                            Number(orderDetail.discount_total || 0),
+                            orderDetail.currency || "BDT",
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>VAT</span>
+                        <span>
+                          {formatMoney(
+                            Number(orderDetail.Vat_total || 0),
+                            orderDetail.currency || "BDT",
+                          )}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Shipping</span>
-                        <span>
-                          ${" "}
-                          {Number(orderDetail.shipping_cost).toLocaleString(
-                            "en-US",
-                          )}
-                        </span>
+                        <span>{formatMoney(Number(orderDetail.shipping_cost), orderDetail.currency || "BDT")}</span>
                       </div>
                       <div className="mt-1 flex justify-between font-semibold">
                         <span>Grand Total</span>
-                        <span>
-                          ${" "}
-                          {Number(orderDetail.grand_total).toLocaleString(
-                            "en-US",
-                          )}
-                        </span>
+                        <span>{formatMoney(Number(orderDetail.grand_total), orderDetail.currency || "BDT")}</span>
                       </div>
                     </div>
                   </div>
@@ -1089,6 +1192,7 @@ const OrderManagement = () => {
                           className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
                         >
                           <option value="PENDING">PENDING</option>
+                          <option value="CONFIRMED">CONFIRMED</option>
                           <option value="PROCESSING">PROCESSING</option>
                           <option value="SHIPPED">SHIPPED</option>
                           <option value="DELIVERED">DELIVERED</option>
@@ -1149,15 +1253,55 @@ const OrderManagement = () => {
                       </p>
                     )}
 
-                    <div className="grid gap-3 md:grid-cols-3">
+                    <div className="grid gap-3 md:grid-cols-4">
                       <div className="space-y-1 text-xs">
                         <p className="text-muted-foreground">Courier</p>
-                        <input
-                          value={editCourier}
-                          onChange={(e) => setEditCourier(e.target.value)}
-                          placeholder="SA Paribahan / Sundarban..."
-                          className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs outline-none"
-                        />
+                        {couriers.length > 0 ? (
+                          <select
+                            value={editCourierId}
+                            onChange={(e) => {
+                              const nextId = e.target.value;
+                              setEditCourierId(nextId);
+                              const selectedCourier = couriers.find(
+                                (c) => String(c.id) === nextId,
+                              );
+                              setEditCourier(selectedCourier?.name || "");
+                            }}
+                            className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
+                          >
+                            <option value="">Select Courier</option>
+                            {couriers
+                              .filter((c) => c.isActive)
+                              .map((courier) => (
+                                <option key={courier.id} value={courier.id}>
+                                  {courier.name} ({courier.type})
+                                </option>
+                              ))}
+                          </select>
+                        ) : (
+                          <input
+                            value={editCourier}
+                            onChange={(e) => setEditCourier(e.target.value)}
+                            placeholder="Courier name..."
+                            className="w-full rounded-xl border border-border bg-card px-3 py-2 text-xs outline-none"
+                          />
+                        )}
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        <p className="text-muted-foreground">Warehouse</p>
+                        <select
+                          value={editWarehouseId}
+                          onChange={(e) => setEditWarehouseId(e.target.value)}
+                          className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
+                        >
+                          <option value="">Select Warehouse</option>
+                          {warehouses.map((warehouse) => (
+                            <option key={warehouse.id} value={warehouse.id}>
+                              {warehouse.name} ({warehouse.code})
+                              {warehouse.isDefault ? " - Default" : ""}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div className="space-y-1 text-xs">
                         <p className="text-muted-foreground">Tracking Number</p>
@@ -1221,6 +1365,35 @@ const OrderManagement = () => {
                         </div>
                       )}
                     </div>
+
+                    {shipment && (
+                      <div className="mt-3 grid gap-3 md:grid-cols-2 text-xs text-muted-foreground">
+                        <div className="rounded-xl bg-card px-3 py-2">
+                          Courier Status: {shipment.courierStatus || "-"}
+                        </div>
+                        <div className="rounded-xl bg-card px-3 py-2">
+                          Last Synced: {formatDate(shipment.lastSyncedAt || "") || "-"}
+                        </div>
+                        <div className="rounded-xl bg-card px-3 py-2">
+                          External ID: {shipment.externalId || "-"}
+                        </div>
+                        <div className="rounded-xl bg-card px-3 py-2">
+                          Tracking URL:{" "}
+                          {shipment.trackingUrl ? (
+                            <a
+                              href={shipment.trackingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary underline"
+                            >
+                              Open
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <p className="mt-1 text-[10px] text-muted-foreground">
                       * Only admin can create/update shipment; other users will

@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // calculate subtotal & check availability/stock
+    // calculate subtotal and check availability
     let subtotal = 0;
 
     const orderItemsData = items.map((item: any) => {
@@ -183,11 +183,11 @@ export async function POST(request: NextRequest) {
         throw new Error(`Product not found: ${item.productId}`);
       }
 
-      if (!product.available || product.stock <= 0) {
+      if (!product.available) {
         throw new Error(`Product not available: ${product.name}`);
       }
 
-      const priceNumber = Number(product.price);
+      const priceNumber = Number(product.basePrice);
       const lineTotal = priceNumber * item.quantity;
 
       subtotal += lineTotal;
@@ -207,27 +207,9 @@ export async function POST(request: NextRequest) {
     const paymentStatus =
       payment_method === "CashOnDelivery" ? "UNPAID" : "PAID";
 
-    // Use a transaction to ensure stock is decremented atomically
+    // Use a transaction for order + orderItems consistency
     const created = await prisma.$transaction(async (tx: any) => {
-      // 1) For each ordered item, ensure sufficient stock and decrement
-      for (const it of items) {
-        const pid = Number(it.productId);
-        const qty = Number(it.quantity);
-
-        const updated = await tx.product.updateMany({
-          where: { id: pid, stock: { gte: qty } },
-          data: { stock: { decrement: qty } },
-        });
-
-        if (updated.count === 0) {
-          // Either product not found or not enough stock
-          throw new Error(
-            `Product not enough stock for id=${pid} (requested=${qty})`
-          );
-        }
-      }
-
-      // 2) Create the order (orderItems will reference productId values)
+      // Create the order (orderItems will reference productId values)
       const o = await tx.order.create({
         data: {
           userId: userId ?? null,
@@ -263,10 +245,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Error creating order:", error);
 
-    if (
-      typeof error?.message === "string" &&
-      error.message.startsWith("Product not")
-    ) {
+    if (typeof error?.message === "string" && error.message.startsWith("Product")) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }
