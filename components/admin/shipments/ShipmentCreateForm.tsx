@@ -42,7 +42,15 @@ type ShipmentResponse = {
   trackingUrl?: string | null;
 };
 
-export default function ShipmentCreateForm() {
+interface ShipmentCreateFormProps {
+  onCreated?: () => void | Promise<void>;
+  onClose?: () => void;
+}
+
+export default function ShipmentCreateForm({
+  onCreated,
+  onClose,
+}: ShipmentCreateFormProps) {
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [loadingCouriers, setLoadingCouriers] = useState(true);
   const [orders, setOrders] = useState<OrderOption[]>([]);
@@ -76,10 +84,13 @@ export default function ShipmentCreateForm() {
     const loadOrders = async () => {
       try {
         setLoadingOrders(true);
-        const res = await fetch("/api/orders?hasShipment=false");
+        const res = await fetch("/api/orders?hasShipment=false&limit=200");
         if (!res.ok) throw new Error("Failed to load orders");
         const data = (await res.json()) as { orders: OrderOption[] };
-        setOrders(data.orders || []);
+        const eligible = (data.orders || []).filter((order) =>
+          ["PENDING", "CONFIRMED", "PROCESSING"].includes(order.status),
+        );
+        setOrders(eligible);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load orders");
       } finally {
@@ -141,6 +152,9 @@ export default function ShipmentCreateForm() {
       }
 
       setResult(data as ShipmentResponse);
+      if (onCreated) {
+        await onCreated();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -150,10 +164,23 @@ export default function ShipmentCreateForm() {
 
   return (
     <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-card p-6">
-      <h2 className="text-xl font-semibold text-foreground">Create Shipment</h2>
+      <div className="flex items-center justify-between">
+        <div>
+        <h2 className="text-xl font-semibold text-foreground">Create Shipment</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Select courier dynamically and create shipment for an existing order.
       </p>
+      </div>
+
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="rounded-md border border-border px-3 py-1 text-sm hover:bg-muted"
+      >
+        Close
+      </button>
+      </div>
 
       <form
         onSubmit={handleSubmit}
@@ -208,7 +235,9 @@ export default function ShipmentCreateForm() {
             disabled={loadingWarehouses}
           >
             <option value="">
-              {loadingWarehouses ? "Loading warehouses..." : "Select a warehouse"}
+              {loadingWarehouses
+                ? "Loading warehouses..."
+                : "Select a warehouse"}
             </option>
             {warehouses.map((warehouse) => (
               <option key={warehouse.id} value={warehouse.id}>

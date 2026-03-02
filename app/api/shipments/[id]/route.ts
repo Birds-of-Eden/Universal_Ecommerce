@@ -90,6 +90,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check if shipment exists
     const existingShipment = await prisma.shipment.findUnique({
       where: { id },
+      select: {
+        id: true,
+        status: true,
+        orderId: true,
+      },
     });
 
     if (!existingShipment) {
@@ -112,6 +117,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const {
       courier,
       courierId,
+      warehouseId,
       trackingNumber,
       status,
       shippedAt,
@@ -139,6 +145,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data.courierId = courierEntity.id;
       data.courier = courierEntity.name;
     }
+    if (warehouseId !== undefined) {
+      if (warehouseId === null || warehouseId === "") {
+        data.warehouseId = null;
+      } else {
+        const warehouseIdNum = Number(warehouseId);
+        if (Number.isNaN(warehouseIdNum) || warehouseIdNum <= 0) {
+          return NextResponse.json({ error: "Invalid warehouseId" }, { status: 400 });
+        }
+        const warehouseEntity = await prisma.warehouse.findUnique({
+          where: { id: warehouseIdNum },
+          select: { id: true },
+        });
+        if (!warehouseEntity) {
+          return NextResponse.json({ error: "Warehouse not found" }, { status: 400 });
+        }
+        data.warehouseId = warehouseEntity.id;
+      }
+    }
     if (trackingNumber !== undefined) data.trackingNumber = trackingNumber;
 
     if (status !== undefined) {
@@ -157,6 +181,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           { status: 400 }
         );
       }
+
+      const allowedTransitions: Record<string, string[]> = {
+        PENDING: ["IN_TRANSIT", "CANCELLED"],
+        IN_TRANSIT: ["OUT_FOR_DELIVERY", "RETURNED", "CANCELLED"],
+        OUT_FOR_DELIVERY: ["DELIVERED", "RETURNED", "CANCELLED"],
+        DELIVERED: [],
+        RETURNED: [],
+        CANCELLED: [],
+      };
+
+      if (
+        status !== existingShipment.status &&
+        !(allowedTransitions[existingShipment.status] || []).includes(status)
+      ) {
+        return NextResponse.json(
+          {
+            error: `Invalid status transition: ${existingShipment.status} -> ${status}`,
+          },
+          { status: 400 },
+        );
+      }
       data.status = status;
     }
 
@@ -170,9 +215,50 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data.deliveredAt = deliveredAt ? new Date(deliveredAt) : null;
     }
 
-    const updated = await prisma.shipment.update({
-      where: { id },
-      data,
+    const updated = await prisma.$transaction(async (tx) => {
+      const nextStatus = data.status as string | undefined;
+      const prevStatus = existingShipment.status as string;
+
+      // Update soldCount based on shipment status transition
+      // - DELIVERED: add quantities (only once)
+      // - RETURNED/CANCELLED: subtract quantities only if it was previously DELIVERED
+      const shouldIncrement = nextStatus === "DELIVERED" && prevStatus !== "DELIVERED";
+      const shouldDecrement =
+        (nextStatus === "RETURNED" || nextStatus === "CANCELLED") && prevStatus === "DELIVERED";
+
+      if (shouldIncrement || shouldDecrement) {
+        const items = await tx.orderItem.findMany({
+          where: { orderId: existingShipment.orderId },
+          select: { productId: true, quantity: true },
+        });
+
+        const qtyByProduct = new Map<number, number>();
+        for (const it of items) {
+          qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + it.quantity);
+        }
+
+        for (const [productId, qty] of qtyByProduct.entries()) {
+          const product = await tx.product.findUnique({
+            where: { id: productId },
+            select: { soldCount: true },
+          });
+
+          const current = product?.soldCount ?? 0;
+          const next = shouldIncrement ? current + qty : current - qty;
+
+          await tx.product.update({
+            where: { id: productId },
+            data: {
+              soldCount: Math.max(next, 0),
+            },
+          });
+        }
+      }
+
+      return tx.shipment.update({
+        where: { id },
+        data,
+      });
     });
 
     return NextResponse.json(updated);

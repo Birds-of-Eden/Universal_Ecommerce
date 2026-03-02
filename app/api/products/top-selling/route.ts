@@ -3,48 +3,64 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    // Get top 2 selling books based on soldCount
-    const topSellingBooks = await prisma.product.findMany({
+    const top = await prisma.product.findMany({
       where: {
         deleted: false,
         available: true,
         soldCount: {
-          gt: 0 // Only include books that have been sold at least once
-        }
+          gt: 0,
+        },
       },
       orderBy: {
-        soldCount: 'desc'
+        soldCount: "desc",
       },
-      take: 2, // Get top 2 selling books
+      take: 10,
       include: {
         writer: true,
         publisher: true,
         category: true,
+        brand: true,
+        variants: true,
       },
     });
 
-    // If no books have been sold yet, get 2 random available books
-    if (topSellingBooks.length === 0) {
-      const randomBooks = await prisma.product.findMany({
+    // If no products have been sold yet, fallback to latest available products
+    if (top.length === 0) {
+      const fallbackProducts = await prisma.product.findMany({
         where: {
           deleted: false,
           available: true,
         },
-        take: 2,
+        orderBy: { id: "desc" },
+        take: 10,
         include: {
           writer: true,
           publisher: true,
           category: true,
+          brand: true,
+          variants: true,
         },
       });
-      return NextResponse.json(randomBooks);
+      return NextResponse.json(
+        fallbackProducts.map((p, i) => ({
+          ...p,
+          totalSold: p.soldCount ?? 0,
+          rank: i + 1,
+        })),
+      );
     }
 
-    return NextResponse.json(topSellingBooks);
-  } catch (error) {
-    console.error('Error fetching top selling books:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch top selling books' },
+      top.map((p, i) => ({
+        ...p,
+        totalSold: p.soldCount ?? 0,
+        rank: i + 1,
+      })),
+    );
+  } catch (error) {
+    console.error('Error fetching top selling products:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch top selling products' },
       { status: 500 }
     );
   }

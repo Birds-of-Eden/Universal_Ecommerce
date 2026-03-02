@@ -80,6 +80,15 @@ export async function PATCH(
     const body = await request.json();
     const { status, paymentStatus, transactionId } = body;
 
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true },
+    });
+
+    if (!existingOrder) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
     const data: any = {};
 
     if (status) {
@@ -95,6 +104,27 @@ export async function PATCH(
       if (!validOrderStatuses.includes(status)) {
         return NextResponse.json(
           { error: "Invalid order status" },
+          { status: 400 }
+        );
+      }
+
+      const allowedTransitions: Record<string, string[]> = {
+        PENDING: ["CONFIRMED", "CANCELLED"],
+        CONFIRMED: ["PROCESSING", "CANCELLED"],
+        PROCESSING: ["SHIPPED", "CANCELLED"],
+        SHIPPED: ["DELIVERED"],
+        DELIVERED: [],
+        CANCELLED: [],
+      };
+
+      if (
+        status !== existingOrder.status &&
+        !(allowedTransitions[existingOrder.status] || []).includes(status)
+      ) {
+        return NextResponse.json(
+          {
+            error: `Invalid status transition: ${existingOrder.status} -> ${status}`,
+          },
           { status: 400 }
         );
       }
@@ -124,9 +154,38 @@ export async function PATCH(
       );
     }
 
-    const updated = await prisma.order.update({
-      where: { id: orderId },
-      data,
+    const updated = await prisma.$transaction(async (tx) => {
+      const nextStatus = data.status as string | undefined;
+      if (nextStatus === "DELIVERED" && existingOrder.status !== "DELIVERED") {
+        const items = await tx.orderItem.findMany({
+          where: { orderId },
+          select: { productId: true, quantity: true },
+        });
+
+        const qtyByProduct = new Map<number, number>();
+        for (const it of items) {
+          qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + it.quantity);
+        }
+
+        for (const [productId, qty] of qtyByProduct.entries()) {
+          const product = await tx.product.findUnique({
+            where: { id: productId },
+            select: { soldCount: true },
+          });
+
+          await tx.product.update({
+            where: { id: productId },
+            data: {
+              soldCount: Math.max((product?.soldCount ?? 0) + qty, 0),
+            },
+          });
+        }
+      }
+
+      return tx.order.update({
+        where: { id: orderId },
+        data,
+      });
     });
 
     return NextResponse.json(updated);

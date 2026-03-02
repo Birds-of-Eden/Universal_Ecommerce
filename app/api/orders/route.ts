@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "10", 10);
     const statusParam = searchParams.get("status"); // e.g. "PENDING"
+    const hasShipmentParam = searchParams.get("hasShipment");
 
     const skip = (page - 1) * limit;
 
@@ -49,6 +50,13 @@ export async function GET(request: NextRequest) {
         );
       }
       where.status = statusParam;
+    }
+
+    // Admin helper filter for shipment flow
+    if (hasShipmentParam === "true") {
+      where.shipments = { some: {} };
+    } else if (hasShipmentParam === "false") {
+      where.shipments = { none: {} };
     }
 
     const [orders, total] = await Promise.all([
