@@ -112,6 +112,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const {
       courier,
       courierId,
+      warehouseId,
       trackingNumber,
       status,
       shippedAt,
@@ -139,6 +140,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data.courierId = courierEntity.id;
       data.courier = courierEntity.name;
     }
+    if (warehouseId !== undefined) {
+      if (warehouseId === null || warehouseId === "") {
+        data.warehouseId = null;
+      } else {
+        const warehouseIdNum = Number(warehouseId);
+        if (Number.isNaN(warehouseIdNum) || warehouseIdNum <= 0) {
+          return NextResponse.json({ error: "Invalid warehouseId" }, { status: 400 });
+        }
+        const warehouseEntity = await prisma.warehouse.findUnique({
+          where: { id: warehouseIdNum },
+          select: { id: true },
+        });
+        if (!warehouseEntity) {
+          return NextResponse.json({ error: "Warehouse not found" }, { status: 400 });
+        }
+        data.warehouseId = warehouseEntity.id;
+      }
+    }
     if (trackingNumber !== undefined) data.trackingNumber = trackingNumber;
 
     if (status !== undefined) {
@@ -155,6 +174,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         return NextResponse.json(
           { error: "Invalid shipment status" },
           { status: 400 }
+        );
+      }
+
+      const allowedTransitions: Record<string, string[]> = {
+        PENDING: ["IN_TRANSIT", "CANCELLED"],
+        IN_TRANSIT: ["OUT_FOR_DELIVERY", "RETURNED", "CANCELLED"],
+        OUT_FOR_DELIVERY: ["DELIVERED", "RETURNED", "CANCELLED"],
+        DELIVERED: [],
+        RETURNED: [],
+        CANCELLED: [],
+      };
+
+      if (
+        status !== existingShipment.status &&
+        !(allowedTransitions[existingShipment.status] || []).includes(status)
+      ) {
+        return NextResponse.json(
+          {
+            error: `Invalid status transition: ${existingShipment.status} -> ${status}`,
+          },
+          { status: 400 },
         );
       }
       data.status = status;

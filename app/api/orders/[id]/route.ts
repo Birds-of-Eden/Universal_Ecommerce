@@ -80,6 +80,15 @@ export async function PATCH(
     const body = await request.json();
     const { status, paymentStatus, transactionId } = body;
 
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true },
+    });
+
+    if (!existingOrder) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
     const data: any = {};
 
     if (status) {
@@ -95,6 +104,27 @@ export async function PATCH(
       if (!validOrderStatuses.includes(status)) {
         return NextResponse.json(
           { error: "Invalid order status" },
+          { status: 400 }
+        );
+      }
+
+      const allowedTransitions: Record<string, string[]> = {
+        PENDING: ["CONFIRMED", "CANCELLED"],
+        CONFIRMED: ["PROCESSING", "CANCELLED"],
+        PROCESSING: ["SHIPPED", "CANCELLED"],
+        SHIPPED: ["DELIVERED"],
+        DELIVERED: [],
+        CANCELLED: [],
+      };
+
+      if (
+        status !== existingOrder.status &&
+        !(allowedTransitions[existingOrder.status] || []).includes(status)
+      ) {
+        return NextResponse.json(
+          {
+            error: `Invalid status transition: ${existingOrder.status} -> ${status}`,
+          },
           { status: 400 }
         );
       }
