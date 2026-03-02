@@ -52,9 +52,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<ProductApiItem[]>([]);
 
   // ✅ External replace (server sync / cart page sync)
-  const replaceCart = (items: CartItem[]) => {
-    setCartItems(Array.isArray(items) ? items : []);
-  };
+  const replaceCart = useCallback((items: CartItem[]) => {
+  setCartItems(Array.isArray(items) ? items : []);
+}, []);
 
   // cartItems localStorage এ sync
   useEffect(() => {
