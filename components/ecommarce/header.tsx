@@ -985,13 +985,95 @@ export default function Header() {
               </Link>
 
               <Link
-                href="/kitabghor/books"
+                href="/kitabghor/products"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
               >
                 <Boxes className="h-4 w-4" />
                 All Products
               </Link>
+
+              <div className="pt-2 border-t border-border" />
+              <div className="font-semibold px-3">Categories</div>
+
+              {categoryLoading ? (
+                <div className="text-sm text-muted-foreground px-3">Loading...</div>
+              ) : topCategories.length === 0 ? (
+                <div className="text-sm text-muted-foreground px-3">No categories found.</div>
+              ) : (
+                <div className="space-y-2">
+                  {topCategories.map((parent) => (
+                    <details
+                      key={parent.id}
+                      className="rounded-lg border border-border overflow-hidden"
+                    >
+                      <summary
+                        className="cursor-pointer select-none px-3 py-2 hover:bg-muted transition flex items-center justify-between"
+                      >
+                        <span className="font-medium">{parent.name}</span>
+                        <ChevronDown className="h-4 w-4 opacity-70" />
+                      </summary>
+
+                      <div className="p-2 space-y-1 bg-background">
+                        <Link
+                          href={`/kitabghor/categories/${parent.slug}`}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition text-primary"
+                        >
+                          View All
+                        </Link>
+
+                        {(parent.children?.length ?? 0) === 0 ? (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">
+                            No subcategories
+                          </div>
+                        ) : (
+                          parent.children.map((sub) => (
+                            <details
+                              key={sub.id}
+                              className="rounded-lg border border-border"
+                            >
+                              <summary
+                                className="cursor-pointer select-none px-3 py-2 hover:bg-muted transition flex items-center justify-between text-sm"
+                              >
+                                <span>{sub.name}</span>
+                                <ChevronDown className="h-4 w-4 opacity-70" />
+                              </summary>
+
+                              <div className="p-2 space-y-1">
+                                <Link
+                                  href={`/kitabghor/categories/${sub.slug}`}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition text-primary"
+                                >
+                                  View All
+                                </Link>
+
+                                {(sub.children?.length ?? 0) === 0 ? (
+                                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                                    No child categories
+                                  </div>
+                                ) : (
+                                  sub.children.map((child) => (
+                                    <Link
+                                      key={child.id}
+                                      href={`/kitabghor/categories/${child.slug}`}
+                                      onClick={() => setMobileMenuOpen(false)}
+                                      className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition"
+                                    >
+                                      {child.name}
+                                    </Link>
+                                  ))
+                                )}
+                              </div>
+                            </details>
+                          ))
+                        )}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              )}
 
               <div className="pt-2 border-t border-border" />
 
