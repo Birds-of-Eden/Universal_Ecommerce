@@ -3,7 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Heart } from "lucide-react";
 import AddToCartButton from "@/components/ecommarce/AddToCartButton";
+import { useWishlist } from "@/components/ecommarce/WishlistContext";
 
 type ProductDTO = {
   id: number | string;
@@ -44,6 +46,9 @@ export default function FeaturedProducts({
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ProductDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Wishlist functionality
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
   useEffect(() => {
     let mounted = true;
@@ -155,6 +160,7 @@ export default function FeaturedProducts({
                 const badge = getSaveBadge(p);
                 const hasDiscount =
                   p.originalPrice !== null && p.originalPrice > p.basePrice;
+                const isWishlisted = isInWishlist(p.id);
 
                 return (
                   <div
@@ -180,6 +186,27 @@ export default function FeaturedProducts({
                         </span>
                       </div>
                     )}
+
+                    {/* Wishlist button */}
+                    <button
+                      onClick={() => {
+                        if (isWishlisted) {
+                          removeFromWishlist(p.id);
+                        } else {
+                          addToWishlist(p.id);
+                        }
+                      }}
+                      className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center transition-all hover:scale-110"
+                      title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                    >
+                      <Heart 
+                        className={`h-4 w-4 transition-colors ${
+                          isWishlisted 
+                            ? "fill-red-500 text-red-500" 
+                            : "text-muted-foreground hover:text-red-500"
+                        }`}
+                      />
+                    </button>
 
                     <Link
                       href={`/kitabghor/products/${p.id}`}
