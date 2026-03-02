@@ -50,6 +50,37 @@ export default function FeaturedProducts({
   // Wishlist functionality
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
+  const handleWishlistToggle = async (productId: number | string, isCurrentlyWishlisted: boolean) => {
+    try {
+      if (isCurrentlyWishlisted) {
+        // Remove from wishlist
+        await fetch(`/api/wishlist?productId=${productId}`, {
+          method: 'DELETE',
+        });
+        removeFromWishlist(productId);
+      } else {
+        // Add to wishlist
+        const response = await fetch('/api/wishlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ productId: Number(productId) }),
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to add to wishlist');
+        }
+        
+        addToWishlist(productId);
+      }
+    } catch (error) {
+      console.error('Wishlist operation failed:', error);
+      // You could show a toast notification here
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -189,13 +220,7 @@ export default function FeaturedProducts({
 
                     {/* Wishlist button */}
                     <button
-                      onClick={() => {
-                        if (isWishlisted) {
-                          removeFromWishlist(p.id);
-                        } else {
-                          addToWishlist(p.id);
-                        }
-                      }}
+                      onClick={() => handleWishlistToggle(p.id, isWishlisted)}
                       className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center transition-all hover:scale-110"
                       title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
                     >
