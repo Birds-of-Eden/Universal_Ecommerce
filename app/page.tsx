@@ -9,6 +9,7 @@ import Head from "next/head";
 import Image from "next/image";
 import FeaturedCategories from "@/components/ecommarce/FeaturedCategories";
 import FeaturedProducts from "@/components/ecommarce/FeaturedProducts";
+import FeaturedLatestBest from "@/components/ecommarce/FeaturedLatestBest";
 
 type Category = {
   id: number;
@@ -172,6 +173,9 @@ export default function Home() {
          </div>
          <div className="mt-10 mb-10 p-5">
           <FeaturedProducts/>
+         </div>
+         <div className="mt-10 mb-10 p-5">
+          <FeaturedLatestBest/>
          </div>
           <DataProvider>
             {(data) => {
