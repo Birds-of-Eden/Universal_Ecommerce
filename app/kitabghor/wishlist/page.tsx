@@ -1,12 +1,12 @@
 // app/kitabghor/user/wishlist/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trash2, ShoppingCart } from "lucide-react";
+import { Trash2, ShoppingCart, Heart, ArrowLeft } from "lucide-react";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { toast } from "sonner";
@@ -17,46 +17,70 @@ interface WishlistApiItem {
   product: {
     id: number;
     name: string;
-    price: number | string;
+    slug?: string | null;
+    image?: string | null;
+
+    // ✅ your real API fields
+    basePrice?: number | string | null;
+    originalPrice?: number | string | null;
+    currency?: string | null;
+
+    // optional / future-proof
+    price?: number | string | null;
     original_price?: number | string | null;
     discount?: number | null;
-    image?: string | null;
+
+    // optional specs
+    type?: string | null;
+    sku?: string | null;
+    available?: boolean | null;
   };
 }
 
-// UI-তে আমরা যে টাইপ ব্যবহার করব
 interface WishlistProduct {
-  wishlistId: number; // wishlist table এর id
-  productId: number; // product এর id
+  wishlistId: number;
+  productId: number;
   name: string;
   price: number;
-  original_price: number;
+  originalPrice: number;
   discount: number;
   image: string;
+  specs: Array<{ label: string; value: string }>;
 }
+
+const toNumber = (v: unknown, fallback = 0) => {
+  if (v === null || v === undefined) return fallback;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const money = (v: number) =>
+  new Intl.NumberFormat("en-BD", {
+    style: "currency",
+    currency: "BDT",
+    maximumFractionDigits: 0,
+  })
+    .format(v)
+    .replace("BDT", "৳")
+    .trim();
 
 export default function WishlistPage() {
   const { addToCart } = useCart();
   const { removeFromWishlist } = useWishlist();
 
-  const [wishlistProducts, setWishlistProducts] = useState<WishlistProduct[]>(
-    []
-  );
+  const [wishlistProducts, setWishlistProducts] = useState<WishlistProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 🔹 login check
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
-  // 🔹 প্রথমে session চেক করি
+  // 1) session check
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const res = await fetch("/api/auth/session", {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           cache: "no-store",
         });
 
@@ -66,11 +90,7 @@ export default function WishlistPage() {
         }
 
         const data = await res.json().catch(() => null);
-        if (data && data.user) {
-          setIsAuthenticated(true);
-        } else {
-          setIsAuthenticated(false);
-        }
+        setIsAuthenticated(Boolean(data?.user));
       } catch (err) {
         console.error("Error checking auth session:", err);
         setIsAuthenticated(false);
@@ -80,15 +100,13 @@ export default function WishlistPage() {
     checkAuth();
   }, []);
 
-  // 🔹 API থেকে wishlist ডেটা লোড (শুধু logged-in হলে)
+  // 2) load wishlist
   useEffect(() => {
-    // auth state এখনও resolve না হলে কিছু করবো না
     if (isAuthenticated === null) return;
 
-    // logged-in na hole wishlist load এর চেষ্টা করবো না
     if (!isAuthenticated) {
       setLoading(false);
-      setError("আপনার উইশলিস্ট দেখতে প্রথমে লগইন করতে হবে।");
+      setError("Please login to view your wishlist.");
       setWishlistProducts([]);
       return;
     }
@@ -100,14 +118,12 @@ export default function WishlistPage() {
 
         const res = await fetch("/api/wishlist", {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           cache: "no-store",
         });
 
         if (res.status === 401) {
-          setError("আপনার উইশলিস্ট দেখতে প্রথমে লগইন করতে হবে।");
+          setError("Please login to view your wishlist.");
           setWishlistProducts([]);
           return;
         }
@@ -115,31 +131,61 @@ export default function WishlistPage() {
         if (!res.ok) {
           const data = await res.json().catch(() => null);
           console.error("Failed to fetch wishlist:", data || res.statusText);
-          setError("উইশলিস্ট লোড করতে সমস্যা হয়েছে।");
+          setError("Failed to load wishlist.");
           setWishlistProducts([]);
           return;
         }
 
         const data = await res.json();
+        const itemsRaw = Array.isArray(data.items) ? (data.items as WishlistApiItem[]) : [];
 
-        const items: WishlistProduct[] = Array.isArray(data.items)
-          ? (data.items as WishlistApiItem[]).map((w) => ({
-              wishlistId: w.id, // 👉 wishlist row id
-              productId: w.product.id, // 👉 product id
-              name: w.product.name,
-              price: Number(w.product.price ?? 0),
-              original_price: Number(
-                w.product.original_price ?? w.product.price ?? 0
-              ),
-              discount: Number(w.product.discount ?? 0),
-              image: w.product.image ?? "/placeholder.svg",
-            }))
-          : [];
+        const mapped: WishlistProduct[] = itemsRaw.map((w) => {
+          // ✅ FIX: use basePrice + originalPrice from your API
+          const price =
+            toNumber(w.product?.basePrice, NaN) ??
+            toNumber(w.product?.price, NaN);
 
-        setWishlistProducts(items);
+          const finalPrice = Number.isFinite(price) ? price : toNumber(w.product?.price, 0);
+
+          const original =
+            toNumber(w.product?.originalPrice, NaN) ??
+            toNumber(w.product?.original_price, NaN);
+
+          const finalOriginal = Number.isFinite(original)
+            ? original
+            : (Number.isFinite(finalPrice) ? finalPrice : 0);
+
+          // discount: if API sends it, use it; else compute from original/base
+          const apiDiscount = toNumber(w.product?.discount, NaN);
+          const computedDiscount =
+            finalOriginal > 0 && finalOriginal > finalPrice
+              ? Math.round(((finalOriginal - finalPrice) / finalOriginal) * 100)
+              : 0;
+
+          const discount = Number.isFinite(apiDiscount) ? apiDiscount : computedDiscount;
+
+          const specs: Array<{ label: string; value: string }> = [];
+          if (w.product?.sku) specs.push({ label: "SKU", value: String(w.product.sku) });
+          if (w.product?.type) specs.push({ label: "Type", value: String(w.product.type) });
+          if (typeof w.product?.available === "boolean")
+            specs.push({ label: "Availability", value: w.product.available ? "In stock" : "Out of stock" });
+
+          return {
+            wishlistId: w.id,
+            productId: w.product?.id ?? w.productId,
+            name: w.product?.name ?? "Untitled Product",
+            price: toNumber(finalPrice, 0),
+            originalPrice: toNumber(finalOriginal, toNumber(finalPrice, 0)),
+            discount: toNumber(discount, 0),
+            image: w.product?.image ?? "/placeholder.svg",
+            specs: specs.slice(0, 6),
+          };
+        });
+
+        setWishlistProducts(mapped);
       } catch (err) {
         console.error("Error fetching wishlist:", err);
-        setError("উইশলিস্ট লোড করতে সমস্যা হয়েছে।");
+        setError("Failed to load wishlist.");
         setWishlistProducts([]);
       } finally {
         setLoading(false);
@@ -149,206 +195,210 @@ export default function WishlistPage() {
     fetchWishlist();
   }, [isAuthenticated]);
 
-  // 🔹 API + local state + context থেকে remove (productId দিয়ে, কারণ API productId expect করে)
   const handleRemoveItem = async (productId: number) => {
-    // 🔐 login না থাকলে wishlist এর কিছুই করতে পারবে না
     if (!isAuthenticated) {
-      toast.info("উইশলিস্ট ম্যানেজ করার জন্য আগে লগইন করুন।");
+      toast.info("Please login to manage your wishlist.");
       return;
     }
 
     try {
       const res = await fetch(`/api/wishlist?productId=${productId}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        console.error(
-          "Failed to remove wishlist item:",
-          data || res.statusText
-        );
-        toast.error("উইশলিস্ট থেকে সরাতে সমস্যা হয়েছে");
+        console.error("Failed to remove wishlist item:", data || res.statusText);
+        toast.error("Failed to remove item from wishlist.");
         return;
       }
 
-      // 👉 local state থেকে productId দিয়ে সরিয়ে দিচ্ছি
-      setWishlistProducts((prev) =>
-        prev.filter((p) => p.productId !== productId)
-      );
-      
-      // 👉 WishlistContext থেকেও সরাচ্ছি (header count update হবে)
+      setWishlistProducts((prev) => prev.filter((p) => p.productId !== productId));
       removeFromWishlist(productId);
-      
-      toast.success("উইশলিস্ট থেকে সরানো হয়েছে");
+      toast.success("Removed from wishlist.");
     } catch (err) {
       console.error("Error removing wishlist item:", err);
-      toast.error("উইশলিস্ট থেকে সরাতে সমস্যা হয়েছে");
+      toast.error("Failed to remove item from wishlist.");
     }
   };
 
   const handleAddToCart = (product: WishlistProduct) => {
-    // 🔐 wishlist theke cart-e add করাও login ছাড়া allow করবো না
     if (!isAuthenticated) {
-      toast.info("উইশলিস্ট থেকে কার্টে যোগ করতে আগে লগইন করুন।");
+      toast.info("Please login to add items to cart.");
       return;
     }
-
-    // যদি তোমার CartContext শুধু productId চায়:
     addToCart(product.productId);
-
-    toast.success(`"${product.name}" কার্টে যোগ করা হয়েছে`);
+    toast.success(`Added to cart: ${product.name}`);
   };
 
-  // auth resolve না হওয়া পর্যন্ত একটু loading দেখাই
+  const title = useMemo(() => `Wishlist (${wishlistProducts.length})`, [wishlistProducts.length]);
+
   if (isAuthenticated === null) {
     return (
       <div className="container mx-auto py-12 px-4">
-        <div className="text-center py-12 text-[#5FA3A3]">
-          উইশলিস্ট লোড হচ্ছে...
-        </div>
+        <div className="text-center py-12 text-muted-foreground">Loading wishlist...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F4F8F7]/30 to-white py-12 px-4">
-      <div className="container mx-auto">
-        {/* Enhanced Header */}
-        <div className="mb-8 md:mb-12">
-          <div className="flex items-center gap-4 mb-6">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-[#0E4B4B] hover:text-[#5FA3A3] transition-colors duration-300 group"
-            >
-              <svg className="h-5 w-5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span>শপিং চালিয়ে যান</span>
-            </Link>
-            <div className="w-1 h-8 bg-gradient-to-b from-[#0E4B4B] to-[#5FA3A3] rounded-full"></div>
-          </div>
+    <div className="min-h-screen bg-background text-foreground py-8 md:py-10">
+      <div className="container mx-auto px-4">
+        {/* Top bar */}
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Continue shopping
+          </Link>
 
-          <div className="bg-gradient-to-r from-[#0E4B4B] to-[#5FA3A3] rounded-2xl p-6 md:p-8 text-white">
-            <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                <img
-                  src="/assets/others/wishlist.png"
-                  alt="Wishlist Icon"
-                  className="h-8 w-8"
-                />
+          <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <Heart className="h-4 w-4" />
+              Saved products
+            </span>
+          </div>
+        </div>
+
+        {/* Header */}
+        <div className="mb-8">
+          <div className="rounded-2xl border border-border bg-card text-card-foreground shadow-sm px-5 py-5 sm:px-7 sm:py-6">
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-muted border border-border flex items-center justify-center">
+                <Heart className="h-6 w-6" />
               </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2">
-                  আপনার উইশলিস্ট
-                </h1>
-                <p className="text-white/90 opacity-90">
-                  আপনার পছন্দের বইসমূহ এবং সংরক্ষিত আইটেম
+              <div className="min-w-0">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{title}</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Manage your saved items and quickly move them to your cart.
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Loading / Error / Empty / List */}
+        {/* States */}
         {loading ? (
-          <div className="text-center py-12 text-[#5FA3A3]">
-            উইশলিস্ট লোড হচ্ছে...
-          </div>
+          <div className="text-center py-14 text-muted-foreground">Loading...</div>
         ) : error ? (
-          <div className="text-center py-12">
-            <h2 className="text-xl font-semibold mb-3 text-[#0D1414]">কিছু একটা সমস্যা হয়েছে</h2>
-            <p className="text-[#5FA3A3] mb-6">{error}</p>
+          <div className="text-center py-14 rounded-2xl border border-border bg-card">
+            <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
+            <p className="text-muted-foreground mb-6">{error}</p>
             <div className="flex justify-center gap-3">
-              <Link href="/auth/login">
-                <Button className="rounded-full bg-gradient-to-r from-[#C0704D] to-[#A85D3F] text-white px-6 py-2 hover:shadow-lg transition-all duration-300 hover:scale-105">লগইন করুন</Button>
+              <Link href="/signin">
+                <Button className="btn-primary rounded-xl px-6">Login</Button>
               </Link>
               <Link href="/">
-                <Button variant="outline" className="rounded-full border-[#5FA3A3] text-[#5FA3A3] hover:bg-[#5FA3A3] hover:text-white transition-all duration-300 px-6 py-2">হোম পেইজে ফিরে যান</Button>
+                <Button variant="outline" className="rounded-xl px-6">
+                  Back to home
+                </Button>
               </Link>
             </div>
           </div>
         ) : wishlistProducts.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-2xl shadow-lg">
-            <div className="mb-6">
-              <img
-                src="/assets/others/wishlist.png"
-                alt="Empty Wishlist"
-                className="h-16 w-16 mx-auto opacity-50"
-              />
+          <div className="text-center py-14 rounded-2xl border border-border bg-card">
+            <div className="mx-auto mb-4 h-16 w-16 rounded-2xl bg-muted border border-border flex items-center justify-center">
+              <Heart className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h2 className="text-2xl font-semibold mb-4 text-[#0D1414]">
-              আপনার উইশলিস্ট খালি
-            </h2>
-            <p className="text-[#5FA3A3] mb-6">
-              আপনার উইশলিস্টে কোন পণ্য নেই। পছন্দের বই যোগ করতে শপিং চালিয়ে যান।
+            <h2 className="text-2xl font-semibold mb-3">Your wishlist is empty</h2>
+            <p className="text-muted-foreground mb-6">
+              Save products to your wishlist so you can find them later.
             </p>
             <Link href="/">
-              <Button className="rounded-full bg-gradient-to-r from-[#C0704D] to-[#A85D3F] text-white px-8 py-3 hover:shadow-lg transition-all duration-300 hover:scale-105">
-                শপিং চালিয়ে যান
-              </Button>
+              <Button className="btn-primary rounded-xl px-8">Continue shopping</Button>
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {wishlistProducts.map((item) => (
-              <Card key={item.wishlistId} className="overflow-hidden border-0 shadow-sm hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-[#F4F8F7] rounded-2xl relative group">
-                <div className="relative">
-                  <Link href={`/kitabghor/books/${item.productId}`}>
-                    <div className="relative h-64 w-full">
-                      <Image
-                        src={item.image || "/placeholder.svg"}
-                        alt={item.name}
-                        fill
-                        className="object-cover transition-transform hover:scale-105"
-                      />
-                    </div>
-                  </Link>
-                  <button
-                    className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-md hover:bg-red-50 group/delete transition-all duration-300"
-                    onClick={() => handleRemoveItem(item.productId)}
+          <>
+            {/* Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+              {wishlistProducts.map((item) => {
+                const hasDiscount = item.originalPrice > item.price;
+
+                return (
+                  <Card
+                    key={item.wishlistId}
+                    className="card-theme overflow-hidden rounded-2xl shadow-sm hover:shadow-lg transition"
                   >
-                    <Trash2 className="h-4 w-4 text-red-500 group-hover/delete:scale-110 transition-transform" />
-                  </button>
-                </div>
-                <CardContent className="p-4">
-                  <Link href={`/kitabghor/books/${item.productId}`}>
-                    <h4 className="font-semibold text-lg mb-1 text-[#0D1414] hover:text-[#0E4B4B] transition-all duration-300 line-clamp-2 group-hover:translate-x-1">
-                      {item.name}
-                    </h4>
-                  </Link>
-                  <div className="flex items-center justify-between mt-2 mb-4">
-                    <div>
-                      <span className="font-bold text-lg text-[#0E4B4B]">
-                        ৳{item.price.toFixed(2)}
-                      </span>
-                      {item.original_price > item.price && (
-                        <span className="text-sm text-[#5FA3A3] line-through ml-2">
-                          ৳{item.original_price.toFixed(2)}
-                        </span>
+                    <div className="relative bg-white dark:bg-card">
+                      <Link href={`/kitabghor/products/${item.productId}`}>
+                        <div className="relative h-56 w-full">
+                          <Image
+                            src={item.image || "/placeholder.svg"}
+                            alt={item.name}
+                            fill
+                            className="object-contain p-6 transition-transform duration-300 hover:scale-[1.02]"
+                          />
+                        </div>
+                      </Link>
+
+                      {item.discount > 0 && (
+                        <div className="absolute left-2 top-2">
+                          <span className="inline-flex items-center rounded-full bg-primary text-primary-foreground px-2.5 py-1 text-xs font-semibold">
+                            Save {item.discount}%
+                          </span>
+                        </div>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(item.productId)}
+                        className="absolute right-2 top-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-background/90 border border-border hover:bg-muted transition"
+                        aria-label="Remove from wishlist"
+                        title="Remove"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                    {item.discount > 0 && (
-                      <span className="bg-[#C0704D] text-white px-2 py-0.5 rounded text-xs font-semibold">
-                        {item.discount}% ছাড়
-                      </span>
-                    )}
-                  </div>
-                  <Button
-                    className="w-full rounded-xl py-6 bg-gradient-to-r from-[#095858] to-[#19cece] hover:from-[#0E4B4B] hover:to-[#5FA3A3] text-white font-semibold border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 group/btn"
-                    onClick={() => handleAddToCart(item)}
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
-                    কার্টে যোগ করুন
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+                    <CardContent className="p-4">
+                      <Link href={`/kitabghor/products/${item.productId}`}>
+                        <h3 className="font-semibold text-base leading-snug line-clamp-2 hover:underline">
+                          {item.name}
+                        </h3>
+                      </Link>
+
+                      {item.specs.length > 0 && (
+                        <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                          {item.specs.map((s) => (
+                            <li key={s.label} className="flex gap-2">
+                              <span className="mt-[7px] h-1 w-1 rounded-full bg-muted-foreground/60" />
+                              <span className="min-w-0">
+                                <span className="font-medium text-foreground/80">{s.label}:</span>{" "}
+                                {s.value}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      <div className="my-4 h-px bg-border" />
+
+                      <div className="flex items-end justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-lg font-bold text-destructive">{money(item.price)}</div>
+                          {hasDiscount && (
+                            <div className="text-xs text-muted-foreground line-through">
+                              {money(item.originalPrice)}
+                            </div>
+                          )}
+                        </div>
+
+                        <Button onClick={() => handleAddToCart(item)} className="btn-primary rounded-xl h-10 px-4">
+                          <ShoppingCart className="h-4 w-4 mr-2" />
+                          Buy Now
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>
