@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "@/lib/auth-client";
@@ -32,7 +32,14 @@ interface LocalCartItem {
 }
 
 export default function CartPage() {
-  const { cartItems, removeFromCart, updateQuantity, clearCart } = useCart();
+  // ✅ added replaceCart
+  const {
+    cartItems,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    replaceCart,
+  } = useCart();
 
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
@@ -48,15 +55,41 @@ export default function CartPage() {
   );
   const [loadingServerCart, setLoadingServerCart] = useState(false);
 
+  // ✅ prevent infinite sync loop
+  const didAuthSyncRef = useRef(false);
+
   useEffect(() => setHasMounted(true), []);
 
+  // ✅ Sync server cart -> context cart (for header count etc.)
+  useEffect(() => {
+    if (!hasMounted) return;
+    if (!isAuthenticated) return;
+    if (!Array.isArray(serverCartItems)) return;
+
+    replaceCart(
+      serverCartItems.map((i) => ({
+        id: i.id,
+        productId: i.productId,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+        image: i.image || "/placeholder.svg",
+      }))
+    );
+  }, [isAuthenticated, serverCartItems, hasMounted, replaceCart]);
+
+  // ✅ Main login sync (run once per login)
   useEffect(() => {
     if (!hasMounted) return;
 
     if (!isAuthenticated) {
+      didAuthSyncRef.current = false; // reset on logout
       setServerCartItems(null);
       return;
     }
+
+    if (didAuthSyncRef.current) return; // ✅ run only once per login
+    didAuthSyncRef.current = true;
 
     const fetchServerCart = async () => {
       try {
@@ -94,14 +127,10 @@ export default function CartPage() {
     };
 
     const syncGuestCartToServer = async () => {
-      if (cartItems.length === 0) {
-        await fetchServerCart();
-        return;
-      }
-
       try {
         setLoadingServerCart(true);
 
+        // 1) load current server cart
         const serverRes = await fetch("/api/cart", { cache: "no-store" });
         if (!serverRes.ok) throw new Error("Failed to fetch server cart");
 
@@ -110,7 +139,8 @@ export default function CartPage() {
           ? serverData.items
           : [];
 
-        const itemsToSync = cartItems.filter(
+        // 2) push guest cart items to server if missing
+        const itemsToSync = (cartItems as any[]).filter(
           (localItem) =>
             !existingItems.some(
               (serverItem: any) =>
@@ -129,7 +159,11 @@ export default function CartPage() {
           });
         }
 
+        // 3) IMPORTANT: do NOT depend on cartItems effect loop anymore
+        // clear local guest cart after syncing
         clearCart();
+
+        // 4) reload server cart
         await fetchServerCart();
       } catch (err) {
         console.error("Error syncing guest cart to server:", err);
@@ -139,8 +173,15 @@ export default function CartPage() {
       }
     };
 
-    syncGuestCartToServer();
-  }, [isAuthenticated, hasMounted, cartItems, clearCart]);
+    // If guest cart empty => just fetch server cart, else sync then fetch
+    if ((cartItems as any[]).length === 0) {
+      fetchServerCart();
+    } else {
+      syncGuestCartToServer();
+    }
+    // ✅ deps intentionally only auth + mount to avoid update depth loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, hasMounted]);
 
   useEffect(() => {
     const handler = () => setServerCartItems([]);
@@ -213,7 +254,8 @@ export default function CartPage() {
         );
       }
 
-      removeFromCart(Number(itemId));
+      // ✅ DO NOT Number() - server id can be string
+      removeFromCart(itemId);
       toast.success("Item removed.");
     } catch (error) {
       console.error("Error removing cart item:", error);
@@ -251,7 +293,8 @@ export default function CartPage() {
         );
       }
 
-      updateQuantity(Number(itemId), newQuantity);
+      // ✅ keep local context synced too (id can be string/number)
+      updateQuantity(itemId, newQuantity);
     } catch (error) {
       console.error("Error updating quantity:", error);
       toast.error("Failed to update quantity.");
@@ -335,7 +378,7 @@ export default function CartPage() {
             <p className="text-muted-foreground mb-6">
               Add some products to get started.
             </p>
-            <Link href="/">
+            <Link href="/kitabghor/products">
               <Button className="rounded-md btn-primary">
                 Continue Shopping <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -510,8 +553,6 @@ export default function CartPage() {
                       )}
                     </div>
                   </div>
-
-                
                 </div>
               </div>
             </div>

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-  useEffect,
-} from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
 
 // API থেকে যেটুকু লাগবে শুধু সেটার টাইপ
 interface ProductApiItem {
@@ -16,8 +10,8 @@ interface ProductApiItem {
   image?: string | null;
 }
 
-interface CartItem {
-  id: number;
+export interface CartItem {
+  id: string | number; // ✅ server id string হতে পারে
   productId: string | number;
   name: string;
   price: number;
@@ -28,10 +22,13 @@ interface CartItem {
 interface CartContextType {
   cartItems: CartItem[];
   addToCart: (productId: string | number, quantity?: number) => void;
-  removeFromCart: (id: number) => void;
-  updateQuantity: (id: number, quantity: number) => void;
+  removeFromCart: (id: string | number) => void; // ✅ updated
+  updateQuantity: (id: string | number, quantity: number) => void; // ✅ updated
   clearCart: () => void;
   cartCount: number;
+
+  // ✅ NEW: server/cart page থেকে context replace করার জন্য
+  replaceCart: (items: CartItem[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -54,6 +51,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // 📚 API থেকে আনা প্রোডাক্ট লিস্ট
   const [products, setProducts] = useState<ProductApiItem[]>([]);
 
+  // ✅ External replace (server sync / cart page sync)
+  const replaceCart = (items: CartItem[]) => {
+    setCartItems(Array.isArray(items) ? items : []);
+  };
+
   // cartItems localStorage এ sync
   useEffect(() => {
     try {
@@ -69,16 +71,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (e.key === "cartItems") {
         try {
           if (!e.newValue) {
-            // key remove করা হয়েছে -> cart খালি
             setCartItems([]);
             return;
           }
           const parsed = JSON.parse(e.newValue);
-          if (Array.isArray(parsed)) {
-            setCartItems(parsed);
-          } else {
-            setCartItems([]);
-          }
+          if (Array.isArray(parsed)) setCartItems(parsed);
+          else setCartItems([]);
         } catch (err) {
           console.error("Failed to sync cartItems from storage event:", err);
           setCartItems([]);
@@ -101,20 +99,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
 
         const data = await res.json();
-
         if (!Array.isArray(data)) {
           console.error("Invalid products response for cart:", data);
           return;
         }
 
         const mapped: ProductApiItem[] = data.map((p: any) => ({
-  id: p.id,
-  name: p.name,
-  // ✅ use basePrice instead of price
-  price: Number(p.basePrice ?? 0),
-  image: p.image ?? "/placeholder.svg",
-}));
-setProducts(mapped);
+          id: p.id,
+          name: p.name,
+          // ✅ use basePrice instead of price
+          price: Number(p.basePrice ?? 0),
+          image: p.image ?? "/placeholder.svg",
+        }));
+
+        setProducts(mapped);
       } catch (err) {
         console.error("Error fetching products for cart:", err);
       }
@@ -123,26 +121,20 @@ setProducts(mapped);
     loadProducts();
   }, []);
 
-  const cartCount = cartItems.reduce(
-    (total, item) => total + item.quantity,
-    0
-  );
+  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
 
   const addToCart = (productId: string | number, quantity: number = 1) => {
-    // productId string/number দুই কেসই handle
     const numericId =
       typeof productId === "string" ? Number(productId) : productId;
 
-    // 🔎 প্রোডাক্ট API থেকে আনা লিস্টে খুঁজে বের করো
-    const product = products.find(
-      (p) => Number(p.id) === Number(numericId)
-    );
+    const product = products.find((p) => Number(p.id) === Number(numericId));
 
     if (!product) {
       console.warn(
         "Product not found in CartProvider products state for id:",
         productId,
-        "Available products:", products.map(p => ({ id: p.id, name: p.name, price: p.price }))
+        "Available products:",
+        products.map((p) => ({ id: p.id, name: p.name, price: p.price }))
       );
       return;
     }
@@ -158,39 +150,35 @@ setProducts(mapped);
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
-      } else {
-        return [
-          ...prevItems,
-          {
-            id: Date.now(),
-            productId: product.id,
-            name: product.name,
-            price: product.price,
-            quantity,
-            image: product.image || "/placeholder.svg",
-          },
-        ];
       }
+
+      return [
+        ...prevItems,
+        {
+          id: Date.now(),
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          quantity,
+          image: product.image || "/placeholder.svg",
+        },
+      ];
     });
   };
 
-  const removeFromCart = (id: number) => {
+  const removeFromCart = (id: string | number) => {
     setCartItems((prevItems) => prevItems.filter((item) => item.id !== id));
   };
 
-  const updateQuantity = (id: number, quantity: number) => {
+  const updateQuantity = (id: string | number, quantity: number) => {
     if (quantity < 1) return;
 
     setCartItems((prevItems) =>
-      prevItems.map((item) =>
-        item.id === id ? { ...item, quantity } : item
-      )
+      prevItems.map((item) => (item.id === id ? { ...item, quantity } : item))
     );
   };
 
   const clearCart = () => {
-    // ✅ শুধু context state ফাঁকা করো
-    // localStorage sync effect নিজে থেকেই "[]" লিখে দেবে
     setCartItems([]);
   };
 
@@ -203,6 +191,7 @@ setProducts(mapped);
         updateQuantity,
         clearCart,
         cartCount,
+        replaceCart, // ✅ expose
       }}
     >
       {children}
