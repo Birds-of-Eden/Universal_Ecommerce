@@ -76,11 +76,30 @@ const clamp = (v: number, min: number, max: number) =>
   Math.max(min, Math.min(max, v));
 
 /* =========================
-   ✅ Row-2 Dropdown
-   - Parent visible first
-   - Hover Parent => show Sub
-   - Hover Sub => show Child
-   - Professional scroll
+   Dropdown shared styles
+   ✅ Light: bg white + text black
+   ✅ Dark: bg dark + text light
+========================= */
+const ddItemBase =
+  "w-full flex items-center justify-between px-4 py-2.5 text-sm transition select-none";
+
+const ddItemInactive =
+  "text-foreground hover:bg-accent";
+
+const ddItemActive =
+  "bg-primary text-primary-foreground";
+
+const ddColShell =
+  "w-[260px] max-h-[420px] overflow-y-auto overflow-x-hidden " +
+  "bg-popover";
+
+const ddWrapperShell =
+  "bg-popover text-foreground border border-border shadow-2xl rounded-md overflow-hidden";
+
+/* =========================
+   ✅ Row-2 All Category Dropdown
+   Parent hover => Sub show
+   Sub hover => Child show
 ========================= */
 function TechlandCategoryDropdown({
   categories,
@@ -93,7 +112,6 @@ function TechlandCategoryDropdown({
 }) {
   const router = useRouter();
 
-  // ✅ initially hidden
   const [activeParentId, setActiveParentId] = useState<number | null>(null);
   const [activeSubId, setActiveSubId] = useState<number | null>(null);
 
@@ -111,7 +129,6 @@ function TechlandCategoryDropdown({
 
   const childList = activeSub?.children ?? [];
 
-  // reset when dropdown content changes (safe)
   useEffect(() => {
     setActiveParentId(null);
     setActiveSubId(null);
@@ -122,25 +139,9 @@ function TechlandCategoryDropdown({
     onClose();
   };
 
-  const itemBase =
-    "w-full flex items-center justify-between px-4 py-2.5 text-sm transition select-none";
-  const itemInactive =
-    "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800/60";
-  const itemActive =
-    "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900";
-
-  // professional scroll: works even without plugins (Firefox uses scrollbarWidth)
-  const colShell =
-    "w-[260px] max-h-[420px] overflow-y-auto overflow-x-hidden " +
-    "bg-white dark:bg-slate-900 " +
-    "scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent";
-
-  const wrapperShell =
-    "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-md overflow-hidden";
-
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-md px-5 py-4 text-sm text-slate-600 dark:text-slate-300">
+      <div className="bg-popover text-foreground border border-border shadow-2xl rounded-md px-5 py-4 text-sm">
         Loading...
       </div>
     );
@@ -148,19 +149,18 @@ function TechlandCategoryDropdown({
 
   if (!categories.length) {
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl rounded-md px-5 py-4 text-sm text-slate-600 dark:text-slate-300">
+      <div className="bg-popover text-foreground border border-border shadow-2xl rounded-md px-5 py-4 text-sm">
         No categories found.
       </div>
     );
   }
 
   return (
-    <div className={wrapperShell}>
+    <div className={ddWrapperShell}>
       <div className="flex">
-        {/* Parent (always visible) */}
+        {/* Parent */}
         <div
-          className={`${colShell} border-r border-slate-200 dark:border-slate-700`}
-          style={{ scrollbarWidth: "thin" }}
+          className={`${ddColShell} border-r border-border`}
         >
           {categories.map((p) => {
             const isActive = p.id === activeParentId;
@@ -172,10 +172,12 @@ function TechlandCategoryDropdown({
                 type="button"
                 onMouseEnter={() => {
                   setActiveParentId(p.id);
-                  setActiveSubId(null); // ✅ child hidden until sub hover
+                  setActiveSubId(null);
                 }}
                 onClick={() => go(p.slug)}
-                className={`${itemBase} ${isActive ? itemActive : itemInactive}`}
+                className={`${ddItemBase} ${
+                  isActive ? ddItemActive : ddItemInactive
+                }`}
                 title={p.name}
               >
                 <span className="truncate font-medium">{p.name}</span>
@@ -189,15 +191,14 @@ function TechlandCategoryDropdown({
           })}
         </div>
 
-        {/* Sub (hidden until Parent hover) */}
+        {/* Sub (hidden until parent hover) */}
         <div
-          className={`${colShell} border-r border-slate-200 dark:border-slate-700 ${
+          className={`${ddColShell} border-r border-border ${
             activeParentId ? "block" : "hidden"
           }`}
-          style={{ scrollbarWidth: "thin" }}
         >
           {subList.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+            <div className="px-4 py-3 text-sm text-muted-foreground">
               No subcategories.
             </div>
           ) : (
@@ -211,7 +212,9 @@ function TechlandCategoryDropdown({
                   type="button"
                   onMouseEnter={() => setActiveSubId(s.id)}
                   onClick={() => go(s.slug)}
-                  className={`${itemBase} ${isActive ? itemActive : itemInactive}`}
+                  className={`${ddItemBase} ${
+                    isActive ? ddItemActive : ddItemInactive
+                  }`}
                   title={s.name}
                 >
                   <span className="truncate">{s.name}</span>
@@ -226,10 +229,10 @@ function TechlandCategoryDropdown({
           )}
         </div>
 
-        {/* Child (hidden until Sub hover) */}
-        <div className={`${colShell} ${activeSubId ? "block" : "hidden"}`} style={{ scrollbarWidth: "thin" }}>
+        {/* Child (hidden until sub hover) */}
+        <div className={`${ddColShell} ${activeSubId ? "block" : "hidden"}`}>
           {childList.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+            <div className="px-4 py-3 text-sm text-muted-foreground">
               No child categories.
             </div>
           ) : (
@@ -238,13 +241,122 @@ function TechlandCategoryDropdown({
                 key={c.id}
                 type="button"
                 onClick={() => go(c.slug)}
-                className={`${itemBase} ${itemInactive}`}
+                className={`${ddItemBase} ${ddItemInactive}`}
                 title={c.name}
               >
                 <span className="truncate">{c.name}</span>
                 <span className="w-4" />
               </button>
             ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================
+   ✅ Row-3 Hover Flyout (3 columns)
+   Parent hover => Sub column show
+   Sub hover => Child column show
+   ✅ Same behavior as Row-2
+   ✅ Dark/Light perfect
+========================= */
+function Row3Flyout({
+  parent,
+  onClose,
+}: {
+  parent: CategoryNode;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+
+  // Parent column shows hovered parent children.
+  // Sub + Child behave like row2.
+  const [activeSubId, setActiveSubId] = useState<number | null>(null);
+
+  const subList = parent.children ?? [];
+
+  const activeSub = useMemo(() => {
+    if (!subList.length) return null;
+    if (!activeSubId) return null;
+    return subList.find((s) => s.id === activeSubId) ?? null;
+  }, [subList, activeSubId]);
+
+  const childList = activeSub?.children ?? [];
+
+  // Reset on parent change
+  useEffect(() => {
+    setActiveSubId(null);
+  }, [parent.id]);
+
+  const go = (slug: string) => {
+    router.push(`/kitabghor/categories/${slug}`);
+    onClose();
+  };
+
+  return (
+    <div className={ddWrapperShell}>
+      <div className="flex">
+        {/* Parent column (ONLY this hovered parent’s direct children as "Sub") */}
+        <div
+          className={`${ddColShell} border-r border-border`}
+        >
+          {subList.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-muted-foreground">
+              No subcategories.
+            </div>
+          ) : (
+            subList.map((s) => {
+              const isActive = s.id === activeSubId;
+              const hasChild = (s.children?.length ?? 0) > 0;
+
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onMouseEnter={() => setActiveSubId(s.id)}
+                  onClick={() => go(s.slug)}
+                  className={`${ddItemBase} ${
+                    isActive ? ddItemActive : ddItemInactive
+                  }`}
+                  title={s.name}
+                >
+                  <span className="truncate">{s.name}</span>
+                  {hasChild ? (
+                    <ChevronRight className="h-4 w-4 opacity-80" />
+                  ) : (
+                    <span className="w-4" />
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Child column (hidden until sub hover) */}
+        <div className={`${ddColShell} ${activeSubId ? "block" : "hidden"}`}>
+          {activeSubId && childList.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-muted-foreground">
+              No child categories.
+            </div>
+          ) : activeSubId ? (
+            childList.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => go(c.slug)}
+                className={`${ddItemBase} ${ddItemInactive}`}
+                title={c.name}
+              >
+                <span className="truncate">{c.name}</span>
+                <span className="w-4" />
+              </button>
+            ))
+          ) : (
+            <div className="px-4 py-3 text-sm text-muted-foreground">
+              Hover a subcategory to see child categories.
+            </div>
           )}
         </div>
       </div>
@@ -291,33 +403,31 @@ export default function Header() {
   const catWrapRef = useRef<HTMLDivElement | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
 
-  // row-3 hover dropdown
+  // Row-3 hover state
   const [hoverTopCatId, setHoverTopCatId] = useState<number | null>(null);
-
-  // row3 refs + dropdown position (viewport-fixed, clamped)
-  const row3Ref = useRef<HTMLDivElement | null>(null);
   const catItemRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null);
 
-  // ✅ Row-3 no-stuck close controller
+  // ✅ Row-3 no-stuck controller
+  const row3InsideRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
+
   const clearCloseTimer = () => {
     if (closeTimerRef.current) {
       window.clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
   };
+
   const scheduleCloseRow3 = () => {
-    // Fast close; dropdown cancels it on enter
     clearCloseTimer();
     closeTimerRef.current = window.setTimeout(() => {
-      setHoverTopCatId(null);
-      setDropdownPos(null);
-    }, 80);
+      if (!row3InsideRef.current) {
+        setHoverTopCatId(null);
+        setDropdownPos(null);
+      }
+    }, 120);
   };
-
-  const userName = (session?.user as any)?.name || "User";
-  const userRole = (session?.user as any)?.role || "user";
 
   useEffect(() => setHasMounted(true), []);
 
@@ -476,7 +586,9 @@ export default function Header() {
     }
   };
 
-  // root categories for row-3 menu
+  const userName = (session?.user as any)?.name || "User";
+  const userRole = (session?.user as any)?.role || "user";
+
   const topCategories = categoryTree;
 
   const hoveredTop = useMemo(() => {
@@ -484,14 +596,12 @@ export default function Header() {
     return topCategories.find((c) => c.id === hoverTopCatId) ?? null;
   }, [hoverTopCatId, topCategories]);
 
-  // reusable button classes
   const topBtnClass =
     "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent";
   const iconBtnClass =
     "relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent";
 
-  // Theme toggle button component
-  const Button = ({ children, onClick, className, title }: any) => (
+  const IconButton = ({ children, onClick, className, title }: any) => (
     <button onClick={onClick} className={className} title={title}>
       {children}
     </button>
@@ -504,15 +614,15 @@ export default function Header() {
     "after:bg-current after:scale-x-0 after:origin-left " +
     "after:transition-transform after:duration-300 hover:after:scale-x-100";
 
-  // dropdown positioning (row3)
+  // Row3 dropdown positioning
   const positionHoverDropdown = (catId: number) => {
     const el = catItemRefs.current.get(catId);
     if (!el) return;
 
     const rect = el.getBoundingClientRect();
 
-    // width estimate of row3 dropdown used below (kept from your code)
-    const W = 780;
+    // Row3Flyout width: 260*2 = 520
+    const W = 520;
     const margin = 8;
 
     const left = clamp(rect.left, margin, window.innerWidth - W - margin);
@@ -553,13 +663,13 @@ export default function Header() {
             {/* Desktop actions */}
             <div className="hidden md:flex items-center gap-3">
               {hasMounted && (
-                <Button
+                <IconButton
                   onClick={toggleTheme}
                   className="rounded-full bg-muted hover:bg-accent text-foreground h-11 w-11 flex items-center justify-center border border-border"
                   title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 >
                   {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                </Button>
+                </IconButton>
               )}
 
               <Link href="/kitabghor/blogs" className={topBtnClass}>
@@ -575,13 +685,13 @@ export default function Header() {
             {/* Mobile actions */}
             <div className="flex md:hidden items-center gap-2">
               {hasMounted && (
-                <Button
+                <IconButton
                   onClick={toggleTheme}
                   className="rounded-lg bg-muted hover:bg-accent text-foreground h-10 w-10 flex items-center justify-center border border-border"
                   title={theme === "dark" ? "Light" : "Dark"}
                 >
                   {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                </Button>
+                </IconButton>
               )}
 
               <Link
@@ -619,57 +729,8 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Mobile Search */}
-          <div className="md:hidden header-search-wrapper relative">
-            <div className="relative">
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
-                placeholder="Search for products..."
-                className="w-full h-11 rounded-lg pl-4 pr-[54px] input-theme"
-              />
-
-              <button
-                type="button"
-                className="absolute right-1 top-1 h-9 w-11 rounded-md bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
-                onClick={() => {
-                  if (searchResults.length > 0) handleSelectProduct(searchResults[0]);
-                }}
-                aria-label="Search"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-
-              {showSearchDropdown && (
-                <div className="absolute mt-2 w-full bg-background text-foreground rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-50">
-                  {searchLoading && !hasLoadedProducts ? (
-                    <div className="px-4 py-3 text-sm text-muted-foreground">Loading...</div>
-                  ) : searchResults.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-muted-foreground">No results found.</div>
-                  ) : (
-                    searchResults.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => handleSelectProduct(p)}
-                        className="w-full flex items-start px-4 py-2 text-left hover:bg-muted transition text-sm"
-                      >
-                        <div className="flex flex-col">
-                          <span className="font-medium">{p.name}</span>
-                        </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Row 2 (Desktop only) */}
           <div className="hidden md:flex items-center gap-4">
-            {/* All Category + Search (theme-aware) */}
             <div className="flex-1 flex items-center">
               {/* All Category */}
               <div ref={catWrapRef} className="relative">
@@ -679,11 +740,10 @@ export default function Header() {
                   className="
                     h-11 w-[200px]
                     rounded-l-md rounded-r-none
-                    bg-muted text-foreground border border-border
+                    bg-background text-foreground
+                    border border-border
                     flex items-center justify-between
-                    px-4
-                    hover:bg-accent transition
-                    focus:outline-none focus:ring-2 focus:ring-primary/40
+                    px-4 transition focus:outline-none focus:ring-2 focus:ring-primary/40
                   "
                 >
                   <span className="text-sm font-semibold">All Category</span>
@@ -714,8 +774,9 @@ export default function Header() {
                       w-full h-11
                       rounded-r-md rounded-l-none
                       bg-background text-foreground
-                      border-y border-r border-border
+                      border border-border border-l-0
                       pl-4 pr-[54px]
+                      placeholder:text-muted-foreground
                       focus:outline-none focus:ring-2 focus:ring-primary/40
                     "
                   />
@@ -725,9 +786,10 @@ export default function Header() {
                     className="
                       absolute right-1 top-1
                       h-9 w-11 rounded-md
-                      bg-muted text-foreground border border-border
+                      bg-primary text-primary-foreground
+                      border border-border
                       flex items-center justify-center
-                      hover:bg-accent transition
+                      hover:bg-primary/90 transition
                     "
                     onClick={() => {
                       if (searchResults.length > 0) handleSelectProduct(searchResults[0]);
@@ -738,22 +800,24 @@ export default function Header() {
                   </button>
 
                   {showSearchDropdown && (
-                    <div className="absolute mt-2 w-full bg-background text-foreground rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-[9999]">
+                    <div className="absolute mt-2 w-full bg-popover text-foreground rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-[9999]">
                       {searchLoading && !hasLoadedProducts ? (
-                        <div className="px-4 py-3 text-sm text-muted-foreground">Loading...</div>
+                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                          Loading...
+                        </div>
                       ) : searchResults.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-muted-foreground">No results found.</div>
+                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                          No results found.
+                        </div>
                       ) : (
                         searchResults.map((p) => (
                           <button
                             key={p.id}
                             type="button"
                             onClick={() => handleSelectProduct(p)}
-                            className="w-full flex items-start px-4 py-2 text-left hover:bg-muted transition text-sm"
+                            className="w-full flex items-start px-4 py-2 text-left hover:bg-accent transition text-sm"
                           >
-                            <div className="flex flex-col">
-                              <span className="font-medium">{p.name}</span>
-                            </div>
+                            <span className="font-medium">{p.name}</span>
                           </button>
                         ))
                       )}
@@ -763,9 +827,9 @@ export default function Header() {
               </div>
             </div>
 
-            {/* Icons + Profile */}
+            {/* Icons + Profile (kept same) */}
             <div className="flex items-center gap-3">
-              <Link href="/kitabghor/cart" className={iconBtnClass}>
+              <Link href="/kitabghor/cart" className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent">
                 <ShoppingCart className="h-5 w-5" />
                 {hasMounted && cartCount > 0 && (
                   <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
@@ -774,7 +838,7 @@ export default function Header() {
                 )}
               </Link>
 
-              <Link href="/kitabghor/wishlist" className={iconBtnClass}>
+              <Link href="/kitabghor/wishlist" className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent">
                 <Heart className="h-5 w-5" />
                 {hasMounted && wishlistCount > 0 && (
                   <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
@@ -787,7 +851,7 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={() => setProfileOpen((p) => !p)}
-                  className={iconBtnClass}
+                  className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
                   aria-label="Profile"
                 >
                   <UserIcon className="h-5 w-5" />
@@ -845,14 +909,12 @@ export default function Header() {
       {/* Row 3 (Desktop only) */}
       <div className="bg-background border-b border-border hidden md:block text-foreground">
         <div className="container mx-auto px-4">
-          <div ref={row3Ref} className="h-12 flex items-center gap-2 relative">
-            {/* Home */}
+          <div className="h-12 flex items-center gap-2 relative">
             <Link href="/" className={underlinePill}>
               <House className="h-4 w-4 mr-2" />
               Home
             </Link>
 
-            {/* categories */}
             {topCategories.map((cat) => (
               <div
                 key={cat.id}
@@ -861,12 +923,13 @@ export default function Header() {
                 }}
                 className="relative"
                 onMouseEnter={() => {
+                  row3InsideRef.current = true;
                   clearCloseTimer();
                   setHoverTopCatId(cat.id);
                   requestAnimationFrame(() => positionHoverDropdown(cat.id));
                 }}
                 onMouseLeave={() => {
-                  // ✅ prevents stuck: mouse leave schedules close
+                  row3InsideRef.current = false;
                   scheduleCloseRow3();
                 }}
               >
@@ -879,248 +942,31 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Row-3 Hover dropdown (same UI, close behaviour fixed) */}
+      {/* ✅ Row-3 Hover dropdown:
+          Parent hover => open Sub
+          Sub hover => open Child */}
       {hoveredTop && hoveredTop.children.length > 0 && dropdownPos && (
         <div
           className="fixed z-[9999]"
           style={{ left: dropdownPos.left, top: dropdownPos.top }}
           onMouseEnter={() => {
-            // entering dropdown cancels close
+            row3InsideRef.current = true;
             clearCloseTimer();
           }}
           onMouseLeave={() => {
-            // leaving dropdown closes quickly
+            row3InsideRef.current = false;
             scheduleCloseRow3();
           }}
         >
-          <div className="bg-white border border-slate-200 shadow-2xl rounded-md overflow-hidden">
-            <div className="flex">
-              {/* Sub column */}
-              <div className="w-[260px] max-h-[420px] overflow-auto bg-white border-r border-slate-200">
-                {hoveredTop.children.map((sub) => (
-                  <Link
-                    key={sub.id}
-                    href={`/kitabghor/categories/${sub.slug}`}
-                    onClick={() => {
-                      setHoverTopCatId(null);
-                      setDropdownPos(null);
-                    }}
-                    className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-100 transition"
-                  >
-                    <span className="truncate">{sub.name}</span>
-                    {(sub.children?.length ?? 0) > 0 ? (
-                      <ChevronRight className="h-4 w-4 opacity-80" />
-                    ) : (
-                      <span className="w-4" />
-                    )}
-                  </Link>
-                ))}
-              </div>
-
-              {/* Child column (kept as your original behaviour: first sub children) */}
-              <div className="w-[260px] max-h-[420px] overflow-auto bg-white">
-                {(hoveredTop.children?.[0]?.children?.length ?? 0) === 0 ? (
-                  <div className="px-4 py-3 text-sm text-slate-500">No child categories.</div>
-                ) : (
-                  hoveredTop.children[0].children.map((child) => (
-                    <Link
-                      key={child.id}
-                      href={`/kitabghor/categories/${child.slug}`}
-                      onClick={() => {
-                        setHoverTopCatId(null);
-                        setDropdownPos(null);
-                      }}
-                      className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-100 transition"
-                    >
-                      <span className="truncate">{child.name}</span>
-                      <span className="w-4" />
-                    </Link>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Drawer (unchanged UI text minimal English) */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[60] md:hidden">
-          <button
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setMobileMenuOpen(false)}
-            aria-label="Close overlay"
-            type="button"
+          <Row3Flyout
+            parent={hoveredTop}
+            onClose={() => {
+              row3InsideRef.current = false;
+              clearCloseTimer();
+              setHoverTopCatId(null);
+              setDropdownPos(null);
+            }}
           />
-          <div className="absolute right-0 top-0 h-full w-[86%] max-w-[360px] bg-background text-foreground border-l border-border shadow-2xl flex flex-col">
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <div className="font-bold">Menu</div>
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
-                aria-label="Close menu"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-4 space-y-3 overflow-auto">
-              <Link
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
-              >
-                <House className="h-4 w-4" />
-                Home
-              </Link>
-
-              <Link
-                href="/kitabghor/blogs"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
-              >
-                <Newspaper className="h-4 w-4" />
-                Blog
-              </Link>
-
-              <Link
-                href="/kitabghor/products"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
-              >
-                <Boxes className="h-4 w-4" />
-                All Products
-              </Link>
-
-              <div className="pt-2 border-t border-border" />
-              <div className="font-semibold px-3">Categories</div>
-
-              {categoryLoading ? (
-                <div className="text-sm text-muted-foreground px-3">Loading...</div>
-              ) : topCategories.length === 0 ? (
-                <div className="text-sm text-muted-foreground px-3">No categories found.</div>
-              ) : (
-                <div className="space-y-2">
-                  {topCategories.map((parent) => (
-                    <details
-                      key={parent.id}
-                      className="rounded-lg border border-border overflow-hidden"
-                    >
-                      <summary
-                        className="cursor-pointer select-none px-3 py-2 hover:bg-muted transition flex items-center justify-between"
-                      >
-                        <span className="font-medium">{parent.name}</span>
-                        <ChevronDown className="h-4 w-4 opacity-70" />
-                      </summary>
-
-                      <div className="p-2 space-y-1 bg-background">
-                        <Link
-                          href={`/kitabghor/categories/${parent.slug}`}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition text-primary"
-                        >
-                          View All
-                        </Link>
-
-                        {(parent.children?.length ?? 0) === 0 ? (
-                          <div className="px-3 py-2 text-sm text-muted-foreground">
-                            No subcategories
-                          </div>
-                        ) : (
-                          parent.children.map((sub) => (
-                            <details
-                              key={sub.id}
-                              className="rounded-lg border border-border"
-                            >
-                              <summary
-                                className="cursor-pointer select-none px-3 py-2 hover:bg-muted transition flex items-center justify-between text-sm"
-                              >
-                                <span>{sub.name}</span>
-                                <ChevronDown className="h-4 w-4 opacity-70" />
-                              </summary>
-
-                              <div className="p-2 space-y-1">
-                                <Link
-                                  href={`/kitabghor/categories/${sub.slug}`}
-                                  onClick={() => setMobileMenuOpen(false)}
-                                  className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition text-primary"
-                                >
-                                  View All
-                                </Link>
-
-                                {(sub.children?.length ?? 0) === 0 ? (
-                                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                                    No child categories
-                                  </div>
-                                ) : (
-                                  sub.children.map((child) => (
-                                    <Link
-                                      key={child.id}
-                                      href={`/kitabghor/categories/${child.slug}`}
-                                      onClick={() => setMobileMenuOpen(false)}
-                                      className="block px-3 py-2 rounded-lg text-sm hover:bg-muted transition"
-                                    >
-                                      {child.name}
-                                    </Link>
-                                  ))
-                                )}
-                              </div>
-                            </details>
-                          ))
-                        )}
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              )}
-
-              <div className="pt-2 border-t border-border" />
-
-              {hasMounted && session ? (
-                <div className="space-y-2">
-                  <div className="px-3">
-                    <div className="text-sm font-semibold">{userName}</div>
-                    <div className="text-xs text-muted-foreground">{userRole}</div>
-                  </div>
-
-                  <Link
-                    href={userRole === "admin" ? "/admin" : "/kitabghor/user/"}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition"
-                  >
-                    <LayoutDashboard className="h-4 w-4" />
-                    Dashboard
-                  </Link>
-
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={async () => {
-                      setMobileMenuOpen(false);
-                      await handleSignOut();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition text-left"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Logout
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    router.push("/signin");
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted transition text-left"
-                >
-                  <LogIn className="h-4 w-4" />
-                  Login
-                </button>
-              )}
-            </div>
-          </div>
         </div>
       )}
     </header>
