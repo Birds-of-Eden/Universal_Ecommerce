@@ -291,7 +291,7 @@ export default function VatClasses() {
   ========================= */
   return (
     <div className="p-8">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-2">
         <h1 className="text-2xl font-bold">VAT Classes</h1>
         <Button onClick={openAdd}>
           <Plus size={16} className="mr-2" />
@@ -302,7 +302,7 @@ export default function VatClasses() {
       {loading ? (
         <p>Loading...</p>
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           {vatClasses.map((vat) => (
             <Card key={vat.id}>
               <CardContent className="p-6 space-y-3">
@@ -404,7 +404,7 @@ export default function VatClasses() {
           onClick={closeModal}
         >
           <div
-            className="bg-white p-6 rounded-xl w-[400px] space-y-4"
+            className="bg-card p-6 rounded-xl w-[400px] space-y-4 border border-border"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center">
@@ -465,7 +465,7 @@ export default function VatClasses() {
           onClick={closeRateModal}
         >
           <div
-            className="bg-white p-6 rounded-xl w-[520px] space-y-4"
+            className="bg-card p-6 rounded-xl w-[520px] space-y-4 border border-border"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center">
