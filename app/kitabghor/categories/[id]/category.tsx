@@ -295,27 +295,15 @@ export default function CategoryPage({
                 </div>
               </div>
 
-              {/* ✅ Small line to confirm filters working */}
-              <div className="mt-2 text-xs text-muted-foreground">
-                Showing{" "}
-                <span className="text-foreground font-medium">{visibleProducts.length}</span> of{" "}
-                <span className="text-foreground font-medium">{sortedProducts.length}</span> filtered
-                products
-                {categoryCount !== null ? (
-                  <>
-                    {" "}
-                    · <span className="text-foreground font-medium">{categoryCount}</span> categories
-                  </>
-                ) : null}
-              </div>
+           
             </div>
 
             {sortedProducts.length === 0 ? (
               <Card className="rounded-md border border-border bg-card text-card-foreground shadow-sm">
                 <CardContent className="p-10 text-center">
-                  <p className="font-medium mb-2">কোন প্রোডাক্ট পাওয়া যায়নি</p>
+                  <p className="font-medium mb-2">No Products Found In This Category</p>
                   <p className="text-muted-foreground text-sm">
-                    ফিল্টার পরিবর্তন করে আবার চেষ্টা করুন।
+                    Filter Change & Try Again
                   </p>
                 </CardContent>
               </Card>
