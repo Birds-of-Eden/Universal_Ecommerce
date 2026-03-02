@@ -67,6 +67,10 @@ export default function BookDetail() {
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState<"desc" | "spec" | "reviews">("desc");
 
+  // ✅ Zoom states (ecommerce magnifier style)
+  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const [isZooming, setIsZooming] = useState(false);
+
   useEffect(() => {
     if (!id) return;
     let mounted = true;
@@ -167,13 +171,13 @@ export default function BookDetail() {
   if (err || !product) {
     return (
       <div className="container mx-auto px-4 py-10">
-        <div className="rounded-xl border border-border bg-background p-6">
+        <div className="rounded-xl border border-border bg-card p-6">
           <div className="text-destructive font-semibold">
             {err || "Product not found"}
           </div>
           <button
             onClick={() => router.back()}
-            className="mt-4 px-4 py-2 rounded-lg border border-border hover:bg-muted transition"
+            className="mt-4 px-4 py-2 btn-primary rounded-lg transition"
           >
             Go Back
           </button>
@@ -185,13 +189,13 @@ export default function BookDetail() {
   const badge = saveText(product);
 
   return (
-    <div className="bg-muted/20">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-8">
         {/* Top area */}
         <div className="grid lg:grid-cols-[320px_1fr] gap-6">
           {/* ✅ Related products (left) */}
-          <aside className="rounded-xl border border-border bg-background overflow-hidden">
-            <div className="px-4 py-3 border-b border-border font-semibold">
+          <aside className="card-theme rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-border font-semibold text-card-foreground">
               Related Products
             </div>
 
@@ -205,9 +209,9 @@ export default function BookDetail() {
                   <Link
                     key={p.id}
                     href={`/kitabghor/books/${p.id}`}
-                    className="flex gap-3 rounded-xl border border-border p-3 hover:bg-muted transition"
+                    className="flex gap-3 rounded-xl border border-border p-3 hover:bg-accent transition"
                   >
-                    <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-white border border-border shrink-0">
+                    <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-card border border-border shrink-0">
                       {p.image ? (
                         <Image
                           src={p.image}
@@ -246,26 +250,40 @@ export default function BookDetail() {
           </aside>
 
           {/* ✅ Product main */}
-          <section className="rounded-xl border border-border bg-background p-4 sm:p-6">
+          <section className="card-theme rounded-xl p-4 sm:p-6">
             <div className="grid md:grid-cols-2 gap-8">
               {/* Gallery */}
               <div>
-                <div className="relative w-full h-[320px] sm:h-[380px] bg-white rounded-xl border border-border overflow-hidden">
+                {/* ✅ Ecommerce magnifier zoom */}
+                <div
+                  className="relative w-full h-[320px] sm:h-[380px] bg-card rounded-xl border border-border overflow-hidden"
+                  onMouseMove={(e) => {
+                    const { left, top, width, height } =
+                      e.currentTarget.getBoundingClientRect();
+                    const x = ((e.clientX - left) / width) * 100;
+                    const y = ((e.clientY - top) / height) * 100;
+                    setZoomPos({ x, y });
+                  }}
+                  onMouseEnter={() => setIsZooming(true)}
+                  onMouseLeave={() => setIsZooming(false)}
+                  style={{ cursor: "zoom-in" }}
+                >
                   {badge && (
                     <div className="absolute left-3 top-3 z-10">
-                      <span className="h-6 px-2 inline-flex items-center text-[11px] font-semibold rounded bg-purple-700 text-white">
+                      <span className="h-6 px-2 inline-flex items-center text-[11px] font-semibold rounded bg-primary text-primary-foreground">
                         {badge}
                       </span>
                     </div>
                   )}
 
                   {activeImg ? (
-                    <Image
-                      src={activeImg}
-                      alt={product.name}
-                      fill
-                      className="object-contain p-6"
-                      sizes="(max-width: 768px) 100vw, 50vw"
+                    <div
+                      className="w-full h-full bg-no-repeat transition-[background-size,background-position] duration-75"
+                      style={{
+                        backgroundImage: `url(${activeImg})`,
+                        backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
+                        backgroundSize: isZooming ? "250%" : "contain",
+                      }}
                     />
                   ) : (
                     <div className="h-full flex items-center justify-center text-muted-foreground">
@@ -285,7 +303,7 @@ export default function BookDetail() {
                           type="button"
                           onClick={() => setActiveImg(src)}
                           className={[
-                            "relative h-16 w-16 rounded-lg border bg-white overflow-hidden shrink-0",
+                            "relative h-16 w-16 rounded-lg border bg-card overflow-hidden shrink-0",
                             active
                               ? "border-primary ring-2 ring-primary/30"
                               : "border-border hover:border-primary/60",
@@ -315,7 +333,13 @@ export default function BookDetail() {
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                   <span className="px-2 py-1 rounded border border-border bg-muted/30">
                     Stock:{" "}
-                    <span className={stock > 0 ? "text-green-600" : "text-red-600"}>
+                    <span
+                      className={
+                        stock > 0
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-destructive"
+                      }
+                    >
                       {stock > 0 ? "In Stock" : "Out of Stock"}
                     </span>
                   </span>
@@ -352,7 +376,7 @@ export default function BookDetail() {
                   </div>
 
                   <div className="mt-1 flex items-end gap-3">
-                    <div className="text-2xl font-bold text-red-600">
+                    <div className="text-2xl font-bold text-destructive">
                       {moneyBDT(product.basePrice ?? 0)}
                     </div>
 
@@ -366,10 +390,10 @@ export default function BookDetail() {
 
                 {/* Qty + Buttons */}
                 <div className="mt-6 grid grid-cols-[140px_1fr] gap-3">
-                  <div className="h-11 rounded-lg border border-border flex items-center justify-between px-2">
+                  <div className="h-11 rounded-lg border border-border flex items-center justify-between px-2 bg-card">
                     <button
                       type="button"
-                      className="h-9 w-9 rounded-md hover:bg-muted transition"
+                      className="h-9 w-9 rounded-md hover:bg-accent transition"
                       onClick={() => setQty((q) => Math.max(1, q - 1))}
                     >
                       −
@@ -379,7 +403,7 @@ export default function BookDetail() {
 
                     <button
                       type="button"
-                      className="h-9 w-9 rounded-md hover:bg-muted transition"
+                      className="h-9 w-9 rounded-md hover:bg-accent transition"
                       onClick={() => setQty((q) => Math.min(99, q + 1))}
                     >
                       +
@@ -391,7 +415,7 @@ export default function BookDetail() {
 
                     <button
                       type="button"
-                      className="h-11 rounded-lg bg-orange-500 text-white font-semibold hover:opacity-95 transition disabled:opacity-50"
+                      className="h-11 btn-primary rounded-lg font-semibold hover:opacity-95 transition disabled:opacity-50"
                       disabled={stock <= 0}
                       onClick={() => {
                         addToCart(product.id, qty);
@@ -415,7 +439,7 @@ export default function BookDetail() {
         </div>
 
         {/* Tabs section */}
-        <div className="mt-6 rounded-xl border border-border bg-background overflow-hidden">
+        <div className="mt-6 card-theme rounded-xl overflow-hidden">
           <div className="flex gap-2 border-b border-border px-3 sm:px-4">
             <button
               className={[
@@ -491,7 +515,9 @@ export default function BookDetail() {
               </div>
             )}
 
-            {tab === "reviews" && <ProductReviews productId={Number(product.id)} />}
+            {tab === "reviews" && (
+              <ProductReviews productId={Number(product.id)} />
+            )}
           </div>
         </div>
       </div>
