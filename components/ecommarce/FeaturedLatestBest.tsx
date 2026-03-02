@@ -5,6 +5,14 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { Star } from "lucide-react";
 
+function shuffleInPlace<T>(arr: T[]) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 type Product = {
   id: number;
   name: string;
@@ -17,7 +25,13 @@ type Product = {
   ratingCount?: number;
   featured?: boolean;
   soldCount?: number;
+  totalSold?: number; // New property from top-selling API
+  rank?: number; // New property from top-selling API
   variants?: { price: any }[];
+  writer?: { name: string } | null;
+  publisher?: { name: string } | null;
+  category?: { name: string } | null;
+  brand?: { name: string } | null;
 };
 
 function toNumber(v: any) {
@@ -49,9 +63,11 @@ function getDiscountPercent(p: Product) {
 function ProductRow({
   p,
   showBadge = true,
+  showSalesBadge = false,
 }: {
   p: Product;
   showBadge?: boolean;
+  showSalesBadge?: boolean;
 }) {
   const price = getFinalPrice(p);
   const original = getOriginalPrice(p);
@@ -76,6 +92,13 @@ function ProductRow({
         </span>
       )}
 
+      {/* sales rank badge for best sellers */}
+      {showSalesBadge && p.rank && (
+        <span className="absolute right-2 top-2 z-10 rounded-md bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white">
+          #{p.rank}
+        </span>
+      )}
+
       {/* image */}
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
         <Image
@@ -92,6 +115,13 @@ function ProductRow({
         <div className="line-clamp-2 text-sm font-semibold text-foreground">
           {p.name}
         </div>
+
+        {/* sales info for best sellers */}
+        {showSalesBadge && p.totalSold && (
+          <div className="mt-1 text-xs text-amber-600 font-medium">
+            {p.totalSold} sold
+          </div>
+        )}
 
         {/* rating */}
         <div className="mt-1 flex items-center gap-2">
@@ -135,11 +165,13 @@ function Column({
   icon,
   items,
   loading,
+  showSalesBadge = false,
 }: {
   title: string;
   icon: React.ReactNode;
   items: Product[];
   loading: boolean;
+  showSalesBadge?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-border bg-background shadow-sm overflow-hidden">
@@ -170,7 +202,7 @@ function Column({
             No products found
           </div>
         ) : (
-          items.map((p) => <ProductRow key={p.id} p={p} />)
+          items.map((p) => <ProductRow key={p.id} p={p} showSalesBadge={showSalesBadge} />)
         )}
       </div>
     </div>
@@ -211,14 +243,15 @@ export default function FeaturedLatestBest({
 
         const list = Array.isArray(data) ? data : [];
 
-        // Latest = newest id desc (API already returns id desc কিন্তু safe)
+        // Latest = newest id desc (API already returns id desc but keep it safe)
         const latestSorted = [...list].sort((a, b) => Number(b.id) - Number(a.id));
 
-        // Featured = featured true
+        // Featured = featured true (random)
         const featuredOnly = list.filter((p) => !!p.featured);
+        const featuredRandom = shuffleInPlace([...featuredOnly]);
 
         setLatest(latestSorted.slice(0, latestLimit));
-        setFeatured(featuredOnly.slice(0, featuredLimit));
+        setFeatured(featuredRandom.slice(0, featuredLimit));
       } catch (e) {
         if (!mounted) return;
         setFeatured([]);
@@ -285,10 +318,11 @@ export default function FeaturedLatestBest({
             loading={loadingLatest}
           />
           <Column
-            title="Best Sellers"
+            title="Best Selling"
             icon={<span className="text-lg">🏆</span>}
             items={best}
             loading={loadingBest}
+            showSalesBadge={true}
           />
         </div>
       </div>

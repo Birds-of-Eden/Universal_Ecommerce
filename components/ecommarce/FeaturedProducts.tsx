@@ -18,6 +18,14 @@ type ProductDTO = {
   featured: boolean;
 };
 
+function shuffleInPlace<T>(arr: T[]) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function formatBDT(n: number) {
   return `${Math.round(n).toLocaleString("en-US")}৳`;
 }
@@ -130,18 +138,8 @@ export default function FeaturedProducts({
   const featured = useMemo(() => {
     const list = items.filter((p) => p.featured);
 
-    // prioritize: discounted first, then latest id
-    list.sort((a, b) => {
-      const ad = a.originalPrice && a.originalPrice > a.basePrice ? 1 : 0;
-      const bd = b.originalPrice && b.originalPrice > b.basePrice ? 1 : 0;
-      if (bd !== ad) return bd - ad;
-
-      const ai = typeof a.id === "number" ? a.id : Number(a.id) || 0;
-      const bi = typeof b.id === "number" ? b.id : Number(b.id) || 0;
-      return bi - ai;
-    });
-
-    return list.slice(0, limit);
+    const shuffled = shuffleInPlace([...list]);
+    return shuffled.slice(0, limit);
   }, [items, limit]);
 
   return (
