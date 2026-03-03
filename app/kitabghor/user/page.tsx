@@ -11,6 +11,7 @@ import {
   MapPin,
   Heart,
   ChevronRight,
+  FileTextIcon,
 } from "lucide-react";
 import AccountHeader from "./AccountHeader";
 
@@ -61,10 +62,12 @@ export default function UserDashboardPage() {
   // ✅ আপনার রাউট অনুযায়ী href বদলাবেন
   const tiles: Tile[] = [
     { title: "Orders", href: "/kitabghor/user/orders", icon: <ShoppingBag className="h-5 w-5" /> },
+    { title: "Invoice", href: "/kitabghor/user/invoice", icon: <FileTextIcon  className="h-4 w-4" /> },
     { title: "Edit Profile", href: "/kitabghor/user/profile", icon: <User className="h-5 w-5" /> },
     { title: "Password", href: "/kitabghor/user/change-password", icon: <Lock className="h-5 w-5" /> },
     { title: "Addresses", href: "/kitabghor/user/addresses", icon: <MapPin className="h-5 w-5" /> },
     { title: "Wish List", href: "/kitabghor/user/wishlist", icon: <Heart className="h-5 w-5" /> },
+    
   ];
 
   return (
@@ -92,12 +95,8 @@ export default function UserDashboardPage() {
             <TileCard {...tiles[1]} />
             <TileCard {...tiles[2]} />
             <TileCard {...tiles[3]} />
-
-            {/* Second row: only wishlist (SS-like spacing) */}
-            <div className="lg:col-span-1">
-              <TileCard {...tiles[4]} />
-            </div>
-            <div className="hidden lg:block lg:col-span-3" />
+            <TileCard {...tiles[4]} />
+            <TileCard {...tiles[5]} />
           </div>
         </div>
       </div>
