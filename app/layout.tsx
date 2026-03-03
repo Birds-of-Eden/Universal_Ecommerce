@@ -42,7 +42,6 @@ export default function RootLayout({
         <ThemeProvider
           attribute="class"
           themes={["light", "dark", "navy", "plum"]}
-          value={{ navy: "theme-navy", plum: "theme-plum" }}
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
