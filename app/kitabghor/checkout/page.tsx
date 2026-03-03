@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 import { ALLOWED_SHIPPING_AREAS, normalizeShippingArea, type AllowedShippingArea } from "@/lib/shipping-areas";
+import PaymentMethodSelector from "@/components/checkout/PaymentMethodSelector";
 
 type UserAddress = {
   id: number;
@@ -352,23 +353,6 @@ export default function CheckoutPage() {
 
   const itemsToRender = isAuthenticated && serverCartItems ? serverCartItems : cartItems;
 
-  const getChannelInitials = (channel: string): string => {
-    const words = channel.trim().split(/\s+/);
-    if (words.length === 1) return words[0].charAt(0).toUpperCase();
-    return words.map((w) => w.charAt(0).toUpperCase()).join("");
-  };
-
-  const selectedGateway = paymentGateways.find((p) => {
-    if (!paymentMethod || paymentMethod === "CashOnDelivery") return false;
-    const channel = (p as any)?.paymentGatewayData?.channel as string | undefined;
-    if (!channel) return false;
-    const slug = channel.toLowerCase().replace(/\s+/g, "");
-    return slug === paymentMethod;
-  });
-
-  const selectedGatewayAccounts =
-    ((selectedGateway as any)?.paymentGatewayData?.accountNumbers as string[] | undefined) || [];
-
   const subtotal = itemsToRender.reduce(
     (total, item) => total + Number(item.price) * Number(item.quantity),
     0
@@ -548,18 +532,22 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!name || !mobile || !country || !location || !area || !deliveryAddress || (paymentMethod !== "CashOnDelivery" && !transactionId)) {
+    const isCOD = paymentMethod === "CashOnDelivery";
+    const isSSLCOMMERZ = paymentMethod === "SSLCOMMERZ";
+    const isManualPayment = !isCOD && !isSSLCOMMERZ;
+
+    if (!name || !mobile || !country || !location || !area || !deliveryAddress || (isManualPayment && !transactionId)) {
       toast.error("Please fill in all required information");
       return;
     }
 
-    if (paymentMethod !== "CashOnDelivery" && (!paymentScreenshotUrl || isUploadingScreenshot)) {
+    if (isManualPayment && (!paymentScreenshotUrl || isUploadingScreenshot)) {
       if (isUploadingScreenshot) toast.error("Please wait until screenshot upload is complete");
       else toast.error("Payment screenshot is required");
       return;
     }
 
-    const computedPaymentStatus = paymentMethod === "CashOnDelivery" ? "UNPAID" : "PAID";
+    const computedPaymentStatus = isCOD || isSSLCOMMERZ ? "UNPAID" : "PAID";
     const localInvoiceId = uuidv4();
 
     const uiOrderData = {
@@ -573,7 +561,7 @@ export default function CheckoutPage() {
       },
       itemsToRender,
       paymentMethod,
-      transactionId: paymentMethod !== "CashOnDelivery" ? transactionId : null,
+      transactionId: isManualPayment ? transactionId : null,
       total,
       createdAt: new Date().toISOString(),
       paymentStatus: computedPaymentStatus,
@@ -595,9 +583,9 @@ export default function CheckoutPage() {
       address_details: deliveryAddress || "N/A",
       payment_method: paymentMethod,
       items,
-      transactionId: paymentMethod !== "CashOnDelivery" ? transactionId : null,
+      transactionId: isManualPayment ? transactionId : null,
       paymentStatus: computedPaymentStatus,
-      image: paymentScreenshotUrl || null,
+      image: isManualPayment ? (paymentScreenshotUrl || null) : null,
     };
 
     try {
@@ -615,6 +603,23 @@ export default function CheckoutPage() {
 
       const createdOrder = await res.json();
       setPlacedOrder({ ...uiOrderData, orderId: createdOrder.id });
+
+      if (paymentMethod === "SSLCOMMERZ") {
+        const initRes = await fetch("/api/sslcommerz/init", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: createdOrder.id }),
+        });
+
+        const initData = await initRes.json().catch(() => null);
+        if (!initRes.ok || !initData?.redirectUrl) {
+          toast.error(initData?.error || "Failed to start SSLCommerz payment");
+          return;
+        }
+
+        window.location.href = String(initData.redirectUrl);
+        return;
+      }
 
       try {
         if ((session as any)?.user) {
@@ -909,145 +914,20 @@ export default function CheckoutPage() {
 
               {/* Step 2 */}
               {step === "payment" && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between mb-4 sm:mb-6">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="w-2 h-6 sm:h-8 bg-[#819A91] rounded-full"></div>
-                      <h2 className="text-xl sm:text-2xl font-bold text-foreground">Payment Method</h2>
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      onClick={() => setStep("details")}
-                      className="text-foreground/70 hover:text-foreground hover:bg-muted"
-                    >
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      Back
-                    </Button>
-                  </div>
-
-                  <div className="grid gap-4">
-                    {[
-                      ...paymentGateways
-                        .map((p) => {
-                          const channel = (p as any)?.paymentGatewayData?.channel as string | undefined;
-                          if (!channel) return null;
-                          const slug = channel.toLowerCase().replace(/\s+/g, "");
-                          return { id: slug, name: channel, color: "bg-gradient-to-r from-emerald-500 to-green-500" };
-                        })
-                        .filter(Boolean),
-                      { id: "CashOnDelivery", name: "Cash On Delivery", color: "bg-gradient-to-r from-[#A7C1A8] to-[#819A91]" },
-                    ].map((method: any) => (
-                      <div
-                        key={method.id}
-                        className={`border-2 rounded-lg sm:rounded-xl p-3 sm:p-4 cursor-pointer transition-all duration-300 ${
-                          paymentMethod === method.id
-                            ? "border-[#819A91] bg-muted shadow-md"
-                            : "border-border hover:bg-muted"
-                        }`}
-                        onClick={() => setPaymentMethod(method.id)}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-3 sm:gap-4">
-                            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg ${method.color} flex items-center justify-center shadow-md`}>
-                              <span className="text-white font-bold text-sm sm:text-lg">
-                                {method.id === "CashOnDelivery" ? "COD" : getChannelInitials(method.name)}
-                              </span>
-                            </div>
-                            <div className="min-w-0">
-                              <span className="font-semibold text-foreground text-sm sm:text-base block truncate">
-                                {method.name}
-                              </span>
-                              {method.id === "CashOnDelivery" && (
-                                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                                  Pay when you receive the product.
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div
-                            className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center ${
-                              paymentMethod === method.id ? "border-[#819A91] bg-[#819A91]" : "border-border"
-                            }`}
-                          >
-                            {paymentMethod === method.id && <div className="w-2 h-2 rounded-full bg-white" />}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {paymentMethod && paymentMethod !== "CashOnDelivery" && (
-                    <div className="bg-muted rounded-lg sm:rounded-xl p-4 sm:p-6 border border-border">
-                      <div className="flex items-center gap-3 mb-4">
-                        <CreditCard className="w-5 h-5 text-[#819A91]" />
-                        <h3 className="font-semibold text-foreground">Payment Instructions</h3>
-                      </div>
-
-                      <p className="text-sm text-foreground mb-2">Pay to these numbers:</p>
-
-                      {selectedGatewayAccounts.length > 0 ? (
-                        <ul className="text-sm text-foreground mb-4 list-disc list-inside space-y-1">
-                          {selectedGatewayAccounts.map((acc, idx) => (
-                            <li key={idx}>
-                              <strong>{acc}</strong>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-xs text-muted-foreground mb-4">No account numbers found.</p>
-                      )}
-
-                      <LabeledInput
-                        id="transactionId"
-                        label="Transaction ID *"
-                        placeholder="Enter transaction ID"
-                        value={transactionId}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTransactionId(e.target.value)}
-                        className="bg-background border-border text-foreground placeholder:text-muted-foreground mt-4"
-                      />
-
-                      <div className="mt-4 space-y-2">
-                        <label className="text-sm font-medium text-foreground">Payment Screenshot</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleScreenshotChange}
-                          className="w-full text-sm text-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#819A91] file:text-white hover:file:bg-[#819A91]/90 cursor-pointer"
-                        />
-
-                        {(paymentScreenshotUrl || paymentScreenshotPreview) && (
-                          <div className="mt-3">
-                            <p className="text-xs text-muted-foreground mb-2">Preview:</p>
-                            <div className="relative w-40 h-40 border border-border rounded-xl overflow-hidden bg-background">
-                              <Image
-                                src={paymentScreenshotUrl || paymentScreenshotPreview!}
-                                alt="Payment screenshot preview"
-                                fill
-                                className="object-cover"
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {isUploadingScreenshot && (
-                          <p className="text-xs text-muted-foreground mt-1">Uploading screenshot...</p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentMethod && (
-                    <Button
-                      className="w-full bg-[#819A91] hover:bg-[#819A91]/90 text-white py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                      onClick={handlePlaceOrder}
-                      disabled={isUploadingScreenshot}
-                    >
-                      {isUploadingScreenshot ? "Uploading..." : "Place Order"}
-                    </Button>
-                  )}
-                </div>
+                <PaymentMethodSelector
+                  paymentGateways={paymentGateways}
+                  selectedMethod={paymentMethod}
+                  onMethodChange={setPaymentMethod}
+                  transactionId={transactionId}
+                  onTransactionIdChange={setTransactionId}
+                  paymentScreenshotUrl={paymentScreenshotUrl}
+                  paymentScreenshotPreview={paymentScreenshotPreview}
+                  onScreenshotChange={handleScreenshotChange}
+                  isUploadingScreenshot={isUploadingScreenshot}
+                  onBack={() => setStep("details")}
+                  onNext={handlePlaceOrder}
+                  total={total}
+                />
               )}
 
               {/* Step 3 */}

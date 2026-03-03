@@ -136,6 +136,11 @@ export async function POST(request: NextRequest) {
       image,         // 🔥 payment screenshot URL (e.g. /upload/xxx.png)
     } = body;
 
+    const paymentMethod = String(payment_method || "");
+    const isCOD = paymentMethod === "CashOnDelivery";
+    const isSSLCOMMERZ = paymentMethod === "SSLCOMMERZ";
+    const isManualPayment = !isCOD && !isSSLCOMMERZ;
+
     if (
       !name ||
       !phone_number ||
@@ -158,8 +163,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If payment is online, require a payment screenshot (image)
-    if (payment_method !== "CashOnDelivery" && !image) {
+    // Only MANUAL payment requires screenshot proof
+    if (isManualPayment && !image) {
       return NextResponse.json(
         { error: "Payment screenshot is required for online payments" },
         { status: 400 }
@@ -227,8 +232,7 @@ export async function POST(request: NextRequest) {
     const grand_total = subtotal + shipping_cost;
 
     // payment_method থেকে paymentStatus ঠিক করা
-    const paymentStatus =
-      payment_method === "CashOnDelivery" ? "UNPAID" : "PAID";
+    const paymentStatus = (isCOD || isSSLCOMMERZ) ? "UNPAID" : "PAID";
 
     // Use a transaction for order + orderItems consistency
     const created = await prisma.$transaction(async (tx: any) => {
@@ -251,7 +255,7 @@ export async function POST(request: NextRequest) {
           status: "PENDING",
           paymentStatus,
           transactionId: transactionId ?? null,
-          image: image ?? null,
+          image: isManualPayment ? (image ?? null) : null,
           orderItems: {
             create: orderItemsData,
           },
