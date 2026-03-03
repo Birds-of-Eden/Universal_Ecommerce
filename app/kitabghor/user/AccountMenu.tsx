@@ -12,6 +12,7 @@ import {
   Monitor,
   Star,
   CreditCard,
+  FileTextIcon,
 } from "lucide-react";
 
 type MenuItem = {
@@ -25,7 +26,7 @@ export default function AccountMenu() {
 
   const items: MenuItem[] = [
     { label: "Orders", href: "/kitabghor/user/orders", icon: <ShoppingBag className="h-4 w-4" /> },
-   
+    { label: "Invoice", href: "/kitabghor/user/invoice", icon: <FileTextIcon className="h-4 w-4" /> }, 
     { label: "Edit Profile", href: "/kitabghor/user/profile", icon: <User className="h-4 w-4" /> },
     { label: "Change Password", href: "/kitabghor/user/change-password", icon: <Lock className="h-4 w-4" /> },
     { label: "Addresses", href: "/kitabghor/user/addresses", icon: <MapPin className="h-4 w-4" /> },
