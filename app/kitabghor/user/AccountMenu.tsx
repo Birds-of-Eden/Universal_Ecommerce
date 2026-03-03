@@ -27,7 +27,7 @@ export default function AccountMenu() {
     { label: "Orders", href: "/kitabghor/user/orders", icon: <ShoppingBag className="h-4 w-4" /> },
    
     { label: "Edit Profile", href: "/kitabghor/user/profile", icon: <User className="h-4 w-4" /> },
-    { label: "ChangePassword", href: "/kitabghor/user/change-password", icon: <Lock className="h-4 w-4" /> },
+    { label: "Change Password", href: "/kitabghor/user/change-password", icon: <Lock className="h-4 w-4" /> },
     { label: "Addresses", href: "/kitabghor/user/addresses", icon: <MapPin className="h-4 w-4" /> },
     { label: "Wish List", href: "/kitabghor/user/wishlist", icon: <Heart className="h-4 w-4" /> },
   ];

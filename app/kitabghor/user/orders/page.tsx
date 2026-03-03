@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Card } from "@/components/ui/card";
 import AccountMenu from "../AccountMenu";
 import { Home, ChevronRight, User } from "lucide-react";
+import AccountHeader from "../AccountHeader";
 
 interface CartItem {
   id: number | string;
@@ -209,20 +210,7 @@ export default function OrdersPage() {
 </div>
 
       {/* Header row (avatar + hello + points/credit) */}
-      <div className="max-w-6xl mx-auto px-6 py-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="h-20 w-20 rounded-full bg-muted border border-border flex items-center justify-center">
-              <User className="h-9 w-9 text-muted-foreground" />
-            </div>
-
-            <div>
-              <p className="text-sm text-muted-foreground">Hello,</p>
-              <h1 className="text-2xl md:text-3xl font-semibold">{userName}</h1>
-            </div>
-          </div>
-        </div>
-      </div>
+    <AccountHeader />
 
       {/* SS Menu (separate component) */}
       <AccountMenu />

@@ -19,7 +19,6 @@ export async function GET() {
       name: true,
       role: true,
       phone: true,
-      address: true,
       image: true,
       note: true,
     },
@@ -41,7 +40,7 @@ export async function PUT(request: NextRequest) {
   const userId = (session.user as any).id as string;
 
   const body = await request.json();
-  const { name, phone, image, note, address } = body;
+  const { name, phone, image, note } = body;
 
   let finalImageUrl = undefined;
 
@@ -69,7 +68,6 @@ export async function PUT(request: NextRequest) {
       phone: phone ?? undefined,
       image: finalImageUrl ?? undefined,
       note: note ?? undefined,
-      address: address ?? undefined,
     },
     select: {
       id: true,
@@ -77,7 +75,6 @@ export async function PUT(request: NextRequest) {
       name: true,
       role: true,
       phone: true,
-      address: true,
       image: true,
       note: true,
     },

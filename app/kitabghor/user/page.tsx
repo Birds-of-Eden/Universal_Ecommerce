@@ -12,6 +12,7 @@ import {
   Heart,
   ChevronRight,
 } from "lucide-react";
+import AccountHeader from "./AccountHeader";
 
 type Tile = {
   title: string;
@@ -61,7 +62,7 @@ export default function UserDashboardPage() {
   const tiles: Tile[] = [
     { title: "Orders", href: "/kitabghor/user/orders", icon: <ShoppingBag className="h-5 w-5" /> },
     { title: "Edit Profile", href: "/kitabghor/user/profile", icon: <User className="h-5 w-5" /> },
-    { title: "Change Password", href: "/kitabghor/user/change-password", icon: <Lock className="h-5 w-5" /> },
+    { title: "Password", href: "/kitabghor/user/change-password", icon: <Lock className="h-5 w-5" /> },
     { title: "Addresses", href: "/kitabghor/user/addresses", icon: <MapPin className="h-5 w-5" /> },
     { title: "Wish List", href: "/kitabghor/user/wishlist", icon: <Heart className="h-5 w-5" /> },
   ];
@@ -83,18 +84,7 @@ export default function UserDashboardPage() {
       <div className="px-6 pb-10">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="flex items-center gap-5 mb-8">
-            <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center border border-border">
-              <User className="h-9 w-9 text-muted-foreground" />
-            </div>
-
-            <div>
-              <p className="text-sm text-muted-foreground">Hello,</p>
-              <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
-                {userName}
-              </h1>
-            </div>
-          </div>
+         <AccountHeader />
 
           {/* Tiles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
