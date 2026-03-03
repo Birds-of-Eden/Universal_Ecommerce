@@ -90,6 +90,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check if shipment exists
     const existingShipment = await prisma.shipment.findUnique({
       where: { id },
+      select: {
+        id: true,
+        status: true,
+        orderId: true,
+      },
     });
 
     if (!existingShipment) {
@@ -210,9 +215,50 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data.deliveredAt = deliveredAt ? new Date(deliveredAt) : null;
     }
 
-    const updated = await prisma.shipment.update({
-      where: { id },
-      data,
+    const updated = await prisma.$transaction(async (tx) => {
+      const nextStatus = data.status as string | undefined;
+      const prevStatus = existingShipment.status as string;
+
+      // Update soldCount based on shipment status transition
+      // - DELIVERED: add quantities (only once)
+      // - RETURNED/CANCELLED: subtract quantities only if it was previously DELIVERED
+      const shouldIncrement = nextStatus === "DELIVERED" && prevStatus !== "DELIVERED";
+      const shouldDecrement =
+        (nextStatus === "RETURNED" || nextStatus === "CANCELLED") && prevStatus === "DELIVERED";
+
+      if (shouldIncrement || shouldDecrement) {
+        const items = await tx.orderItem.findMany({
+          where: { orderId: existingShipment.orderId },
+          select: { productId: true, quantity: true },
+        });
+
+        const qtyByProduct = new Map<number, number>();
+        for (const it of items) {
+          qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + it.quantity);
+        }
+
+        for (const [productId, qty] of qtyByProduct.entries()) {
+          const product = await tx.product.findUnique({
+            where: { id: productId },
+            select: { soldCount: true },
+          });
+
+          const current = product?.soldCount ?? 0;
+          const next = shouldIncrement ? current + qty : current - qty;
+
+          await tx.product.update({
+            where: { id: productId },
+            data: {
+              soldCount: Math.max(next, 0),
+            },
+          });
+        }
+      }
+
+      return tx.shipment.update({
+        where: { id },
+        data,
+      });
     });
 
     return NextResponse.json(updated);

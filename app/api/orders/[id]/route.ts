@@ -154,9 +154,38 @@ export async function PATCH(
       );
     }
 
-    const updated = await prisma.order.update({
-      where: { id: orderId },
-      data,
+    const updated = await prisma.$transaction(async (tx) => {
+      const nextStatus = data.status as string | undefined;
+      if (nextStatus === "DELIVERED" && existingOrder.status !== "DELIVERED") {
+        const items = await tx.orderItem.findMany({
+          where: { orderId },
+          select: { productId: true, quantity: true },
+        });
+
+        const qtyByProduct = new Map<number, number>();
+        for (const it of items) {
+          qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + it.quantity);
+        }
+
+        for (const [productId, qty] of qtyByProduct.entries()) {
+          const product = await tx.product.findUnique({
+            where: { id: productId },
+            select: { soldCount: true },
+          });
+
+          await tx.product.update({
+            where: { id: productId },
+            data: {
+              soldCount: Math.max((product?.soldCount ?? 0) + qty, 0),
+            },
+          });
+        }
+      }
+
+      return tx.order.update({
+        where: { id: orderId },
+        data,
+      });
     });
 
     return NextResponse.json(updated);
