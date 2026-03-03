@@ -10,6 +10,14 @@ import { toast } from "sonner";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useSession } from "@/lib/auth-client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /* =========================
   Types
@@ -402,6 +410,8 @@ export default function ProductsPage() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { status } = useSession();
 
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -630,7 +640,7 @@ export default function ProductsPage() {
     async (p: ProductUI) => {
       try {
         if (status !== "authenticated") {
-          toast.error("Please login to use wishlist.");
+          setLoginModalOpen(true);
           return;
         }
 
@@ -893,6 +903,34 @@ export default function ProductsPage() {
           </main>
         </div>
       </div>
+
+      <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Please login first</DialogTitle>
+            <DialogDescription>
+              You need to be logged in to use the wishlist.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              onClick={() => setLoginModalOpen(false)}
+              className="h-10 px-4 rounded-lg border border-border bg-background text-foreground font-semibold hover:bg-accent transition"
+            >
+              Cancel
+            </button>
+            <Link
+              href="/signin"
+              onClick={() => setLoginModalOpen(false)}
+              className="h-10 px-4 rounded-lg btn-primary inline-flex items-center justify-center font-semibold transition"
+            >
+              Login
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

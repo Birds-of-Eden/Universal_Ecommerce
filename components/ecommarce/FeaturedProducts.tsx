@@ -6,6 +6,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Heart } from "lucide-react";
 import AddToCartButton from "@/components/ecommarce/AddToCartButton";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
+import { useSession } from "@/lib/auth-client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type ProductDTO = {
   id: number | string;
@@ -54,17 +63,29 @@ export default function FeaturedProducts({
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ProductDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+  const { status } = useSession();
 
   // Wishlist functionality
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
-  const handleWishlistToggle = async (productId: number | string, isCurrentlyWishlisted: boolean) => {
+  const handleWishlistToggle = async (
+    productId: number | string,
+    isCurrentlyWishlisted: boolean
+  ) => {
     try {
+      if (status !== "authenticated") {
+        setLoginModalOpen(true);
+        return;
+      }
+
       if (isCurrentlyWishlisted) {
         // Remove from wishlist
         await fetch(`/api/wishlist?productId=${productId}`, {
           method: 'DELETE',
         });
+
         removeFromWishlist(productId);
       } else {
         // Add to wishlist
@@ -75,12 +96,12 @@ export default function FeaturedProducts({
           },
           body: JSON.stringify({ productId: Number(productId) }),
         });
-        
+
         if (!response.ok) {
           const error = await response.json();
           throw new Error(error.error || 'Failed to add to wishlist');
         }
-        
+
         addToWishlist(productId);
       }
     } catch (error) {
@@ -134,7 +155,7 @@ export default function FeaturedProducts({
     };
   }, []);
 
-  // ✅ only featured
+  // only featured
   const featured = useMemo(() => {
     const list = items.filter((p) => p.featured);
 
@@ -200,7 +221,7 @@ export default function FeaturedProducts({
                       transition-all
                     "
                   >
-                    {/* ✅ Badge only if discounted */}
+                    {/* Badge only if discounted */}
                     {badge && (
                       <div className="absolute left-0 top-0 z-10">
                         <span
@@ -298,6 +319,34 @@ export default function FeaturedProducts({
           </div>
         ) : null}
       </div>
+
+      <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Please login first</DialogTitle>
+            <DialogDescription>
+              You need to be logged in to use the wishlist.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              onClick={() => setLoginModalOpen(false)}
+              className="h-10 px-4 rounded-lg border border-border bg-background text-foreground font-semibold hover:bg-accent transition"
+            >
+              Cancel
+            </button>
+            <Link
+              href="/signin"
+              onClick={() => setLoginModalOpen(false)}
+              className="h-10 px-4 rounded-lg btn-primary inline-flex items-center justify-center font-semibold transition"
+            >
+              Login
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
