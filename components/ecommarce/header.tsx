@@ -911,7 +911,6 @@ export default function Header() {
         <div className="container mx-auto px-4">
           <div className="h-12 flex items-center gap-2 relative">
             <Link href="/" className={underlinePill}>
-              <House className="h-4 w-4 mr-2" />
               Home
             </Link>
 
