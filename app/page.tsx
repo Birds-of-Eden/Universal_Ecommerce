@@ -177,11 +177,11 @@ export default function Home() {
                 
                 {/* Main Content */}
                 <div className="container mx-auto">
-                  {data.loading && (
+                  {/* {data.loading && (
                     <p className="text-muted-foreground">
                       Loading categories...
                     </p>
-                  )}
+                  )} */}
 
                   {data.error && (
                     <p className="text-destructive">{data.error}</p>

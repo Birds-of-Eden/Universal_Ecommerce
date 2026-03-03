@@ -296,7 +296,7 @@ export default function Page({ params }: PageProps) {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f7fb] flex items-center justify-center">
-        <p className="text-gray-600">ডাটা লোড হচ্ছে...</p>
+        <p className="text-gray-600">Loading Data...</p>
       </div>
     );
   }

@@ -368,7 +368,12 @@ export default function BookDetail() {
                     </span>
                   ) : null}
                 </div>
-
+{/* short desc */}
+                {product.shortDesc ? (
+                  <p className="mt-6 text-sm text-muted-foreground leading-relaxed">
+                    {product.shortDesc}
+                  </p>
+                ) : null}
                 {/* Price */}
                 <div className="mt-6">
                   <div className="text-sm text-muted-foreground">
@@ -410,7 +415,10 @@ export default function BookDetail() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+              
+                </div>
+                    <div className="mt-6">
+                      <div className="grid grid-cols-2 gap-3">
                     <AddToCartButton productId={product.id} />
 
                     <button
@@ -425,14 +433,9 @@ export default function BookDetail() {
                       Buy Now
                     </button>
                   </div>
-                </div>
+                    </div>
 
-                {/* short desc */}
-                {product.shortDesc ? (
-                  <p className="mt-6 text-sm text-muted-foreground leading-relaxed">
-                    {product.shortDesc}
-                  </p>
-                ) : null}
+                
               </div>
             </div>
           </section>
