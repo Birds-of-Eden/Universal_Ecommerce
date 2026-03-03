@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus, X } from "lucide-react";
 
 type ShippingRate = {
   id: number;
@@ -14,6 +15,7 @@ type ShippingRate = {
 };
 
 type RateForm = {
+  country: string;
   area: string;
   baseCost: string;
   freeMinOrder: string;
@@ -28,12 +30,16 @@ type WeightSlabInput = {
 };
 
 const defaultForm: RateForm = {
+  country: "BD",
   area: "",
   baseCost: "0",
   freeMinOrder: "",
   isActive: true,
   priority: "1000",
 };
+
+type CountryOption = { name: string; iso2: string };
+type DistrictOption = { name: string; iso2?: string };
 
 function parseWeightSlabs(raw: unknown): WeightSlabInput[] {
   if (!Array.isArray(raw)) return [];
@@ -65,6 +71,11 @@ export default function ShippingRatesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [districts, setDistricts] = useState<DistrictOption[]>([]);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -88,11 +99,56 @@ export default function ShippingRatesPage() {
     loadData();
   }, []);
 
+  const loadCountries = async () => {
+    setLoadingCountries(true);
+    try {
+      const res = await fetch("/api/geo/countries", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to load countries");
+      setCountries(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load countries");
+    } finally {
+      setLoadingCountries(false);
+    }
+  };
+
+  const loadDistricts = async (countryCode: string) => {
+    if (!countryCode) {
+      setDistricts([]);
+      return;
+    }
+
+    setLoadingDistricts(true);
+    try {
+      const res = await fetch(`/api/geo/countries/${countryCode}/states`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to load districts");
+      setDistricts(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setDistricts([]);
+      setError(e instanceof Error ? e.message : "Failed to load districts");
+    } finally {
+      setLoadingDistricts(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCountries();
+  }, []);
+
+  useEffect(() => {
+    loadDistricts(form.country);
+  }, [form.country]);
+
   const beginEdit = (rate: ShippingRate) => {
     setEditing(rate);
     setError(null);
     setSuccess(null);
     setForm({
+      country: rate.country || "BD",
       area: rate.area || "",
       baseCost: String(rate.baseCost ?? "0"),
       freeMinOrder:
@@ -103,12 +159,14 @@ export default function ShippingRatesPage() {
       priority: String(rate.priority ?? 1000),
     });
     setWeightSlabs(parseWeightSlabs(rate.weightSlabs));
+    setShowModal(true);
   };
 
   const resetForm = () => {
     setEditing(null);
     setForm(defaultForm);
     setWeightSlabs([]);
+    setShowModal(false);
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -161,7 +219,7 @@ export default function ShippingRatesPage() {
       }
 
       const payload = {
-        country: "BD",
+        country: form.country.trim().toUpperCase(),
         area: form.area.trim(),
         baseCost: Number(form.baseCost),
         weightSlabs: weightSlabsPayload,
@@ -170,8 +228,11 @@ export default function ShippingRatesPage() {
         priority: Number(form.priority),
       };
 
+      if (!payload.country) {
+        throw new Error("Country is required");
+      }
       if (!payload.area) {
-        throw new Error("Area is required");
+        throw new Error("District / Area is required");
       }
 
       const url = editing
@@ -237,172 +298,210 @@ export default function ShippingRatesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Shipping Rates</h1>
-
-      <form onSubmit={onSubmit} className="card-theme border p-4 rounded-lg space-y-3">
-        <h2 className="font-semibold">{editing ? "Edit Shipping Rate" : "Add Shipping Rate"}</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <label className="text-sm">
-            Country
-            <input
-              className="input-theme border p-2 rounded w-full mt-1 bg-muted"
-              value="BD"
-              disabled
-            />
-          </label>
-          <label className="text-sm">
-            Area
-            <input
-              className="input-theme border p-2 rounded w-full mt-1"
-              placeholder="Mirpur 10"
-              value={form.area}
-              onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))}
-              required
-            />
-          </label>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <label className="text-sm">
-            Base Cost
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="input-theme border p-2 rounded w-full mt-1"
-              placeholder="60"
-              value={form.baseCost}
-              onChange={(e) => setForm((f) => ({ ...f, baseCost: e.target.value }))}
-              required
-            />
-          </label>
-          <label className="text-sm">
-            Free Shipping Min Order (Optional)
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="input-theme border p-2 rounded w-full mt-1"
-              placeholder="1000"
-              value={form.freeMinOrder}
-              onChange={(e) => setForm((f) => ({ ...f, freeMinOrder: e.target.value }))}
-            />
-          </label>
-          <label className="text-sm">
-            Priority (Lower = Stronger)
-            <input
-              type="number"
-              className="input-theme border p-2 rounded w-full mt-1"
-              placeholder="1000"
-              value={form.priority}
-              onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-            />
-          </label>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">Weight Based Charges (Optional)</label>
-            <button
-              type="button"
-              className="btn-secondary px-3 py-1 rounded text-sm"
-              onClick={addWeightSlabRow}
-            >
-              Add Weight Slab
-            </button>
-          </div>
-          {weightSlabs.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              No slabs added. System will use Base Cost.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {weightSlabs.map((slab, index) => (
-                <div
-                  key={`slab-${index}`}
-                  className="grid grid-cols-1 md:grid-cols-4 gap-2 border rounded p-2"
-                >
-                  <label className="text-xs">
-                    Min Weight (grams)
-                    <input
-                      type="number"
-                      min="0"
-                      className="input-theme border p-2 rounded w-full mt-1"
-                      placeholder="0"
-                      value={slab.minWeight}
-                      onChange={(e) => updateWeightSlabRow(index, "minWeight", e.target.value)}
-                    />
-                  </label>
-                  <label className="text-xs">
-                    Max Weight (grams, Optional)
-                    <input
-                      type="number"
-                      min="0"
-                      className="input-theme border p-2 rounded w-full mt-1"
-                      placeholder="1000"
-                      value={slab.maxWeight}
-                      onChange={(e) => updateWeightSlabRow(index, "maxWeight", e.target.value)}
-                    />
-                  </label>
-                  <label className="text-xs">
-                    Charge
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="input-theme border p-2 rounded w-full mt-1"
-                      placeholder="60"
-                      value={slab.cost}
-                      onChange={(e) => updateWeightSlabRow(index, "cost", e.target.value)}
-                    />
-                  </label>
-                  <div className="flex items-end">
-                    <button
-                      type="button"
-                      className="btn-danger px-3 py-2 rounded text-sm w-full"
-                      onClick={() => removeWeightSlabRow(index)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Shipping Rates</h1>
+        <button
+          onClick={() => setShowModal(true)}
+          className="btn-primary px-4 py-2 rounded inline-flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Add Shipping Rate
+        </button>
+      </div>
+      {/* Shipping Rate Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="card-theme border rounded-xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">
+                {editing ? "Edit Shipping Rate" : "Add Shipping Rate"}
+              </h2>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="h-8 w-8 rounded-md border border-border bg-background hover:bg-muted flex items-center justify-center"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-          )}
+
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="text-sm">
+                  Country
+                  <select
+                    className="input-theme border p-2 rounded w-full mt-1"
+                    value={form.country}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, country: e.target.value, area: "" }))
+                    }
+                    required
+                  >
+                    <option value="">
+                      {loadingCountries ? "Loading countries..." : "Select country"}
+                    </option>
+                    {countries.map((c) => (
+                      <option key={c.iso2} value={c.iso2}>
+                        {c.name} ({c.iso2})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm">
+                  District / State
+                  <input
+                    type="text"
+                    className="input-theme border p-2 rounded w-full mt-1"
+                    placeholder="Enter district / state"
+                    value={form.area}
+                    onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))}
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <label className="text-sm">
+                  Base Cost
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="input-theme border p-2 rounded w-full mt-1"
+                    placeholder="60"
+                    value={form.baseCost}
+                    onChange={(e) => setForm((f) => ({ ...f, baseCost: e.target.value }))}
+                    required
+                  />
+                </label>
+                <label className="text-sm">
+                  Free Shipping Min Order (Optional)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="input-theme border p-2 rounded w-full mt-1"
+                    placeholder="1000"
+                    value={form.freeMinOrder}
+                    onChange={(e) => setForm((f) => ({ ...f, freeMinOrder: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm">
+                  Priority (Lower = Stronger)
+                  <input
+                    type="number"
+                    className="input-theme border p-2 rounded w-full mt-1"
+                    placeholder="1000"
+                    value={form.priority}
+                    onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
+                  />
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Weight Based Charges (Optional)</label>
+                  <button
+                    type="button"
+                    className="btn-secondary px-3 py-1 rounded text-sm"
+                    onClick={addWeightSlabRow}
+                  >
+                    Add Weight Slab
+                  </button>
+                </div>
+                {weightSlabs.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No slabs added. System will use Base Cost.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {weightSlabs.map((slab, index) => (
+                      <div
+                        key={`slab-${index}`}
+                        className="grid grid-cols-1 md:grid-cols-4 gap-2 border rounded p-2"
+                      >
+                        <label className="text-xs">
+                          Min Weight (grams)
+                          <input
+                            type="number"
+                            min="0"
+                            className="input-theme border p-2 rounded w-full mt-1"
+                            placeholder="0"
+                            value={slab.minWeight}
+                            onChange={(e) => updateWeightSlabRow(index, "minWeight", e.target.value)}
+                          />
+                        </label>
+                        <label className="text-xs">
+                          Max Weight (grams, Optional)
+                          <input
+                            type="number"
+                            min="0"
+                            className="input-theme border p-2 rounded w-full mt-1"
+                            placeholder="1000"
+                            value={slab.maxWeight}
+                            onChange={(e) => updateWeightSlabRow(index, "maxWeight", e.target.value)}
+                          />
+                        </label>
+                        <label className="text-xs">
+                          Charge
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="input-theme border p-2 rounded w-full mt-1"
+                            placeholder="60"
+                            value={slab.cost}
+                            onChange={(e) => updateWeightSlabRow(index, "cost", e.target.value)}
+                          />
+                        </label>
+                        <div className="flex items-end">
+                          <button
+                            type="button"
+                            className="btn-danger px-3 py-2 rounded text-sm w-full"
+                            onClick={() => removeWeightSlabRow(index)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                />
+                Active
+              </label>
+
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              {success && <p className="text-sm text-green-700">{success}</p>}
+
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  type="button"
+                  className="btn-secondary px-4 py-2 rounded"
+                  onClick={resetForm}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={submitting}
+                >
+                  {submitting ? "Saving..." : editing ? "Update Rate" : "Create Rate"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.isActive}
-            onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-          />
-          Active
-        </label>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {success && <p className="text-sm text-green-700">{success}</p>}
-
-        <div className="flex gap-2">
-          {editing && (
-            <button
-              type="button"
-              className="btn-secondary px-4 py-2 rounded"
-              onClick={resetForm}
-            >
-              Cancel
-            </button>
-          )}
-          <button
-            type="submit"
-            className="btn-primary px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={submitting}
-          >
-            {submitting ? "Saving..." : editing ? "Update Rate" : "Create Rate"}
-          </button>
-        </div>
-      </form>
+      )}
 
       <div className="card-theme border rounded-lg p-4 space-y-3">
         {loading ? (

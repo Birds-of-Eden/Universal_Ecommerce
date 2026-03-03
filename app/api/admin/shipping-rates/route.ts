@@ -77,10 +77,12 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const country = searchParams.get("country");
     const area = searchParams.get("area");
     const isActive = searchParams.get("isActive");
 
-    const where: any = { country: "BD" };
+    const where: any = {};
+    if (country) where.country = country.trim().toUpperCase();
     if (area) where.area = area.trim();
     if (isActive !== null) where.isActive = isActive === "true";
 
@@ -106,13 +108,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const country = String(body.country || "").trim().toUpperCase();
     const area = String(body.area || "").trim();
+    if (!country) {
+      return NextResponse.json({ error: "country is required" }, { status: 400 });
+    }
     if (!area) {
       return NextResponse.json({ error: "area is required" }, { status: 400 });
     }
 
     const data: any = {
-      country: "BD",
+      country,
       area,
       baseCost: toDecimal(body.baseCost, "baseCost"),
       weightSlabs: validateWeightSlabs(body.weightSlabs),
