@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Filter, RotateCcw, User, Shield } from 'lucide-react';
+import { Search, RotateCcw, Shield } from "lucide-react";
 
 interface UserFiltersProps {
   search: string;
@@ -17,6 +17,13 @@ export default function UserFilters({
   onRoleChange,
   onReset,
 }: UserFiltersProps) {
+  const formatRoleLabel = (value: string) =>
+    value
+      .split("_")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+
   return (
     <div className="bg-gradient-to-r from-background to-muted p-6 rounded-2xl shadow-lg border-border mb-8">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -44,23 +51,13 @@ export default function UserFilters({
             <Shield className="h-4 w-4 mr-2" />
             Role
           </label>
-          <div className="relative">
-            <select
-              value={role}
-              onChange={(e) => onRoleChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground appearance-none shadow-sm"
-            >
-              <option value="">All Roles</option>
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
-            <User className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-            <div className="absolute right-3 top-3.5 pointer-events-none">
-              <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
+          <input
+            type="text"
+            value={role}
+            onChange={(e) => onRoleChange(e.target.value)}
+            placeholder="All roles (e.g. admin)"
+            className="w-full px-4 py-3 rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground shadow-sm"
+          />
         </div>
         
         {/* Reset Button */}
@@ -90,7 +87,7 @@ export default function UserFilters({
               {role && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary bg-opacity-20 text-foreground text-xs border-border border-opacity-30">
                   <Shield className="h-3 w-3 mr-1" />
-                  {role === 'admin' ? 'Admin' : 'User'}
+                  {formatRoleLabel(role)}
                 </span>
               )}
             </div>

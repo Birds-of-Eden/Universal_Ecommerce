@@ -21,10 +21,14 @@ export function normalizeGuestEmail(raw: unknown): string | null {
   return normalized.length > 3 ? normalized : null;
 }
 
-export function getChatActor(sessionUser: SessionUser): ChatActor {
+export function getChatActor(
+  sessionUser: SessionUser,
+  options?: { canManageChats?: boolean },
+): ChatActor {
   const userId = typeof sessionUser?.id === "string" ? sessionUser.id : null;
   const role = typeof sessionUser?.role === "string" ? sessionUser.role : null;
-  const isAdmin = role?.toLowerCase() === "admin";
+  const isAdmin =
+    options?.canManageChats ?? (role?.toLowerCase() === "admin");
 
   return {
     userId,

@@ -16,7 +16,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/signin");
-    } else if (status === "authenticated" && session?.user?.role !== "admin") {
+    } else if (
+      status === "authenticated" &&
+      !(session?.user?.permissions || []).includes("admin.panel.access")
+    ) {
       router.push("/kitabghor/user");
     }
   }, [status, session, router]);

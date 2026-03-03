@@ -40,7 +40,13 @@ const LS_GUEST_NAME = "support_chat_guest_name";
 const LS_GUEST_EMAIL = "support_chat_guest_email";
 const LS_CONVERSATION_ID = "support_chat_conversation_id";
 
-function getRoleForSession(role: string | undefined): SenderRole {
+function getRoleForSession(
+  role: string | undefined,
+  permissions: string[] | undefined,
+): SenderRole {
+  if (Array.isArray(permissions) && permissions.includes("chats.manage")) {
+    return "admin";
+  }
   if (role?.toLowerCase() === "admin") return "admin";
   return role ? "user" : "guest";
 }
@@ -81,7 +87,10 @@ export default function SupportChatWidget() {
   const [hydrated, setHydrated] = useState(false);
 
   const messageEndRef = useRef<HTMLDivElement | null>(null);
-  const role = getRoleForSession((session?.user as { role?: string } | undefined)?.role);
+  const role = getRoleForSession(
+    (session?.user as { role?: string } | undefined)?.role,
+    (session?.user as { permissions?: string[] } | undefined)?.permissions,
+  );
   const shouldRender = useMemo(() => {
     if (!pathname) return false;
     if (pathname.startsWith("/admin")) return false;

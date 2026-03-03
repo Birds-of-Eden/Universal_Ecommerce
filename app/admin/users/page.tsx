@@ -467,9 +467,9 @@ export default function AdminUsersPage() {
                 <Users className="h-4 w-4 text-foreground" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Admin Users</p>
+                <p className="text-sm text-muted-foreground">Admin-Type Roles</p>
                 <p className="text-lg font-semibold text-foreground">
-                  {users.filter((u) => u.role === "admin").length}
+                  {users.filter((u) => (u.role || "").toLowerCase().includes("admin")).length}
                 </p>
               </div>
             </div>
@@ -627,18 +627,17 @@ export default function AdminUsersPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    Role
+                    Legacy Role
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={newUser.role}
                     onChange={(e) =>
                       setNewUser((prev) => ({ ...prev, role: e.target.value }))
                     }
                     className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                    placeholder="e.g. user"
+                  />
                 </div>
               </div>
 

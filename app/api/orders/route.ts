@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessContext } from "@/lib/rbac";
 
 // GET /api/orders
 // - admin: all orders (with pagination & optional status filter)
@@ -15,7 +16,14 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = (session.user as any).id as string;
-    const role = (session.user as any).role as string | undefined;
+    const access = await getAccessContext(
+      session.user as { id?: string; role?: string } | undefined,
+    );
+    const canReadAll = access.has("orders.read_all");
+    const canReadOwn = canReadAll || access.has("orders.read_own");
+    if (!canReadOwn) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -28,7 +36,7 @@ export async function GET(request: NextRequest) {
     const where: any = {};
 
     // normal user -> only his/her orders
-    if (role !== "admin") {
+    if (!canReadAll) {
       where.userId = userId;
     }
 

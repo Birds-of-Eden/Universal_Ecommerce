@@ -586,8 +586,22 @@ export default function Header() {
     }
   };
 
-  const userName = (session?.user as any)?.name || "User";
-  const userRole = (session?.user as any)?.role || "user";
+  const sessionUser = (session?.user ?? null) as
+    | {
+        name?: string | null;
+        role?: string;
+        roleNames?: string[];
+        permissions?: string[];
+      }
+    | null;
+  const userName = sessionUser?.name || "User";
+  const userRole = sessionUser?.role || "user";
+  const displayRole = Array.isArray(sessionUser?.roleNames) && sessionUser.roleNames.length > 0
+    ? sessionUser.roleNames.join(", ")
+    : userRole;
+  const permissionKeys = Array.isArray(sessionUser?.permissions) ? sessionUser.permissions : [];
+  const canAccessAdminPanel =
+    permissionKeys.includes("admin.panel.access") || userRole.toLowerCase() === "admin";
 
   const topCategories = categoryTree;
 
@@ -863,11 +877,11 @@ export default function Header() {
                       <>
                         <div className="px-4 py-3 border-b border-border">
                           <div className="text-sm font-semibold">{userName}</div>
-                          <div className="text-xs text-muted-foreground">{userRole}</div>
+                          <div className="text-xs text-muted-foreground">{displayRole}</div>
                         </div>
 
                         <Link
-                          href={userRole === "admin" ? "/admin" : "/kitabghor/user/"}
+                          href={canAccessAdminPanel ? "/admin" : "/kitabghor/user/"}
                           onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                         >

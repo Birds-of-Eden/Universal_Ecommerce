@@ -346,6 +346,16 @@ export default function UserDetailPage() {
     }).format(amount);
   };
 
+  const formatRoleLabel = (role: string | null | undefined) => {
+    const normalized = (role || "").trim();
+    if (!normalized) return "User";
+    return normalized
+      .split("_")
+      .filter(Boolean)
+      .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+      .join(" ");
+  };
+
   const getStatusColor = (status: string) => {
     const colors = {
       DELIVERED: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-700",
@@ -457,13 +467,13 @@ export default function UserDetailPage() {
                 <div className="flex items-center space-x-4 mt-2">
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
-                      user.role === "admin"
+                      (user.role || "").toLowerCase().includes("admin")
                         ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-700"
                         : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-200 dark:border-blue-700"
                     }`}
                   >
                     <Shield className="h-3 w-3 mr-1" />
-                    {user.role === "admin" ? "Admin" : "User"}
+                    {formatRoleLabel(user.role)}
                   </span>
                   {user.banned && (
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-700">
@@ -566,19 +576,18 @@ export default function UserDetailPage() {
                 <div>
                   <label className="text-sm font-medium text-foreground mb-2 flex items-center">
                     <Shield className="h-4 w-4 mr-2" />
-                    Role
+                    Legacy Role
                   </label>
-                  <select
+                  <input
+                    type="text"
                     value={formData.role}
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, role: e.target.value }))
                     }
                     disabled={!editing}
                     className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                    placeholder="e.g. user, admin, content_manager"
+                  />
                 </div>
 
                 <div>
