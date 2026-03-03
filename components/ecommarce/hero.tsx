@@ -22,13 +22,6 @@ export default function Hero({
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    if (savedTheme) {
-      document.documentElement.classList.toggle("dark", savedTheme === "dark");
-    }
-  }, []);
-
   /* ================= FETCH ================= */
   useEffect(() => {
     const load = async () => {

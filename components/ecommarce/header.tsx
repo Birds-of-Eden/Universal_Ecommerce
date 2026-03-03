@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useSession, signOut } from "@/lib/auth-client";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
@@ -371,12 +372,13 @@ export default function Header() {
   const router = useRouter();
   const { data: session } = useSession();
 
+  const { theme, setTheme } = useTheme();
+
   const { cartItems } = useCart();
   const { wishlistCount } = useWishlist();
 
   const [hasMounted, setHasMounted] = useState(false);
   const [isPending, setIsPending] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   // Mobile drawer
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -431,31 +433,9 @@ export default function Header() {
 
   useEffect(() => setHasMounted(true), []);
 
-  // theme load
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-
-    if (savedTheme) {
-      setTheme(savedTheme);
-      if (savedTheme === "dark") document.documentElement.classList.add("dark");
-      else document.documentElement.classList.remove("dark");
-      return;
-    }
-
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const systemTheme: "light" | "dark" = prefersDark ? "dark" : "light";
-    setTheme(systemTheme);
-
-    if (systemTheme === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-  }, []);
-
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    if (newTheme === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
   };
 
   useEffect(() => {
