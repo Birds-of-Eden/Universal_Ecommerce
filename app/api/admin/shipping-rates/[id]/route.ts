@@ -88,7 +88,13 @@ export async function PATCH(
     const body = await request.json();
     const data: any = {};
 
-    data.country = "BD";
+    if (body.country !== undefined) {
+      const country = String(body.country || "").trim().toUpperCase();
+      if (!country) {
+        return NextResponse.json({ error: "country cannot be empty" }, { status: 400 });
+      }
+      data.country = country;
+    }
     if (body.area !== undefined) {
       const area = String(body.area || "").trim();
       if (!area) {
