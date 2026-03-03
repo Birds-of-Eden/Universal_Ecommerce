@@ -180,7 +180,7 @@ export default function CategoryPage({
                     max={computedMax}
                     value={priceMin}
                     onChange={(e) => setMinSafe(Number(e.target.value))}
-                    className="absolute inset-0 w-full accent-orange-500"
+                    className="absolute inset-0 w-full accent-primary"
                   />
                   <input
                     type="range"
@@ -188,7 +188,7 @@ export default function CategoryPage({
                     max={computedMax}
                     value={priceMax}
                     onChange={(e) => setMaxSafe(Number(e.target.value))}
-                    className="absolute inset-0 w-full accent-orange-500"
+                    className="absolute inset-0 w-full accent-primary"
                   />
                 </div>
 
@@ -295,7 +295,7 @@ export default function CategoryPage({
                 </div>
               </div>
 
-           
+              {/* ✅ Products */}
             </div>
 
             {sortedProducts.length === 0 ? (
@@ -323,7 +323,7 @@ export default function CategoryPage({
                     >
                       {product.saveLabel ? (
                         <div className="absolute top-3 left-3 z-10">
-                          <span className="rounded bg-purple-600 text-white text-xs font-semibold px-2 py-1">
+                          <span className="rounded bg-primary text-primary-foreground text-xs font-semibold px-2 py-1">
                             {product.saveLabel}
                           </span>
                         </div>
@@ -331,10 +331,10 @@ export default function CategoryPage({
 
                       <button
                         onClick={() => toggleWishlist(product.id)}
-                        className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-red-600"
+                        className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground hover:text-destructive"
                         aria-label={wish ? "Remove from wishlist" : "Add to wishlist"}
                       >
-                        <Heart className={`h-5 w-5 ${wish ? "fill-current text-red-600" : ""}`} />
+                        <Heart className={`h-5 w-5 ${wish ? "fill-current text-destructive" : ""}`} />
                       </button>
 
                       <Link href={`/kitabghor/products/${product.id}`}>
@@ -371,7 +371,7 @@ export default function CategoryPage({
 
                         <div className="mt-6 border-t border-border pt-4">
                           <div className="flex items-baseline justify-center gap-3">
-                            <div className="text-lg font-bold text-red-600">
+                            <div className="text-lg font-bold text-destructive">
                               {formatMoney(product.price, product.currencySymbol ?? currencySymbol)}
                             </div>
                             {showOriginal ? (
@@ -397,7 +397,7 @@ export default function CategoryPage({
                         ) : (
                           <Button
                             onClick={() => handleAddToCart(product)}
-                            className="w-full rounded-md bg-[#4f6cff] hover:bg-[#3f5cf0] text-white"
+                            className="w-full rounded-md btn-primary"
                           >
                             <ShoppingCart className="h-4 w-4 mr-2" />
                             Add To Cart

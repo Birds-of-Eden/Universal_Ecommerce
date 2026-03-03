@@ -9,11 +9,11 @@ body {
 @layer base {
   :root {
     /* ========================
-       CORE COLORS (NEUTRAL)
+       CORE COLORS (NEUTRAL) - LIGHT MODE
     ======================== */
 
-    --background: 0 0% 100%; /* White */
-    --foreground: 0 0% 0%; /* Black */
+    --background: 0 0% 98%; /* Very light gray */
+    --foreground: 0 0% 15%; /* Dark gray */
 
     --card: 0 0% 100%;
     --card-foreground: 0 0% 0%;
@@ -21,8 +21,8 @@ body {
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 0%;
 
-    --primary: 0 0% 0%; /* Black */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 0 0% 20%; /* Medium dark gray */
+    --primary-foreground: 0 0% 98%; /* Very light gray */
 
     --secondary: 0 0% 95%;
     --secondary-foreground: 0 0% 0%;
@@ -30,10 +30,10 @@ body {
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 40%;
 
-    --accent: 0 0% 92%;
+    --accent: 0 0% 92%; /* Light gray */
     --accent-foreground: 0 0% 0%;
 
-    --destructive: 0 0% 0%;
+    --destructive: 0 0% 20%; /* Medium dark gray */
     --destructive-foreground: 0 0% 100%;
 
     --border: 0 0% 90%;
@@ -48,14 +48,6 @@ body {
     --chart-3: 0 0% 50%;
     --chart-4: 0 0% 65%;
     --chart-5: 0 0% 80%;
-
-    /* Light mode colors */
-    --background: 0 0% 98%; /* Very light gray */
-    --foreground: 0 0% 15%; /* Dark gray */
-    --primary: 0 0% 20%; /* Medium dark gray */
-    --primary-foreground: 0 0% 98%; /* Very light gray */
-    --accent: 0 0% 92%; /* Light gray */
-    --destructive: 0 0% 20%; /* Medium dark gray */
   }
 
   /* ========================
@@ -63,8 +55,8 @@ body {
   ======================== */
 
   .dark {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 100%;
+    --background: 0 0% 8%; /* Very dark gray */
+    --foreground: 0 0% 95%; /* Very light gray */
 
     --card: 0 0% 5%;
     --card-foreground: 0 0% 100%;
@@ -72,8 +64,8 @@ body {
     --popover: 0 0% 5%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 0 0% 100%;
-    --primary-foreground: 0 0% 0%;
+    --primary: 0 0% 95%; /* Very light gray */
+    --primary-foreground: 0 0% 8%; /* Very dark gray */
 
     --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 100%;
@@ -81,10 +73,10 @@ body {
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 70%;
 
-    --accent: 0 0% 20%;
+    --accent: 0 0% 20%; /* Dark gray */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 0% 100%;
+    --destructive: 0 0% 95%; /* Very light gray */
     --destructive-foreground: 0 0% 0%;
 
     --border: 0 0% 20%;
@@ -96,14 +88,76 @@ body {
     --chart-3: 0 0% 50%;
     --chart-4: 0 0% 35%;
     --chart-5: 0 0% 20%;
+  }
 
-    /* Dark mode colors */
-    --background: 0 0% 8%; /* Very dark gray */
-    --foreground: 0 0% 95%; /* Very light gray */
-    --primary: 0 0% 95%; /* Very light gray */
-    --primary-foreground: 0 0% 8%; /* Very dark gray */
-    --accent: 0 0% 20%; /* Dark gray */
-    --destructive: 0 0% 95%; /* Very light gray */
+  /* ========================
+   NAVY MIRAGE THEME
+======================== */
+
+  .navy,
+  .theme-navy {
+    --background: 214 44% 14%; /* #141E30 */
+    --foreground: 0 0% 98%;
+
+    --card: 213 40% 18%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 213 40% 18%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 210 38% 35%; /* #35577D */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 214 30% 22%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 214 25% 25%;
+    --muted-foreground: 0 0% 80%;
+
+    --accent: 210 38% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 25% 30%;
+    --input: 214 25% 30%;
+    --ring: 210 38% 35%;
+  }
+
+  /* ========================
+   OBSIDIAN PLUM THEME
+======================== */
+
+  .plum,
+  .theme-plum {
+    --background: 285 24% 15%; /* #2D1E2F */
+    --foreground: 0 0% 98%;
+
+    --card: 285 20% 18%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 285 20% 18%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 287 32% 25%; /* #4E2A4F */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 285 18% 22%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 285 15% 28%;
+    --muted-foreground: 0 0% 80%;
+
+    --accent: 287 32% 25%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 285 15% 30%;
+    --input: 285 15% 30%;
+    --ring: 287 32% 25%;
   }
 }
 

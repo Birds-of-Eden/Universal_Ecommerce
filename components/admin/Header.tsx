@@ -2,15 +2,29 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Menu, Home, LogOut, LayoutDashboard, Moon, Sun } from "lucide-react";
+import { Menu, Home, LogOut, LayoutDashboard, Moon, Sun, Check } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { isDarkLikeTheme } from "@/lib/theme";
+
+const THEME_OPTIONS = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "navy", label: "Navy" },
+  { value: "plum", label: "Plum" },
+] as const;
 
 export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const { data: session } = useSession();
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [isPending, setIsPending] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -30,9 +44,8 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     }
   };
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
+  const activeTheme = (theme === "system" ? resolvedTheme : theme) ?? "light";
+  const darkLikeActiveTheme = isDarkLikeTheme(activeTheme);
 
   const userName = (session?.user as any)?.name || "User";
   const userRole = (session?.user as any)?.role || "admin";
@@ -67,19 +80,34 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="flex items-center space-x-3">
         {/* Theme Toggle */}
         {mounted && (
-          <Button
-            onClick={toggleTheme}
-            variant="ghost"
-            size="icon"
-            className="rounded-full bg-muted hover:bg-accent text-foreground"
-            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          >
-            {theme === "dark" ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full bg-muted hover:bg-accent text-foreground"
+                title="Select theme"
+              >
+                {darkLikeActiveTheme ? (
+                  <Sun className="h-5 w-5" />
+                ) : (
+                  <Moon className="h-5 w-5" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {THEME_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  onClick={() => setTheme(option.value)}
+                  className="flex items-center justify-between"
+                >
+                  <span>{option.label}</span>
+                  {activeTheme === option.value ? <Check className="h-4 w-4" /> : null}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         {/* View Site Link */}

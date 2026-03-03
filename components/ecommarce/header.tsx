@@ -5,9 +5,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
+import { isDarkLikeTheme } from "@/lib/theme";
 import { useSession, signOut } from "@/lib/auth-client";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Search,
   ShoppingCart,
@@ -23,9 +31,16 @@ import {
   Boxes,
   Sun,
   Moon,
+  Check,
 } from "lucide-react";
 
 const CATEGORIES_API = "/api/categories";
+const THEME_OPTIONS = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "navy", label: "Navy" },
+  { value: "plum", label: "Plum" },
+] as const;
 
 /* =========================
    Types
@@ -371,12 +386,13 @@ export default function Header() {
   const router = useRouter();
   const { data: session } = useSession();
 
+  const { theme, resolvedTheme, setTheme } = useTheme();
+
   const { cartItems } = useCart();
   const { wishlistCount } = useWishlist();
 
   const [hasMounted, setHasMounted] = useState(false);
   const [isPending, setIsPending] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   // Mobile drawer
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -431,32 +447,8 @@ export default function Header() {
 
   useEffect(() => setHasMounted(true), []);
 
-  // theme load
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
-
-    if (savedTheme) {
-      setTheme(savedTheme);
-      if (savedTheme === "dark") document.documentElement.classList.add("dark");
-      else document.documentElement.classList.remove("dark");
-      return;
-    }
-
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const systemTheme: "light" | "dark" = prefersDark ? "dark" : "light";
-    setTheme(systemTheme);
-
-    if (systemTheme === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    if (newTheme === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-  };
+  const activeTheme = (theme === "system" ? resolvedTheme : theme) ?? "light";
+  const darkLikeActiveTheme = isDarkLikeTheme(activeTheme);
 
   useEffect(() => {
     const total = cartItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
@@ -615,12 +607,6 @@ export default function Header() {
   const iconBtnClass =
     "relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent";
 
-  const IconButton = ({ children, onClick, className, title }: any) => (
-    <button onClick={onClick} className={className} title={title}>
-      {children}
-    </button>
-  );
-
   const underlinePill =
     "relative flex items-center px-4 py-2 transition-colors duration-200 " +
     "text-foreground " +
@@ -677,13 +663,28 @@ export default function Header() {
             {/* Desktop actions */}
             <div className="hidden md:flex items-center gap-3">
               {hasMounted && (
-                <IconButton
-                  onClick={toggleTheme}
-                  className="rounded-full bg-muted hover:bg-accent text-foreground h-11 w-11 flex items-center justify-center border border-border"
-                  title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                >
-                  {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                </IconButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="rounded-full bg-muted hover:bg-accent text-foreground h-11 w-11 flex items-center justify-center border border-border"
+                      title="Select theme"
+                    >
+                      {darkLikeActiveTheme ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {THEME_OPTIONS.map((option) => (
+                      <DropdownMenuItem
+                        key={option.value}
+                        onClick={() => setTheme(option.value)}
+                        className="flex items-center justify-between"
+                      >
+                        <span>{option.label}</span>
+                        {activeTheme === option.value ? <Check className="h-4 w-4" /> : null}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
               <Link href="/kitabghor/blogs" className={topBtnClass}>
@@ -699,13 +700,28 @@ export default function Header() {
             {/* Mobile actions */}
             <div className="flex md:hidden items-center gap-2">
               {hasMounted && (
-                <IconButton
-                  onClick={toggleTheme}
-                  className="rounded-lg bg-muted hover:bg-accent text-foreground h-10 w-10 flex items-center justify-center border border-border"
-                  title={theme === "dark" ? "Light" : "Dark"}
-                >
-                  {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                </IconButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="rounded-lg bg-muted hover:bg-accent text-foreground h-10 w-10 flex items-center justify-center border border-border"
+                      title="Select theme"
+                    >
+                      {darkLikeActiveTheme ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {THEME_OPTIONS.map((option) => (
+                      <DropdownMenuItem
+                        key={option.value}
+                        onClick={() => setTheme(option.value)}
+                        className="flex items-center justify-between"
+                      >
+                        <span>{option.label}</span>
+                        {activeTheme === option.value ? <Check className="h-4 w-4" /> : null}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
               <Link
@@ -925,7 +941,6 @@ export default function Header() {
         <div className="container mx-auto px-4">
           <div className="h-12 flex items-center gap-2 relative">
             <Link href="/" className={underlinePill}>
-              <House className="h-4 w-4 mr-2" />
               Home
             </Link>
 
