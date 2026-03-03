@@ -252,7 +252,7 @@ export default function CheckoutPage() {
 
   const handleGoToPaymentStep = () => {
     if (!location.trim() || !deliveryAddress.trim()) {
-      toast.error("প্রাথমিক ঠিকানা এবং ডেলিভারি ঠিকানা পূরণ করুন");
+      toast.error("Please fill in both primary address and delivery address");
       return;
     }
     setStep("payment");
@@ -260,18 +260,18 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     if (itemsToRender.length === 0) {
-      toast.error("আপনার কার্ট খালি");
+      toast.error("Your cart is empty");
       return;
     }
 
     if (!name || !mobile || !location || (paymentMethod !== "CashOnDelivery" && !transactionId)) {
-      toast.error("সব প্রয়োজনীয় তথ্য পূরণ করুন");
+      toast.error("Please fill in all required information");
       return;
     }
 
     if (paymentMethod !== "CashOnDelivery" && (!paymentScreenshotUrl || isUploadingScreenshot)) {
-      if (isUploadingScreenshot) toast.error("স্ক্রিনশট আপলোড শেষ হওয়া পর্যন্ত অপেক্ষা করুন");
-      else toast.error("পেমেন্ট স্ক্রিনশট আবশ্যক");
+      if (isUploadingScreenshot) toast.error("Please wait until screenshot upload is complete");
+      else toast.error("Payment screenshot is required");
       return;
     }
 
@@ -325,7 +325,7 @@ export default function CheckoutPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        toast.error(data?.error || "অর্ডার করতে সমস্যা হয়েছে, পরে আবার চেষ্টা করুন");
+        toast.error(data?.error || "Problem placing order, please try again later");
         return;
       }
 
@@ -344,10 +344,10 @@ export default function CheckoutPage() {
       clearCart();
       setInvoiceId(localInvoiceId);
       setStep("confirm");
-      toast.success("অর্ডার তৈরি হয়েছে, এখন নিশ্চিত করুন");
+      toast.success("Order created, please confirm now");
     } catch (err) {
       console.error(err);
-      toast.error("অর্ডার করতে সমস্যা হয়েছে");
+      toast.error("Problem placing order");
     }
   };
 
@@ -367,7 +367,7 @@ export default function CheckoutPage() {
     clearCart();
     setOrderConfirmed(true);
     setShowModal(true);
-    toast.success("অর্ডার সফলভাবে সম্পন্ন হয়েছে!");
+    toast.success("Order completed successfully!");
   };
 
   const renderStepIndicator = () => (
@@ -397,7 +397,7 @@ export default function CheckoutPage() {
               step === s ? "text-foreground" : "text-foreground/70"
             }`}
           >
-            {s === "details" ? "ব্যক্তিগত তথ্য" : s === "payment" ? "পেমেন্ট" : "নিশ্চিতকরণ"}
+            {s === "details" ? "Personal Details" : s === "payment" ? "Payment" : "Confirmation"}
           </span>
 
           {i < 2 && <div className={`w-4 sm:w-6 lg:w-12 h-0.5 ml-0.5 sm:ml-1 lg:ml-3 ${i < ["details", "payment", "confirm"].indexOf(step) ? "bg-[#A7C1A8]" : "bg-border"}`} />}
