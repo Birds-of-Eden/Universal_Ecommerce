@@ -1,93 +1,109 @@
-// app/kitabghor/user/wishlist/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trash2, ShoppingCart } from "lucide-react";
+import AccountMenu from "../AccountMenu";
+import AccountHeader from "../AccountHeader";
+import { Home, Trash2, ShoppingCart, Heart } from "lucide-react";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { toast } from "sonner";
 
-interface Product {
+type ApiWishlistItem = {
   id: number;
-  name: string;
-  price: number;
-  original_price: number;
-  discount: number;
-  image: string;
-}
-
-interface WishlistApiItem {
-  id: number;
+  userId: string;
   productId: number;
   product: {
     id: number;
     name: string;
-    price: number | string;
-    original_price?: number | string | null;
-    discount?: number | null;
+    slug?: string | null;
+    basePrice?: string | number | null;
+    originalPrice?: string | number | null;
     image?: string | null;
+    discount?: number | null; // maybe not present
   };
-}
+};
+
+type WishlistProduct = {
+  id: number;
+  name: string;
+  slug?: string | null;
+  price: number;
+  originalPrice: number;
+  discount: number;
+  image: string;
+};
+
+const toNumber = (v: any) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
 
 export default function WishlistPage() {
   const { addToCart } = useCart();
 
-  const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
+  const [items, setItems] = useState<WishlistProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // 🔹 API থেকে wishlist ডেটা লোড
+  // 🔹 Load wishlist from /api/route/wishlist
   useEffect(() => {
     const fetchWishlist = async () => {
       try {
         setLoading(true);
-        setError(null);
 
         const res = await fetch("/api/wishlist", {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           cache: "no-store",
         });
 
+        const data = await res.json().catch(() => ({}));
+
         if (res.status === 401) {
-          setError("আপনার উইশলিস্ট দেখতে প্রথমে লগইন করতে হবে।");
-          setWishlistProducts([]);
+          toast.error("Please login to view your wishlist.", { duration: 3500 });
+          setItems([]);
           return;
         }
 
         if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          console.error("Failed to fetch wishlist:", data || res.statusText);
-          setError("উইশলিস্ট লোড করতে সমস্যা হয়েছে।");
-          setWishlistProducts([]);
+          toast.error(data?.error || "Failed to load wishlist.", { duration: 3500 });
+          setItems([]);
           return;
         }
 
-        const data = await res.json();
+        const mapped: WishlistProduct[] = Array.isArray(data?.items)
+          ? (data.items as ApiWishlistItem[]).map((w) => {
+              const p = w.product;
 
-        const items: Product[] = Array.isArray(data.items)
-          ? (data.items as WishlistApiItem[]).map((w) => ({
-              id: w.product.id,
-              name: w.product.name,
-              price: Number(w.product.price ?? 0),
-              original_price: Number(
-                w.product.original_price ?? w.product.price ?? 0
-              ),
-              discount: Number(w.product.discount ?? 0),
-              image: w.product.image ?? "/placeholder.svg",
-            }))
+              const price = toNumber(p?.basePrice);
+              const original = toNumber(p?.originalPrice || p?.basePrice);
+
+              const discount =
+                typeof p?.discount === "number"
+                  ? p.discount
+                  : original > 0 && price > 0 && original > price
+                  ? Math.round(((original - price) / original) * 100)
+                  : 0;
+
+              return {
+                id: p.id,
+                name: p.name,
+                slug: p.slug ?? null,
+                price,
+                originalPrice: original,
+                discount,
+                image: p.image || "/placeholder.svg",
+              };
+            })
           : [];
 
-        setWishlistProducts(items);
+        setItems(mapped);
       } catch (err) {
         console.error("Error fetching wishlist:", err);
-        setError("উইশলিস্ট লোড করতে সমস্যা হয়েছে।");
-        setWishlistProducts([]);
+        toast.error("Failed to load wishlist.", { duration: 3500 });
+        setItems([]);
       } finally {
         setLoading(false);
       }
@@ -96,163 +112,148 @@ export default function WishlistPage() {
     fetchWishlist();
   }, []);
 
-  // 🔹 API + local state থেকে remove
+  // 🔹 Remove from wishlist
   const handleRemoveItem = async (productId: number) => {
     try {
       const res = await fetch(`/api/wishlist?productId=${productId}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        console.error("Failed to remove wishlist item:", data || res.statusText);
-        toast.error("উইশলিস্ট থেকে সরাতে সমস্যা হয়েছে");
+        toast.error(data?.error || "Failed to remove item.", { duration: 3500 });
         return;
       }
 
-      setWishlistProducts((prev) =>
-        prev.filter((p) => p.id !== productId)
-      );
-      toast.success("উইশলিস্ট থেকে সরানো হয়েছে");
+      setItems((prev) => prev.filter((p) => p.id !== productId));
+      toast.success("Removed from wishlist.", { duration: 2500 });
     } catch (err) {
       console.error("Error removing wishlist item:", err);
-      toast.error("উইশলিস্ট থেকে সরাতে সমস্যা হয়েছে");
+      toast.error("Failed to remove item.", { duration: 3500 });
     }
   };
 
-  const handleAddToCart = (product: Product) => {
-    // তোমার CartContext এর অনুযায়ী এই কলটা ঠিক থাকলে কিছু পরিবর্তন লাগবে না
+  // 🔹 Add to cart
+  const handleAddToCart = (product: WishlistProduct) => {
     addToCart(product.id);
-    toast.success(`"${product.name}" কার্টে যোগ করা হয়েছে`);
+    toast.success(`Added "${product.name}" to cart.`, { duration: 2500 });
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F4F8F7]/30 to-white py-12 px-4">
-      <div className="container mx-auto">
-        {/* Enhanced Header */}
-        <div className="mb-8 md:mb-12">
-          <div className="flex items-center gap-4 mb-6">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-[#0E4B4B] hover:text-[#5FA3A3] transition-colors duration-300 group"
-            >
-              <svg className="h-5 w-5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span>শপিং চালিয়ে যান</span>
-            </Link>
-            <div className="w-1 h-8 bg-gradient-to-b from-[#0E4B4B] to-[#5FA3A3] rounded-full"></div>
-          </div>
+  const empty = useMemo(() => !loading && items.length === 0, [loading, items.length]);
 
-          <div className="bg-gradient-to-r from-[#0E4B4B] to-[#5FA3A3] rounded-2xl p-6 md:p-8 text-white">
-            <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                <img
-                  src="/assets/others/wishlist.png"
-                  alt="Wishlist Icon"
-                  className="h-8 w-8"
-                />
-              </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2">
-                  আপনার উইশলিস্ট
-                </h1>
-                <p className="text-white/90 opacity-90">
-                  আপনার পছন্দের বইসমূহ এবং সংরক্ষিত আইটেম
-                </p>
-              </div>
-            </div>
-          </div>
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Breadcrumb */}
+      <div className="px-6 pt-6">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/" className="flex items-center gap-1 hover:text-foreground transition-colors">
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </Link>
+          <span>›</span>
+          <Link href="/kitabghor/user" className="hover:text-foreground transition-colors">
+            Account
+          </Link>
+          <span>›</span>
+          <span className="text-foreground">My Wish List</span>
+        </div>
+      </div>
+
+      {/* Shared header + menu */}
+      <AccountHeader />
+      <AccountMenu />
+
+      {/* Content */}
+      <div className="max-w-6xl mx-auto px-6 py-10">
+        <div className="flex items-center gap-3 mb-6">
+          <Heart className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-2xl font-medium">My Wish List</h2>
         </div>
 
-      {/* Loading / Error / Empty / List */}
         {loading ? (
-          <div className="text-center py-12 text-[#5FA3A3]">
-            উইশলিস্ট লোড হচ্ছে...
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <h2 className="text-xl font-semibold mb-3 text-[#0D1414]">কিছু একটা সমস্যা হয়েছে</h2>
-            <p className="text-[#5FA3A3] mb-6">{error}</p>
-            <Link href="/">
-              <Button className="rounded-full bg-gradient-to-r from-[#C0704D] to-[#A85D3F] text-white px-6 py-2 hover:shadow-lg transition-all duration-300 hover:scale-105">হোম পেইজে ফিরে যান</Button>
-            </Link>
-          </div>
-        ) : wishlistProducts.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-2xl shadow-lg">
-            <div className="mb-6">
-              <img
-                src="/assets/others/wishlist.png"
-                alt="Empty Wishlist"
-                className="h-16 w-16 mx-auto opacity-50"
-              />
+          <Card className="p-6 bg-card text-card-foreground border border-border rounded-2xl">
+            <p className="text-sm text-muted-foreground">Loading wishlist...</p>
+          </Card>
+        ) : empty ? (
+          <Card className="p-8 bg-card text-card-foreground border border-border rounded-2xl text-center">
+            <div className="mx-auto mb-4 h-12 w-12 rounded-full border border-border bg-muted flex items-center justify-center">
+              <Heart className="h-6 w-6 text-muted-foreground" />
             </div>
-            <h2 className="text-2xl font-semibold mb-4 text-[#0D1414]">
-              আপনার উইশলিস্ট খালি
-            </h2>
-            <p className="text-[#5FA3A3] mb-6">
-              আপনার উইশলিস্টে কোন পণ্য নেই। পছন্দের বই যোগ করতে শপিং চালিয়ে যান।
+            <h3 className="text-lg font-semibold mb-1">Your wishlist is empty</h3>
+            <p className="text-sm text-muted-foreground mb-5">
+              Start adding items you like and they’ll appear here.
             </p>
             <Link href="/">
-              <Button className="rounded-full bg-gradient-to-r from-[#C0704D] to-[#A85D3F] text-white px-8 py-3 hover:shadow-lg transition-all duration-300 hover:scale-105">
-                শপিং চালিয়ে যান
+              <Button className="rounded-md bg-primary text-primary-foreground hover:bg-primary/90">
+                Continue Shopping
               </Button>
             </Link>
-          </div>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {wishlistProducts.map((item) => (
-              <Card key={item.id} className="overflow-hidden border-0 shadow-sm hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-white to-[#F4F8F7] rounded-2xl relative group">
+            {items.map((item) => (
+              <Card
+                key={item.id}
+                className="overflow-hidden bg-card text-card-foreground border border-border rounded-2xl hover:shadow-lg transition-all"
+              >
                 <div className="relative">
-                  <Link href={`/kitabghor/books/${item.id}`}>
-                    <div className="relative h-64 w-full">
+                  <Link href={item.slug ? `/kitabghor/books/${item.slug}` : `/kitabghor/books/${item.id}`}>
+                    <div className="relative h-56 w-full bg-muted">
                       <Image
                         src={item.image || "/placeholder.svg"}
                         alt={item.name}
                         fill
-                        className="object-cover transition-transform hover:scale-105"
+                        className="object-cover"
                       />
                     </div>
                   </Link>
+
                   <button
-                    className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-md hover:bg-red-50 group/delete transition-all duration-300"
-                    onClick={() => handleRemoveItem(item.id as number)}
+                    type="button"
+                    onClick={() => handleRemoveItem(item.id)}
+                    className="absolute top-2 right-2 h-9 w-9 rounded-full border border-border bg-background/80 backdrop-blur hover:bg-muted transition-colors flex items-center justify-center"
+                    aria-label="Remove"
+                    title="Remove"
                   >
-                    <Trash2 className="h-4 w-4 text-red-500 group-hover/delete:scale-110 transition-transform" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </button>
+
+                  {item.discount > 0 ? (
+                    <div className="absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-semibold border border-border bg-background/80 backdrop-blur">
+                      {item.discount}% OFF
+                    </div>
+                  ) : null}
                 </div>
+
                 <CardContent className="p-4">
-                  <Link href={`/kitabghor/books/${item.id}`}>
-                    <h4 className="font-semibold text-lg mb-1 text-[#0D1414] hover:text-[#0E4B4B] transition-all duration-300 line-clamp-2 group-hover:translate-x-1">
+                  <Link href={item.slug ? `/kitabghor/books/${item.slug}` : `/kitabghor/books/${item.id}`}>
+                    <h4 className="font-semibold text-sm leading-snug line-clamp-2 hover:underline underline-offset-4">
                       {item.name}
                     </h4>
                   </Link>
-                  <div className="flex items-center justify-between mt-2 mb-4">
-                    <div>
-                      <span className="font-bold text-lg text-[#0E4B4B]">
+
+                  <div className="flex items-center justify-between mt-3 mb-4">
+                    <div className="min-w-0">
+                      <span className="font-bold text-base">
                         ৳{item.price.toFixed(2)}
                       </span>
-                      {item.original_price > item.price && (
-                        <span className="text-sm text-[#5FA3A3] line-through ml-2">
-                          ৳{item.original_price.toFixed(2)}
+                      {item.originalPrice > item.price ? (
+                        <span className="text-xs text-muted-foreground line-through ml-2">
+                          ৳{item.originalPrice.toFixed(2)}
                         </span>
-                      )}
+                      ) : null}
                     </div>
-                    {item.discount > 0 && (
-                      <span className="bg-[#C0704D] text-white px-2 py-0.5 rounded text-xs font-semibold">
-                        {item.discount}% ছাড়
-                      </span>
-                    )}
                   </div>
+
                   <Button
-                    className="w-full rounded-xl py-6 bg-gradient-to-r from-[#C0704D] to-[#A85D3F] hover:from-[#0E4B4B] hover:to-[#5FA3A3] text-white font-semibold border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 group/btn"
+                    type="button"
+                    className="w-full rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={() => handleAddToCart(item)}
                   >
-                    <ShoppingCart className="h-4 w-4 mr-2 group-hover/btn:scale-110 transition-transform" />
-                    কার্টে যোগ করুন
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Add to Cart
                   </Button>
                 </CardContent>
               </Card>
