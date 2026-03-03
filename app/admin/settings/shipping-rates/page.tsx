@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
+import { ALLOWED_SHIPPING_AREAS } from "@/lib/shipping-areas";
 
 type ShippingRate = {
   id: number;
@@ -31,7 +32,7 @@ type WeightSlabInput = {
 
 const defaultForm: RateForm = {
   country: "BD",
-  area: "",
+  area: ALLOWED_SHIPPING_AREAS[0],
   baseCost: "0",
   freeMinOrder: "",
   isActive: true,
@@ -39,7 +40,6 @@ const defaultForm: RateForm = {
 };
 
 type CountryOption = { name: string; iso2: string };
-type DistrictOption = { name: string; iso2?: string };
 
 function parseWeightSlabs(raw: unknown): WeightSlabInput[] {
   if (!Array.isArray(raw)) return [];
@@ -72,9 +72,7 @@ export default function ShippingRatesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [countries, setCountries] = useState<CountryOption[]>([]);
-  const [districts, setDistricts] = useState<DistrictOption[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(false);
-  const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   const loadData = async () => {
@@ -113,35 +111,9 @@ export default function ShippingRatesPage() {
     }
   };
 
-  const loadDistricts = async (countryCode: string) => {
-    if (!countryCode) {
-      setDistricts([]);
-      return;
-    }
-
-    setLoadingDistricts(true);
-    try {
-      const res = await fetch(`/api/geo/countries/${countryCode}/states`, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Failed to load districts");
-      setDistricts(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setDistricts([]);
-      setError(e instanceof Error ? e.message : "Failed to load districts");
-    } finally {
-      setLoadingDistricts(false);
-    }
-  };
-
   useEffect(() => {
     loadCountries();
   }, []);
-
-  useEffect(() => {
-    loadDistricts(form.country);
-  }, [form.country]);
 
   const beginEdit = (rate: ShippingRate) => {
     setEditing(rate);
@@ -232,7 +204,7 @@ export default function ShippingRatesPage() {
         throw new Error("Country is required");
       }
       if (!payload.area) {
-        throw new Error("District / Area is required");
+        throw new Error("Area is required");
       }
 
       const url = editing
@@ -349,15 +321,19 @@ export default function ShippingRatesPage() {
                   </select>
                 </label>
                 <label className="text-sm">
-                  District / State
-                  <input
-                    type="text"
+                  Area
+                  <select
                     className="input-theme border p-2 rounded w-full mt-1"
-                    placeholder="Enter district / state"
                     value={form.area}
                     onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))}
                     required
-                  />
+                  >
+                    {ALLOWED_SHIPPING_AREAS.map((areaOption) => (
+                      <option key={areaOption} value={areaOption}>
+                        {areaOption}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 

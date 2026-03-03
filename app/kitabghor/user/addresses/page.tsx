@@ -8,6 +8,7 @@ import AccountMenu from "../AccountMenu";
 import AccountHeader from "../AccountHeader";
 import { Home, Plus, Minus, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
+import { ALLOWED_SHIPPING_AREAS, normalizeShippingArea } from "@/lib/shipping-areas";
 
 type AddressRow = {
   id: number;
@@ -82,7 +83,7 @@ export default function AddressesPage() {
     label: "",
     country: "Bangladesh",
     district: "",
-    area: "",
+    area: ALLOWED_SHIPPING_AREAS[0],
     details: ["", ""], // Address 1, Address 2 default
     isDefault: true,
   });
@@ -144,7 +145,6 @@ export default function AddressesPage() {
     if (status === "loading") return;
     refresh();
     loadCountries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   const setField = <K extends keyof AddressForm>(
@@ -244,7 +244,7 @@ export default function AddressesPage() {
       label: "",
       country: "Bangladesh",
       district: "",
-      area: "",
+      area: ALLOWED_SHIPPING_AREAS[0],
       details: ["", ""],
       isDefault: true,
     });
@@ -264,7 +264,7 @@ export default function AddressesPage() {
       label: row.label,
       country: row.country,
       district: row.district,
-      area: row.area,
+      area: normalizeShippingArea(row.area || "") || ALLOWED_SHIPPING_AREAS[0],
       details: row.details.length >= 2 ? row.details : ["", ""],
       isDefault: row.isDefault,
     });
@@ -284,9 +284,14 @@ export default function AddressesPage() {
     const cleanedDetails = (form.details || [])
       .map((s) => String(s ?? "").trim())
       .filter((s) => s.length > 0);
+    const safeArea = normalizeShippingArea(form.area);
 
     if (cleanedDetails.length === 0) {
       toast.error("Address 1 is required.", { duration: 3500 });
+      return;
+    }
+    if (!safeArea) {
+      toast.error("Please select a valid area.", { duration: 3500 });
       return;
     }
 
@@ -298,7 +303,7 @@ export default function AddressesPage() {
         label: form.label.trim(),
         country: form.country.trim(),
         district: form.district.trim(),
-        area: form.area.trim(),
+        area: safeArea,
         // store as JSON string in DB
         details: cleanedDetails,
         isDefault: !!form.isDefault,
@@ -650,12 +655,17 @@ export default function AddressesPage() {
                   <p className="text-xs font-semibold text-foreground">
                     Area <span className="text-destructive">*</span>
                   </p>
-                  <input
+                  <select
                     value={form.area}
                     onChange={(e) => setField("area", e.target.value)}
                     className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    placeholder="e.g. Mirpur / Gulshan"
-                  />
+                  >
+                    {ALLOWED_SHIPPING_AREAS.map((areaOption) => (
+                      <option key={areaOption} value={areaOption}>
+                        {areaOption}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

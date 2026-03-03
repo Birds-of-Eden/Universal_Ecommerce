@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isAllowedShippingArea, normalizeShippingArea } from "@/lib/shipping-areas";
 
 function normalizeDetails(details: unknown): string {
   // store as JSON array string
@@ -91,6 +92,13 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  if (!isAllowedShippingArea(area)) {
+    return NextResponse.json(
+      { error: "Invalid area. Allowed: Dhaka, Outside Dhaka, Outside Bangladesh" },
+      { status: 400 },
+    );
+  }
+  const canonicalArea = normalizeShippingArea(area)!;
 
   // if new one is default -> unset others
   if (isDefault) {
@@ -106,7 +114,7 @@ export async function POST(req: NextRequest) {
       label,
       country,
       district,
-      area,
+      area: canonicalArea,
       details: detailsStr,
       isDefault,
     },
@@ -172,6 +180,13 @@ export async function PUT(req: NextRequest) {
       { status: 400 }
     );
   }
+  if (!isAllowedShippingArea(area)) {
+    return NextResponse.json(
+      { error: "Invalid area. Allowed: Dhaka, Outside Dhaka, Outside Bangladesh" },
+      { status: 400 },
+    );
+  }
+  const canonicalArea = normalizeShippingArea(area)!;
 
   // If making default -> unset others in a transaction
   const updated = await db.$transaction(async (tx) => {
@@ -188,7 +203,7 @@ export async function PUT(req: NextRequest) {
         label,
         country,
         district,
-        area,
+        area: canonicalArea,
         details: detailsStr,
         isDefault,
       },

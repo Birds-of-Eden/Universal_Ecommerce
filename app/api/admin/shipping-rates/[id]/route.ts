@@ -102,7 +102,6 @@ export async function PATCH(
       }
       data.area = area;
     }
-
     if (body.baseCost !== undefined) data.baseCost = toDecimal(body.baseCost, "baseCost");
     if (body.weightSlabs !== undefined) data.weightSlabs = validateWeightSlabs(body.weightSlabs);
     if (body.freeMinOrder !== undefined) data.freeMinOrder = toOptionalDecimal(body.freeMinOrder);

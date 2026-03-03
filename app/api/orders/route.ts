@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
+import { calculateShippingQuote } from "@/lib/shipping";
 
 // GET /api/orders
 // - admin: all orders (with pagination & optional status filter)
@@ -215,8 +216,14 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    // simple shipping logic: 500+ => free, else 60
-    const shipping_cost = subtotal > 500 ? 0 : 60;
+    const shippingQuote = await calculateShippingQuote({
+      country: String(country),
+      district: String(district),
+      area: String(area),
+      subtotal,
+    });
+
+    const shipping_cost = shippingQuote.shippingCost;
     const grand_total = subtotal + shipping_cost;
 
     // payment_method থেকে paymentStatus ঠিক করা

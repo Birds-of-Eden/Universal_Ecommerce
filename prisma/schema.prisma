@@ -666,6 +666,7 @@ model ShippingRate {
 
   // Location scope
   country String @default("BD")
+  district String?
   area    String
 
   // Pricing config

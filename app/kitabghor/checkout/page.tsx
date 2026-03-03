@@ -6,10 +6,47 @@ import { useCart } from "@/components/ecommarce/CartContext";
 import { Button } from "@/components/ui/button";
 import { LabeledInput } from "@/components/ui/labeled-input";
 import { toast } from "sonner";
-import { Check, ArrowLeft, Truck, Shield, CreditCard, BookOpen } from "lucide-react";
+import { Check, ArrowLeft, Truck, Shield, CreditCard, BookOpen, Plus, X } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
+import { ALLOWED_SHIPPING_AREAS, normalizeShippingArea, type AllowedShippingArea } from "@/lib/shipping-areas";
+
+type UserAddress = {
+  id: number;
+  label: string;
+  country: string;
+  district: string;
+  area: string;
+  details?: string | string[] | null;
+  isDefault: boolean;
+};
+
+type ShippingQuote = {
+  shippingCost: number;
+  subtotal: number;
+  total: number;
+  matchedRate: {
+    id: number;
+    country: string;
+    area: string;
+    baseCost: number;
+    freeMinOrder: number | null;
+    priority: number;
+  } | null;
+  reason: string;
+};
+
+type ShippingRateOption = {
+  id: number;
+  country: string;
+  district?: string | null;
+  area: string;
+  baseCost: number;
+  freeMinOrder: number | null;
+  isActive: boolean;
+  priority: number;
+};
 
 export default function CheckoutPage() {
   const { cartItems, clearCart } = useCart();
@@ -21,8 +58,10 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
-  const [location, setLocation] = useState("");
-  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [country, setCountry] = useState("Bangladesh");
+  const [location, setLocation] = useState(""); // district
+  const [area, setArea] = useState<AllowedShippingArea>(ALLOWED_SHIPPING_AREAS[0]);
+  const [deliveryAddress, setDeliveryAddress] = useState(""); // address details
 
   const [paymentMethod, setPaymentMethod] = useState("");
   const [transactionId, setTransactionId] = useState("");
@@ -34,12 +73,24 @@ export default function CheckoutPage() {
 
   const [prefilled, setPrefilled] = useState(false);
   const [paymentGateways, setPaymentGateways] = useState<any[]>([]);
+  const [userAddresses, setUserAddresses] = useState<UserAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<number | "">("");
+  const [showAddAddressForm, setShowAddAddressForm] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [newAddressLabel, setNewAddressLabel] = useState("Home");
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [availableAreas, setAvailableAreas] = useState<string[]>([]);
+  const [shippingRates, setShippingRates] = useState<ShippingRateOption[]>([]);
+  const [loadingAreas, setLoadingAreas] = useState(false);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null);
 
   const isAuthenticated = !!session;
 
   // Server cart
   const [serverCartItems, setServerCartItems] = useState<any[] | null>(null);
   const [loadingServerCart, setLoadingServerCart] = useState(false);
+  const [cartSynced, setCartSynced] = useState(false);
 
   // Screenshot upload
   const [paymentScreenshotPreview, setPaymentScreenshotPreview] = useState<string | null>(null);
@@ -47,6 +98,13 @@ export default function CheckoutPage() {
   const [isUploadingScreenshot, setIsUploadingScreenshot] = useState(false);
 
   useEffect(() => setIsMounted(true), []);
+
+  // Cleanup cart sync flag on unmount
+  useEffect(() => {
+    return () => {
+      setCartSynced(false);
+    };
+  }, []);
 
   // Payment gateways
   useEffect(() => {
@@ -63,9 +121,17 @@ export default function CheckoutPage() {
     fetchGateways();
   }, []);
 
+  // Reset cart sync flag when authentication state changes
+  useEffect(() => {
+    console.log("🔄 Auth state changed, resetting cart sync flag. Authenticated:", isAuthenticated);
+    setCartSynced(false);
+  }, [isAuthenticated]);
+
   // Load server cart + sync guest cart after login
   useEffect(() => {
-    if (!isMounted) return;
+    console.log("🚀 Cart sync effect triggered. Mounted:", isMounted, "Synced:", cartSynced, "Auth:", isAuthenticated);
+    
+    if (!isMounted || cartSynced) return;
 
     if (!isAuthenticated) {
       setServerCartItems(null);
@@ -100,22 +166,41 @@ export default function CheckoutPage() {
     };
 
     const syncGuestCartToServer = async () => {
+      console.log("🛒 Cart sync started. Guest cart items:", cartItems.length);
+      
       if (cartItems.length === 0) {
+        console.log("🛒 Guest cart empty, fetching server cart only");
         fetchServerCart();
+        setCartSynced(true);
         return;
       }
 
       try {
         setLoadingServerCart(true);
 
-        for (const item of cartItems) {
-          const res = await fetch("/api/cart", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ productId: item.productId, quantity: item.quantity }),
-          });
+        // First, get existing server cart to avoid duplicates
+        const serverRes = await fetch("/api/cart", { cache: "no-store" });
+        if (serverRes.ok) {
+          const serverData = await serverRes.json();
+          const existingItems = Array.isArray(serverData.items) ? serverData.items : [];
+          console.log("🛒 Server cart has", existingItems.length, "items");
+          
+          // Create a map of existing product IDs
+          const existingProductIds = new Set(existingItems.map((item: any) => item.productId));
+          
+          // Only sync items that don't already exist on server
+          const itemsToSync = cartItems.filter(item => !existingProductIds.has(item.productId));
+          console.log("🛒 Items to sync:", itemsToSync.length, "out of", cartItems.length);
+          
+          for (const item of itemsToSync) {
+            const res = await fetch("/api/cart", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ productId: item.productId, quantity: item.quantity }),
+            });
 
-          if (!res.ok) console.error("Failed to sync cart item:", item.productId);
+            if (!res.ok) console.error("Failed to sync cart item:", item.productId);
+          }
         }
 
         clearCart();
@@ -125,53 +210,145 @@ export default function CheckoutPage() {
         fetchServerCart();
       } finally {
         setLoadingServerCart(false);
+        setCartSynced(true);
+        console.log("🛒 Cart sync completed");
       }
     };
 
     syncGuestCartToServer();
-  }, [isAuthenticated, isMounted, cartItems, clearCart]);
+  }, [isAuthenticated, isMounted, cartItems, clearCart, cartSynced]);
 
-  // Prefill
+  const parseAddressDetails = (details: UserAddress["details"]) => {
+    if (Array.isArray(details)) return details.filter(Boolean).join(", ");
+    if (typeof details === "string") {
+      try {
+        const parsed = JSON.parse(details);
+        if (Array.isArray(parsed)) return parsed.filter(Boolean).join(", ");
+      } catch {
+        return details;
+      }
+    }
+    return "";
+  };
+
+  const normalizeCountryCode = (value: string) => {
+    const v = String(value || "").trim();
+    if (!v) return "BD";
+    if (v.length === 2) return v.toUpperCase();
+    const key = v.toLowerCase();
+    if (key === "bangladesh") return "BD";
+    if (key === "india") return "IN";
+    if (key === "pakistan") return "PK";
+    return v.slice(0, 2).toUpperCase();
+  };
+
+  const fetchUserAddresses = async () => {
+    try {
+      setLoadingAddresses(true);
+      const addressRes = await fetch("/api/user/address", { cache: "no-store" });
+      if (!addressRes.ok) return [];
+      const addressData = await addressRes.json();
+      const addresses: UserAddress[] = Array.isArray(addressData?.addresses)
+        ? addressData.addresses
+        : [];
+      setUserAddresses(addresses);
+      return addresses;
+    } catch {
+      return [];
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const getShippingRateInfo = (areaOption: string) => {
+    const rate = shippingRates.find(r => 
+      normalizeShippingArea(String(r.area || "")) === areaOption
+    );
+    return rate;
+  };
+
+  const fetchAreaOptions = async (countryInput: string) => {
+    if (!countryInput.trim()) {
+      setAvailableAreas([]);
+      setShippingRates([]);
+      return;
+    }
+    try {
+      setLoadingAreas(true);
+      const countryCode = normalizeCountryCode(countryInput);
+      const res = await fetch(
+        `/api/shipping/rates?country=${encodeURIComponent(countryCode)}&isActive=true`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) {
+        setAvailableAreas([]);
+        setShippingRates([]);
+        return;
+      }
+      const rates: ShippingRateOption[] = await res.json();
+      setShippingRates(rates);
+      const normalizedAreas = (Array.isArray(rates) ? rates : [])
+        .map((r) => normalizeShippingArea(String(r.area || "")))
+        .filter((x): x is (typeof ALLOWED_SHIPPING_AREAS)[number] => Boolean(x));
+      const uniqueAreas = ALLOWED_SHIPPING_AREAS.filter((allowed) =>
+        normalizedAreas.includes(allowed),
+      );
+      setAvailableAreas(uniqueAreas);
+    } catch {
+      setAvailableAreas([]);
+      setShippingRates([]);
+    } finally {
+      setLoadingAreas(false);
+    }
+  };
+
+  // Prefill basic user info + saved addresses
   useEffect(() => {
     if (!session || prefilled || !(session.user as any)?.id) return;
 
-    const loadUser = async () => {
+    const loadUserData = async () => {
       try {
-        const userId = (session.user as any).id as string;
-        const res = await fetch(`/api/users/${userId}`, { cache: "no-store" });
-        if (!res.ok) return;
+        const userRes = await fetch("/api/user/profile", { cache: "no-store" });
 
-        const current = await res.json();
+        if (userRes.ok) {
+          const current = await userRes.json();
+          setName(current?.name || "");
+          setMobile(current?.phone || "");
+          setEmail(current?.email || "");
+        }
 
-        if (current) {
-          setName(current.name || "");
-          setMobile(current.phone || "");
-          setEmail(current.email || "");
+        const addresses = await fetchUserAddresses();
+        const selected =
+          addresses.find((a) => a.isDefault) ||
+          addresses[0] ||
+          null;
 
-          let addr = "";
-          const address = current.address as
-            | { addresses?: string[] }
-            | string
-            | null
-            | undefined;
-
-          if (Array.isArray((address as any)?.addresses)) addr = (address as any).addresses.join(", ");
-          else if (typeof address === "string") addr = address;
-
-          if (addr) {
-            setLocation(addr);
-            setDeliveryAddress(addr);
-          }
-
-          setPrefilled(true);
+        if (selected) {
+          setSelectedAddressId(selected.id);
+          setCountry(selected.country || "Bangladesh");
+          setLocation(selected.district || "");
+          setArea(normalizeShippingArea(selected.area || "") || ALLOWED_SHIPPING_AREAS[0]);
+          setDeliveryAddress(parseAddressDetails(selected.details));
         }
       } catch {
         // silent
+      } finally {
+        setPrefilled(true);
       }
     };
 
-    loadUser();
+    loadUserData();
   }, [session, prefilled]);
+
+  useEffect(() => {
+    fetchAreaOptions(country);
+  }, [country]);
+
+  useEffect(() => {
+    if (availableAreas.length > 0 && !availableAreas.includes(area)) {
+      setArea(availableAreas[0] as AllowedShippingArea);
+    }
+  }, [availableAreas, area]);
 
   const itemsToRender = isAuthenticated && serverCartItems ? serverCartItems : cartItems;
 
@@ -196,8 +373,57 @@ export default function CheckoutPage() {
     (total, item) => total + Number(item.price) * Number(item.quantity),
     0
   );
-  const shipping = 60;
+  const hasShippingQuote = shippingQuote !== null;
+  const shipping = hasShippingQuote ? Number(shippingQuote.shippingCost) : 0;
   const total = subtotal + shipping;
+
+  useEffect(() => {
+    if (!selectedAddressId) return;
+    const selected = userAddresses.find((a) => a.id === Number(selectedAddressId));
+    if (!selected) return;
+
+    setCountry(selected.country || "Bangladesh");
+    setLocation(selected.district || "");
+    setArea(normalizeShippingArea(selected.area || "") || ALLOWED_SHIPPING_AREAS[0]);
+    setDeliveryAddress(parseAddressDetails(selected.details));
+  }, [selectedAddressId, userAddresses]);
+
+  useEffect(() => {
+    const fetchShippingQuote = async () => {
+      if (!country.trim() || !location.trim() || !area.trim()) {
+        setShippingQuote(null);
+        return;
+      }
+
+      try {
+        setShippingLoading(true);
+        const res = await fetch("/api/shipping/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            country,
+            district: location,
+            area,
+            subtotal,
+          }),
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setShippingQuote(null);
+          return;
+        }
+
+        setShippingQuote(data);
+      } catch {
+        setShippingQuote(null);
+      } finally {
+        setShippingLoading(false);
+      }
+    };
+
+    fetchShippingQuote();
+  }, [country, location, area, subtotal]);
 
   const handleScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -251,11 +477,69 @@ export default function CheckoutPage() {
   };
 
   const handleGoToPaymentStep = () => {
-    if (!location.trim() || !deliveryAddress.trim()) {
-      toast.error("Please fill in both primary address and delivery address");
+    if (!country.trim() || !location.trim() || !area.trim() || !deliveryAddress.trim()) {
+      toast.error("Please fill in country, district, area and full address");
+      return;
+    }
+    const safeArea = normalizeShippingArea(area);
+    if (!safeArea) {
+      toast.error("Please select a valid area");
       return;
     }
     setStep("payment");
+  };
+
+  const handleSaveAddress = async () => {
+    if (!isAuthenticated) {
+      toast.error("Please login to save address");
+      return;
+    }
+    if (!newAddressLabel.trim() || !country.trim() || !location.trim() || !area.trim() || !deliveryAddress.trim()) {
+      toast.error("Please fill label, country, district, area and address details");
+      return;
+    }
+    const safeArea = normalizeShippingArea(area);
+    if (!safeArea) {
+      toast.error("Please select a valid area");
+      return;
+    }
+
+    try {
+      setSavingAddress(true);
+      const res = await fetch("/api/user/address", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: newAddressLabel.trim(),
+          country: country.trim(),
+          district: location.trim(),
+          area: safeArea,
+          details: [deliveryAddress.trim()],
+          isDefault: userAddresses.length === 0,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error(data?.error || "Failed to save address");
+        return;
+      }
+
+      const addresses = await fetchUserAddresses();
+      const createdId = data?.address?.id;
+      if (createdId) {
+        setSelectedAddressId(createdId);
+      } else if (addresses.length > 0) {
+        setSelectedAddressId(addresses[0].id);
+      }
+
+      setShowAddAddressForm(false);
+      toast.success("Address saved");
+    } catch {
+      toast.error("Failed to save address");
+    } finally {
+      setSavingAddress(false);
+    }
   };
 
   const handlePlaceOrder = async () => {
@@ -264,7 +548,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!name || !mobile || !location || (paymentMethod !== "CashOnDelivery" && !transactionId)) {
+    if (!name || !mobile || !country || !location || !area || !deliveryAddress || (paymentMethod !== "CashOnDelivery" && !transactionId)) {
       toast.error("Please fill in all required information");
       return;
     }
@@ -284,8 +568,8 @@ export default function CheckoutPage() {
         name,
         mobile,
         email,
-        address: location,
-        deliveryAddress: deliveryAddress || location,
+        address: `${area}, ${location}, ${country}`,
+        deliveryAddress: deliveryAddress,
       },
       itemsToRender,
       paymentMethod,
@@ -305,10 +589,10 @@ export default function CheckoutPage() {
       email: email || null,
       phone_number: mobile,
       alt_phone_number: null,
-      country: "Bangladesh",
+      country: country || "Bangladesh",
       district: location || "N/A",
-      area: deliveryAddress || location || "N/A",
-      address_details: deliveryAddress || location || "N/A",
+      area: area || "N/A",
+      address_details: deliveryAddress || "N/A",
       payment_method: paymentMethod,
       items,
       transactionId: paymentMethod !== "CashOnDelivery" ? transactionId : null,
@@ -406,7 +690,34 @@ export default function CheckoutPage() {
     </div>
   );
 
-  if (!isMounted || (isAuthenticated && loadingServerCart)) return null;
+  if (!isMounted || (isAuthenticated && loadingServerCart)) {
+    return (
+      <div className="min-h-screen bg-background py-6 sm:py-8 lg:py-12">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-3 gap-6 lg:gap-8 animate-pulse">
+            <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6 space-y-4">
+              <div className="h-8 w-48 bg-muted rounded" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="h-11 bg-muted rounded" />
+                <div className="h-11 bg-muted rounded" />
+                <div className="h-11 bg-muted rounded sm:col-span-2" />
+                <div className="h-11 bg-muted rounded" />
+                <div className="h-11 bg-muted rounded" />
+                <div className="h-11 bg-muted rounded sm:col-span-2" />
+                <div className="h-24 bg-muted rounded sm:col-span-2" />
+              </div>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
+              <div className="h-6 w-36 bg-muted rounded" />
+              <div className="h-16 bg-muted rounded" />
+              <div className="h-16 bg-muted rounded" />
+              <div className="h-16 bg-muted rounded" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background py-6 sm:py-8 lg:py-12">
@@ -468,23 +779,119 @@ export default function CheckoutPage() {
                       className="bg-background border-border text-foreground placeholder:text-muted-foreground sm:col-span-2"
                     />
 
+                    {isAuthenticated && (
+                      <div className="space-y-2 sm:col-span-2">
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="savedAddress" className="text-sm font-medium text-foreground">
+                            Saved Address
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setShowAddAddressForm((p) => !p)}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-[#819A91] hover:underline"
+                          >
+                            {showAddAddressForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                            {showAddAddressForm ? "Close" : "Add New Address"}
+                          </button>
+                        </div>
+                        <select
+                          id="savedAddress"
+                          value={selectedAddressId}
+                          onChange={(e) =>
+                            setSelectedAddressId(e.target.value ? Number(e.target.value) : "")
+                          }
+                          className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-[#819A91]/30"
+                        >
+                          <option value="">
+                            {loadingAddresses ? "Loading addresses..." : "Select a saved address (optional)"}
+                          </option>
+                          {userAddresses.map((addr) => (
+                            <option key={addr.id} value={addr.id}>
+                              {addr.label} - {addr.area}, {addr.district}, {addr.country}
+                            </option>
+                          ))}
+                        </select>
+
+                        {showAddAddressForm && (
+                          <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-3">
+                            <LabeledInput
+                              id="addressLabel"
+                              label="Address Label *"
+                              placeholder="Home / Office"
+                              value={newAddressLabel}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAddressLabel(e.target.value)}
+                              className="bg-background border-border text-foreground placeholder:text-muted-foreground"
+                            />
+                            <Button
+                              type="button"
+                              onClick={handleSaveAddress}
+                              disabled={savingAddress}
+                              className="h-9 bg-[#819A91] hover:bg-[#819A91]/90 text-white"
+                            >
+                              {savingAddress ? "Saving..." : "Save Current Address"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <LabeledInput
+                      id="country"
+                      label="Country *"
+                      placeholder="Bangladesh"
+                      value={country}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCountry(e.target.value)}
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground"
+                    />
+
                     <LabeledInput
                       id="location"
-                      label="Primary Address *"
-                      placeholder="House, road, area"
+                      label="District *"
+                      placeholder="Dhaka"
                       value={location}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocation(e.target.value)}
-                      className="bg-background border-border text-foreground placeholder:text-muted-foreground sm:col-span-2"
+                      className="bg-background border-border text-foreground placeholder:text-muted-foreground"
                     />
 
                     <div className="space-y-2 sm:col-span-2">
+                      <label htmlFor="area" className="text-sm font-medium text-foreground">
+                        Area *
+                      </label>
+                      <select
+                        id="area"
+                        value={area}
+                        onChange={(e) => setArea(e.target.value as AllowedShippingArea)}
+                        className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-[#819A91]/30"
+                      >
+                        <option value="">
+                          {loadingAreas ? "Loading areas..." : "Select area"}
+                        </option>
+                        {availableAreas.map((areaOption) => {
+                          const rate = getShippingRateInfo(areaOption);
+                          const shippingCost = rate?.baseCost ? `৳${rate.baseCost}` : 'Standard rate';
+                          const freeShippingInfo = rate?.freeMinOrder ? ` (Free over ৳${rate.freeMinOrder})` : '';
+                          return (
+                            <option key={areaOption} value={areaOption}>
+                              {areaOption} - {shippingCost}{freeShippingInfo}
+                            </option>
+                          );
+                        })}
+                      </select>
+                      {availableAreas.length === 0 && !loadingAreas && (
+                        <p className="text-xs text-muted-foreground">
+                          No shipping area available for this country.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
                       <label htmlFor="deliveryAddress" className="text-sm font-medium text-foreground">
-                        Delivery Address (Optional)
+                        Address Details *
                       </label>
                       <textarea
                         id="deliveryAddress"
                         className="w-full h-24 sm:h-32 p-3 sm:p-4 border border-border rounded-lg sm:rounded-xl bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#819A91]/30"
-                        placeholder="If different from primary address"
+                        placeholder="House, road, landmark"
                         value={deliveryAddress}
                         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDeliveryAddress(e.target.value)}
                       />
@@ -772,10 +1179,29 @@ export default function CheckoutPage() {
                   <span>Subtotal</span>
                   <span className="text-foreground">৳{subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Shipping</span>
-                  <span className="text-foreground">৳{shipping.toFixed(2)}</span>
-                </div>
+                {(shippingLoading || hasShippingQuote) && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Shipping</span>
+                    <span className="text-foreground">
+                      {shippingLoading ? "Calculating..." : shipping === 0 ? "FREE" : `৳${shipping.toFixed(2)}`}
+                    </span>
+                  </div>
+                )}
+                {!shippingLoading && hasShippingQuote && shippingQuote?.matchedRate && (
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>Applied Rate: {shippingQuote.matchedRate.country} / {shippingQuote.matchedRate.area}</div>
+                    {shippingQuote.matchedRate.freeMinOrder && shipping === 0 && (
+                      <div className="text-green-600 font-medium">
+                        🎉 Free shipping applied (minimum order ৳{shippingQuote.matchedRate.freeMinOrder.toFixed(2)} met)
+                      </div>
+                    )}
+                    {shippingQuote.matchedRate.freeMinOrder && shipping > 0 && (
+                      <div className="text-muted-foreground">
+                        Add ৳{(shippingQuote.matchedRate.freeMinOrder - subtotal).toFixed(2)} more for free shipping
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-base text-foreground border-t border-border pt-3">
                   <span>Total</span>
                   <span>৳{total.toFixed(2)}</span>

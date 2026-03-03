@@ -72,9 +72,7 @@ async function ensureAdmin() {
 
 export async function GET(request: NextRequest) {
   try {
-    if (!(await ensureAdmin())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const canManage = await ensureAdmin();
 
     const { searchParams } = new URL(request.url);
     const country = searchParams.get("country");
@@ -83,8 +81,17 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
     if (country) where.country = country.trim().toUpperCase();
-    if (area) where.area = area.trim();
-    if (isActive !== null) where.isActive = isActive === "true";
+    if (area) {
+      where.area = {
+        equals: area.trim(),
+        mode: "insensitive",
+      };
+    }
+    if (!canManage) {
+      where.isActive = true;
+    } else if (isActive !== null) {
+      where.isActive = isActive === "true";
+    }
 
     const rates = await db.shippingRate.findMany({
       where,
