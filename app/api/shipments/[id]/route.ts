@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessContext } from "@/lib/rbac";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -17,7 +18,15 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     }
 
     const userId = (session.user as any).id as string;
-    const role = (session.user as any).role as string | undefined;
+    const access = await getAccessContext(
+      session.user as { id?: string; role?: string } | undefined,
+    );
+    const canReadAll =
+      access.has("shipments.manage") || access.has("orders.read_all");
+    const canReadOwn = canReadAll || access.has("orders.read_own");
+    if (!canReadOwn) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const { id: idStr } = await params;
     const id = Number(idStr);
 
@@ -44,7 +53,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     }
 
     // normal user হলে: কেবল নিজের order এর shipment দেখতে পারবে
-    if (role !== "admin" && shipment.order.userId !== userId) {
+    if (!canReadAll && shipment.order.userId !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -72,10 +81,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id: idStr } = await params;
     const session = await getServerSession(authOptions);
-    const role = (session?.user as any)?.role as string | undefined;
-
-    // shipment update -> শুধু admin
-    if (!session?.user || role !== "admin") {
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("shipments.manage")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -276,10 +288,13 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   try {
     const { id: idStr } = await params;
     const session = await getServerSession(authOptions);
-    const role = (session?.user as any)?.role as string | undefined;
-
-    // shipment deletion -> only admin
-    if (!session?.user || role !== "admin") {
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("shipments.manage")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

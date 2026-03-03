@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { generateSlug } from '@/lib/utils';
+import { getAccessContext } from '@/lib/rbac';
 
 // GET all blogs - Public access
 export async function GET(request: NextRequest) {
@@ -55,9 +56,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user || session.user.role !== 'admin') {
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+
+    if (!access.userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!access.has('blogs.manage')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();

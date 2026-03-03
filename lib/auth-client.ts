@@ -1,5 +1,12 @@
 export { signIn, signOut, useSession } from "next-auth/react";
 
-export function isAdmin(role?: string) {
-  return role?.toLowerCase() === "admin";
+type AccessUserLike = {
+  role?: string;
+  permissions?: string[];
+} | null | undefined;
+
+export function isAdmin(user?: AccessUserLike) {
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  if (permissions.includes("admin.panel.access")) return true;
+  return user?.role?.toLowerCase() === "admin";
 }

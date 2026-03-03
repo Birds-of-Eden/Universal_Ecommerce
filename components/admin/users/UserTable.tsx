@@ -178,9 +178,19 @@ export default function UserTable({
   };
 
   const getRoleColor = (role: string) => {
-    return role === "admin"
+    const normalized = role?.toLowerCase?.() || "";
+    return normalized.includes("admin")
       ? "bg-purple-500/10 text-purple-600 border-purple-500/20 dark:bg-purple-400/10 dark:text-purple-400 dark:border-purple-400/20"
       : "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20";
+  };
+
+  const formatRoleLabel = (role: string) => {
+    if (!role) return "User";
+    return role
+      .split("_")
+      .filter(Boolean)
+      .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+      .join(" ");
   };
 
   return (
@@ -228,7 +238,7 @@ export default function UserTable({
                         <p className="text-sm font-semibold text-foreground truncate">
                           {user.name || "No Name"}
                         </p>
-                        {user.role === "admin" && (
+                        {user.role?.toLowerCase?.().includes("admin") && (
                           <Shield className="h-3 w-3 text-purple-600" />
                         )}
                       </div>
@@ -251,7 +261,7 @@ export default function UserTable({
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getRoleColor(user.role)}`}
                   >
-                    {user.role === "admin" ? "Admin" : "User"}
+                    {formatRoleLabel(user.role)}
                   </span>
                 </td>
 

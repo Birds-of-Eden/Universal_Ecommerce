@@ -1,8 +1,31 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessContext } from "@/lib/rbac";
+
+async function ensureCouponManageAccess() {
+  const session = await getServerSession(authOptions);
+  const access = await getAccessContext(
+    session?.user as { id?: string; role?: string } | undefined,
+  );
+
+  if (!access.userId) {
+    return { ok: false as const, status: 401, error: "Unauthorized" };
+  }
+  if (!access.hasAny(["coupons.manage", "settings.manage"])) {
+    return { ok: false as const, status: 403, error: "Forbidden" };
+  }
+  return { ok: true as const };
+}
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const allowed = await ensureCouponManageAccess();
+    if (!allowed.ok) {
+      return NextResponse.json({ error: allowed.error }, { status: allowed.status });
+    }
+
     const { 
       code, 
       discountType, 
@@ -41,6 +64,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const allowed = await ensureCouponManageAccess();
+    if (!allowed.ok) {
+      return NextResponse.json({ error: allowed.error }, { status: allowed.status });
+    }
+
     const { id } = await params;
 
     await prisma.coupon.delete({

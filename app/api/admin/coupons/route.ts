@@ -1,8 +1,40 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessContext } from "@/lib/rbac";
+
+async function ensureCouponAccess(permission: "read" | "manage") {
+  const session = await getServerSession(authOptions);
+  const access = await getAccessContext(
+    session?.user as { id?: string; role?: string } | undefined,
+  );
+
+  if (!access.userId) {
+    return { ok: false as const, status: 401, error: "Unauthorized" };
+  }
+
+  if (permission === "read") {
+    if (!access.hasAny(["coupons.manage", "settings.manage", "reports.read"])) {
+      return { ok: false as const, status: 403, error: "Forbidden" };
+    }
+    return { ok: true as const };
+  }
+
+  if (!access.hasAny(["coupons.manage", "settings.manage"])) {
+    return { ok: false as const, status: 403, error: "Forbidden" };
+  }
+
+  return { ok: true as const };
+}
 
 export async function GET() {
   try {
+    const allowed = await ensureCouponAccess("read");
+    if (!allowed.ok) {
+      return NextResponse.json({ error: allowed.error }, { status: allowed.status });
+    }
+
     const coupons = await prisma.coupon.findMany({
       orderBy: { createdAt: "desc" },
     });
@@ -17,6 +49,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const allowed = await ensureCouponAccess("manage");
+    if (!allowed.ok) {
+      return NextResponse.json({ error: allowed.error }, { status: allowed.status });
+    }
+
     const { 
       code, 
       discountType, 

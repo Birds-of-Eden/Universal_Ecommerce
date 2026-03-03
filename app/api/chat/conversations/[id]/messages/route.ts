@@ -4,6 +4,7 @@ import type { ChatStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessConversation, getChatActor, normalizeGuestEmail } from "@/lib/chat";
+import { getAccessContext } from "@/lib/rbac";
 
 const CHAT_STATUSES: ChatStatus[] = ["OPEN", "IN_PROGRESS", "CLOSED"];
 
@@ -31,7 +32,13 @@ export async function GET(
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    const actor = getChatActor(session?.user as { id?: string; role?: string } | undefined);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    const actor = getChatActor(
+      session?.user as { id?: string; role?: string } | undefined,
+      { canManageChats: access.has("chats.manage") },
+    );
 
     const { searchParams } = new URL(request.url);
     const guestEmail = normalizeGuestEmail(searchParams.get("guestEmail"));
@@ -91,7 +98,13 @@ export async function POST(
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    const actor = getChatActor(session?.user as { id?: string; role?: string } | undefined);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    const actor = getChatActor(
+      session?.user as { id?: string; role?: string } | undefined,
+      { canManageChats: access.has("chats.manage") },
+    );
     const body = await request.json().catch(() => ({}));
 
     const guestEmail = normalizeGuestEmail(body.guestEmail);

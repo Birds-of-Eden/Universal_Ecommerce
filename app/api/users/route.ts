@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { getAccessContext } from '@/lib/rbac';
 
 // Validation schemas
 const createUserSchema = z.object({
   email: z.string().email('Invalid email format'),
   name: z.string().optional(),
-  role: z.enum(['user', 'admin']).default('user'),
+  role: z
+    .string()
+    .trim()
+    .min(1)
+    .max(40)
+    .regex(/^[a-z0-9_]+$/i, 'Role must be alphanumeric/underscore')
+    .default('user'),
   phone: z.string().optional(),
   password: z.string().min(6, 'Password must be at least 6 characters long'),
   addresses: z.array(z.string()).min(1, 'At least one address is required'),
@@ -17,12 +26,23 @@ const querySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(10),
   search: z.string().optional().nullable(),
-  role: z.enum(['user', 'admin']).optional().nullable(),
+  role: z.string().trim().min(1).max(40).optional().nullable(),
 });
 
 // GET all users with pagination and search
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!access.hasAny(['users.read', 'users.manage'])) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     
     // Validate query parameters
@@ -52,7 +72,7 @@ export async function GET(request: NextRequest) {
       ];
     }
     if (role) {
-      where.role = role;
+      where.role = { equals: role, mode: "insensitive" };
     }
 
     // Get users with order count
@@ -110,6 +130,17 @@ export async function GET(request: NextRequest) {
 // POST create new user
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!access.has('users.manage')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
     
     // Validate request body
@@ -123,6 +154,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, name, role, phone, password, addresses } = validation.data;
+    const normalizedRole = role.toLowerCase();
 
     // Normalize addresses
     const normalizedAddresses = addresses
@@ -143,7 +175,7 @@ export async function POST(request: NextRequest) {
       data: {
         email,
         name,
-        role,
+        role: normalizedRole,
         phone,
         passwordHash,
       },
@@ -168,6 +200,31 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    const mappedRole = await db.role.findFirst({
+      where: {
+        name: normalizedRole,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (mappedRole) {
+      await db.userRole.upsert({
+        where: {
+          userId_roleId: {
+            userId: user.id,
+            roleId: mappedRole.id,
+          },
+        },
+        update: {},
+        create: {
+          userId: user.id,
+          roleId: mappedRole.id,
+          assignedById: access.userId ?? null,
+        },
+      });
+    }
 
     return NextResponse.json({
       message: 'User created successfully',

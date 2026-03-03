@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   Users,
@@ -18,47 +19,154 @@ import {
   Truck,
   MessageCircle,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import type { LucideIcon } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 
-// Updated menuItems with enhanced structure
-const menuItems = [
-  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { name: "Users", href: "/admin/users", icon: Users },
-  { name: "Products", href: "/admin/products", icon: ShoppingBag },
-  { name: "Orders", href: "/admin/orders", icon: FileText },
-  { name: "Chats", href: "/admin/chats", icon: MessageCircle },
-  { name: "Shipments", href: "/admin/shipments", icon: Truck },
+type MenuItem = {
+  name: string;
+  href?: string;
+  icon: LucideIcon;
+  requiredPermissions?: string[];
+  subItems?: Array<{
+    name: string;
+    href: string;
+    requiredPermissions?: string[];
+  }>;
+};
+
+const menuItems: MenuItem[] = [
+  {
+    name: "Dashboard",
+    href: "/admin",
+    icon: LayoutDashboard,
+    requiredPermissions: ["dashboard.read", "admin.panel.access"],
+  },
+  {
+    name: "Users",
+    href: "/admin/users",
+    icon: Users,
+    requiredPermissions: ["users.read", "users.manage"],
+  },
+  {
+    name: "Products",
+    href: "/admin/products",
+    icon: ShoppingBag,
+    requiredPermissions: ["products.manage"],
+  },
+  {
+    name: "Orders",
+    href: "/admin/orders",
+    icon: FileText,
+    requiredPermissions: ["orders.read_all"],
+  },
+  {
+    name: "Chats",
+    href: "/admin/chats",
+    icon: MessageCircle,
+    requiredPermissions: ["chats.manage"],
+  },
+  {
+    name: "Shipments",
+    href: "/admin/shipments",
+    icon: Truck,
+    requiredPermissions: ["shipments.manage", "orders.read_all"],
+  },
   {
     name: "Management",
     icon: ClipboardList,
+    requiredPermissions: ["products.manage", "inventory.manage"],
     subItems: [
-      { name: "Writers", href: "/admin/management/writers" },
-      { name: "Categories", href: "/admin/management/categories" },
-      { name: "Publishers", href: "/admin/management/publishers" },
-      { name: "Brands", href: "/admin/management/brands" },
-      { name: "Stock Management", href: "/admin/management/stock" },
+      {
+        name: "Writers",
+        href: "/admin/management/writers",
+        requiredPermissions: ["products.manage"],
+      },
+      {
+        name: "Categories",
+        href: "/admin/management/categories",
+        requiredPermissions: ["products.manage"],
+      },
+      {
+        name: "Publishers",
+        href: "/admin/management/publishers",
+        requiredPermissions: ["products.manage"],
+      },
+      {
+        name: "Brands",
+        href: "/admin/management/brands",
+        requiredPermissions: ["products.manage"],
+      },
+      {
+        name: "Stock Management",
+        href: "/admin/management/stock",
+        requiredPermissions: ["inventory.manage"],
+      },
     ],
   },
-  { name: "Blogs", href: "/admin/blogs", icon: BookOpen },
-  { name: "Newsletter", href: "/admin/newsletter", icon: Mail },
-  { name: "Coupons", href: "/admin/coupons", icon: Tag },
+  {
+    name: "Blogs",
+    href: "/admin/blogs",
+    icon: BookOpen,
+    requiredPermissions: ["blogs.manage"],
+  },
+  {
+    name: "Newsletter",
+    href: "/admin/newsletter",
+    icon: Mail,
+    requiredPermissions: ["newsletter.manage"],
+  },
+  {
+    name: "Coupons",
+    href: "/admin/coupons",
+    icon: Tag,
+    requiredPermissions: ["coupons.manage"],
+  },
   {
     name: "Settings",
     icon: Settings,
+    requiredPermissions: ["settings.manage"],
     subItems: [
-      { name: "Payment Methods", href: "/admin/settings/payment" },
-      { name: "Warehouses", href: "/admin/settings/warehouses" },
-      { name: "Banner Settings", href: "/admin/settings/banner" },
-      { name: "VAT Settings", href: "/admin/settings/vatclasses" },
-      { name: "Couriers", href: "/admin/settings/couriers" },
-      { name: "Shipping Rates", href: "/admin/settings/shipping-rates" },
-      { name: "General Settings", href: "/admin/settings/general" },
+      {
+        name: "Payment Methods",
+        href: "/admin/settings/payment",
+        requiredPermissions: ["settings.payment.manage", "settings.manage"],
+      },
+      {
+        name: "Warehouses",
+        href: "/admin/settings/warehouses",
+        requiredPermissions: ["settings.warehouse.manage", "settings.manage"],
+      },
+      {
+        name: "Banner Settings",
+        href: "/admin/settings/banner",
+        requiredPermissions: ["settings.banner.manage", "settings.manage"],
+      },
+      {
+        name: "VAT Settings",
+        href: "/admin/settings/vatclasses",
+        requiredPermissions: ["settings.vat.manage", "settings.manage"],
+      },
+      {
+        name: "Couriers",
+        href: "/admin/settings/couriers",
+        requiredPermissions: ["settings.courier.manage", "settings.manage"],
+      },
+      {
+        name: "Shipping Rates",
+        href: "/admin/settings/shipping-rates",
+        requiredPermissions: ["settings.shipping.manage", "settings.manage"],
+      },
+      {
+        name: "RBAC",
+        href: "/admin/settings/rbac",
+        requiredPermissions: ["roles.manage"],
+      },
     ],
   },
 ];
 
 interface MenuItemProps {
-  item: (typeof menuItems)[0];
+  item: MenuItem;
   pathname: string;
   onClose?: () => void;
 }
@@ -200,13 +308,15 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
 // Sidebar Content wrapper
 const SidebarContent = ({
   pathname,
+  items,
   onClose,
 }: {
   pathname: string;
+  items: MenuItem[];
   onClose?: () => void;
 }) => (
   <nav className="mt-8 pb-8 space-y-2 px-4">
-    {menuItems.map((item) => (
+    {items.map((item) => (
       <MenuItem
         key={item.name}
         item={item}
@@ -225,6 +335,39 @@ export default function Sidebar({
   onClose?: () => void;
 }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const permissionKeys = Array.isArray((session?.user as any)?.permissions)
+    ? ((session?.user as any).permissions as string[])
+    : [];
+
+  const hasPermission = useCallback((required?: string[]) => {
+    if (!required || required.length === 0) return true;
+    return required.some((permission) => permissionKeys.includes(permission));
+  }, [permissionKeys]);
+
+  const visibleMenuItems = useMemo<MenuItem[]>(() => {
+    return menuItems
+      .map((item) => {
+        if (item.subItems && item.subItems.length > 0) {
+          const visibleSubItems = item.subItems.filter((subItem) =>
+            hasPermission(subItem.requiredPermissions),
+          );
+          if (visibleSubItems.length === 0 && !hasPermission(item.requiredPermissions)) {
+            return null;
+          }
+          return {
+            ...item,
+            subItems: visibleSubItems,
+          };
+        }
+
+        if (!hasPermission(item.requiredPermissions)) {
+          return null;
+        }
+        return item;
+      })
+      .filter((item): item is MenuItem => item !== null);
+  }, [hasPermission]);
 
   // Using CSS variables from global.css
   const themeBg = "bg-background";
@@ -241,7 +384,7 @@ export default function Sidebar({
           </div>
         </div>
         <div className="flex-1 overflow-y-auto" onClick={onClose}>
-          <SidebarContent pathname={pathname} onClose={onClose} />
+          <SidebarContent pathname={pathname} items={visibleMenuItems} onClose={onClose} />
         </div>
       </div>
     );
@@ -261,7 +404,7 @@ export default function Sidebar({
         <h2 className={cn("font-bold text-xl text-foreground")}>Admin Panel</h2>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <SidebarContent pathname={pathname} />
+        <SidebarContent pathname={pathname} items={visibleMenuItems} />
       </div>
 
       {/* Footer */}

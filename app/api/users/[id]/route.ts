@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
+import { getAccessContext } from '@/lib/rbac';
 
 // Validation schema for user updates
 const updateUserSchema = z.object({
   name: z.string().optional(),
-  role: z.enum(['user', 'admin']).optional(),
+  role: z
+    .string()
+    .trim()
+    .min(1)
+    .max(40)
+    .regex(/^[a-z0-9_]+$/i, 'Role must be alphanumeric/underscore')
+    .optional(),
   phone: z.string().optional(),
   addresses: z.any().optional(),
   banned: z.boolean().optional(),
@@ -20,6 +29,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!access.hasAny(['users.read', 'users.manage'])) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { id } = await params;
 
     const user = await db.user.findUnique({
@@ -82,6 +102,17 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!access.has('users.manage')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
     
     // Validate request body
@@ -95,10 +126,15 @@ export async function PATCH(
     }
 
     let updateData = validation.data;
+    if (typeof updateData.role === "string") {
+      updateData = {
+        ...updateData,
+        role: updateData.role.toLowerCase(),
+      };
+    }
     const { id } = await params;
 
     // Handle addresses separately if provided
-    let addressesUpdate = {};
     if (updateData.addresses && Array.isArray(updateData.addresses)) {
       // Delete existing addresses
       await db.userAddress.deleteMany({
@@ -128,6 +164,8 @@ export async function PATCH(
       const { addresses, ...otherUpdateData } = updateData;
       updateData = otherUpdateData;
     }
+
+    const roleToAssign = typeof updateData.role === "string" ? updateData.role : null;
 
     const user = await db.user.update({
       where: { id },
@@ -173,6 +211,33 @@ export async function PATCH(
       },
     });
 
+    if (roleToAssign) {
+      const mappedRole = await db.role.findFirst({
+        where: {
+          name: roleToAssign,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+
+      if (mappedRole) {
+        await db.userRole.upsert({
+          where: {
+            userId_roleId: {
+              userId: id,
+              roleId: mappedRole.id,
+            },
+          },
+          update: {},
+          create: {
+            userId: id,
+            roleId: mappedRole.id,
+            assignedById: access.userId ?? null,
+          },
+        });
+      }
+    }
+
     return NextResponse.json(user);
   } catch (error: any) {
     console.error('Error updating user:', error);
@@ -201,6 +266,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!access.has('users.manage')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { id } = await params;
 
     // Check if user exists and has orders before deleting

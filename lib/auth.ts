@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { getAccessContext } from "@/lib/rbac";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db),
@@ -52,6 +53,14 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
+        const access = await getAccessContext({
+          id: typeof token.id === "string" ? token.id : undefined,
+          role: typeof token.role === "string" ? token.role : undefined,
+        });
+        session.user.permissions = access.permissions;
+        session.user.roleNames = access.roleNames;
+        token.permissions = access.permissions;
+        token.roleNames = access.roleNames;
       }
       return session;
     },

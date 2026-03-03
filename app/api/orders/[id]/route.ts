@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessContext } from "@/lib/rbac";
 
 // GET /api/orders/:id
 export async function GET(
@@ -17,7 +18,14 @@ export async function GET(
     }
 
     const userId = (session.user as any).id as string;
-    const role = (session.user as any).role as string | undefined;
+    const access = await getAccessContext(
+      session.user as { id?: string; role?: string } | undefined,
+    );
+    const canReadAll = access.has("orders.read_all");
+    const canReadOwn = canReadAll || access.has("orders.read_own");
+    if (!canReadOwn) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const orderId = Number(resolvedParams.id);
     if (Number.isNaN(orderId)) {
@@ -41,7 +49,7 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (role !== "admin" && order.userId !== userId) {
+    if (!canReadAll && order.userId !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -65,8 +73,14 @@ export async function PATCH(
   try {
     const resolvedParams = await params;
     const session = await getServerSession(authOptions);
-    if (!session?.user || (session.user as any).role !== "admin") {
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("orders.update")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const orderId = Number(resolvedParams.id);

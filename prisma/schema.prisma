@@ -122,6 +122,8 @@ model User {
   userChats             ChatConversation[]     @relation("UserChats")
   chatMessages          ChatMessage[]
   activityLogs          ActivityLog[]
+  userRoles             UserRole[]             @relation("UserRoles")
+  assignedUserRoles     UserRole[]             @relation("AssignedUserRoles")
 }
 
 model UserAddress {
@@ -144,6 +146,60 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  rolePermissions RolePermission[]
+}
+
+model Role {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  label       String
+  description String?
+  isSystem    Boolean    @default(false)
+  isImmutable Boolean    @default(false)
+  deletedAt   DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@index([deletedAt])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserRole {
+  userId       String
+  roleId       String
+  assignedById String?
+  createdAt    DateTime @default(now())
+
+  user       User  @relation("UserRoles", fields: [userId], references: [id], onDelete: Cascade)
+  role       Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedBy User? @relation("AssignedUserRoles", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@index([assignedById])
 }
 
 model Writer {

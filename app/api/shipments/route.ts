@@ -4,6 +4,7 @@ import type { ShipmentStatus } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCourierProvider } from "@/lib/couriers";
+import { getAccessContext } from "@/lib/rbac";
 
 type CreateShipmentBody = {
   orderId: number;
@@ -24,7 +25,18 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = (session.user as { id?: string }).id;
-    const role = (session.user as { role?: string }).role;
+    const access = await getAccessContext(
+      session.user as { id?: string; role?: string } | undefined,
+    );
+    const canReadAll =
+      access.has("shipments.manage") || access.has("orders.read_all");
+    const canReadOwn = canReadAll || access.has("orders.read_own");
+    if (!canReadOwn) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!canReadAll && !access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get("page") || "1");
@@ -34,8 +46,8 @@ export async function GET(request: NextRequest) {
     const courierId = searchParams.get("courierId");
 
     const where: Record<string, unknown> = {};
-    if (role !== "admin") {
-      where.order = { userId };
+    if (!canReadAll) {
+      where.order = { userId: access.userId ?? userId };
     }
     if (status) where.status = status;
     if (orderId && !Number.isNaN(Number(orderId))) where.orderId = Number(orderId);
@@ -89,8 +101,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const role = (session?.user as { role?: string } | undefined)?.role;
-    if (!session?.user || role !== "admin") {
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("shipments.manage")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

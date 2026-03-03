@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getAccessContext } from "@/lib/rbac";
 
 const db = prisma as any;
 
@@ -63,8 +64,10 @@ function validateWeightSlabs(input: unknown) {
 
 async function ensureAdmin() {
   const session = await getServerSession(authOptions);
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  return Boolean(session?.user && role === "admin");
+  const access = await getAccessContext(
+    session?.user as { id?: string; role?: string } | undefined,
+  );
+  return access.has("settings.shipping.manage") || access.has("settings.manage");
 }
 
 export async function PATCH(
