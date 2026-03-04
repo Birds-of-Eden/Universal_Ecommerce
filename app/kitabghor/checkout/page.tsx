@@ -1124,7 +1124,7 @@ export default function CheckoutPage() {
                 </Button>
               </Link>
 
-              <Link href="/kitabghor/books">
+              <Link href="/kitabghor/products">
                 <Button variant="outline" className="w-full border-border text-foreground hover:bg-muted rounded-xl">
                   Continue Shopping
                 </Button>
