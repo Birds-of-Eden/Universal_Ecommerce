@@ -27,7 +27,6 @@ import { toast } from "sonner";
 import ProductAddModal from "./ProductAddModal";
 import ProductRelationsModal from "./ProductRelationsModal";
 import AttributesManagerModal from "./AttributesManagerModal";
-import WarehouseManagerModal from "./WarehouseManagerModal";
 import DigitalAssetManagerModal from "./DigitalAssetManagerModal";
 
 export default function ProductManager({
@@ -52,7 +51,6 @@ export default function ProductManager({
   const [deletingProduct, setDeletingProduct] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [attributesOpen, setAttributesOpen] = useState(false);
-  const [warehousesOpen, setWarehousesOpen] = useState(false);
   const [digitalAssetsOpen, setDigitalAssetsOpen] = useState(false);
 
   const filtered = products
@@ -165,13 +163,6 @@ export default function ProductManager({
             />
           </div>
           <div className="flex flex-wrap gap-2 justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setWarehousesOpen(true)}
-            >
-              Warehouses
-            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -309,13 +300,6 @@ export default function ProductManager({
         <AttributesManagerModal
           open={attributesOpen}
           onClose={() => setAttributesOpen(false)}
-        />
-      )}
-
-      {warehousesOpen && (
-        <WarehouseManagerModal
-          open={warehousesOpen}
-          onClose={() => setWarehousesOpen(false)}
         />
       )}
 

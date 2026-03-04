@@ -14,6 +14,7 @@ import { X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import TinymceEditor from "../tinymceEditor";
 
 type ProductType = "PHYSICAL" | "DIGITAL" | "SERVICE";
 
@@ -62,6 +63,8 @@ interface ProductForm {
   brandId: string;
   writerId: string;
   publisherId: string;
+  attributes: string[];
+  customAttribute: string;
   available: boolean;
   featured: boolean;
   image: string;
@@ -106,6 +109,8 @@ const emptyForm: ProductForm = {
   brandId: "",
   writerId: "",
   publisherId: "",
+  attributes: [],
+  customAttribute: "",
   available: true,
   featured: false,
   image: "",
@@ -212,6 +217,8 @@ export default function ProductAddModal({
       brandId: editing.brandId?.toString?.() ?? "",
       writerId: editing.writerId?.toString?.() ?? "",
       publisherId: editing.publisherId?.toString?.() ?? "",
+      attributes: editing.attributes ?? [],
+      customAttribute: "",
       available: editing.available ?? true,
       featured: editing.featured ?? false,
       image: editing.image ?? "",
@@ -357,6 +364,7 @@ export default function ProductAddModal({
         image: form.image || null,
         gallery: form.gallery || [],
         videoUrl: form.videoUrl || null,
+        attributes: form.attributes || [],
       };
       if (stock !== undefined) payload.stock = stock;
 
@@ -401,24 +409,88 @@ export default function ProductAddModal({
 
           <div>
             <Label>Description</Label>
-            <textarea
-              className="w-full border rounded p-2 min-h-[90px] bg-background text-foreground border-border resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+            <TinymceEditor
               value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
+              onChange={(content) => setForm({ ...form, description: content })}
+              height={200}
             />
           </div>
 
           <div>
             <Label>Short Description</Label>
-            <textarea
-              className="w-full border rounded p-2 min-h-[70px] bg-background text-foreground border-border resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+            <TinymceEditor
               value={form.shortDesc}
-              onChange={(e) =>
-                setForm({ ...form, shortDesc: e.target.value })
-              }
+              onChange={(content) => setForm({ ...form, shortDesc: content })}
+              height={150}
             />
+          </div>
+
+          <div>
+            <Label>Attributes</Label>
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {["Color", "Size", "Material", "Brand", "Weight", "Dimensions", "Warranty", "Origin"].map((attr) => (
+                  <label key={attr} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.attributes.includes(attr)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setForm({ ...form, attributes: [...form.attributes, attr] });
+                        } else {
+                          setForm({ ...form, attributes: form.attributes.filter(a => a !== attr) });
+                        }
+                      }}
+                      className="rounded border-border text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm">{attr}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add custom attribute"
+                  value={form.customAttribute || ""}
+                  onChange={(e) => setForm({ ...form, customAttribute: e.target.value })}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    if (form.customAttribute && form.customAttribute.trim()) {
+                      setForm({ 
+                        ...form, 
+                        attributes: [...form.attributes, form.customAttribute.trim()],
+                        customAttribute: ""
+                      });
+                    }
+                  }}
+                  disabled={!form.customAttribute || !form.customAttribute.trim()}
+                >
+                  Add
+                </Button>
+              </div>
+              {form.attributes.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {form.attributes.map((attr, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs rounded"
+                    >
+                      {attr}
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, attributes: form.attributes.filter(a => a !== attr) })}
+                        className="hover:text-primary/80"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
