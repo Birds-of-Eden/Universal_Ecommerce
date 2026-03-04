@@ -261,7 +261,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
               <span className="text-sm font-medium text-muted-foreground">Slug:</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              URL: /kitabghor/blogs/{slug}
+              URL: /ecommerce/blogs/{slug}
             </p>
           </div>
         </div>

@@ -6,11 +6,11 @@ import { Book, Home, Search, ArrowLeft, Library, BookOpen } from "lucide-react";
 
 export default function NotFound() {
   const popularBooks = [
-    { name: "সমকালীন উপন্যাস", href: "/kitabghor/books?category=novel" },
-    { name: "ইসলামী বই", href: "/kitabghor/books?category=islamic" },
+    { name: "সমকালীন উপন্যাস", href: "/ecommerce/books?category=novel" },
+    { name: "ইসলামী বই", href: "/ecommerce/books?category=islamic" },
     { name: "কওমী পাঠ্যবই", href: "/kowmi/daura" },
-    { name: "শিশুতোষ বই", href: "/kitabghor/books?category=children" },
-    { name: "বইমেলা ২০২৫", href: "/kitabghor/book-fair" },
+    { name: "শিশুতোষ বই", href: "/ecommerce/books?category=children" },
+    { name: "বইমেলা ২০২৫", href: "/ecommerce/book-fair" },
   ];
 
   return (
@@ -59,7 +59,7 @@ export default function NotFound() {
             className="border-[#0E4B4B] text-[#0E4B4B] hover:bg-[#0E4B4B] hover:text-[#F4F8F7] px-8 py-3 rounded-full font-semibold transition-all duration-300 hover:scale-105"
           >
             <Link
-              href="/kitabghor/books"
+              href="/ecommerce/books"
               className="flex items-center space-x-2"
             >
               <Library className="h-4 w-4" />

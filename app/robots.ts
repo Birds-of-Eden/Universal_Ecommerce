@@ -23,11 +23,11 @@ export default function robots(): MetadataRoute.Robots {
     ],
     sitemap: [
       "https://hilfulfujulbd.com/sitemap.xml",
-      "https://hilfulfujulbd.com/kitabghor/sitemap-books.xml",
-      "https://hilfulfujulbd.com/kitabghor/sitemap-categories.xml",
-      "https://hilfulfujulbd.com/kitabghor/sitemap-authors.xml",
-      "https://hilfulfujulbd.com/kitabghor/sitemap-publishers.xml",
-      "https://hilfulfujulbd.com/kitabghor/sitemap-blogs.xml",
+      "https://hilfulfujulbd.com/ecommerce/sitemap-books.xml",
+      "https://hilfulfujulbd.com/ecommerce/sitemap-categories.xml",
+      "https://hilfulfujulbd.com/ecommerce/sitemap-authors.xml",
+      "https://hilfulfujulbd.com/ecommerce/sitemap-publishers.xml",
+      "https://hilfulfujulbd.com/ecommerce/sitemap-blogs.xml",
     ],
     host: "https://hilfulfujulbd.com",
   };

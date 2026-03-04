@@ -94,28 +94,28 @@ export default function Footer() {
   ];
 
   const quickLinks = [
-    { href: "/kitabghor/books/", label: "All Books" },
-    { href: "/kitabghor/new-arrivals", label: "New Books" },
-    { href: "/kitabghor/bestsellers", label: "Bestsellers" },
-    { href: "/kitabghor/upcoming", label: "Upcoming" },
+    { href: "/ecommerce/books/", label: "All Books" },
+    { href: "/ecommerce/new-arrivals", label: "New Books" },
+    { href: "/ecommerce/bestsellers", label: "Bestsellers" },
+    { href: "/ecommerce/upcoming", label: "Upcoming" },
   ];
 
   const categories = [
-    { href: "/kitabghor/category/quran", label: "Quran" },
-    { href: "/kitabghor/category/hadith", label: "Hadith" },
-    { href: "/kitabghor/category/fiqh", label: "Fiqh" },
-    { href: "/kitabghor/category/history", label: "History" },
+    { href: "/ecommerce/category/quran", label: "Quran" },
+    { href: "/ecommerce/category/hadith", label: "Hadith" },
+    { href: "/ecommerce/category/fiqh", label: "Fiqh" },
+    { href: "/ecommerce/category/history", label: "History" },
   ];
 
   const customerService = [
-    { href: "/kitabghor/shipping", label: "Shipping Policy", icon: Truck },
+    { href: "/ecommerce/shipping", label: "Shipping Policy", icon: Truck },
     {
-      href: "/kitabghor/returns",
+      href: "/ecommerce/returns",
       label: "Return Policy",
       icon: HeadphonesIcon,
     },
-    { href: "/kitabghor/privacy", label: "Privacy Policy", icon: Shield },
-    { href: "/kitabghor/faq", label: "FAQ", icon: BookOpen },
+    { href: "/ecommerce/privacy", label: "Privacy Policy", icon: Shield },
+    { href: "/ecommerce/faq", label: "FAQ", icon: BookOpen },
   ];
 
   return (

@@ -77,7 +77,7 @@ function ProductRow({
 
   return (
     <Link
-      href={`/kitabghor/products/${p.id}`}
+      href={`/ecommerce/products/${p.id}`}
       className="
         group relative flex gap-3 items-start
         rounded-xl border border-border bg-background

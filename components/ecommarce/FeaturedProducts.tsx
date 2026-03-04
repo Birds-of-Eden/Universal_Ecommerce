@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Heart } from "lucide-react";
 import AddToCartButton from "@/components/ecommarce/AddToCartButton";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
+import { useCart } from "@/components/ecommarce/CartContext";
 import { useSession } from "@/lib/auth-client";
 import {
   Dialog,
@@ -15,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import ProductCard from "./ProductCard";
 
 type ProductDTO = {
   id: number | string;
@@ -25,6 +27,7 @@ type ProductDTO = {
   originalPrice: number | null;
   currency: string;
   featured: boolean;
+  shortDesc?: string | null;
 };
 
 function shuffleInPlace<T>(arr: T[]) {
@@ -65,50 +68,54 @@ export default function FeaturedProducts({
   const [error, setError] = useState<string | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
+  const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { status } = useSession();
 
-  // Wishlist functionality
-  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-
-  const handleWishlistToggle = async (
-    productId: number | string,
-    isCurrentlyWishlisted: boolean
-  ) => {
-    try {
-      if (status !== "authenticated") {
-        setLoginModalOpen(true);
-        return;
-      }
-
-      if (isCurrentlyWishlisted) {
-        // Remove from wishlist
-        await fetch(`/api/wishlist?productId=${productId}`, {
-          method: 'DELETE',
-        });
-
-        removeFromWishlist(productId);
-      } else {
-        // Add to wishlist
-        const response = await fetch('/api/wishlist', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ productId: Number(productId) }),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to add to wishlist');
+  const toggleWishlist = useCallback(
+    async (p: ProductDTO) => {
+      try {
+        if (status !== "authenticated") {
+          setLoginModalOpen(true);
+          return;
         }
 
-        addToWishlist(productId);
+        const already = isInWishlist(p.id);
+
+        if (already) {
+          const res = await fetch(`/api/wishlist?productId=${p.id}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) throw new Error("Failed to remove from wishlist");
+
+          removeFromWishlist(p.id);
+        } else {
+          const res = await fetch("/api/wishlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId: p.id }),
+          });
+          if (!res.ok) throw new Error("Failed to add to wishlist");
+
+          addToWishlist(p.id);
+        }
+      } catch (err) {
+        console.error(err);
       }
-    } catch (error) {
-      console.error('Wishlist operation failed:', error);
-      // You could show a toast notification here
-    }
-  };
+    },
+    [status, isInWishlist, addToWishlist, removeFromWishlist],
+  );
+
+  const handleAddToCart = useCallback(
+    (p: ProductDTO) => {
+      try {
+        addToCart(p.id);
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [addToCart],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -137,6 +144,7 @@ export default function FeaturedProducts({
                   : null,
               currency: String(p.currency ?? "BDT"),
               featured: Boolean(p.featured),
+              shortDesc: p.shortDesc ?? null,
             }))
           : [];
 
@@ -213,102 +221,33 @@ export default function FeaturedProducts({
                 const isWishlisted = isInWishlist(p.id);
 
                 return (
-                  <div
+                  <ProductCard
                     key={p.id}
-                    className="
-                      group relative card-theme rounded-xl
-                      overflow-hidden shadow-sm hover:shadow-md
-                      transition-all
-                    "
-                  >
-                    {/* Badge only if discounted */}
-                    {badge && (
-                      <div className="absolute left-0 top-0 z-10">
-                        <span
-                          className="
-                            inline-flex items-center
-                            h-6 px-2 text-[11px] font-semibold
-                            text-primary-foreground bg-primary
-                            rounded-br-xl
-                          "
-                        >
-                          {badge}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Wishlist button */}
-                    <button
-                      onClick={() => handleWishlistToggle(p.id, isWishlisted)}
-                      className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full bg-card/80 backdrop-blur-sm border border-border flex items-center justify-center transition-all hover:scale-110"
-                      title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                    >
-                      <Heart 
-                        className={`h-4 w-4 transition-colors ${
-                          isWishlisted 
-                            ? "fill-destructive text-destructive" 
-                            : "text-muted-foreground hover:text-destructive"
-                        }`}
-                      />
-                    </button>
-
-                    <Link
-                      href={`/kitabghor/products/${p.id}`}
-                      className="block"
-                      title={p.name}
-                    >
-                      {/* Image */}
-                      <div className="relative w-full h-[180px] sm:h-[200px] bg-card">
-                        {p.image ? (
-                          <Image
-                            src={p.image}
-                            alt={p.name}
-                            fill
-                            className="object-contain p-4"
-                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
-                          />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">
-                            No Image
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Content */}
-                      <div className="border-t border-border p-3 sm:p-4">
-                        <div className="text-sm sm:text-[13px] font-medium text-foreground line-clamp-2 min-h-[40px]">
-                          {p.name}
-                        </div>
-
-                        <div className="mt-3 flex items-end gap-2">
-                          <div className="text-destructive font-bold text-base">
-                            {formatBDT(p.basePrice)}
-                          </div>
-
-                          {hasDiscount && (
-                            <div className="text-xs text-muted-foreground line-through">
-                              {formatBDT(p.originalPrice!)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-
-                    <div className="px-3 pb-3 sm:px-4 sm:pb-4">
-                      <div className="grid grid-cols-2 gap-2">
-                        <AddToCartButton
-                          productId={p.id}
-                          className="h-10 w-full btn-primary text-sm font-semibold hover:opacity-95 rounded-lg transition disabled:opacity-50"
-                        />
-                        <Link
-                          href={`/kitabghor/products/${p.id}`}
-                          className="h-10 w-full inline-flex items-center justify-center rounded-lg border border-border bg-card text-card-foreground text-sm font-semibold hover:bg-accent transition"
-                        >
-                          View Details
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
+                    product={{
+                      id: p.id,
+                      name: p.name,
+                      href: `/ecommerce/products/${p.id}`,
+                      image: p.image,
+                      price: p.basePrice,
+                      originalPrice: p.originalPrice,
+                      available: true,
+                      discountPct: hasDiscount
+                        ? Math.round(
+                            ((p.originalPrice! - p.basePrice) /
+                              p.originalPrice!) *
+                              100,
+                          )
+                        : undefined,
+                      sku: undefined,
+                      type: undefined,
+                      shortDesc: p.shortDesc,
+                    }}
+                    wishlisted={isWishlisted}
+                    onWishlistClick={() => toggleWishlist(p)}
+                    onAddToCart={() => handleAddToCart(p)}
+                    formatPrice={formatBDT}
+                    showMeta
+                  />
                 );
               })}
         </div>
@@ -323,7 +262,9 @@ export default function FeaturedProducts({
       <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Please login first</DialogTitle>
+            <DialogTitle className="text-foreground">
+              Please login first
+            </DialogTitle>
             <DialogDescription>
               You need to be logged in to use the wishlist.
             </DialogDescription>

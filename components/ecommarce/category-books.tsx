@@ -423,7 +423,7 @@ export default function CategoryBooks({
           </div>
         </div>
         {categoryBooks.length > 8 && (
-          <Link href={`/kitabghor/categories/${category.id}`}>
+          <Link href={`/ecommerce/categories/${category.id}`}>
             <Button
               variant="outline"
               className="rounded-full border-[#5FA3A3] text-[#5FA3A3] hover:bg-[#5FA3A3] hover:text-white transition-all duration-300 px-6 group"
@@ -495,7 +495,7 @@ export default function CategoryBooks({
               </button>
 
               {/* Book Image */}
-              <Link href={`/kitabghor/books/${book.id}`}>
+              <Link href={`/ecommerce/books/${book.id}`}>
                 <div className="relative w-full overflow-hidden bg-white p-4">
                   <div className="relative aspect-[3/4] w-full">
                     <Image
@@ -547,7 +547,7 @@ export default function CategoryBooks({
                 </div>
 
                 {/* Book Title */}
-                <Link href={`/kitabghor/books/${book.id}`}>
+                <Link href={`/ecommerce/books/${book.id}`}>
                   <h4 className="font-bold text-lg mb-2 text-[#0D1414] hover:text-[#0E4B4B] duration-300 line-clamp-2 leading-tight group-hover:translate-x-1 transition-transform">
                     {book.name}
                   </h4>
@@ -616,7 +616,7 @@ export default function CategoryBooks({
       {/* View All Bottom CTA */}
       {categoryBooks.length > 8 && (
         <div className="text-center mt-10">
-          <Link href={`/kitabghor/categories/${category.id}`}>
+          <Link href={`/ecommerce/categories/${category.id}`}>
             <Button
               variant="ghost"
               className="rounded-full bg-[#F4F8F7] hover:bg-[#C0704D] text-[#0D1414] hover:text-white transition-all duration-300 px-8 py-6 group"

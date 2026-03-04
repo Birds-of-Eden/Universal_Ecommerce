@@ -9,30 +9,30 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     {
-      url: "https://hilfulfujulbd.com/kitabghor/books",
+      url: "https://hilfulfujulbd.com/ecommerce/books",
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.9,
     },
     // Child sitemaps
     {
-      url: "https://hilfulfujulbd.com/kitabghor/sitemap-books.xml",
+      url: "https://hilfulfujulbd.com/ecommerce/sitemap-books.xml",
       lastModified: new Date(),
     },
     {
-      url: "https://hilfulfujulbd.com/kitabghor/sitemap-categories.xml",
+      url: "https://hilfulfujulbd.com/ecommerce/sitemap-categories.xml",
       lastModified: new Date(),
     },
     {
-      url: "https://hilfulfujulbd.com/kitabghor/sitemap-authors.xml",
+      url: "https://hilfulfujulbd.com/ecommerce/sitemap-authors.xml",
       lastModified: new Date(),
     },
     {
-      url: "https://hilfulfujulbd.com/kitabghor/sitemap-publishers.xml",
+      url: "https://hilfulfujulbd.com/ecommerce/sitemap-publishers.xml",
       lastModified: new Date(),
     },
     {
-      url: "https://hilfulfujulbd.com/kitabghor/sitemap-blogs.xml",
+      url: "https://hilfulfujulbd.com/ecommerce/sitemap-blogs.xml",
       lastModified: new Date(),
     },
   ];

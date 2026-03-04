@@ -92,7 +92,7 @@ export default function RecentBlogs() {
           {recentBlogs.map((blog, index) => (
             <Link
               key={blog.id}
-              href={`/kitabghor/blogs/${blog.slug}`}
+              href={`/ecommerce/blogs/${blog.slug}`}
               className="group block"
             >
               <article className="relative flex flex-col gap-3 p-4 rounded-lg border bg-card hover:bg-accent/50 hover:shadow-md transition-all duration-300 overflow-hidden">
@@ -163,7 +163,7 @@ export default function RecentBlogs() {
 
         {/* View All Link */}
         <Link
-          href="/kitabghor/blogs"
+          href="/ecommerce/blogs"
           className="mt-4 block text-center py-3 px-4 rounded-lg border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 text-sm font-medium text-primary transition-all hover:border-solid"
         >
           View All Blogs →

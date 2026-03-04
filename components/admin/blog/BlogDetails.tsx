@@ -276,7 +276,7 @@ export default function BlogDetails() {
     if (!blog) return null;
 
     const baseUrl = "https://hilfulfujulbd.com";
-    const blogUrl = `${baseUrl}/kitabghor/blogs/${blog.slug}`;
+    const blogUrl = `${baseUrl}/ecommerce/blogs/${blog.slug}`;
     const imageUrl = blog.image
       ? `${baseUrl}${blog.image}`
       : `${baseUrl}/images/books-collection.jpg`;
@@ -372,7 +372,7 @@ export default function BlogDetails() {
         inLanguage: "en-US",
         isPartOf: {
           "@type": "Blog",
-          "@id": "https://hilfulfujulbd.com/kitabghor/blogs",
+          "@id": "https://hilfulfujulbd.com/ecommerce/blogs",
           name: "Kitabghor Blog",
         },
         wordCount: blog.content ? blog.content.split(" ").length : 0,
@@ -399,7 +399,7 @@ export default function BlogDetails() {
             "@type": "ListItem",
             position: 3,
             name: "Blogs",
-            item: "https://hilfulfujulbd.com/kitabghor/blogs",
+            item: "https://hilfulfujulbd.com/ecommerce/blogs",
           },
           {
             "@type": "ListItem",

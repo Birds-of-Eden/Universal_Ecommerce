@@ -294,18 +294,18 @@ export default async function authMiddleware(request: NextRequest) {
   }
 
   // Handle protected routes (admin and dashboard)
-  const isProtectedRoute = pathname.startsWith('/admin') || pathname.startsWith('/kitabghor/user/');
+  const isProtectedRoute = pathname.startsWith('/admin') || pathname.startsWith('/ecommerce/user/');
 
   // Handle permission-aware redirection
   if (session?.user) {
     // If user has admin panel access and trying to access user dashboard, redirect to admin
-    if (adminAccess && pathname.startsWith('/kitabghor/user/')) {
+    if (adminAccess && pathname.startsWith('/ecommerce/user/')) {
       return NextResponse.redirect(new URL('/admin', request.url));
     }
     
     // If user does not have admin panel access and trying to access admin, redirect to dashboard
     if (!adminAccess && pathname.startsWith('/admin')) {
-      return NextResponse.redirect(new URL('/kitabghor/user/', request.url));
+      return NextResponse.redirect(new URL('/ecommerce/user/', request.url));
     }
 
     if (adminAccess && pathname.startsWith("/admin")) {
@@ -314,7 +314,7 @@ export default async function authMiddleware(request: NextRequest) {
         if (pathname !== "/admin") {
           return NextResponse.redirect(new URL("/admin", request.url));
         }
-        return NextResponse.redirect(new URL("/kitabghor/user/", request.url));
+        return NextResponse.redirect(new URL("/ecommerce/user/", request.url));
       }
     }
   }

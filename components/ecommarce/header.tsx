@@ -150,7 +150,7 @@ function TechlandCategoryDropdown({
   }, [categories.length]);
 
   const go = (slug: string) => {
-    router.push(`/kitabghor/categories/${slug}`);
+    router.push(`/ecommerce/categories/${slug}`);
     onClose();
   };
 
@@ -306,7 +306,7 @@ function Row3Flyout({
   }, [parent.id]);
 
   const go = (slug: string) => {
-    router.push(`/kitabghor/categories/${slug}`);
+    router.push(`/ecommerce/categories/${slug}`);
     onClose();
   };
 
@@ -556,7 +556,7 @@ export default function Header() {
   const handleSelectProduct = (p: ProductSummary) => {
     setSearchTerm("");
     setShowSearchDropdown(false);
-    router.push(`/kitabghor/products/${p.id}`);
+    router.push(`/ecommerce/products/${p.id}`);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -687,11 +687,11 @@ export default function Header() {
                 </DropdownMenu>
               )}
 
-              <Link href="/kitabghor/blogs" className={topBtnClass}>
+              <Link href="/ecommerce/blogs" className={topBtnClass}>
                 <Newspaper className="h-4 w-4" />
                 Blog
               </Link>
-              <Link href="/kitabghor/products" className={topBtnClass}>
+              <Link href="/ecommerce/products" className={topBtnClass}>
                 <Boxes className="h-4 w-4" />
                 All Products
               </Link>
@@ -725,7 +725,7 @@ export default function Header() {
               )}
 
               <Link
-                href="/kitabghor/cart"
+                href="/ecommerce/cart"
                 className="relative h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
               >
                 <ShoppingCart className="h-5 w-5" />
@@ -737,7 +737,7 @@ export default function Header() {
               </Link>
 
               <Link
-                href="/kitabghor/wishlist"
+                href="/ecommerce/wishlist"
                 className="relative h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
               >
                 <Heart className="h-5 w-5" />
@@ -859,7 +859,7 @@ export default function Header() {
 
             {/* Icons + Profile (kept same) */}
             <div className="flex items-center gap-3">
-              <Link href="/kitabghor/cart" className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent">
+              <Link href="/ecommerce/cart" className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent">
                 <ShoppingCart className="h-5 w-5" />
                 {hasMounted && cartCount > 0 && (
                   <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
@@ -868,7 +868,7 @@ export default function Header() {
                 )}
               </Link>
 
-              <Link href="/kitabghor/wishlist" className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent">
+              <Link href="/ecommerce/wishlist" className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent">
                 <Heart className="h-5 w-5" />
                 {hasMounted && wishlistCount > 0 && (
                   <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
@@ -897,7 +897,7 @@ export default function Header() {
                         </div>
 
                         <Link
-                          href={canAccessAdminPanel ? "/admin" : "/kitabghor/user/"}
+                          href={canAccessAdminPanel ? "/admin" : "/ecommerce/user/"}
                           onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                         >
@@ -962,7 +962,7 @@ export default function Header() {
                   scheduleCloseRow3();
                 }}
               >
-                <Link href={`/kitabghor/categories/${cat.slug}`} className={underlinePill}>
+                <Link href={`/ecommerce/categories/${cat.slug}`} className={underlinePill}>
                   {cat.name}
                 </Link>
               </div>
