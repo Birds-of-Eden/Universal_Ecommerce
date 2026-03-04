@@ -394,6 +394,21 @@ export default function Header() {
   const [hasMounted, setHasMounted] = useState(false);
   const [isPending, setIsPending] = useState(false);
 
+  // Site settings
+  const [siteSettings, setSiteSettings] = useState<{
+    logo?: string | null; 
+    siteTitle?: string | null;
+    footerDescription?: string | null;
+    contactNumber?: string | null;
+    contactEmail?: string | null;
+    address?: string | null;
+    facebookLink?: string | null;
+    instagramLink?: string | null;
+    twitterLink?: string | null;
+    tiktokLink?: string | null;
+    youtubeLink?: string | null;
+  }>({});
+
   // Mobile drawer
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -446,6 +461,21 @@ export default function Header() {
   };
 
   useEffect(() => setHasMounted(true), []);
+
+  // Load site settings
+  useEffect(() => {
+    const loadSiteSettings = async () => {
+      try {
+        const res = await fetch("/api/site", { cache: "no-store" });
+        const data = await res.json();
+        setSiteSettings(data);
+      } catch (error) {
+        console.error("Failed to load site settings:", error);
+      }
+    };
+
+    loadSiteSettings();
+  }, []);
 
   const activeTheme = (theme === "system" ? resolvedTheme : theme) ?? "light";
   const darkLikeActiveTheme = isDarkLikeTheme(activeTheme);
@@ -654,10 +684,17 @@ export default function Header() {
           {/* Row 1 */}
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex items-center gap-3 min-w-0">
-              <div className="relative h-12 w-12 rounded-lg overflow-hidden border border-border bg-background/10 shrink-0">
-                <Image src="/assets/examplelogo.jpg" alt="Logo" fill className="object-contain p-1" />
+              <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-border bg-background/10 shrink-0">
+                <Image 
+                  src={siteSettings.logo || "/assets/examplelogo.jpg"} 
+                  alt="Logo" 
+                  fill 
+                  className="object-contain 2xl" 
+                />
               </div>
-              <div className="text-md sm:text-3xl tracking-wider truncate">BOED ECOMMERCE</div>
+              <div className="text-md sm:text-3xl tracking-wider truncate">
+                {siteSettings.siteTitle || "BOED ECOMMERCE"}
+              </div>
             </Link>
 
             {/* Desktop actions */}

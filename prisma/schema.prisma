@@ -149,25 +149,25 @@ model VerificationToken {
 }
 
 model Permission {
-  id          String           @id @default(cuid())
-  key         String           @unique
+  id          String   @id @default(cuid())
+  key         String   @unique
   description String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   rolePermissions RolePermission[]
 }
 
 model Role {
-  id          String     @id @default(cuid())
-  name        String     @unique
+  id          String    @id @default(cuid())
+  name        String    @unique
   label       String
   description String?
-  isSystem    Boolean    @default(false)
-  isImmutable Boolean    @default(false)
+  isSystem    Boolean   @default(false)
+  isImmutable Boolean   @default(false)
   deletedAt   DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   rolePermissions RolePermission[]
   userRoles       UserRole[]
@@ -488,7 +488,7 @@ model Payment {
   externalId         String?      @unique
   paymentGatewayData Json?
 
-  order   Order?    @relation(fields: [orderId], references: [id])
+  order   Order?   @relation(fields: [orderId], references: [id])
   refunds Refund[]
 
   createdAt DateTime @default(now())
@@ -665,9 +665,9 @@ model ShippingRate {
   id Int @id @default(autoincrement())
 
   // Location scope
-  country String @default("BD")
+  country  String  @default("BD")
   district String?
-  area    String
+  area     String
 
   // Pricing config
   baseCost    Decimal @db.Decimal(10, 2)
@@ -814,24 +814,37 @@ model PasswordResetToken {
   @@index([token])
 }
 
+model sitesettings {
+  id        Int     @id @default(autoincrement())
+  logo      String?
+  siteTitle String?
+
+  footerDescription String?
+  contactNumber     String?
+  contactEmail      String?
+  address           String?
+
+  facebookLink  String?
+  instagramLink String?
+  twitterLink   String?
+  tiktokLink    String?
+  youtubeLink   String?
+}
+
 model Banner {
   id Int @id @default(autoincrement())
 
   title       String
   subtitle    String?
-  description String? @db.Text
-
+  description String?   @db.Text
   image       String
   mobileImage String?
-
-  buttonText String?
-  buttonLink String?
-
-  position Int @default(0)
-
-  isActive  Boolean   @default(true)
-  startDate DateTime?
-  endDate   DateTime?
+  buttonText  String?
+  buttonLink  String?
+  position    Int       @default(0)
+  isActive    Boolean   @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
 
   type BannerType @default(HERO)
 

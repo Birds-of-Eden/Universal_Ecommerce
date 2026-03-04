@@ -127,19 +127,14 @@ const menuItems: MenuItem[] = [
     requiredPermissions: ["settings.manage"],
     subItems: [
       {
-        name: "Payment Methods",
-        href: "/admin/settings/payment",
-        requiredPermissions: ["settings.payment.manage", "settings.manage"],
+        name: "General Settings",
+        href: "/admin/settings",
+        requiredPermissions: ["settings.manage"],
       },
       {
         name: "Warehouses",
         href: "/admin/settings/warehouses",
         requiredPermissions: ["settings.warehouse.manage", "settings.manage"],
-      },
-      {
-        name: "Banner Settings",
-        href: "/admin/settings/banner",
-        requiredPermissions: ["settings.banner.manage", "settings.manage"],
       },
       {
         name: "VAT Settings",

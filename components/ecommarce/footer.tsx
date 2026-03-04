@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
@@ -20,6 +21,7 @@ import {
   Clock,
   ChevronRight,
   Award,
+  Youtube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,8 +41,40 @@ export default function Footer() {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const isAuthenticated = status === "authenticated";
 
+  // Site settings
+  const [siteSettings, setSiteSettings] = useState<{
+    logo?: string | null;
+    siteTitle?: string | null;
+    footerDescription?: string | null;
+    contactNumber?: string | null;
+    contactEmail?: string | null;
+    address?: string | null;
+    facebookLink?: string | null;
+    instagramLink?: string | null;
+    twitterLink?: string | null;
+    tiktokLink?: string | null;
+    youtubeLink?: string | null;
+  }>({});
+
+  // Load site settings
+  useEffect(() => {
+    const loadSiteSettings = async () => {
+      try {
+        const res = await fetch("/api/site", { cache: "no-store" });
+        const data = await res.json();
+        setSiteSettings(data);
+      } catch (error) {
+        console.error("Failed to load site settings:", error);
+      }
+    };
+
+    loadSiteSettings();
+  }, []);
+
   // ✅ categories from API
-  const [categories, setCategories] = useState<Array<{ href: string; label: string }>>([]);
+  const [categories, setCategories] = useState<
+    Array<{ href: string; label: string }>
+  >([]);
 
   useEffect(() => {
     let mounted = true;
@@ -56,7 +90,9 @@ export default function Footer() {
         const list = Array.isArray(data) ? data : [];
 
         // optional: show only root categories (parentId null)
-        const roots = list.filter((c) => c.parentId === null || c.parentId === undefined);
+        const roots = list.filter(
+          (c) => c.parentId === null || c.parentId === undefined,
+        );
 
         const mapped = roots
           .map((c) => {
@@ -135,7 +171,11 @@ export default function Footer() {
     { icon: Truck, label: "Fast Delivery", desc: "Free shipping over $100" },
     { icon: Clock, label: "24/7 Support", desc: "Always here to help" },
     { icon: CreditCard, label: "Secure Payment", desc: "SSL secured payment" },
-    { icon: Award, label: "100% Authentic", desc: "Guaranteed genuine products" },
+    {
+      icon: Award,
+      label: "100% Authentic",
+      desc: "Guaranteed genuine products",
+    },
   ];
 
   const quickLinks = [
@@ -147,7 +187,11 @@ export default function Footer() {
 
   const customerService = [
     { href: "/ecommerce/shipping", label: "Shipping Policy", icon: Truck },
-    { href: "/ecommerce/returns", label: "Return Policy", icon: HeadphonesIcon },
+    {
+      href: "/ecommerce/returns",
+      label: "Return Policy",
+      icon: HeadphonesIcon,
+    },
     { href: "/ecommerce/privacy", label: "Privacy Policy", icon: Shield },
     { href: "/ecommerce/faq", label: "FAQ", icon: BookOpen },
   ];
@@ -170,7 +214,9 @@ export default function Footer() {
                   <p className="text-sm font-semibold text-foreground">
                     {feature.label}
                   </p>
-                  <p className="text-xs text-muted-foreground">{feature.desc}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {feature.desc}
+                  </p>
                 </div>
               </div>
             ))}
@@ -185,12 +231,18 @@ export default function Footer() {
           <div className="lg:col-span-3 space-y-6">
             <Link href="/" className="inline-block group">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-primary text-primary-foreground">
-                  <BookOpen className="h-6 w-6" />
+                <div className="bg-primary rounded-2xl text-primary-foreground">
+                  <Image
+                    src={siteSettings.logo || "/assets/examplelogo.jpg"}
+                    alt="Logo"
+                    width={50}
+                    height={50}
+                    className="object-contain rounded-2xl"
+                  />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-foreground">
-                    BOED E-Commarce
+                    {siteSettings.siteTitle || "BOED ECOMMERCE"}
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     The all-in-one global marketplace
@@ -200,10 +252,8 @@ export default function Footer() {
             </Link>
 
             <p className="text-sm text-muted-foreground leading-relaxed">
-              BOED Universal is a premier digital marketplace designed to bring
-              the world’s products to your fingertips. From essential knowledge
-              to everyday lifestyle needs, we are committed to making
-              high-quality resources accessible to everyone, everywhere.
+              {siteSettings.footerDescription ||
+                "BOED Universal is a premier digital marketplace designed to bring the world's products to your fingertips. From essential knowledge to everyday lifestyle needs, we are committed to making high-quality resources accessible to everyone, everywhere."}
             </p>
 
             <div className="space-y-3">
@@ -214,7 +264,7 @@ export default function Footer() {
                 <div>
                   <p className="text-xs text-muted-foreground">Call us</p>
                   <p className="text-sm font-medium text-foreground">
-                    +88-01234567890
+                    {siteSettings.contactNumber || "+88-01234567890"}
                   </p>
                 </div>
               </div>
@@ -226,7 +276,7 @@ export default function Footer() {
                 <div>
                   <p className="text-xs text-muted-foreground">Email us</p>
                   <p className="text-sm font-medium text-foreground">
-                    e-commerce@example.com
+                    {siteSettings.contactEmail || "e-commerce@example.com"}
                   </p>
                 </div>
               </div>
@@ -238,9 +288,8 @@ export default function Footer() {
                 <div>
                   <p className="text-xs text-muted-foreground">Address</p>
                   <p className="text-sm font-medium text-foreground leading-relaxed">
-                    10A, Tower 71, ECB Chattar, Dhaka Cantonment
-                    <br />
-                    Bangladesh
+                    {siteSettings.address ||
+                      "10A, Tower 71, ECB Chattar, Dhaka Cantonment\nBangladesh"}
                   </p>
                 </div>
               </div>
@@ -249,9 +298,28 @@ export default function Footer() {
             {/* Social Links */}
             <div className="flex gap-2">
               {[
-                { icon: Facebook, href: "https://birdsofeden.me/", label: "Facebook" },
-                { icon: Instagram, href: "https://birdsofeden.me/", label: "Instagram" },
-                { icon: Twitter, href: "https://birdsofeden.me/", label: "Twitter" },
+                {
+                  icon: Facebook,
+                  href: siteSettings.facebookLink || "https://birdsofeden.me/",
+                  label: "Facebook",
+                },
+                {
+                  icon: Instagram,
+                  href: siteSettings.instagramLink || "https://birdsofeden.me/",
+                  label: "Instagram",
+                },
+                {
+                  icon: Twitter,
+                  href: siteSettings.twitterLink || "https://birdsofeden.me/",
+                  label: "Twitter",
+                },
+                {
+                  icon: Youtube,
+                  href:
+                    siteSettings.youtubeLink ||
+                    "https://www.youtube.com/@channel",
+                  label: "YouTube",
+                },
               ].map((social) => (
                 <a
                   key={social.label}

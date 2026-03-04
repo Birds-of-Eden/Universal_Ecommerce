@@ -30,8 +30,8 @@ type PermissionRule = {
 
 const adminPagePermissionRules: PermissionRule[] = [
   { prefix: "/admin/settings/rbac", permissions: ["roles.manage"] },
-  { prefix: "/admin/settings/banner", permissions: ["settings.banner.manage", "settings.manage"] },
-  { prefix: "/admin/settings/payment", permissions: ["settings.payment.manage", "settings.manage"] },
+  { prefix: "/admin/settings", permissions: ["settings.banner.manage", "settings.manage"] },
+  { prefix: "/admin/settings", permissions: ["settings.payment.manage", "settings.manage"] },
   { prefix: "/admin/settings/warehouses", permissions: ["settings.warehouse.manage", "settings.manage"] },
   { prefix: "/admin/settings/couriers", permissions: ["settings.courier.manage", "settings.manage"] },
   { prefix: "/admin/settings/vatclasses", permissions: ["settings.vat.manage", "settings.manage"] },
