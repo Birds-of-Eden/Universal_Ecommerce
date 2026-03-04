@@ -23,6 +23,11 @@ interface Product {
   name: string;
   type: "PHYSICAL" | "DIGITAL" | "SERVICE";
   category?: { name?: string | null } | null;
+  attributes?: Array<{
+    id: number;
+    value: string;
+    attribute?: { id: number; name: string } | null;
+  }>;
 }
 
 interface Warehouse {
@@ -47,6 +52,7 @@ interface Variant {
   price: number | string;
   currency: string;
   stock: number;
+  options?: Record<string, string>;
   stockLevels?: StockLevel[];
 }
 
@@ -59,6 +65,17 @@ interface InventoryLog {
   warehouse?: { id: number; name: string; code: string } | null;
 }
 
+interface Attribute {
+  id: number;
+  name: string;
+}
+
+interface AttributeValue {
+  id: number;
+  value: string;
+  attributeId: number;
+}
+
 export default function StockManagementPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<number, boolean>>({});
@@ -67,11 +84,15 @@ export default function StockManagementPage() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [attributes, setAttributes] = useState<Attribute[]>([]);
+  const [attributeValues, setAttributeValues] = useState<AttributeValue[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [logs, setLogs] = useState<InventoryLog[]>([]);
 
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
+  const [selectedAttributeId, setSelectedAttributeId] = useState("");
+  const [selectedAttributeValue, setSelectedAttributeValue] = useState("");
   const [stockDraft, setStockDraft] = useState<Record<number, string>>({});
 
   const [warehouseModalOpen, setWarehouseModalOpen] = useState(false);
@@ -89,6 +110,60 @@ export default function StockManagementPage() {
       });
   }, [products, search]);
 
+  const selectedProduct = useMemo(() => {
+    if (!selectedProductId) return null;
+    return products.find((item) => item.id === selectedProductId) || null;
+  }, [products, selectedProductId]);
+
+  const selectedAttributeName = useMemo(() => {
+    const id = Number(selectedAttributeId);
+    if (!id || Number.isNaN(id)) return "";
+    return attributes.find((item) => item.id === id)?.name || "";
+  }, [attributes, selectedAttributeId]);
+
+  const attributeValueOptions = useMemo(() => {
+    return attributeValues
+      .map((item) => item.value)
+      .filter((value) => value?.trim())
+      .sort((a, b) => a.localeCompare(b));
+  }, [attributeValues]);
+
+  const attributeValueProductCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (!selectedAttributeName) return counts;
+
+    for (const product of physicalProducts) {
+      const productValues = new Set<string>();
+      for (const attr of product.attributes || []) {
+        if (attr.attribute?.name === selectedAttributeName && attr.value?.trim()) {
+          productValues.add(attr.value.trim());
+        }
+      }
+      for (const value of productValues) {
+        counts.set(value, (counts.get(value) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [physicalProducts, selectedAttributeName]);
+
+  const filteredVariants = useMemo(() => {
+    return variants.filter((variant) => {
+      if (selectedAttributeName) {
+        const optionValue = variant.options?.[selectedAttributeName];
+        if (!optionValue) return false;
+        if (selectedAttributeValue && String(optionValue) !== selectedAttributeValue) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [variants, selectedAttributeName, selectedAttributeValue]);
+
+  const selectedAttributeValueProductCount = useMemo(() => {
+    if (!selectedAttributeValue) return 0;
+    return attributeValueProductCounts.get(selectedAttributeValue) || 0;
+  }, [attributeValueProductCounts, selectedAttributeValue]);
+
   const sortedWarehouses = useMemo(() => {
     return [...warehouses].sort((a, b) =>
       a.isDefault === b.isDefault ? a.name.localeCompare(b.name) : a.isDefault ? -1 : 1,
@@ -97,8 +172,8 @@ export default function StockManagementPage() {
 
   const selectedVariant = useMemo(() => {
     if (!selectedVariantId) return null;
-    return variants.find((v) => v.id === selectedVariantId) || null;
-  }, [selectedVariantId, variants]);
+    return filteredVariants.find((v) => v.id === selectedVariantId) || null;
+  }, [selectedVariantId, filteredVariants]);
 
   const thresholdNum = useMemo(() => {
     const n = Number(threshold);
@@ -106,26 +181,38 @@ export default function StockManagementPage() {
   }, [threshold]);
 
   const lowStockVariants = useMemo(() => {
-    return variants.filter((v) => Number(v.stock || 0) < thresholdNum);
-  }, [variants, thresholdNum]);
+    return filteredVariants.filter((v) => Number(v.stock || 0) < thresholdNum);
+  }, [filteredVariants, thresholdNum]);
 
   const totalVariantStock = useMemo(() => {
-    return variants.reduce((acc, item) => acc + (Number(item.stock) || 0), 0);
-  }, [variants]);
+    return filteredVariants.reduce((acc, item) => acc + (Number(item.stock) || 0), 0);
+  }, [filteredVariants]);
+
+  const formatVariantOptions = (variant: Variant) => {
+    if (!variant.options || typeof variant.options !== "object") return "";
+    const entries = Object.entries(variant.options).filter(
+      ([key, value]) => key && value !== null && value !== undefined && String(value).trim(),
+    );
+    if (!entries.length) return "";
+    return entries.map(([key, value]) => `${key}: ${String(value)}`).join(", ");
+  };
 
   const loadBaseData = useCallback(async () => {
     try {
       setLoading(true);
-      const [pRes, wRes] = await Promise.all([
+      const [pRes, wRes, aRes] = await Promise.all([
         fetch("/api/products", { cache: "no-store" }),
         fetch("/api/warehouses", { cache: "no-store" }),
+        fetch("/api/attributes", { cache: "no-store" }),
       ]);
 
       const pData = await pRes.json();
       const wData = await wRes.json();
+      const aData = await aRes.json();
 
       setProducts(Array.isArray(pData) ? pData : []);
       setWarehouses(Array.isArray(wData) ? wData : []);
+      setAttributes(Array.isArray(aData) ? aData : []);
     } catch (err) {
       toast.error("Failed to load stock management data");
     } finally {
@@ -180,6 +267,52 @@ export default function StockManagementPage() {
     if (!selectedProductId) return;
     void loadProductDetails(selectedProductId);
   }, [selectedProductId, loadProductDetails]);
+
+  useEffect(() => {
+    if (!selectedAttributeId) {
+      setAttributeValues([]);
+      return;
+    }
+
+    const loadAttributeValues = async () => {
+      try {
+        const res = await fetch(`/api/attributes/${selectedAttributeId}/values`, {
+          cache: "no-store",
+        });
+        const data = await res.json();
+        setAttributeValues(Array.isArray(data) ? data : []);
+      } catch {
+        setAttributeValues([]);
+      }
+    };
+
+    void loadAttributeValues();
+  }, [selectedAttributeId]);
+
+  useEffect(() => {
+    if (selectedAttributeId && !attributes.some((attr) => String(attr.id) === selectedAttributeId)) {
+      setSelectedAttributeId("");
+      setSelectedAttributeValue("");
+    }
+  }, [attributes, selectedAttributeId]);
+
+  useEffect(() => {
+    if (selectedAttributeValue && !attributeValueOptions.includes(selectedAttributeValue)) {
+      setSelectedAttributeValue("");
+    }
+  }, [attributeValueOptions, selectedAttributeValue]);
+
+  useEffect(() => {
+    if (!filteredVariants.length) {
+      setSelectedVariantId(null);
+      return;
+    }
+    setSelectedVariantId((prev) =>
+      prev && filteredVariants.some((variant) => variant.id === prev)
+        ? prev
+        : filteredVariants[0].id,
+    );
+  }, [filteredVariants]);
 
   useEffect(() => {
     if (!selectedVariant) {
@@ -292,9 +425,13 @@ export default function StockManagementPage() {
             <select
               className="w-full border rounded-md px-3 py-2 bg-background"
               value={selectedProductId ?? ""}
-              onChange={(e) =>
-                setSelectedProductId(e.target.value ? Number(e.target.value) : null)
-              }
+              onChange={(e) => {
+                const nextProductId = e.target.value ? Number(e.target.value) : null;
+                setSelectedProductId(nextProductId);
+                setSelectedAttributeId("");
+                setSelectedAttributeValue("");
+                setSelectedVariantId(null);
+              }}
             >
               <option value="">Select product</option>
               {physicalProducts.map((product) => (
@@ -326,7 +463,7 @@ export default function StockManagementPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Variants</p>
-            <p className="text-2xl font-semibold">{variants.length}</p>
+            <p className="text-2xl font-semibold">{filteredVariants.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -354,6 +491,41 @@ export default function StockManagementPage() {
                 </p>
               </div>
               <div className="w-64">
+                <Label>Attribute</Label>
+                <select
+                  className="w-full border rounded-md px-3 py-2 bg-background mb-2"
+                  value={selectedAttributeId}
+                  onChange={(e) => {
+                    setSelectedAttributeId(e.target.value);
+                    setSelectedAttributeValue("");
+                  }}
+                >
+                  <option value="">All attributes</option>
+                  {attributes.map((attribute) => (
+                    <option key={attribute.id} value={attribute.id}>
+                      {attribute.name}
+                    </option>
+                  ))}
+                </select>
+
+                <Label>Attribute Value</Label>
+                <select
+                  className="w-full border rounded-md px-3 py-2 bg-background mb-2"
+                  value={selectedAttributeValue}
+                  onChange={(e) => setSelectedAttributeValue(e.target.value)}
+                  disabled={!selectedAttributeId}
+                >
+                  <option value="">All values</option>
+                  {attributeValueOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                      {selectedAttributeName
+                        ? ` (${attributeValueProductCounts.get(value) || 0} products)`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+
                 <Label>Variant</Label>
                 <select
                   className="w-full border rounded-md px-3 py-2 bg-background"
@@ -363,12 +535,24 @@ export default function StockManagementPage() {
                   }
                 >
                   <option value="">Select variant</option>
-                  {variants.map((variant) => (
+                  {filteredVariants.map((variant) => (
                     <option key={variant.id} value={variant.id}>
                       {variant.sku} ({variant.currency} {String(variant.price)})
+                      {formatVariantOptions(variant)
+                        ? ` - ${formatVariantOptions(variant)}`
+                        : ""}
                     </option>
                   ))}
                 </select>
+                {selectedAttributeName && selectedAttributeValue && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {selectedAttributeValueProductCount} physical products have{" "}
+                    {selectedAttributeName}: {selectedAttributeValue}
+                    {selectedProduct
+                      ? ` (including "${selectedProduct.name}" if matched).`
+                      : "."}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -463,11 +647,11 @@ export default function StockManagementPage() {
         <Card>
           <CardContent className="p-4 space-y-3">
             <p className="font-semibold">Variant Stock Summary</p>
-            {variants.length === 0 ? (
+            {filteredVariants.length === 0 ? (
               <p className="text-sm text-muted-foreground">No variants found.</p>
             ) : (
               <div className="space-y-2">
-                {variants.map((variant) => {
+                {filteredVariants.map((variant) => {
                   const isLow = Number(variant.stock) < thresholdNum;
                   return (
                     <button
@@ -481,6 +665,11 @@ export default function StockManagementPage() {
                       }`}
                     >
                       <p className="font-medium">{variant.sku}</p>
+                      {formatVariantOptions(variant) && (
+                        <p className="text-xs text-muted-foreground">
+                          {formatVariantOptions(variant)}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Stock: {variant.stock}
                       </p>
@@ -553,4 +742,3 @@ export default function StockManagementPage() {
     </div>
   );
 }
-
