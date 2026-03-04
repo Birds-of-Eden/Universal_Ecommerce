@@ -38,6 +38,18 @@ interface DigitalAsset {
   title: string;
 }
 
+interface AttributeValue {
+  id: number;
+  value: string;
+  attributeId: number;
+}
+
+interface Attribute {
+  id: number;
+  name: string;
+  values: AttributeValue[];
+}
+
 interface ProductForm {
   id?: number;
   name: string;
@@ -132,6 +144,7 @@ export default function ProductAddModal({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<ProductForm>(emptyForm);
+  const [attributes, setAttributes] = useState<Attribute[]>([]);
   const categoryOptions = useMemo(() => {
     const childrenByParent = new Map<number | null, CategoryEntity[]>();
 
@@ -232,6 +245,22 @@ export default function ProductAddModal({
       setForm((prev) => ({ ...prev, writerId: "", publisherId: "" }));
     }
   }, [showBookFields, form.writerId, form.publisherId]);
+
+  useEffect(() => {
+    const loadAttributes = async () => {
+      try {
+        const res = await fetch("/api/attributes", { cache: "no-store" });
+        const data = await res.json();
+        setAttributes(data || []);
+      } catch (err) {
+        console.error("Failed to load attributes:", err);
+      }
+    };
+
+    if (open) {
+      loadAttributes();
+    }
+  }, [open]);
 
   if (!open) return null;
 
@@ -429,21 +458,21 @@ export default function ProductAddModal({
             <Label>Attributes</Label>
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2">
-                {["Color", "Size", "Material", "Brand", "Weight", "Dimensions", "Warranty", "Origin"].map((attr) => (
-                  <label key={attr} className="flex items-center gap-2 cursor-pointer">
+                {attributes.map((attr) => (
+                  <label key={attr.id} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={form.attributes.includes(attr)}
+                      checked={form.attributes.includes(attr.name)}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setForm({ ...form, attributes: [...form.attributes, attr] });
+                          setForm({ ...form, attributes: [...form.attributes, attr.name] });
                         } else {
-                          setForm({ ...form, attributes: form.attributes.filter(a => a !== attr) });
+                          setForm({ ...form, attributes: form.attributes.filter(a => a !== attr.name) });
                         }
                       }}
                       className="rounded border-border text-primary focus:ring-primary"
                     />
-                    <span className="text-sm">{attr}</span>
+                    <span className="text-sm">{attr.name}</span>
                   </label>
                 ))}
               </div>
