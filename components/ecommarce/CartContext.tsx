@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useEffect, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 
 // API থেকে যেটুকু লাগবে শুধু সেটার টাইপ
 interface ProductApiItem {
@@ -11,8 +19,8 @@ interface ProductApiItem {
 }
 
 export interface CartItem {
-  id: string | number; // ✅ server id string হতে পারে
-  productId: string | number;
+  id: string | number; // local row id
+  productId: string | number; // product id
   name: string;
   price: number;
   quantity: number;
@@ -21,17 +29,30 @@ export interface CartItem {
 
 interface CartContextType {
   cartItems: CartItem[];
+
   addToCart: (productId: string | number, quantity?: number) => void;
-  removeFromCart: (id: string | number) => void; // ✅ updated
-  updateQuantity: (id: string | number, quantity: number) => void; // ✅ updated
+
+  // row-id based
+  removeFromCart: (id: string | number) => void;
+  updateQuantity: (id: string | number, quantity: number) => void;
+
+  // product-id based helpers ✅ (for +/- in details page)
+  getQuantityByProductId: (productId: string | number) => number;
+  setProductQty: (productId: string | number, quantity: number) => void;
+  incProductQty: (productId: string | number, step?: number) => void;
+  decProductQty: (productId: string | number, step?: number) => void;
+
   clearCart: () => void;
   cartCount: number;
 
-  // ✅ NEW: server/cart page থেকে context replace করার জন্য
+  // external replace (server sync / cart page sync)
   replaceCart: (items: CartItem[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+
+const norm = (v: string | number) => String(v);
+const clamp = (n: number) => Math.max(0, Math.min(99, n));
 
 export function CartProvider({ children }: { children: ReactNode }) {
   // 🛒 cartItems -> localStorage synced
@@ -51,10 +72,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // 📚 API থেকে আনা প্রোডাক্ট লিস্ট
   const [products, setProducts] = useState<ProductApiItem[]>([]);
 
-  // ✅ External replace (server sync / cart page sync)
+  // ✅ safer replace (also normalize + sanitize)
   const replaceCart = useCallback((items: CartItem[]) => {
-  setCartItems(Array.isArray(items) ? items : []);
-}, []);
+    const safe = Array.isArray(items)
+      ? items
+          .filter((x) => x && x.productId != null)
+          .map((x) => ({
+            ...x,
+            productId: x.productId,
+            quantity: clamp(Number(x.quantity ?? 1)),
+            image: x.image || "/placeholder.svg",
+          }))
+      : [];
+    setCartItems(safe);
+  }, []);
 
   // cartItems localStorage এ sync
   useEffect(() => {
@@ -107,8 +138,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const mapped: ProductApiItem[] = data.map((p: any) => ({
           id: p.id,
           name: p.name,
-          // ✅ use basePrice instead of price
-          price: Number(p.basePrice ?? 0),
+          price: Number(p.basePrice ?? 0), // ✅ use basePrice instead of price
           image: p.image ?? "/placeholder.svg",
         }));
 
@@ -121,66 +151,134 @@ export function CartProvider({ children }: { children: ReactNode }) {
     loadProducts();
   }, []);
 
-  const cartCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const cartCount = useMemo(
+    () => cartItems.reduce((total, item) => total + (Number(item.quantity) || 0), 0),
+    [cartItems]
+  );
 
-  const addToCart = (productId: string | number, quantity: number = 1) => {
-    const numericId =
-      typeof productId === "string" ? Number(productId) : productId;
+  // ✅ productId দিয়ে qty read
+  const getQuantityByProductId = useCallback(
+    (productId: string | number) => {
+      const pid = norm(productId);
+      return cartItems.find((x) => norm(x.productId) === pid)?.quantity ?? 0;
+    },
+    [cartItems]
+  );
 
-    const product = products.find((p) => Number(p.id) === Number(numericId));
+  // ✅ productId দিয়ে qty set (0 => remove)
+  const setProductQty = useCallback(
+    (productId: string | number, quantity: number) => {
+      const pid = norm(productId);
+      const nextQty = clamp(Number(quantity) || 0);
 
-    if (!product) {
-      console.warn(
-        "Product not found in CartProvider products state for id:",
-        productId,
-        "Available products:",
-        products.map((p) => ({ id: p.id, name: p.name, price: p.price }))
-      );
-      return;
-    }
+      setCartItems((prev) => {
+        const idx = prev.findIndex((x) => norm(x.productId) === pid);
 
-    setCartItems((prevItems) => {
-      const existingItem = prevItems.find(
-        (item) => Number(item.productId) === Number(numericId)
-      );
+        // remove if 0
+        if (nextQty === 0) {
+          if (idx === -1) return prev;
+          return prev.filter((_, i) => i !== idx);
+        }
 
-      if (existingItem) {
-        return prevItems.map((item) =>
-          Number(item.productId) === Number(numericId)
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
+        // if not exists -> create (needs product)
+        if (idx === -1) {
+          const product = products.find((p) => norm(p.id) === pid);
+          if (!product) return prev;
+
+          return [
+            ...prev,
+            {
+              id: Date.now(),
+              productId: product.id,
+              name: product.name,
+              price: product.price,
+              quantity: nextQty,
+              image: product.image || "/placeholder.svg",
+            },
+          ];
+        }
+
+        // update existing
+        return prev.map((it, i) => (i === idx ? { ...it, quantity: nextQty } : it));
+      });
+    },
+    [products]
+  );
+
+  const incProductQty = useCallback(
+    (productId: string | number, step: number = 1) => {
+      const cur = getQuantityByProductId(productId);
+      setProductQty(productId, cur + (Number(step) || 1));
+    },
+    [getQuantityByProductId, setProductQty]
+  );
+
+  const decProductQty = useCallback(
+    (productId: string | number, step: number = 1) => {
+      const cur = getQuantityByProductId(productId);
+      setProductQty(productId, cur - (Number(step) || 1));
+    },
+    [getQuantityByProductId, setProductQty]
+  );
+
+  // ✅ FIXED: addToCart always INCREMENT, normalize ids
+  const addToCart = useCallback(
+    (productId: string | number, quantity: number = 1) => {
+      const pid = norm(productId);
+      const add = clamp(Number(quantity) || 1);
+      if (add <= 0) return;
+
+      const product = products.find((p) => norm(p.id) === pid);
+      if (!product) {
+        console.warn(
+          "Product not found in CartProvider products state for id:",
+          productId,
+          "Available products:",
+          products.map((p) => ({ id: p.id, name: p.name, price: p.price }))
         );
+        return;
       }
 
-      return [
-        ...prevItems,
-        {
-          id: Date.now(),
-          productId: product.id,
-          name: product.name,
-          price: product.price,
-          quantity,
-          image: product.image || "/placeholder.svg",
-        },
-      ];
-    });
-  };
+      setCartItems((prevItems) => {
+        const idx = prevItems.findIndex((item) => norm(item.productId) === pid);
 
-  const removeFromCart = (id: string | number) => {
+        if (idx !== -1) {
+          const nextQty = clamp(prevItems[idx].quantity + add);
+          return prevItems.map((it, i) => (i === idx ? { ...it, quantity: nextQty } : it));
+        }
+
+        return [
+          ...prevItems,
+          {
+            id: Date.now(), // unique row id
+            productId: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: add,
+            image: product.image || "/placeholder.svg",
+          },
+        ];
+      });
+    },
+    [products]
+  );
+
+  const removeFromCart = useCallback((id: string | number) => {
     setCartItems((prevItems) => prevItems.filter((item) => item.id !== id));
-  };
+  }, []);
 
-  const updateQuantity = (id: string | number, quantity: number) => {
-    if (quantity < 1) return;
+  // ✅ quantity < 1 হলে remove
+  const updateQuantity = useCallback((id: string | number, quantity: number) => {
+    const q = clamp(Number(quantity) || 0);
+    setCartItems((prev) => {
+      if (q <= 0) return prev.filter((x) => x.id !== id);
+      return prev.map((item) => (item.id === id ? { ...item, quantity: q } : item));
+    });
+  }, []);
 
-    setCartItems((prevItems) =>
-      prevItems.map((item) => (item.id === id ? { ...item, quantity } : item))
-    );
-  };
-
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCartItems([]);
-  };
+  }, []);
 
   return (
     <CartContext.Provider
@@ -191,7 +289,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         updateQuantity,
         clearCart,
         cartCount,
-        replaceCart, // ✅ expose
+        replaceCart,
+
+        // ✅ NEW helpers
+        getQuantityByProductId,
+        setProductQty,
+        incProductQty,
+        decProductQty,
       }}
     >
       {children}
