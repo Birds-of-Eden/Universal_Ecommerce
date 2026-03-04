@@ -6,11 +6,23 @@ import { useCart } from "@/components/ecommarce/CartContext";
 import { Button } from "@/components/ui/button";
 import { LabeledInput } from "@/components/ui/labeled-input";
 import { toast } from "sonner";
-import { Check, ArrowLeft, Truck, Shield, CreditCard, BookOpen, Plus, X } from "lucide-react";
+import {
+  Check,
+  ArrowLeft,
+  Truck,
+  Shield,
+  BookOpen,
+  Plus,
+  X,
+} from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
-import { ALLOWED_SHIPPING_AREAS, normalizeShippingArea, type AllowedShippingArea } from "@/lib/shipping-areas";
+import {
+  ALLOWED_SHIPPING_AREAS,
+  normalizeShippingArea,
+  type AllowedShippingArea,
+} from "@/lib/shipping-areas";
 import PaymentMethodSelector from "@/components/checkout/PaymentMethodSelector";
 
 type UserAddress = {
@@ -100,14 +112,12 @@ export default function CheckoutPage() {
 
   useEffect(() => setIsMounted(true), []);
 
-  // Cleanup cart sync flag on unmount
   useEffect(() => {
     return () => {
       setCartSynced(false);
     };
   }, []);
 
-  // Payment gateways
   useEffect(() => {
     const fetchGateways = async () => {
       try {
@@ -115,23 +125,16 @@ export default function CheckoutPage() {
         if (!res.ok) return;
         const data = await res.json();
         setPaymentGateways(Array.isArray(data.payments) ? data.payments : []);
-      } catch {
-        // silent
-      }
+      } catch {}
     };
     fetchGateways();
   }, []);
 
-  // Reset cart sync flag when authentication state changes
   useEffect(() => {
-    console.log("🔄 Auth state changed, resetting cart sync flag. Authenticated:", isAuthenticated);
     setCartSynced(false);
   }, [isAuthenticated]);
 
-  // Load server cart + sync guest cart after login
   useEffect(() => {
-    console.log("🚀 Cart sync effect triggered. Mounted:", isMounted, "Synced:", cartSynced, "Auth:", isAuthenticated);
-    
     if (!isMounted || cartSynced) return;
 
     if (!isAuthenticated) {
@@ -152,7 +155,6 @@ export default function CheckoutPage() {
           id: item.id,
           productId: item.productId,
           name: item.product?.name ?? "Unknown product",
-          // basePrice string -> Number()
           price: Number(item.product?.basePrice ?? item.product?.variants?.[0]?.price ?? 0),
           image: item.product?.image ?? "/placeholder.svg",
           quantity: Number(item.quantity ?? 1),
@@ -167,10 +169,7 @@ export default function CheckoutPage() {
     };
 
     const syncGuestCartToServer = async () => {
-      console.log("🛒 Cart sync started. Guest cart items:", cartItems.length);
-      
       if (cartItems.length === 0) {
-        console.log("🛒 Guest cart empty, fetching server cart only");
         fetchServerCart();
         setCartSynced(true);
         return;
@@ -179,20 +178,15 @@ export default function CheckoutPage() {
       try {
         setLoadingServerCart(true);
 
-        // First, get existing server cart to avoid duplicates
         const serverRes = await fetch("/api/cart", { cache: "no-store" });
         if (serverRes.ok) {
           const serverData = await serverRes.json();
           const existingItems = Array.isArray(serverData.items) ? serverData.items : [];
-          console.log("🛒 Server cart has", existingItems.length, "items");
-          
-          // Create a map of existing product IDs
+
           const existingProductIds = new Set(existingItems.map((item: any) => item.productId));
-          
-          // Only sync items that don't already exist on server
-          const itemsToSync = cartItems.filter(item => !existingProductIds.has(item.productId));
-          console.log("🛒 Items to sync:", itemsToSync.length, "out of", cartItems.length);
-          
+
+          const itemsToSync = cartItems.filter((item) => !existingProductIds.has(item.productId));
+
           for (const item of itemsToSync) {
             const res = await fetch("/api/cart", {
               method: "POST",
@@ -212,7 +206,6 @@ export default function CheckoutPage() {
       } finally {
         setLoadingServerCart(false);
         setCartSynced(true);
-        console.log("🛒 Cart sync completed");
       }
     };
 
@@ -249,9 +242,7 @@ export default function CheckoutPage() {
       const addressRes = await fetch("/api/user/address", { cache: "no-store" });
       if (!addressRes.ok) return [];
       const addressData = await addressRes.json();
-      const addresses: UserAddress[] = Array.isArray(addressData?.addresses)
-        ? addressData.addresses
-        : [];
+      const addresses: UserAddress[] = Array.isArray(addressData?.addresses) ? addressData.addresses : [];
       setUserAddresses(addresses);
       return addresses;
     } catch {
@@ -262,8 +253,8 @@ export default function CheckoutPage() {
   };
 
   const getShippingRateInfo = (areaOption: string) => {
-    const rate = shippingRates.find(r => 
-      normalizeShippingArea(String(r.area || "")) === areaOption
+    const rate = shippingRates.find(
+      (r) => normalizeShippingArea(String(r.area || "")) === areaOption
     );
     return rate;
   };
@@ -288,12 +279,12 @@ export default function CheckoutPage() {
       }
       const rates: ShippingRateOption[] = await res.json();
       setShippingRates(rates);
+
       const normalizedAreas = (Array.isArray(rates) ? rates : [])
         .map((r) => normalizeShippingArea(String(r.area || "")))
         .filter((x): x is (typeof ALLOWED_SHIPPING_AREAS)[number] => Boolean(x));
-      const uniqueAreas = ALLOWED_SHIPPING_AREAS.filter((allowed) =>
-        normalizedAreas.includes(allowed),
-      );
+
+      const uniqueAreas = ALLOWED_SHIPPING_AREAS.filter((allowed) => normalizedAreas.includes(allowed));
       setAvailableAreas(uniqueAreas);
     } catch {
       setAvailableAreas([]);
@@ -303,7 +294,6 @@ export default function CheckoutPage() {
     }
   };
 
-  // Prefill basic user info + saved addresses
   useEffect(() => {
     if (!session || prefilled || !(session.user as any)?.id) return;
 
@@ -319,10 +309,7 @@ export default function CheckoutPage() {
         }
 
         const addresses = await fetchUserAddresses();
-        const selected =
-          addresses.find((a) => a.isDefault) ||
-          addresses[0] ||
-          null;
+        const selected = addresses.find((a) => a.isDefault) || addresses[0] || null;
 
         if (selected) {
           setSelectedAddressId(selected.id);
@@ -332,7 +319,6 @@ export default function CheckoutPage() {
           setDeliveryAddress(parseAddressDetails(selected.details));
         }
       } catch {
-        // silent
       } finally {
         setPrefilled(true);
       }
@@ -536,7 +522,15 @@ export default function CheckoutPage() {
     const isSSLCOMMERZ = paymentMethod === "SSLCOMMERZ";
     const isManualPayment = !isCOD && !isSSLCOMMERZ;
 
-    if (!name || !mobile || !country || !location || !area || !deliveryAddress || (isManualPayment && !transactionId)) {
+    if (
+      !name ||
+      !mobile ||
+      !country ||
+      !location ||
+      !area ||
+      !deliveryAddress ||
+      (isManualPayment && !transactionId)
+    ) {
       toast.error("Please fill in all required information");
       return;
     }
@@ -626,9 +620,7 @@ export default function CheckoutPage() {
           await fetch("/api/cart", { method: "DELETE" });
           window.dispatchEvent(new Event("serverCartCleared"));
         }
-      } catch {
-        // non-fatal
-      }
+      } catch {}
 
       clearCart();
       setInvoiceId(localInvoiceId);
@@ -648,9 +640,7 @@ export default function CheckoutPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
         });
-      } catch {
-        // silent
-      }
+      } catch {}
     }
 
     clearCart();
@@ -661,37 +651,52 @@ export default function CheckoutPage() {
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center gap-2 sm:gap-4 mb-6 sm:mb-8 overflow-x-auto pb-2">
-      {["details", "payment", "confirm"].map((s, i) => (
-        <div key={s} className="flex items-center gap-1 sm:gap-2 min-w-fit">
-          <div
-            className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full border-2 transition-all duration-300 ${
-              step === s
-                ? "bg-[#819A91] border-[#819A91] text-white shadow-lg shadow-[#819A91]/30"
-                : i < ["details", "payment", "confirm"].indexOf(step) || (s === "confirm" && orderConfirmed)
-                ? "bg-[#A7C1A8] border-[#A7C1A8] text-white"
-                : "border-border text-foreground/70"
-            }`}
-          >
-            {step === s ? (
-              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full" />
-            ) : i < ["details", "payment", "confirm"].indexOf(step) || (s === "confirm" && orderConfirmed) ? (
-              <Check className="w-3 h-3 sm:w-4 sm:h-5" />
-            ) : (
-              <span className="text-xs sm:text-sm font-medium">{i + 1}</span>
+      {["details", "payment", "confirm"].map((s, i) => {
+        const currentIndex = ["details", "payment", "confirm"].indexOf(step);
+        const completed = i < currentIndex || (s === "confirm" && orderConfirmed);
+        const active = step === s;
+
+        return (
+          <div key={s} className="flex items-center gap-1 sm:gap-2 min-w-fit">
+            <div
+              className={[
+                "flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full border-2 transition-all duration-300",
+                active
+                  ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/25"
+                  : completed
+                    ? "bg-primary/80 border-primary/80 text-primary-foreground"
+                    : "border-border text-foreground/70",
+              ].join(" ")}
+            >
+              {active ? (
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-primary-foreground rounded-full" />
+              ) : completed ? (
+                <Check className="w-3 h-3 sm:w-4 sm:h-5" />
+              ) : (
+                <span className="text-xs sm:text-sm font-medium">{i + 1}</span>
+              )}
+            </div>
+
+            <span
+              className={[
+                "text-xs sm:text-sm font-medium capitalize transition-colors duration-300 hidden lg:block",
+                active ? "text-foreground" : "text-foreground/70",
+              ].join(" ")}
+            >
+              {s === "details" ? "Personal Details" : s === "payment" ? "Payment" : "Confirmation"}
+            </span>
+
+            {i < 2 && (
+              <div
+                className={[
+                  "w-4 sm:w-6 lg:w-12 h-0.5 ml-0.5 sm:ml-1 lg:ml-3",
+                  i < currentIndex ? "bg-primary/80" : "bg-border",
+                ].join(" ")}
+              />
             )}
           </div>
-
-          <span
-            className={`text-xs sm:text-sm font-medium capitalize transition-colors duration-300 hidden lg:block ${
-              step === s ? "text-foreground" : "text-foreground/70"
-            }`}
-          >
-            {s === "details" ? "Personal Details" : s === "payment" ? "Payment" : "Confirmation"}
-          </span>
-
-          {i < 2 && <div className={`w-4 sm:w-6 lg:w-12 h-0.5 ml-0.5 sm:ml-1 lg:ml-3 ${i < ["details", "payment", "confirm"].indexOf(step) ? "bg-[#A7C1A8]" : "bg-border"}`} />}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -730,8 +735,8 @@ export default function CheckoutPage() {
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#819A91] rounded-full flex items-center justify-center">
-              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-full flex items-center justify-center">
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">
               Checkout
@@ -752,7 +757,7 @@ export default function CheckoutPage() {
               {step === "details" && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="w-2 h-8 bg-[#819A91] rounded-full"></div>
+                    <div className="w-2 h-8 bg-primary rounded-full"></div>
                     <h2 className="text-2xl font-bold text-foreground">Personal Details</h2>
                   </div>
 
@@ -793,19 +798,22 @@ export default function CheckoutPage() {
                           <button
                             type="button"
                             onClick={() => setShowAddAddressForm((p) => !p)}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-[#819A91] hover:underline"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                           >
-                            {showAddAddressForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                            {showAddAddressForm ? (
+                              <X className="h-3.5 w-3.5" />
+                            ) : (
+                              <Plus className="h-3.5 w-3.5" />
+                            )}
                             {showAddAddressForm ? "Close" : "Add New Address"}
                           </button>
                         </div>
+
                         <select
                           id="savedAddress"
                           value={selectedAddressId}
-                          onChange={(e) =>
-                            setSelectedAddressId(e.target.value ? Number(e.target.value) : "")
-                          }
-                          className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-[#819A91]/30"
+                          onChange={(e) => setSelectedAddressId(e.target.value ? Number(e.target.value) : "")}
+                          className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
                         >
                           <option value="">
                             {loadingAddresses ? "Loading addresses..." : "Select a saved address (optional)"}
@@ -831,7 +839,7 @@ export default function CheckoutPage() {
                               type="button"
                               onClick={handleSaveAddress}
                               disabled={savingAddress}
-                              className="h-9 bg-[#819A91] hover:bg-[#819A91]/90 text-white"
+                              className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground"
                             >
                               {savingAddress ? "Saving..." : "Save Current Address"}
                             </Button>
@@ -866,22 +874,22 @@ export default function CheckoutPage() {
                         id="area"
                         value={area}
                         onChange={(e) => setArea(e.target.value as AllowedShippingArea)}
-                        className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-[#819A91]/30"
+                        className="w-full h-11 rounded-md border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
                       >
-                        <option value="">
-                          {loadingAreas ? "Loading areas..." : "Select area"}
-                        </option>
+                        <option value="">{loadingAreas ? "Loading areas..." : "Select area"}</option>
                         {availableAreas.map((areaOption) => {
                           const rate = getShippingRateInfo(areaOption);
-                          const shippingCost = rate?.baseCost ? `৳${rate.baseCost}` : 'Standard rate';
-                          const freeShippingInfo = rate?.freeMinOrder ? ` (Free over ৳${rate.freeMinOrder})` : '';
+                          const shippingCost = rate?.baseCost ? `৳${rate.baseCost}` : "Standard rate";
+                          const freeShippingInfo = rate?.freeMinOrder ? ` (Free over ৳${rate.freeMinOrder})` : "";
                           return (
                             <option key={areaOption} value={areaOption}>
-                              {areaOption} - {shippingCost}{freeShippingInfo}
+                              {areaOption} - {shippingCost}
+                              {freeShippingInfo}
                             </option>
                           );
                         })}
                       </select>
+
                       {availableAreas.length === 0 && !loadingAreas && (
                         <p className="text-xs text-muted-foreground">
                           No shipping area available for this country.
@@ -895,7 +903,7 @@ export default function CheckoutPage() {
                       </label>
                       <textarea
                         id="deliveryAddress"
-                        className="w-full h-24 sm:h-32 p-3 sm:p-4 border border-border rounded-lg sm:rounded-xl bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[#819A91]/30"
+                        className="w-full h-24 sm:h-32 p-3 sm:p-4 border border-border rounded-lg sm:rounded-xl bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                         placeholder="House, road, landmark"
                         value={deliveryAddress}
                         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDeliveryAddress(e.target.value)}
@@ -904,7 +912,7 @@ export default function CheckoutPage() {
                   </div>
 
                   <Button
-                    className="w-full bg-[#819A91] hover:bg-[#819A91]/90 text-white py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                     onClick={handleGoToPaymentStep}
                   >
                     Next Step
@@ -935,7 +943,7 @@ export default function CheckoutPage() {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between mb-4 sm:mb-6">
                     <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="w-2 h-6 sm:h-8 bg-[#819A91] rounded-full"></div>
+                      <div className="w-2 h-6 sm:h-8 bg-primary rounded-full"></div>
                       <h2 className="text-xl sm:text-2xl font-bold text-foreground">Confirm Order</h2>
                     </div>
                     <Button
@@ -950,8 +958,8 @@ export default function CheckoutPage() {
 
                   <div className="bg-muted border border-border rounded-lg sm:rounded-xl p-4 sm:p-6">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 bg-[#A7C1A8] rounded-full flex items-center justify-center">
-                        <Check className="w-5 h-5 text-white" />
+                      <div className="w-8 h-8 bg-primary/80 rounded-full flex items-center justify-center">
+                        <Check className="w-5 h-5 text-primary-foreground" />
                       </div>
                       <h3 className="font-semibold text-foreground">Order created successfully!</h3>
                     </div>
@@ -969,23 +977,43 @@ export default function CheckoutPage() {
                     <div className="space-y-3">
                       <h4 className="font-semibold text-foreground">Customer</h4>
                       <div className="text-sm text-muted-foreground space-y-1">
-                        <p><span className="text-foreground/80">Name:</span> <span className="text-foreground">{placedOrder.customer.name}</span></p>
-                        <p><span className="text-foreground/80">Mobile:</span> <span className="text-foreground">{placedOrder.customer.mobile}</span></p>
-                        <p><span className="text-foreground/80">Email:</span> <span className="text-foreground">{placedOrder.customer.email || "N/A"}</span></p>
-                        <p><span className="text-foreground/80">Address:</span> <span className="text-foreground">{placedOrder.customer.address}</span></p>
+                        <p>
+                          <span className="text-foreground/80">Name:</span>{" "}
+                          <span className="text-foreground">{placedOrder.customer.name}</span>
+                        </p>
+                        <p>
+                          <span className="text-foreground/80">Mobile:</span>{" "}
+                          <span className="text-foreground">{placedOrder.customer.mobile}</span>
+                        </p>
+                        <p>
+                          <span className="text-foreground/80">Email:</span>{" "}
+                          <span className="text-foreground">{placedOrder.customer.email || "N/A"}</span>
+                        </p>
+                        <p>
+                          <span className="text-foreground/80">Address:</span>{" "}
+                          <span className="text-foreground">{placedOrder.customer.address}</span>
+                        </p>
                       </div>
                     </div>
 
                     <div className="space-y-3">
                       <h4 className="font-semibold text-foreground">Order</h4>
                       <div className="text-sm text-muted-foreground space-y-1">
-                        <p><span className="text-foreground/80">Payment:</span> <span className="text-foreground">{placedOrder.paymentMethod}</span></p>
+                        <p>
+                          <span className="text-foreground/80">Payment:</span>{" "}
+                          <span className="text-foreground">{placedOrder.paymentMethod}</span>
+                        </p>
                         <p>
                           <span className="text-foreground/80">Status:</span>{" "}
-                          <span className="text-foreground font-semibold">{getPaymentStatusFromMethod(placedOrder.paymentMethod)}</span>
+                          <span className="text-foreground font-semibold">
+                            {getPaymentStatusFromMethod(placedOrder.paymentMethod)}
+                          </span>
                         </p>
                         {placedOrder.transactionId && (
-                          <p><span className="text-foreground/80">Txn:</span> <span className="text-foreground">{placedOrder.transactionId}</span></p>
+                          <p>
+                            <span className="text-foreground/80">Txn:</span>{" "}
+                            <span className="text-foreground">{placedOrder.transactionId}</span>
+                          </p>
                         )}
                       </div>
                     </div>
@@ -1006,7 +1034,7 @@ export default function CheckoutPage() {
                   )}
 
                   <Button
-                    className="w-full bg-[#A7C1A8] hover:bg-[#A7C1A8]/90 text-white py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="w-full bg-primary/80 hover:bg-primary text-primary-foreground py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                     onClick={handleConfirmOrder}
                     disabled={orderConfirmed}
                   >
@@ -1037,7 +1065,7 @@ export default function CheckoutPage() {
                         fill
                         className="rounded-lg object-cover"
                       />
-                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-[#819A91] text-white rounded-full text-xs flex items-center justify-center">
+                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary text-primary-foreground rounded-full text-xs flex items-center justify-center">
                         {item.quantity}
                       </div>
                     </div>
@@ -1059,6 +1087,7 @@ export default function CheckoutPage() {
                   <span>Subtotal</span>
                   <span className="text-foreground">৳{subtotal.toFixed(2)}</span>
                 </div>
+
                 {(shippingLoading || hasShippingQuote) && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Shipping</span>
@@ -1067,14 +1096,19 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                 )}
+
                 {!shippingLoading && hasShippingQuote && shippingQuote?.matchedRate && (
                   <div className="text-xs text-muted-foreground space-y-1">
-                    <div>Applied Rate: {shippingQuote.matchedRate.country} / {shippingQuote.matchedRate.area}</div>
+                    <div>
+                      Applied Rate: {shippingQuote.matchedRate.country} / {shippingQuote.matchedRate.area}
+                    </div>
+
                     {shippingQuote.matchedRate.freeMinOrder && shipping === 0 && (
-                      <div className="text-green-600 font-medium">
+                      <div className="text-green-600 dark:text-green-400 font-medium">
                         🎉 Free shipping applied (minimum order ৳{shippingQuote.matchedRate.freeMinOrder.toFixed(2)} met)
                       </div>
                     )}
+
                     {shippingQuote.matchedRate.freeMinOrder && shipping > 0 && (
                       <div className="text-muted-foreground">
                         Add ৳{(shippingQuote.matchedRate.freeMinOrder - subtotal).toFixed(2)} more for free shipping
@@ -1082,6 +1116,7 @@ export default function CheckoutPage() {
                     )}
                   </div>
                 )}
+
                 <div className="flex justify-between font-bold text-base text-foreground border-t border-border pt-3">
                   <span>Total</span>
                   <span>৳{total.toFixed(2)}</span>
@@ -1090,11 +1125,11 @@ export default function CheckoutPage() {
 
               <div className="mt-6 pt-6 border-t border-border space-y-3">
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Shield className="w-4 h-4 text-[#A7C1A8]" />
+                  <Shield className="w-4 h-4 text-primary" />
                   <span>Secure payment</span>
                 </div>
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Truck className="w-4 h-4 text-[#819A91]" />
+                  <Truck className="w-4 h-4 text-primary" />
                   <span>Delivery in 2-4 business days</span>
                 </div>
               </div>
@@ -1107,8 +1142,8 @@ export default function CheckoutPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-card text-card-foreground rounded-xl sm:rounded-2xl p-6 sm:p-8 max-w-md w-full text-center space-y-5 shadow-2xl border border-border">
-            <div className="w-16 h-16 bg-[#A7C1A8] rounded-full flex items-center justify-center mx-auto">
-              <Check className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-primary/80 rounded-full flex items-center justify-center mx-auto">
+              <Check className="w-8 h-8 text-primary-foreground" />
             </div>
 
             <h2 className="text-2xl font-bold text-foreground">🎉 Order Successful!</h2>
@@ -1119,7 +1154,7 @@ export default function CheckoutPage() {
 
             <div className="space-y-3">
               <Link href="/ecommerce/user/orders" className="block">
-                <Button className="w-full bg-[#819A91] hover:bg-[#819A91]/90 text-white py-3 rounded-xl">
+                <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl">
                   Track Order
                 </Button>
               </Link>

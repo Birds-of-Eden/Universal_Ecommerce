@@ -14,10 +14,11 @@ import {
   Shield,
   ArrowLeft,
   Home,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useSession, signIn } from "@/lib/auth-client";
@@ -29,6 +30,120 @@ interface LocalCartItem {
   price: number;
   image: string;
   quantity: number;
+}
+
+// ✅ Simple skeleton block component
+function Skeleton({ className }: { className: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded-md bg-muted/60 ${className}`}
+      aria-hidden="true"
+    />
+  );
+}
+
+function CartSkeleton() {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Left skeleton */}
+      <div className="lg:col-span-2 space-y-6">
+        <div className="rounded-xl border border-border bg-card shadow-sm">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <Skeleton className="h-10 w-28" />
+          </div>
+
+          <div className="divide-y divide-border">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="px-6 py-5">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-16 w-16 rounded-md" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-4 w-1/3" />
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-32" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20 ml-auto" />
+                      <Skeleton className="h-3 w-16 ml-auto" />
+                    </div>
+                    <Skeleton className="h-10 w-10" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="px-6 py-5 border-t border-border">
+            <Skeleton className="h-4 w-36" />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card shadow-sm p-6 space-y-3">
+          <div className="flex items-start gap-3">
+            <Skeleton className="h-5 w-5" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-32" />
+          </div>
+        </div>
+      </div>
+
+      {/* Right skeleton */}
+      <div className="lg:col-span-1">
+        <div className="rounded-xl border border-border bg-card shadow-sm sticky top-6">
+          <div className="px-6 py-5 border-b border-border">
+            <Skeleton className="h-5 w-36" />
+          </div>
+          <div className="px-6 py-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+
+            <div className="border-t border-border pt-4 flex items-center justify-between">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-7 w-24" />
+            </div>
+
+            <div className="pt-2 flex gap-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+
+            <div className="pt-4 border-t border-border">
+              <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CartPage() {
@@ -53,14 +168,21 @@ export default function CartPage() {
     null
   );
   const [loadingServerCart, setLoadingServerCart] = useState(false);
+  const [serverCartError, setServerCartError] = useState<string | null>(null);
 
-  // ✅ prevent repeated login sync
-  const didAuthSyncRef = useRef(false);
-
-  // ✅ prevent repeated context replace (stuck/freeze fix)
+  // ✅ prevent repeated context replace
   const lastReplacedRef = useRef<string>("");
 
+  // ✅ prevent parallel requests
+  const inFlightRef = useRef(false);
+
   useEffect(() => setHasMounted(true), []);
+
+  /**
+   * ✅ IMPORTANT: এই key টা তোমার CartContext localStorage key অনুযায়ী বসাও
+   * Example: "cart" / "ecommerce_cart" / "cartItems" etc.
+   */
+  const GUEST_CART_STORAGE_KEY = "cartItems";
 
   // ----------------------------
   // ✅ Server cart -> Context cart (ONLY when changed)
@@ -83,127 +205,172 @@ export default function CartPage() {
     if (!mappedServerForContext) return;
 
     const nextStr = JSON.stringify(mappedServerForContext);
-    if (lastReplacedRef.current === nextStr) return; // ✅ same data, do nothing
+    if (lastReplacedRef.current === nextStr) return;
 
     lastReplacedRef.current = nextStr;
     replaceCart(mappedServerForContext);
   }, [hasMounted, isAuthenticated, mappedServerForContext, replaceCart]);
 
+  const fetchServerCart = useCallback(async () => {
+    try {
+      setServerCartError(null);
+      setLoadingServerCart(true);
+
+      const res = await fetch("/api/cart", { cache: "no-store" });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        console.error("Failed to load server cart:", data || res.statusText);
+        throw new Error("Failed to load cart from server.");
+      }
+
+      const data = await res.json();
+      const items = Array.isArray(data.items) ? data.items : [];
+
+      const mapped: LocalCartItem[] = items.map((item: any) => ({
+        id: item.id,
+        productId: item.productId,
+        name: item.product?.name ?? "Unknown Product",
+        price: Number(item.product?.basePrice ?? 0),
+        image: item.product?.image ?? "/placeholder.svg",
+        quantity: Number(item.quantity ?? 1),
+      }));
+
+      setServerCartItems(mapped);
+    } catch (err) {
+      setServerCartError(
+        err instanceof Error ? err.message : "Failed to load cart."
+      );
+    } finally {
+      setLoadingServerCart(false);
+    }
+  }, []);
+
+  // ✅ only clear guest storage (NOT context state)
+  const clearGuestCartStorageOnly = useCallback(() => {
+    try {
+      localStorage.removeItem(GUEST_CART_STORAGE_KEY);
+    } catch {}
+  }, []);
+
+  const syncGuestCartToServer = useCallback(async () => {
+    try {
+      setServerCartError(null);
+      setLoadingServerCart(true);
+
+      // 1) get existing server cart
+      const serverRes = await fetch("/api/cart", { cache: "no-store" });
+      if (!serverRes.ok) throw new Error("Failed to fetch server cart");
+
+      const serverData = await serverRes.json();
+      const existingItems = Array.isArray(serverData.items)
+        ? serverData.items
+        : [];
+
+      // 2) snapshot local items
+      const localSnapshot: any[] = Array.isArray(cartItems) ? cartItems : [];
+
+      // 3) only sync missing products
+      const itemsToSync = localSnapshot.filter(
+        (localItem) =>
+          !existingItems.some(
+            (serverItem: any) =>
+              String(serverItem.productId) === String(localItem.productId)
+          )
+      );
+
+      // 4) push to server
+      for (const item of itemsToSync) {
+        await fetch("/api/cart", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId: item.productId,
+            quantity: item.quantity,
+          }),
+        });
+      }
+
+      /**
+       * ✅ IMPORTANT:
+       * এখানে clearCart() দিবে না
+       * কারণ clearCart() দিলে CartContext count/badge 0 হয়ে যায়
+       * checkout না হওয়া পর্যন্ত user এর count ঠিক থাকা উচিত
+       */
+      clearGuestCartStorageOnly();
+
+      // 5) now fetch latest server cart (this will replace context)
+      await fetchServerCart();
+    } catch (err) {
+      console.error("Error syncing guest cart to server:", err);
+      await fetchServerCart();
+    } finally {
+      setLoadingServerCart(false);
+    }
+  }, [cartItems, clearGuestCartStorageOnly, fetchServerCart]);
+
   // ----------------------------
-  // ✅ Main auth sync (run once per login)
+  // ✅ Main auth sync
   // ----------------------------
   useEffect(() => {
     if (!hasMounted) return;
 
     if (!isAuthenticated) {
-      didAuthSyncRef.current = false;
       setServerCartItems(null);
-      // also reset compare cache
+      setServerCartError(null);
+      setLoadingServerCart(false);
       lastReplacedRef.current = "";
+      inFlightRef.current = false;
       return;
     }
 
-    if (didAuthSyncRef.current) return;
-    didAuthSyncRef.current = true;
+    // need server cart always when authenticated
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
 
-    const fetchServerCart = async () => {
+    const run = async () => {
       try {
-        setLoadingServerCart(true);
-        const res = await fetch("/api/cart", { cache: "no-store" });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          console.error("Failed to load server cart:", data || res.statusText);
-          return;
-        }
-
-        const data = await res.json();
-        const items = Array.isArray(data.items) ? data.items : [];
-
-        const mapped: LocalCartItem[] = items.map((item: any) => ({
-          id: item.id,
-          productId: item.productId,
-          name: item.product?.name ?? "Unknown Product",
-          price: Number(item.product?.basePrice ?? 0),
-          image: item.product?.image ?? "/placeholder.svg",
-          quantity: Number(item.quantity ?? 1),
-        }));
-
-        setServerCartItems(mapped);
-      } catch (err) {
-        console.error("Error loading server cart:", err);
-      } finally {
-        setLoadingServerCart(false);
-      }
-    };
-
-    const syncGuestCartToServer = async () => {
-      try {
-        setLoadingServerCart(true);
-
-        // fetch existing server cart
-        const serverRes = await fetch("/api/cart", { cache: "no-store" });
-        if (!serverRes.ok) throw new Error("Failed to fetch server cart");
-        const serverData = await serverRes.json();
-        const existingItems = Array.isArray(serverData.items)
-          ? serverData.items
-          : [];
-
-        // push local items if missing (use snapshot)
         const localSnapshot: any[] = Array.isArray(cartItems) ? cartItems : [];
 
-        const itemsToSync = localSnapshot.filter(
-          (localItem) =>
-            !existingItems.some(
-              (serverItem: any) =>
-                String(serverItem.productId) === String(localItem.productId)
-            )
-        );
-
-        for (const item of itemsToSync) {
-          await fetch("/api/cart", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              productId: item.productId,
-              quantity: item.quantity,
-            }),
-          });
-        }
-
-        // clear local after sync
-        clearCart();
-
-        await fetchServerCart();
-      } catch (err) {
-        console.error("Error syncing guest cart to server:", err);
-        await fetchServerCart();
+        // if guest has items, sync them to server, else just fetch
+        if (localSnapshot.length === 0) await fetchServerCart();
+        else await syncGuestCartToServer();
       } finally {
-        setLoadingServerCart(false);
+        inFlightRef.current = false;
       }
     };
 
-    // run
-    const localSnapshot: any[] = Array.isArray(cartItems) ? cartItems : [];
-    if (localSnapshot.length === 0) fetchServerCart();
-    else syncGuestCartToServer();
+    run();
+  }, [isAuthenticated, hasMounted, cartItems, fetchServerCart, syncGuestCartToServer]);
 
-    // ✅ keep deps minimal to avoid loops
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, hasMounted]);
+  // manual retry
+  const retryServerCart = async () => {
+    inFlightRef.current = false;
+    setServerCartItems(null);
+    await fetchServerCart();
+  };
 
+  // listen for external clear event
   useEffect(() => {
-    const handler = () => setServerCartItems([]);
+    const handler = () => {
+      setServerCartItems([]);
+      setServerCartError(null);
+      lastReplacedRef.current = JSON.stringify([]);
+    };
     window.addEventListener("serverCartCleared", handler);
     return () => window.removeEventListener("serverCartCleared", handler);
   }, []);
 
   if (!hasMounted) return null;
 
-  const itemsToRender: LocalCartItem[] =
-    isAuthenticated && serverCartItems !== null
-      ? serverCartItems
-      : ((cartItems as any) || []);
+  const showAuthSkeleton =
+    isAuthenticated && serverCartItems === null && !serverCartError;
+  const showAuthError =
+    isAuthenticated && serverCartItems === null && !!serverCartError;
+
+  const itemsToRender: LocalCartItem[] = isAuthenticated
+    ? serverCartItems ?? []
+    : ((cartItems as any) || []);
 
   const subtotal = itemsToRender.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -240,9 +407,10 @@ export default function CartPage() {
         setServerCartItems([]);
       }
 
+      // এখানে user নিজে clear করেছে, তাই context clear OK
       clearCart();
-      // reset compare cache so replaceCart doesn't reapply old
       lastReplacedRef.current = "";
+      clearGuestCartStorageOnly();
       toast.success("Cart cleared.");
     } catch (error) {
       console.error("Error clearing cart:", error);
@@ -267,7 +435,7 @@ export default function CartPage() {
         );
       }
 
-      removeFromCart(itemId); // ✅ no Number()
+      removeFromCart(itemId);
       toast.success("Item removed.");
     } catch (error) {
       console.error("Error removing cart item:", error);
@@ -373,14 +541,28 @@ export default function CartPage() {
           <h1 className="text-3xl font-semibold tracking-tight">
             Shopping Cart
           </h1>
-          {isAuthenticated && loadingServerCart && (
+
+          {isAuthenticated && (loadingServerCart || showAuthSkeleton) && (
             <p className="mt-2 text-sm text-muted-foreground">
               Syncing your cart...
             </p>
           )}
         </div>
 
-        {isCartEmpty ? (
+        {showAuthSkeleton ? (
+          <CartSkeleton />
+        ) : showAuthError ? (
+          <div className="rounded-xl border border-border bg-card p-10 text-center shadow-sm">
+            <h2 className="text-lg font-semibold mb-2">Couldn’t load your cart</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              {serverCartError}
+            </p>
+            <Button onClick={retryServerCart} className="rounded-md">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        ) : isCartEmpty ? (
           <div className="rounded-xl border border-border bg-card p-10 text-center shadow-sm">
             <ShoppingCart className="h-14 w-14 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
