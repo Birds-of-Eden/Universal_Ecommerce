@@ -1,45 +1,32 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { LabeledInput } from "@/components/ui/labeled-input";
-import { ArrowLeft, CreditCard, Shield } from "lucide-react";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { LabeledInput } from "@/components/ui/labeled-input";
+import { ArrowLeft } from "lucide-react";
 
-interface PaymentGatewayData {
-  type?: string;
-  channel?: string;
-  accountNumbers?: string[];
-  storeId?: string;
-  storePassword?: string;
-  sandbox?: boolean;
-  successUrl?: string;
-  failUrl?: string;
-  cancelUrl?: string;
-  ipnUrl?: string;
-}
-
-interface Payment {
+type PaymentGateway = {
   id: number;
-  paymentGatewayData: PaymentGatewayData | null;
-  createdAt: string;
-  updatedAt: string;
-}
+  paymentGatewayData?: any;
+};
 
-interface PaymentMethodSelectorProps {
-  paymentGateways: Payment[];
+type Props = {
+  paymentGateways: PaymentGateway[];
   selectedMethod: string;
-  onMethodChange: (method: string) => void;
+  onMethodChange: (v: string) => void;
+
   transactionId: string;
-  onTransactionIdChange: (id: string) => void;
+  onTransactionIdChange: (v: string) => void;
+
   paymentScreenshotUrl: string | null;
   paymentScreenshotPreview: string | null;
   onScreenshotChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   isUploadingScreenshot: boolean;
+
   onBack: () => void;
   onNext: () => void;
   total: number;
-}
+};
 
 export default function PaymentMethodSelector({
   paymentGateways,
@@ -54,286 +41,172 @@ export default function PaymentMethodSelector({
   onBack,
   onNext,
   total,
-}: PaymentMethodSelectorProps) {
-  const selectedGateway = paymentGateways.find((p) => {
-    if (!selectedMethod || selectedMethod === "CashOnDelivery") return false;
-    const channel = p?.paymentGatewayData?.channel as string | undefined;
-    if (!channel) return false;
-    const slug = channel.toLowerCase().replace(/\s+/g, "");
-    return slug === selectedMethod;
-  });
+}: Props) {
+  // 1) /api/payment থেকে আসা গেটওয়েগুলোকে UI-friendly list বানানো
+  const apiMethods = (Array.isArray(paymentGateways) ? paymentGateways : [])
+    .map((p) => {
+      const pg = p?.paymentGatewayData || {};
+      const type = String(pg?.type || "").toUpperCase(); // "SSLCOMMERZ" | "MANUAL"
+      if (!type) return null;
 
-  const selectedGatewayAccounts =
-    (selectedGateway?.paymentGatewayData?.accountNumbers as
-      | string[]
-      | undefined) || [];
+      // ইউনিক key বানাই, যাতে একাধিক manual channel আলাদা হয়
+      const key =
+        type === "MANUAL"
+          ? `MANUAL:${String(pg?.channel || "Manual")}:${p.id}`
+          : `${type}:${p.id}`;
 
-  const getChannelInitials = (channel: string): string => {
-    const words = channel.trim().split(/\s+/);
-    if (words.length === 1) return words[0].charAt(0).toUpperCase();
-    return words.map((w) => w.charAt(0).toUpperCase()).join("");
-  };
+      const title =
+        type === "SSLCOMMERZ"
+          ? "SSLCOMMERZ"
+          : type === "MANUAL"
+            ? String(pg?.channel || "Manual Payment")
+            : type;
 
-  const paymentMethods = [
-    ...paymentGateways
-      .map((p) => {
-        const type = String(p?.paymentGatewayData?.type || "").toUpperCase();
-        if (type === "SSLCOMMERZ") {
-          // ✅ theme-based gradient, no hardcoded colors
-          return {
-            id: "SSLCOMMERZ",
-            name: "SSLCommerz",
-            color: "bg-gradient-to-r from-primary to-primary/70",
-          };
-        }
-        return null;
-      })
-      .filter(Boolean),
-    {
-      id: "CashOnDelivery",
-      name: "Cash On Delivery",
-      // ✅ theme-based gradient, no hardcoded colors
-      color: "bg-gradient-to-r from-primary to-primary/70",
-    },
-  ].filter((method, index, all) => {
-    if (!method) return false;
-    return (
-      all.findIndex((m: any) => m?.id === (method as any).id) === index
-    );
-  });
+      return {
+        key,
+        type,
+        title,
+        raw: p,
+        pg,
+      };
+    })
+    .filter(Boolean) as Array<{
+    key: string;
+    type: string;
+    title: string;
+    raw: PaymentGateway;
+    pg: any;
+  }>;
 
-  const isFormValid = () => {
-    if (!selectedMethod) return false;
+  // 2) চাইলে Cash On Delivery সবসময় দেখাতে পারো (API-তে না থাকলেও)
+  const methods = [
+    { key: "CashOnDelivery", type: "COD", title: "Cash On Delivery", pg: null as any },
+    ...apiMethods,
+  ];
 
-    if (selectedMethod === "CashOnDelivery") return true;
+  const isCOD = selectedMethod === "CashOnDelivery";
+  const isSSL = selectedMethod?.startsWith("SSLCOMMERZ:");
+  const isManual = selectedMethod?.startsWith("MANUAL:");
 
-    if (selectedMethod === "SSLCOMMERZ") return true;
-
-    // For manual payment gateways, require transaction ID and screenshot
-    return (
-      transactionId.trim() !== "" &&
-      Boolean(paymentScreenshotUrl || paymentScreenshotPreview)
-    );
-  };
+  const selectedManual = methods.find((m) => m.key === selectedMethod);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4 sm:mb-6">
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* ✅ theme token */}
-          <div className="w-2 h-6 sm:h-8 bg-primary rounded-full" />
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground">
-            Payment Method
-          </h2>
-        </div>
-
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="text-foreground/70 hover:text-foreground hover:bg-muted"
-        >
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl sm:text-2xl font-bold">Payment</h2>
+        <Button variant="ghost" onClick={onBack}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
       </div>
 
-      <div className="grid gap-4">
-        {paymentMethods.map((method: any) => (
-          <Card
-            key={method.id}
-            className={`border-2 cursor-pointer transition-all duration-300 ${
-              selectedMethod === method.id
-                ? "border-primary bg-muted shadow-md"
-                : "border-border hover:bg-muted"
-            }`}
-            onClick={() => onMethodChange(method.id)}
-          >
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div
-                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg ${method.color} flex items-center justify-center shadow-md`}
-                  >
-                    <span className="text-primary-foreground font-bold text-sm sm:text-lg">
-                      {method.id === "CashOnDelivery"
-                        ? "COD"
-                        : getChannelInitials(method.name)}
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <span className="font-semibold text-foreground text-sm sm:text-base block truncate">
-                      {method.name}
-                    </span>
-                    {method.id === "CashOnDelivery" && (
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                        Pay when you receive the product.
-                      </p>
-                    )}
-                  </div>
-                </div>
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Total payable: <span className="font-semibold text-foreground">৳{total.toFixed(2)}</span>
+        </p>
 
-                <div
-                  className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center ${
-                    selectedMethod === method.id
-                      ? "border-primary bg-primary"
-                      : "border-border"
-                  }`}
-                >
-                  {selectedMethod === method.id && (
-                    <div className="w-2 h-2 rounded-full bg-primary-foreground" />
-                  )}
-                </div>
+        {/* ✅ সব মেথড দেখাবে */}
+        <div className="grid gap-3">
+          {methods.map((m) => (
+            <label
+              key={m.key}
+              className={[
+                "flex items-center justify-between gap-3 rounded-lg border p-3 cursor-pointer",
+                selectedMethod === m.key ? "border-primary ring-2 ring-primary/20" : "border-border",
+              ].join(" ")}
+            >
+              <div className="min-w-0">
+                <div className="font-medium text-foreground">{m.title}</div>
+
+                {/* SSL info */}
+                {m.type === "SSLCOMMERZ" && (
+                  <div className="text-xs text-muted-foreground">
+                    Pay securely via SSLCommerz
+                  </div>
+                )}
+
+                {/* Manual info */}
+                {m.type === "MANUAL" && (
+                  <div className="text-xs text-muted-foreground">
+                    Manual payment (screenshot + transaction id required)
+                  </div>
+                )}
+
+                {/* COD info */}
+                {m.key === "CashOnDelivery" && (
+                  <div className="text-xs text-muted-foreground">Pay when you receive the product</div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        ))}
+
+              <input
+                type="radio"
+                name="payment_method"
+                className="h-4 w-4"
+                checked={selectedMethod === m.key}
+                onChange={() => onMethodChange(m.key)}
+              />
+            </label>
+          ))}
+        </div>
       </div>
 
-      {selectedMethod &&
-        selectedMethod !== "CashOnDelivery" &&
-        selectedMethod !== "SSLCOMMERZ" && (
-          <Card className="bg-muted border border-border">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <CreditCard className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold text-foreground">
-                  Payment Instructions
-                </h3>
-              </div>
-
-              <p className="text-sm text-foreground mb-2">
-                Pay to these numbers:
-              </p>
-
-              {selectedGatewayAccounts.length > 0 ? (
-                <ul className="text-sm text-foreground mb-4 list-disc list-inside space-y-1">
-                  {selectedGatewayAccounts.map((acc, idx) => (
-                    <li key={idx}>
-                      <strong>{acc}</strong>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-xs text-muted-foreground mb-4">
-                  No account numbers found.
-                </p>
-              )}
-
-              <LabeledInput
-                id="transactionId"
-                label="Transaction ID *"
-                placeholder="Enter transaction ID"
-                value={transactionId}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  onTransactionIdChange(e.target.value)
-                }
-                className="bg-background border-border text-foreground placeholder:text-muted-foreground mt-4"
-              />
-
-              <div className="mt-4 space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Payment Screenshot *
-                </label>
-
-                {/* ✅ file input themed */}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={onScreenshotChange}
-                  className="w-full text-sm text-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
-                />
-
-                {(paymentScreenshotUrl || paymentScreenshotPreview) && (
-                  <div className="mt-3">
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Preview:
-                    </p>
-                    <div className="relative w-40 h-40 border border-border rounded-xl overflow-hidden bg-background">
-                      <Image
-                        src={paymentScreenshotUrl || paymentScreenshotPreview!}
-                        alt="Payment screenshot preview"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {isUploadingScreenshot && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Uploading screenshot...
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-      {selectedMethod === "SSLCOMMERZ" && (
-        <Card className="bg-muted border border-border">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <CreditCard className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-foreground">
-                Online Payment (SSLCommerz)
-              </h3>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              You will be redirected to SSLCommerz to complete your payment
-              securely.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Order Summary */}
-      <Card className="border border-border">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <Shield className="w-5 h-5 text-primary" />
-            <h3 className="font-semibold text-foreground">Order Summary</h3>
+      {/* ✅ Manual payment হলে extra fields দেখাবে */}
+      {isManual && (
+        <div className="rounded-xl border border-border p-4 space-y-4">
+          <div className="text-sm text-muted-foreground">
+            Selected: <span className="font-semibold text-foreground">{selectedManual?.title}</span>
           </div>
+
+          {/* account numbers দেখাও (API থেকে) */}
+          {Array.isArray(selectedManual?.pg?.accountNumbers) && (
+            <div className="text-sm">
+              <div className="text-muted-foreground mb-1">Send money to:</div>
+              <ul className="list-disc pl-5">
+                {selectedManual!.pg.accountNumbers.map((n: string) => (
+                  <li key={n} className="text-foreground font-medium">{n}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <LabeledInput
+            id="transactionId"
+            label="Transaction ID *"
+            placeholder="Enter transaction id"
+            value={transactionId}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onTransactionIdChange(e.target.value)}
+          />
 
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Total Amount</span>
-              <span className="font-semibold text-foreground">
-                ৳{total.toFixed(2)}
-              </span>
-            </div>
-
-            {selectedMethod === "CashOnDelivery" && (
-              <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded">
-                💡 You'll pay when you receive your order. No advance payment
-                required.
-              </div>
+            <label className="text-sm font-medium">Payment Screenshot *</label>
+            <input type="file" accept="image/*" onChange={onScreenshotChange} />
+            {isUploadingScreenshot && (
+              <p className="text-xs text-muted-foreground">Uploading...</p>
             )}
 
-            {selectedMethod &&
-              selectedMethod !== "CashOnDelivery" &&
-              selectedMethod !== "SSLCOMMERZ" && (
-                <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded">
-                  💡 Complete payment and upload screenshot to confirm your
-                  order.
-                </div>
-              )}
-
-            {selectedMethod === "SSLCOMMERZ" && (
-              <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted rounded">
-                💡 Click "Complete Order" to proceed to SSLCommerz payment.
+            {(paymentScreenshotUrl || paymentScreenshotPreview) && (
+              <div className="relative w-40 h-40 border border-border rounded-xl overflow-hidden bg-background">
+                <Image
+                  src={paymentScreenshotUrl || paymentScreenshotPreview!}
+                  alt="Payment screenshot preview"
+                  fill
+                  className="object-cover"
+                />
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
-      {/* Action Button */}
-      <Button
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-2 sm:py-3 text-base sm:text-lg font-semibold rounded-lg sm:rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-        onClick={onNext}
-        disabled={!isFormValid() || isUploadingScreenshot}
-      >
-        {isUploadingScreenshot ? "Uploading..." : "Complete Order"}
+      {/* SSL / COD হলে extra কিছু লাগবে না */}
+      {(isSSL || isCOD) && (
+        <div className="text-sm text-muted-foreground">
+          {isSSL ? "You will be redirected to SSLCommerz after placing order." : "No payment required now."}
+        </div>
+      )}
+
+      <Button className="w-full" onClick={onNext} disabled={!selectedMethod}>
+        Place Order
       </Button>
     </div>
   );
