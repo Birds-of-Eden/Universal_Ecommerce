@@ -429,7 +429,7 @@ export default function OrderDetailsPage() {
         <Card className="card-theme px-6 py-4 text-sm text-muted-foreground text-center space-y-3">
           <p>{error || "Order not found."}</p>
           <Link
-            href="/kitabghor/user/orders"
+            href="/ecommerce/user/orders"
             className="text-sm text-primary hover:underline"
           >
             Back to My Orders
@@ -455,7 +455,7 @@ export default function OrderDetailsPage() {
         {/* Header */}
         <div className="mb-8">
           <Link
-            href="/kitabghor/user/orders"
+            href="/ecommerce/user/orders"
             className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 mb-4"
           >
             <svg
