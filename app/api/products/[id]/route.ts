@@ -2,6 +2,19 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
 
+const productInclude = {
+  category: true,
+  brand: true,
+  writer: true,
+  publisher: true,
+  variants: true,
+  attributes: {
+    include: {
+      attribute: true,
+    },
+  },
+} as const;
+
 /* =========================
    GET SINGLE PRODUCT
 ========================= */
@@ -25,13 +38,7 @@ export async function GET(
         id,
         deleted: false,
       },
-      include: {
-        category: true,
-        brand: true,
-        writer: true,
-        publisher: true,
-        variants: true,
-      },
+      include: productInclude,
     });
 
     if (!product) {
@@ -244,15 +251,39 @@ export async function PUT(
       }
     }
 
+    if (body.productAttributes !== undefined) {
+      const entries = Array.isArray(body.productAttributes)
+        ? body.productAttributes
+            .map((item: any) => ({
+              attributeId: Number(item?.attributeId),
+              value: String(item?.value || "").trim(),
+            }))
+            .filter(
+              (item: { attributeId: number; value: string }) =>
+                item.attributeId && !Number.isNaN(item.attributeId) && item.value
+            )
+        : [];
+
+      await prisma.$transaction(async (tx) => {
+        await tx.productAttribute.deleteMany({
+          where: { productId: id },
+        });
+
+        if (entries.length > 0) {
+          await tx.productAttribute.createMany({
+            data: entries.map((item: { attributeId: number; value: string }) => ({
+              productId: id,
+              attributeId: item.attributeId,
+              value: item.value,
+            })),
+          });
+        }
+      });
+    }
+
     const withRelations = await prisma.product.findFirst({
       where: { id, deleted: false },
-      include: {
-        category: true,
-        brand: true,
-        writer: true,
-        publisher: true,
-        variants: true,
-      },
+      include: productInclude,
     });
 
     return NextResponse.json(withRelations ?? updated);

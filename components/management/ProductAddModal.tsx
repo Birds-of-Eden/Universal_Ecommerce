@@ -50,6 +50,14 @@ interface Attribute {
   values: AttributeValue[];
 }
 
+interface ProductAttributeEntry {
+  attributeId: string;
+  value: string;
+  stock: string;
+  price: string;
+  sku: string;
+}
+
 interface ProductForm {
   id?: number;
   name: string;
@@ -75,8 +83,6 @@ interface ProductForm {
   brandId: string;
   writerId: string;
   publisherId: string;
-  attributes: string[];
-  customAttribute: string;
   available: boolean;
   featured: boolean;
   image: string;
@@ -121,8 +127,6 @@ const emptyForm: ProductForm = {
   brandId: "",
   writerId: "",
   publisherId: "",
-  attributes: [],
-  customAttribute: "",
   available: true,
   featured: false,
   image: "",
@@ -142,9 +146,20 @@ export default function ProductAddModal({
   vatClasses = [],
   digitalAssets = [],
 }: Props) {
+  const emptyAttributeEntry = (): ProductAttributeEntry => ({
+    attributeId: "",
+    value: "",
+    stock: "0",
+    price: "",
+    sku: "",
+  });
+
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
+  const [attributeEntries, setAttributeEntries] = useState<
+    ProductAttributeEntry[]
+  >([]);
   const categoryOptions = useMemo(() => {
     const childrenByParent = new Map<number | null, CategoryEntity[]>();
 
@@ -185,6 +200,7 @@ export default function ProductAddModal({
   useEffect(() => {
     if (!editing) {
       setForm(emptyForm);
+      setAttributeEntries([]);
       return;
     }
 
@@ -199,6 +215,31 @@ export default function ProductAddModal({
       d && typeof d === "object" && typeof d.unit === "string" ? d.unit : "cm";
 
     const variants = Array.isArray(editing.variants) ? editing.variants : [];
+    const existingProductAttributes = Array.isArray(editing.attributes)
+      ? editing.attributes
+      : [];
+    const mappedEntries: ProductAttributeEntry[] = existingProductAttributes.map(
+      (item: any) => {
+        const attrName =
+          typeof item?.attribute?.name === "string" ? item.attribute.name : "";
+        const variantForAttr = variants.find((variant: any) => {
+          const options = variant?.options;
+          if (!options || typeof options !== "object" || !attrName) return false;
+          return (
+            String((options as Record<string, unknown>)[attrName] ?? "") ===
+            String(item?.value ?? "")
+          );
+        });
+
+        return {
+          attributeId: item?.attributeId ? String(item.attributeId) : "",
+          value: item?.value ? String(item.value) : "",
+          stock: variantForAttr ? String(Number(variantForAttr.stock) || 0) : "0",
+          price: variantForAttr ? String(variantForAttr.price ?? "") : "",
+          sku: variantForAttr?.sku ? String(variantForAttr.sku) : "",
+        };
+      },
+    );
     const totalStock = variants.reduce(
       (acc: number, v: any) => acc + (Number(v?.stock) || 0),
       0,
@@ -230,14 +271,13 @@ export default function ProductAddModal({
       brandId: editing.brandId?.toString?.() ?? "",
       writerId: editing.writerId?.toString?.() ?? "",
       publisherId: editing.publisherId?.toString?.() ?? "",
-      attributes: editing.attributes ?? [],
-      customAttribute: "",
       available: editing.available ?? true,
       featured: editing.featured ?? false,
       image: editing.image ?? "",
       gallery: editing.gallery ?? [],
       videoUrl: editing.videoUrl ?? "",
     });
+    setAttributeEntries(mappedEntries);
   }, [editing]);
 
   useEffect(() => {
@@ -274,7 +314,8 @@ export default function ProductAddModal({
     });
 
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data?.url) throw new Error(data?.message || "Upload failed");
+    if (!res.ok || !data?.url)
+      throw new Error(data?.message || "Upload failed");
     return data.url as string;
   };
 
@@ -333,6 +374,12 @@ export default function ProductAddModal({
     };
   };
 
+  const getAttributeById = (attributeId: string) => {
+    const id = Number(attributeId);
+    if (!id || Number.isNaN(id)) return null;
+    return attributes.find((item) => item.id === id) ?? null;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -341,11 +388,36 @@ export default function ProductAddModal({
       return;
     }
 
+    const normalizedEntries = attributeEntries
+      .map((entry) => ({
+        attributeId: Number(entry.attributeId),
+        value: entry.value.trim(),
+        stock: entry.stock.trim() ? Number(entry.stock) : 0,
+        price: entry.price.trim() ? Number(entry.price) : Number(form.basePrice),
+        sku: entry.sku.trim().toUpperCase(),
+      }))
+      .filter((entry) => entry.attributeId && entry.value);
+
+    const invalidEntry = normalizedEntries.find(
+      (entry) =>
+        Number.isNaN(entry.attributeId) ||
+        !Number.isFinite(entry.price) ||
+        entry.price < 0 ||
+        !Number.isFinite(entry.stock) ||
+        entry.stock < 0,
+    );
+    if (invalidEntry) {
+      toast.error("Attribute rows must have valid price and stock");
+      return;
+    }
+
     const stock =
       form.type === "PHYSICAL"
-        ? form.stockQty.trim()
-          ? Number(form.stockQty)
-          : 0
+        ? normalizedEntries.length > 0
+          ? normalizedEntries.reduce((acc, entry) => acc + entry.stock, 0)
+          : form.stockQty.trim()
+            ? Number(form.stockQty)
+            : 0
         : undefined;
     if (stock !== undefined && (!Number.isFinite(stock) || stock < 0)) {
       toast.error("Stock must be a number (0 or more)");
@@ -380,7 +452,9 @@ export default function ProductAddModal({
         dimensions,
         VatClassId: form.VatClassId ? Number(form.VatClassId) : null,
 
-        digitalAssetId: form.digitalAssetId ? Number(form.digitalAssetId) : null,
+        digitalAssetId: form.digitalAssetId
+          ? Number(form.digitalAssetId)
+          : null,
         serviceDurationMinutes: form.serviceDurationMinutes
           ? Number(form.serviceDurationMinutes)
           : null,
@@ -393,9 +467,27 @@ export default function ProductAddModal({
         image: form.image || null,
         gallery: form.gallery || [],
         videoUrl: form.videoUrl || null,
-        attributes: form.attributes || [],
+        productAttributes: normalizedEntries.map((entry) => ({
+          attributeId: entry.attributeId,
+          value: entry.value,
+        })),
       };
       if (stock !== undefined) payload.stock = stock;
+      if (!editing && normalizedEntries.length > 0) {
+        payload.variants = normalizedEntries.map((entry) => {
+          const attribute = attributes.find((item) => item.id === entry.attributeId);
+          const optionKey = attribute?.name || `Attr-${entry.attributeId}`;
+          return {
+            sku: entry.sku || "",
+            price: entry.price,
+            currency: form.currency || "USD",
+            stock: form.type === "PHYSICAL" ? entry.stock : 0,
+            options: {
+              [optionKey]: entry.value,
+            },
+          };
+        });
+      }
 
       if (editing) {
         await onSubmit(editing.id, payload);
@@ -441,7 +533,7 @@ export default function ProductAddModal({
             <TinymceEditor
               value={form.description}
               onChange={(content) => setForm({ ...form, description: content })}
-              height={200}
+              height={400}
             />
           </div>
 
@@ -450,76 +542,175 @@ export default function ProductAddModal({
             <TinymceEditor
               value={form.shortDesc}
               onChange={(content) => setForm({ ...form, shortDesc: content })}
-              height={150}
+              height={200}
             />
           </div>
 
-          <div>
-            <Label>Attributes</Label>
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                {attributes.map((attr) => (
-                  <label key={attr.id} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.attributes.includes(attr.name)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setForm({ ...form, attributes: [...form.attributes, attr.name] });
-                        } else {
-                          setForm({ ...form, attributes: form.attributes.filter(a => a !== attr.name) });
-                        }
-                      }}
-                      className="rounded border-border text-primary focus:ring-primary"
-                    />
-                    <span className="text-sm">{attr.name}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add custom attribute"
-                  value={form.customAttribute || ""}
-                  onChange={(e) => setForm({ ...form, customAttribute: e.target.value })}
-                  className="flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    if (form.customAttribute && form.customAttribute.trim()) {
-                      setForm({ 
-                        ...form, 
-                        attributes: [...form.attributes, form.customAttribute.trim()],
-                        customAttribute: ""
-                      });
-                    }
-                  }}
-                  disabled={!form.customAttribute || !form.customAttribute.trim()}
-                >
-                  Add
-                </Button>
-              </div>
-              {form.attributes.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {form.attributes.map((attr, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs rounded"
-                    >
-                      {attr}
-                      <button
-                        type="button"
-                        onClick={() => setForm({ ...form, attributes: form.attributes.filter(a => a !== attr) })}
-                        className="hover:text-primary/80"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Attribute Values</Label>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setAttributeEntries((prev) => [...prev, emptyAttributeEntry()])
+                }
+              >
+                Add Attribute Value
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Select which attribute value this product has. For physical products,
+              you can set stock per value.
+            </p>
+            {attributeEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No attribute value added yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {attributeEntries.map((entry, index) => {
+                  const selectedAttribute = getAttributeById(entry.attributeId);
+                  const datalistId = selectedAttribute
+                    ? `attr-values-${selectedAttribute.id}-${index}`
+                    : undefined;
+
+                  return (
+                    <div
+                      key={`${index}-${entry.attributeId}-${entry.value}`}
+                      className="grid grid-cols-12 gap-2 items-end border rounded-md p-3"
+                    >
+                      <div className="col-span-12 md:col-span-3">
+                        <Label className="text-xs text-muted-foreground">
+                          Attribute
+                        </Label>
+                        <select
+                          className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                          value={entry.attributeId}
+                          onChange={(e) =>
+                            setAttributeEntries((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, attributeId: e.target.value, value: "" }
+                                  : row,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="">Select</option>
+                          {attributes.map((attr) => (
+                            <option key={attr.id} value={attr.id}>
+                              {attr.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-12 md:col-span-3">
+                        <Label className="text-xs text-muted-foreground">
+                          Value
+                        </Label>
+                        <Input
+                          value={entry.value}
+                          onChange={(e) =>
+                            setAttributeEntries((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, value: e.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                          list={datalistId}
+                          placeholder="Type value"
+                        />
+                        {selectedAttribute?.values?.length ? (
+                          <datalist id={datalistId}>
+                            {selectedAttribute.values.map((item) => (
+                              <option key={item.id} value={item.value} />
+                            ))}
+                          </datalist>
+                        ) : null}
+                      </div>
+                      {form.type === "PHYSICAL" && (
+                        <div className="col-span-6 md:col-span-2">
+                          <Label className="text-xs text-muted-foreground">
+                            Stock
+                          </Label>
+                          <Input
+                            type="number"
+                            value={entry.stock}
+                            onChange={(e) =>
+                              setAttributeEntries((prev) =>
+                                prev.map((row, rowIndex) =>
+                                  rowIndex === index
+                                    ? { ...row, stock: e.target.value }
+                                    : row,
+                                ),
+                              )
+                            }
+                          />
+                        </div>
+                      )}
+                      <div
+                        className={`col-span-6 ${
+                          form.type === "PHYSICAL"
+                            ? "md:col-span-2"
+                            : "md:col-span-3"
+                        }`}
+                      >
+                        <Label className="text-xs text-muted-foreground">
+                          Price
+                        </Label>
+                        <Input
+                          type="number"
+                          placeholder={form.basePrice || "Base price"}
+                          value={entry.price}
+                          onChange={(e) =>
+                            setAttributeEntries((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, price: e.target.value }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="col-span-8 md:col-span-2">
+                        <Label className="text-xs text-muted-foreground">SKU</Label>
+                        <Input
+                          placeholder="Optional"
+                          value={entry.sku}
+                          onChange={(e) =>
+                            setAttributeEntries((prev) =>
+                              prev.map((row, rowIndex) =>
+                                rowIndex === index
+                                  ? { ...row, sku: e.target.value.toUpperCase() }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="col-span-4 md:col-span-2 flex justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="text-destructive"
+                          onClick={() =>
+                            setAttributeEntries((prev) =>
+                              prev.filter((_, rowIndex) => rowIndex !== index),
+                            )
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -553,7 +744,9 @@ export default function ProductAddModal({
               <Input
                 type="number"
                 value={form.basePrice}
-                onChange={(e) => setForm({ ...form, basePrice: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, basePrice: e.target.value })
+                }
               />
             </div>
 
@@ -598,11 +791,14 @@ export default function ProductAddModal({
                 value={form.stockQty}
                 onChange={(e) => setForm({ ...form, stockQty: e.target.value })}
               />
-              {editing && Array.isArray(editing?.variants) && editing.variants.length > 1 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  This product has multiple variants; stock here shows total stock.
-                </p>
-              )}
+              {editing &&
+                Array.isArray(editing?.variants) &&
+                editing.variants.length > 1 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This product has multiple variants; stock here shows total
+                    stock.
+                  </p>
+                )}
             </div>
           )}
 
@@ -663,7 +859,9 @@ export default function ProductAddModal({
               <select
                 className="border p-2 rounded w-full bg-background text-foreground border-border focus:outline-none focus:ring-2 focus:ring-primary"
                 value={form.VatClassId}
-                onChange={(e) => setForm({ ...form, VatClassId: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, VatClassId: e.target.value })
+                }
               >
                 <option value="">Select</option>
                 {vatClasses.map((v) => (
@@ -868,7 +1066,11 @@ export default function ProductAddModal({
                 </Button>
               </div>
             ) : (
-              <Input type="file" accept="image/*" onChange={handleMainImageUpload} />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleMainImageUpload}
+              />
             )}
           </div>
 
