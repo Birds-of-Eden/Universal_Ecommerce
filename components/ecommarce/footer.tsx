@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   Facebook,
@@ -15,7 +15,6 @@ import {
   Truck,
   HeadphonesIcon,
   Send,
-  ArrowRight,
   Heart,
   CreditCard,
   Clock,
@@ -26,12 +25,64 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
+type ApiCategory = {
+  id: number | string;
+  name: string;
+  slug?: string | null;
+  parentId?: number | string | null;
+};
+
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
   const isAuthenticated = status === "authenticated";
+
+  // ✅ categories from API
+  const [categories, setCategories] = useState<Array<{ href: string; label: string }>>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadCategories = async () => {
+      try {
+        const res = await fetch("/api/categories", { cache: "no-store" });
+        if (!res.ok) return;
+
+        const data = (await res.json()) as ApiCategory[];
+        if (!mounted) return;
+
+        const list = Array.isArray(data) ? data : [];
+
+        // optional: show only root categories (parentId null)
+        const roots = list.filter((c) => c.parentId === null || c.parentId === undefined);
+
+        const mapped = roots
+          .map((c) => {
+            const id = Number(c.id);
+            const label = String(c.name ?? "").trim();
+            if (!label || !Number.isFinite(id)) return null;
+
+            return {
+              href: `/ecommerce/categories/${id}`,
+              label,
+            };
+          })
+          .filter(Boolean) as Array<{ href: string; label: string }>;
+
+        setCategories(mapped);
+      } catch (e) {
+        // fail silently in footer
+        console.error("Failed to load categories:", e);
+      }
+    };
+
+    loadCategories();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,9 +111,7 @@ export default function Footer() {
 
       const response = await fetch("/api/newsletter/subscribe", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
@@ -86,34 +135,19 @@ export default function Footer() {
     { icon: Truck, label: "Fast Delivery", desc: "Free shipping over $100" },
     { icon: Clock, label: "24/7 Support", desc: "Always here to help" },
     { icon: CreditCard, label: "Secure Payment", desc: "SSL secured payment" },
-    {
-      icon: Award,
-      label: "100% Authentic",
-      desc: "Guaranteed genuine products",
-    },
+    { icon: Award, label: "100% Authentic", desc: "Guaranteed genuine products" },
   ];
 
   const quickLinks = [
-    { href: "/ecommerce/books/", label: "All Books" },
-    { href: "/ecommerce/new-arrivals", label: "New Books" },
+    { href: "/ecommerce/products", label: "All Products" },
+    { href: "/ecommerce/blogs", label: "Blogs" },
     { href: "/ecommerce/bestsellers", label: "Bestsellers" },
     { href: "/ecommerce/upcoming", label: "Upcoming" },
   ];
 
-  const categories = [
-    { href: "/ecommerce/category/quran", label: "Quran" },
-    { href: "/ecommerce/category/hadith", label: "Hadith" },
-    { href: "/ecommerce/category/fiqh", label: "Fiqh" },
-    { href: "/ecommerce/category/history", label: "History" },
-  ];
-
   const customerService = [
     { href: "/ecommerce/shipping", label: "Shipping Policy", icon: Truck },
-    {
-      href: "/ecommerce/returns",
-      label: "Return Policy",
-      icon: HeadphonesIcon,
-    },
+    { href: "/ecommerce/returns", label: "Return Policy", icon: HeadphonesIcon },
     { href: "/ecommerce/privacy", label: "Privacy Policy", icon: Shield },
     { href: "/ecommerce/faq", label: "FAQ", icon: BookOpen },
   ];
@@ -136,9 +170,7 @@ export default function Footer() {
                   <p className="text-sm font-semibold text-foreground">
                     {feature.label}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {feature.desc}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{feature.desc}</p>
                 </div>
               </div>
             ))}
@@ -149,7 +181,7 @@ export default function Footer() {
       {/* Main Footer Content */}
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-          {/* Brand Column - 3 cols */}
+          {/* Brand Column */}
           <div className="lg:col-span-3 space-y-6">
             <Link href="/" className="inline-block group">
               <div className="flex items-center gap-3">
@@ -194,7 +226,7 @@ export default function Footer() {
                 <div>
                   <p className="text-xs text-muted-foreground">Email us</p>
                   <p className="text-sm font-medium text-foreground">
-                    islamidawainstitute@gmail.com
+                    e-commerce@example.com
                   </p>
                 </div>
               </div>
@@ -217,21 +249,9 @@ export default function Footer() {
             {/* Social Links */}
             <div className="flex gap-2">
               {[
-                {
-                  icon: Facebook,
-                  href: "https://birdsofeden.me/",
-                  label: "Facebook",
-                },
-                {
-                  icon: Instagram,
-                  href: "https://birdsofeden.me/",
-                  label: "Instagram",
-                },
-                {
-                  icon: Twitter,
-                  href: "https://birdsofeden.me/",
-                  label: "Twitter",
-                },
+                { icon: Facebook, href: "https://birdsofeden.me/", label: "Facebook" },
+                { icon: Instagram, href: "https://birdsofeden.me/", label: "Instagram" },
+                { icon: Twitter, href: "https://birdsofeden.me/", label: "Twitter" },
               ].map((social) => (
                 <a
                   key={social.label}
@@ -247,7 +267,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Links Columns - 6 cols */}
+          {/* Links Columns */}
           <div className="lg:col-span-6 grid grid-cols-2 md:grid-cols-3 gap-6">
             {/* Quick Links */}
             <div>
@@ -269,23 +289,27 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* Categories */}
+            {/* ✅ Categories (from /api/categories) */}
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-4">
                 Categories
               </h3>
               <ul className="space-y-2">
-                {categories.map((link) => (
-                  <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 group transition-all duration-300"
-                    >
-                      <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -ml-4 group-hover:ml-0 transition-all" />
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
+                {categories.length === 0 ? (
+                  <li className="text-sm text-muted-foreground">Loading...</li>
+                ) : (
+                  categories.slice(0, 10).map((link) => (
+                    <li key={link.href}>
+                      <Link
+                        href={link.href}
+                        className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 group transition-all duration-300"
+                      >
+                        <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -ml-4 group-hover:ml-0 transition-all" />
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))
+                )}
               </ul>
             </div>
 
@@ -310,7 +334,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Newsletter Column - 3 cols */}
+          {/* Newsletter Column */}
           <div className="lg:col-span-3">
             <div className="bg-muted/30 rounded-xl p-6 border border-border">
               <h3 className="text-sm font-semibold text-foreground mb-2">
@@ -351,7 +375,6 @@ export default function Footer() {
                 </Button>
               </form>
 
-              {/* Trust Badge */}
               <div className="mt-4 pt-4 border-t border-border">
                 <div className="flex items-center gap-2">
                   <Heart className="h-4 w-4 text-primary" />
@@ -370,7 +393,7 @@ export default function Footer() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-xs text-muted-foreground">
-              © {currentYear} Kitabghor. All rights reserved.
+              © {currentYear} BOED E-commerce. All rights reserved.
             </p>
 
             <div className="flex items-center gap-6">
@@ -389,7 +412,6 @@ export default function Footer() {
               ))}
             </div>
 
-            {/* Payment Methods */}
             <div className="flex items-center gap-2">
               <div className="px-2 py-1 bg-background border border-border rounded text-xs text-muted-foreground">
                 Visa
