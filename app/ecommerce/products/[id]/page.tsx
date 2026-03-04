@@ -67,7 +67,6 @@ export default function BookDetail() {
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState<"desc" | "spec" | "reviews">("desc");
 
-  // ✅ Zoom states (ecommerce magnifier style)
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isZooming, setIsZooming] = useState(false);
 
@@ -80,7 +79,6 @@ export default function BookDetail() {
         setLoading(true);
         setErr(null);
 
-        // ✅ Using existing API
         const res = await fetch("/api/products", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load products");
 
@@ -123,7 +121,6 @@ export default function BookDetail() {
     const cid = product.categoryId ?? product.category?.id ?? null;
     if (!cid) return [];
 
-    // ✅ same category + featured true + not current
     return all
       .filter((p) => {
         const pcid = p.categoryId ?? p.category?.id ?? null;
@@ -136,12 +133,16 @@ export default function BookDetail() {
       .slice(0, 10);
   }, [all, product]);
 
-  // stock (simple)
+  // ✅ STOCK: sum variants stocks (your API stores stock inside variants)
   const stock = useMemo(() => {
-    const v = product?.variants?.[0];
-    const s = v?.stock;
-    if (typeof s === "number") return s;
-    // fallback
+    const variants = Array.isArray(product?.variants) ? product!.variants! : [];
+    if (variants.length) {
+      return variants.reduce((sum, v) => {
+        const s = typeof v?.stock === "number" ? v.stock : Number(v?.stock);
+        return sum + (Number.isFinite(s) ? s : 0);
+      }, 0);
+    }
+    // fallback if variants missing
     return product?.available ? 10 : 0;
   }, [product]);
 
@@ -191,9 +192,7 @@ export default function BookDetail() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-8">
-        {/* Top area */}
         <div className="grid lg:grid-cols-[320px_1fr] gap-6">
-          {/* ✅ Related products (left) */}
           <aside className="card-theme rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-border font-semibold text-card-foreground">
               Related Products
@@ -249,12 +248,9 @@ export default function BookDetail() {
             </div>
           </aside>
 
-          {/* ✅ Product main */}
           <section className="card-theme rounded-xl p-4 sm:p-6">
             <div className="grid md:grid-cols-2 gap-8">
-              {/* Gallery */}
               <div>
-                {/* ✅ Ecommerce magnifier zoom */}
                 <div
                   className="relative w-full h-[320px] sm:h-[380px] bg-card rounded-xl border border-border overflow-hidden"
                   onMouseMove={(e) => {
@@ -292,7 +288,6 @@ export default function BookDetail() {
                   )}
                 </div>
 
-                {/* thumbnails */}
                 {images.length > 1 && (
                   <div className="mt-4 flex gap-3 overflow-auto pb-1">
                     {images.map((src) => {
@@ -324,7 +319,6 @@ export default function BookDetail() {
                 )}
               </div>
 
-              {/* Info */}
               <div>
                 <h1 className="text-lg sm:text-xl font-bold text-foreground">
                   {product.name}
@@ -368,13 +362,13 @@ export default function BookDetail() {
                     </span>
                   ) : null}
                 </div>
-{/* short desc */}
+
                 {product.shortDesc ? (
                   <p className="mt-6 text-sm text-muted-foreground leading-relaxed">
                     {product.shortDesc}
                   </p>
                 ) : null}
-                {/* Price */}
+
                 <div className="mt-6">
                   <div className="text-sm text-muted-foreground">
                     {isDiscounted(product) ? "Discount Price" : "Price"}
@@ -393,13 +387,13 @@ export default function BookDetail() {
                   </div>
                 </div>
 
-                {/* Qty + Buttons */}
                 <div className="mt-6 grid grid-cols-[140px_1fr] gap-3">
                   <div className="h-11 rounded-lg border border-border flex items-center justify-between px-2 bg-card">
                     <button
                       type="button"
                       className="h-9 w-9 rounded-md hover:bg-accent transition"
                       onClick={() => setQty((q) => Math.max(1, q - 1))}
+                      disabled={stock <= 0}
                     >
                       −
                     </button>
@@ -410,16 +404,17 @@ export default function BookDetail() {
                       type="button"
                       className="h-9 w-9 rounded-md hover:bg-accent transition"
                       onClick={() => setQty((q) => Math.min(99, q + 1))}
+                      disabled={stock <= 0}
                     >
                       +
                     </button>
                   </div>
-
-              
                 </div>
-                    <div className="mt-6">
-                      <div className="grid grid-cols-2 gap-3">
-                    <AddToCartButton productId={product.id} />
+
+                <div className="mt-6">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* ✅ DISABLE AddToCartButton when out of stock */}
+                    <AddToCartButton productId={product.id} disabled={stock <= 0} />
 
                     <button
                       type="button"
@@ -433,15 +428,12 @@ export default function BookDetail() {
                       Buy Now
                     </button>
                   </div>
-                    </div>
-
-                
+                </div>
               </div>
             </div>
           </section>
         </div>
 
-        {/* Tabs section */}
         <div className="mt-6 card-theme rounded-xl overflow-hidden">
           <div className="flex gap-2 border-b border-border px-3 sm:px-4">
             <button
@@ -486,7 +478,6 @@ export default function BookDetail() {
               <div className="prose prose-sm max-w-none dark:prose-invert">
                 {product.description ? (
                   <div
-                    // যদি HTML থাকে, এটা safe sanitize করা উচিত
                     dangerouslySetInnerHTML={{ __html: product.description }}
                   />
                 ) : (
@@ -518,9 +509,7 @@ export default function BookDetail() {
               </div>
             )}
 
-            {tab === "reviews" && (
-              <ProductReviews productId={Number(product.id)} />
-            )}
+            {tab === "reviews" && <ProductReviews productId={Number(product.id)} />}
           </div>
         </div>
       </div>

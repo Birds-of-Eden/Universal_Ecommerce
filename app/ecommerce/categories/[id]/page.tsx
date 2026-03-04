@@ -42,7 +42,6 @@ function toNumber(v: any, fallback = 0) {
 }
 
 function currencyToSymbol(currency?: string) {
-  // আপনার দরকার হলে আরও add করবেন
   if (!currency) return "৳";
   if (currency.toUpperCase() === "BDT") return "৳";
   if (currency.toUpperCase() === "USD") return "$";
@@ -109,13 +108,91 @@ function computeDiscount(price: number, original: number | null, apiDiscount: an
 }
 
 function buildSpecs(p: any): string[] {
-  // API তে specs না থাকলে সুন্দর কিছু bullet দেখানোর জন্য
   const out: string[] = [];
   if (p?.sku) out.push(`SKU: ${p.sku}`);
   if (p?.type) out.push(`Type: ${p.type}`);
   if (p?.shortDesc) out.push(String(p.shortDesc));
   else if (p?.description) out.push(String(p.description));
   return out.slice(0, 4);
+}
+
+/* =========================
+   ✅ Skeleton (added)
+========================= */
+function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded-md bg-muted ${className}`}
+      aria-hidden="true"
+    />
+  );
+}
+
+function CategoryRouteSkeleton() {
+  return (
+    <div className="min-h-screen bg-background text-foreground py-10">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+          {/* Sidebar skeleton */}
+          <div className="space-y-4">
+            <div className="rounded-md border border-border bg-card p-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+              <Skeleton className="h-10 w-full mt-3" />
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+              <Skeleton className="h-4 w-44 mt-3" />
+            </div>
+
+            <div className="rounded-md border border-border bg-card p-4">
+              <Skeleton className="h-5 w-24" />
+              <div className="mt-3 flex items-center gap-3">
+                <Skeleton className="h-5 w-5" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </div>
+          </div>
+
+          {/* Products skeleton */}
+          <div>
+            <div className="rounded-md border border-border bg-background p-4 mb-4">
+              <div className="flex items-center justify-between gap-4">
+                <Skeleton className="h-5 w-40" />
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-9 w-24" />
+                  <Skeleton className="h-9 w-40" />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="rounded-md border border-border bg-card overflow-hidden">
+                  <Skeleton className="h-56 w-full rounded-none" />
+                  <div className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <div className="flex items-center justify-between pt-2">
+                      <Skeleton className="h-9 w-24" />
+                      <Skeleton className="h-9 w-10" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-center">
+              <Skeleton className="h-4 w-56" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ---------- component ----------
@@ -149,9 +226,9 @@ export default function Page({ params }: PageProps) {
     const signal = abortController.signal;
     isMounted.current = true;
 
-    const timeoutId = setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       if (isMounted.current) {
-        setError("লোড হতে অনেক সময় লাগছে। দয়া করে পুনরায় চেষ্টা করুন।");
+        setError("Loading is taking too long. Please try again.");
         setLoading(false);
       }
     }, 10000);
@@ -170,7 +247,7 @@ export default function Page({ params }: PageProps) {
           if (res.status === 404) {
             setCategory(null);
             setCategoryProducts([]);
-            setError("ক্যাটাগরি পাওয়া যায়নি");
+            setError("Category not found.");
             return;
           }
           const text = await res.text().catch(() => "");
@@ -213,8 +290,8 @@ export default function Page({ params }: PageProps) {
             id: toNumber(p?.id),
             name: String(p?.name ?? ""),
             image: p?.image ?? null,
-            price: finalPrice, // ✅ FIXED
-            original_price: finalOriginal, // ✅ FIXED
+            price: finalPrice,
+            original_price: finalOriginal,
             discount,
             currencySymbol,
             availability,
@@ -244,9 +321,9 @@ export default function Page({ params }: PageProps) {
       } catch (err: any) {
         if (!isMounted.current || err?.name === "AbortError") return;
         console.error(err);
-        setError("ডাটা লোড করতে সমস্যা হচ্ছে");
+        setError("Failed to load data.");
       } finally {
-        clearTimeout(timeoutId);
+        window.clearTimeout(timeoutId);
         if (isMounted.current) setLoading(false);
       }
     };
@@ -256,7 +333,7 @@ export default function Page({ params }: PageProps) {
     return () => {
       isMounted.current = false;
       abortController.abort();
-      clearTimeout(timeoutId);
+      window.clearTimeout(timeoutId);
     };
   }, [resolvedParams?.id]);
 
@@ -265,10 +342,10 @@ export default function Page({ params }: PageProps) {
     (productId: number) => {
       if (isInWishlist(productId)) {
         removeFromWishlist(productId);
-        toast.success("উইশলিস্ট থেকে সরানো হয়েছে");
+        toast.success("Removed from wishlist");
       } else {
         addToWishlist(productId);
-        toast.success("উইশলিস্টে যোগ করা হয়েছে");
+        toast.success("Added to wishlist");
       }
     },
     [isInWishlist, removeFromWishlist, addToWishlist]
@@ -286,25 +363,22 @@ export default function Page({ params }: PageProps) {
 
         if (!res.ok && res.status !== 401) {
           const data = await res.json().catch(() => null);
-          throw new Error(data?.error || "কার্টে যোগ করতে সমস্যা হয়েছে");
+          throw new Error(data?.error || "Failed to add to cart");
         }
 
         addToCart(product.id, 1);
-        toast.success(`"${product.name}" কার্টে যোগ করা হয়েছে`);
+        toast.success(`"${product.name}" added to cart`);
       } catch (err) {
         console.error("Error adding to cart:", err);
-        toast.error(err instanceof Error ? err.message : "কার্টে যোগ করতে সমস্যা হয়েছে");
+        toast.error(err instanceof Error ? err.message : "Failed to add to cart");
       }
     },
     [addToCart]
   );
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f7f7fb] flex items-center justify-center">
-        <p className="text-gray-600">Loading Data...</p>
-      </div>
-    );
+  // ✅ No text, only skeleton while loading
+  if (loading || !resolvedParams?.id) {
+    return <CategoryRouteSkeleton />;
   }
 
   return (

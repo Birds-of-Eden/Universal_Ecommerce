@@ -1,10 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Heart } from "lucide-react";
-import AddToCartButton from "@/components/ecommarce/AddToCartButton";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useSession } from "@/lib/auth-client";
@@ -18,6 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import ProductCard from "./ProductCard";
 
+type ApiVariant = {
+  stock?: number | string | null;
+  price?: number | string | null;
+};
+
 type ProductDTO = {
   id: number | string;
   name: string;
@@ -28,6 +30,13 @@ type ProductDTO = {
   currency: string;
   featured: boolean;
   shortDesc?: string | null;
+
+  // ✅ from API
+  available?: boolean;
+  variants?: ApiVariant[] | null;
+
+  // ✅ computed
+  stock: number; // <-- ALWAYS number
 };
 
 function shuffleInPlace<T>(arr: T[]) {
@@ -42,16 +51,15 @@ function formatBDT(n: number) {
   return `${Math.round(n).toLocaleString("en-US")}৳`;
 }
 
-function calcSave(original: number, price: number) {
-  const diff = Math.max(0, original - price);
-  const pct = original > 0 ? Math.round((diff / original) * 100) : 0;
-  return { diff, pct };
+function toNumber(v: any, fallback = 0) {
+  const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : Number(v);
+  return Number.isFinite(n) ? n : fallback;
 }
 
-function getSaveBadge(p: ProductDTO) {
-  if (!p.originalPrice || p.originalPrice <= p.basePrice) return null;
-  const { diff, pct } = calcSave(p.originalPrice, p.basePrice);
-  return `Save: ${formatBDT(diff)} (-${pct}%)`;
+function computeStockFromVariants(variants?: ApiVariant[] | null) {
+  const list = Array.isArray(variants) ? variants : [];
+  if (!list.length) return 0;
+  return list.reduce((sum, v) => sum + toNumber(v?.stock, 0), 0);
 }
 
 export default function FeaturedProducts({
@@ -87,7 +95,6 @@ export default function FeaturedProducts({
             method: "DELETE",
           });
           if (!res.ok) throw new Error("Failed to remove from wishlist");
-
           removeFromWishlist(p.id);
         } else {
           const res = await fetch("/api/wishlist", {
@@ -96,14 +103,13 @@ export default function FeaturedProducts({
             body: JSON.stringify({ productId: p.id }),
           });
           if (!res.ok) throw new Error("Failed to add to wishlist");
-
           addToWishlist(p.id);
         }
       } catch (err) {
         console.error(err);
       }
     },
-    [status, isInWishlist, addToWishlist, removeFromWishlist],
+    [status, isInWishlist, addToWishlist, removeFromWishlist]
   );
 
   const handleAddToCart = useCallback(
@@ -114,7 +120,7 @@ export default function FeaturedProducts({
         console.error(err);
       }
     },
-    [addToCart],
+    [addToCart]
   );
 
   useEffect(() => {
@@ -132,20 +138,32 @@ export default function FeaturedProducts({
         if (!mounted) return;
 
         const mapped: ProductDTO[] = Array.isArray(data)
-          ? data.map((p) => ({
-              id: p.id,
-              name: String(p.name ?? ""),
-              slug: String(p.slug ?? ""),
-              image: p.image ?? null,
-              basePrice: Number(p.basePrice ?? 0),
-              originalPrice:
-                p.originalPrice !== null && p.originalPrice !== undefined
-                  ? Number(p.originalPrice)
-                  : null,
-              currency: String(p.currency ?? "BDT"),
-              featured: Boolean(p.featured),
-              shortDesc: p.shortDesc ?? null,
-            }))
+          ? data.map((p) => {
+              const variants = Array.isArray(p?.variants) ? p.variants : [];
+              const stock = computeStockFromVariants(variants);
+
+              // price in API is string => convert
+              const basePrice = toNumber(p?.basePrice, 0);
+              const originalPrice =
+                p?.originalPrice !== null && p?.originalPrice !== undefined
+                  ? toNumber(p.originalPrice, 0)
+                  : null;
+
+              return {
+                id: p.id,
+                name: String(p.name ?? ""),
+                slug: String(p.slug ?? ""),
+                image: p.image ?? null,
+                basePrice,
+                originalPrice,
+                currency: String(p.currency ?? "BDT"),
+                featured: Boolean(p.featured),
+                shortDesc: p.shortDesc ?? null,
+                available: Boolean(p.available),
+                variants,
+                stock, // ✅ computed from variants
+              };
+            })
           : [];
 
         setItems(mapped);
@@ -163,10 +181,8 @@ export default function FeaturedProducts({
     };
   }, []);
 
-  // only featured
   const featured = useMemo(() => {
     const list = items.filter((p) => p.featured);
-
     const shuffled = shuffleInPlace([...list]);
     return shuffled.slice(0, limit);
   }, [items, limit]);
@@ -174,7 +190,6 @@ export default function FeaturedProducts({
   return (
     <section className="w-full">
       <div className="container mx-auto px-4">
-        {/* Heading */}
         <div className="text-center mb-6">
           <h2 className="text-lg sm:text-xl font-bold text-foreground">
             {title}
@@ -190,7 +205,6 @@ export default function FeaturedProducts({
           </div>
         ) : null}
 
-        {/* Grid */}
         <div
           className="
             grid gap-3 sm:gap-4
@@ -215,10 +229,13 @@ export default function FeaturedProducts({
                 </div>
               ))
             : featured.map((p) => {
-                const badge = getSaveBadge(p);
                 const hasDiscount =
                   p.originalPrice !== null && p.originalPrice > p.basePrice;
+
                 const isWishlisted = isInWishlist(p.id);
+
+                // ✅ ONLY stock rules
+                const isOutOfStock = p.stock === 0;
 
                 return (
                   <ProductCard
@@ -230,17 +247,23 @@ export default function FeaturedProducts({
                       image: p.image,
                       price: p.basePrice,
                       originalPrice: p.originalPrice,
-                      available: true,
+
+                      // ✅ stock must be passed
+                      stock: p.stock,
+
+                      // ✅ do NOT rely on API "available"
+                      available: !isOutOfStock,
+
                       discountPct: hasDiscount
                         ? Math.round(
-                            ((p.originalPrice! - p.basePrice) /
-                              p.originalPrice!) *
-                              100,
+                            ((p.originalPrice! - p.basePrice) / p.originalPrice!) *
+                              100
                           )
                         : undefined,
+
+                      shortDesc: p.shortDesc,
                       sku: undefined,
                       type: undefined,
-                      shortDesc: p.shortDesc,
                     }}
                     wishlisted={isWishlisted}
                     onWishlistClick={() => toggleWishlist(p)}

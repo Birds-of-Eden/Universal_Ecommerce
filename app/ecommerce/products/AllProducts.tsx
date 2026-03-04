@@ -28,6 +28,11 @@ import {
 /* =========================
   Types
 ========================= */
+type ApiVariant = {
+  stock?: number | string | null;
+  price?: number | string | null;
+};
+
 type ApiProduct = {
   id: number;
   name: string;
@@ -42,6 +47,9 @@ type ApiProduct = {
   available?: boolean | null;
   image?: string | null;
 
+  // ✅ important
+  variants?: ApiVariant[] | null;
+
   categoryId?: number | null;
   category?: { id: number; name: string } | null;
 };
@@ -53,7 +61,13 @@ type ProductUI = {
   sku: string;
   type: string;
   shortDesc: string;
+
+  // ✅ keep available (for API compatibility)
   available: boolean;
+
+  // ✅ stock is the real source of truth for e-commerce
+  stock: number;
+
   image: string;
 
   price: number;
@@ -81,7 +95,8 @@ type CategoryNode = {
   Helpers
 ========================= */
 const toNumber = (v: any) => {
-  const n = Number(v);
+  const n =
+    typeof v === "string" ? Number(v.replace(/,/g, "")) : Number(v);
   return Number.isFinite(n) ? n : 0;
 };
 
@@ -89,6 +104,12 @@ const formatBDT = (v: number) => {
   const rounded = Math.round(v);
   return `৳${rounded.toLocaleString("en-US")}`;
 };
+
+function computeStockFromVariants(variants?: ApiVariant[] | null) {
+  const list = Array.isArray(variants) ? variants : [];
+  if (!list.length) return 0;
+  return list.reduce((sum, v) => sum + toNumber(v?.stock), 0);
+}
 
 function buildCategoryTree(list: ApiCategory[]): CategoryNode[] {
   const map = new Map<number, CategoryNode>();
@@ -275,8 +296,6 @@ function PriceRange({
 
 /**
  * Category Tree Filter
- * - Click row => expand/collapse
- * - Checkbox => select for filtering
  */
 function CategoryTreeFilter({
   tree,
@@ -325,7 +344,6 @@ function CategoryTreeFilter({
             if (hasChildren) toggleExpand(node.id);
           }}
         >
-          {/* Expand Icon */}
           <span className="w-5 flex items-center justify-center">
             {hasChildren ? (
               isOpen ? (
@@ -338,7 +356,6 @@ function CategoryTreeFilter({
             )}
           </span>
 
-          {/* Checkbox (stop click from expanding) */}
           <input
             type="checkbox"
             checked={isChecked}
@@ -352,7 +369,6 @@ function CategoryTreeFilter({
           </span>
         </div>
 
-        {/* Children */}
         {hasChildren && isOpen && (
           <div className="mt-1 space-y-1">
             {node.children.map((ch) => (
@@ -436,9 +452,8 @@ export default function ProductsPage() {
   const [catTree, setCatTree] = useState<CategoryNode[]>([]);
   const [catLoading, setCatLoading] = useState(false);
 
-  // checkbox selection
   const [selectedCategoryIds, _setSelectedCategoryIds] = useState<Set<number>>(
-    new Set<number>(),
+    new Set<number>()
   );
 
   const setSelectedCategoryIds = useCallback(
@@ -448,7 +463,7 @@ export default function ProductsPage() {
         return nextOrFn;
       });
     },
-    [_setSelectedCategoryIds],
+    [_setSelectedCategoryIds]
   );
 
   /* =========================
@@ -469,6 +484,7 @@ export default function ProductsPage() {
           (p) => {
             const price = toNumber(p.basePrice);
             const original = toNumber(p.originalPrice || p.basePrice);
+
             const discountPct =
               original > 0 && price < original
                 ? Math.round(((original - price) / original) * 100)
@@ -479,6 +495,15 @@ export default function ProductsPage() {
                 ? p.categoryId
                 : (p.category?.id ?? null);
 
+            // ✅ compute stock from variants
+            const stock = computeStockFromVariants(p.variants);
+
+            // ✅ base e-commerce availability:
+            // stock > 0 => in stock
+            // stock === 0 => out of stock
+            // (do not trust p.available for stock UI)
+            const isInStock = stock > 0;
+
             return {
               id: Number(p.id),
               name: String(p.name ?? "Untitled Product"),
@@ -486,19 +511,25 @@ export default function ProductsPage() {
               sku: String(p.sku ?? ""),
               type: String(p.type ?? ""),
               shortDesc: String(p.shortDesc ?? p.description ?? ""),
+
+              // keep for compatibility (but not used for stock UI)
               available: Boolean(p.available ?? true),
+
+              stock, // ✅ important
+
               image: p.image ?? "/placeholder.svg",
               price,
               originalPrice: original,
               discountPct,
               categoryId: cId,
             };
-          },
+          }
         );
 
         const prices = mapped
           .map((x) => x.price)
           .filter((n) => Number.isFinite(n) && n > 0);
+
         const minB = prices.length ? Math.floor(Math.min(...prices)) : 0;
         const maxB = prices.length ? Math.ceil(Math.max(...prices)) : 0;
 
@@ -555,7 +586,7 @@ export default function ProductsPage() {
         return Math.max(priceMinBound, Math.min(next, priceMaxBound));
       });
     },
-    [priceMax, priceMinBound, priceMaxBound],
+    [priceMax, priceMinBound, priceMaxBound]
   );
 
   const handleMax = useCallback(
@@ -565,7 +596,7 @@ export default function ProductsPage() {
         return Math.max(priceMinBound, Math.min(next, priceMaxBound));
       });
     },
-    [priceMin, priceMinBound, priceMaxBound],
+    [priceMin, priceMinBound, priceMaxBound]
   );
 
   const resetPrice = useCallback(() => {
@@ -574,13 +605,11 @@ export default function ProductsPage() {
   }, [priceMinBound, priceMaxBound]);
 
   /* =========================
-    ✅ Build effective category filter IDs
-    - if parent checked => include all descendants
+    Effective category ids
 ========================= */
   const effectiveCategoryIds = useMemo(() => {
-    if (selectedCategoryIds.size === 0) return null; // no filter
+    if (selectedCategoryIds.size === 0) return null;
 
-    // map nodes by id for descendant lookup
     const map = new Map<number, CategoryNode>();
     const walk = (nodes: CategoryNode[]) => {
       for (const n of nodes) {
@@ -595,9 +624,7 @@ export default function ProductsPage() {
     for (const id of selectedCategoryIds) {
       out.add(id);
       const node = map.get(id);
-      if (node) {
-        collectDescendantIds(node).forEach((d) => out.add(d));
-      }
+      if (node) collectDescendantIds(node).forEach((d) => out.add(d));
     }
 
     return out;
@@ -609,20 +636,17 @@ export default function ProductsPage() {
   const filtered = useMemo(() => {
     let list = [...products];
 
-    // category filter (tree, checkbox)
     if (effectiveCategoryIds && effectiveCategoryIds.size > 0) {
       list = list.filter(
-        (p) => p.categoryId !== null && effectiveCategoryIds.has(p.categoryId),
+        (p) => p.categoryId !== null && effectiveCategoryIds.has(p.categoryId)
       );
     }
 
-    // availability
-    if (inStockOnly) list = list.filter((p) => p.available);
+    // ✅ stock filter (basic e-commerce)
+    if (inStockOnly) list = list.filter((p) => p.stock > 0);
 
-    // price
     list = list.filter((p) => p.price >= priceMin && p.price <= priceMax);
 
-    // sorting
     if (sortBy === "price_low") list.sort((a, b) => a.price - b.price);
     if (sortBy === "price_high") list.sort((a, b) => b.price - a.price);
     if (sortBy === "name_az") list.sort((a, b) => a.name.localeCompare(b.name));
@@ -630,10 +654,7 @@ export default function ProductsPage() {
     return list;
   }, [products, effectiveCategoryIds, inStockOnly, priceMin, priceMax, sortBy]);
 
-  const visible = useMemo(
-    () => filtered.slice(0, showCount),
-    [filtered, showCount],
-  );
+  const visible = useMemo(() => filtered.slice(0, showCount), [filtered, showCount]);
 
   /* =========================
     Actions
@@ -672,12 +693,18 @@ export default function ProductsPage() {
         toast.error("Wishlist update failed.");
       }
     },
-    [status, isInWishlist, addToWishlist, removeFromWishlist],
+    [status, isInWishlist, addToWishlist, removeFromWishlist]
   );
 
   const handleAddToCart = useCallback(
     (p: ProductUI) => {
       try {
+        // ✅ block out of stock
+        if (p.stock === 0) {
+          toast.error("This product is out of stock.");
+          return;
+        }
+
         addToCart(p.id);
         toast.success(`"${p.name}" added to cart.`);
       } catch (err) {
@@ -685,7 +712,7 @@ export default function ProductsPage() {
         toast.error("Failed to add to cart.");
       }
     },
-    [addToCart],
+    [addToCart]
   );
 
   return (
@@ -746,7 +773,6 @@ export default function ProductsPage() {
               onReset={resetPrice}
             />
 
-            {/* ✅ Category Tree Filter */}
             <CategoryTreeFilter
               tree={catTree}
               loading={catLoading}
@@ -803,11 +829,16 @@ export default function ProductsPage() {
                       image: p.image,
                       price: p.price,
                       originalPrice: p.originalPrice,
-                      available: p.available,
                       discountPct: p.discountPct,
                       sku: p.sku,
                       type: p.type,
                       shortDesc: p.shortDesc,
+
+                      // ✅ IMPORTANT: pass stock
+                      stock: p.stock,
+
+                      // ✅ optional (ProductCard will use stock anyway)
+                      available: p.stock > 0,
                     }}
                     wishlisted={isInWishlist(p.id)}
                     onWishlistClick={() => toggleWishlist(p)}

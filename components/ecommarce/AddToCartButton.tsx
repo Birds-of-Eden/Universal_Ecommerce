@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useCart } from "@/components/ecommarce/CartContext";
 
 export default function AddToCartButton({
@@ -9,28 +8,31 @@ export default function AddToCartButton({
   quantity = 1,
   className = "",
   children = "Add to Cart",
+  disabled = false,
+  disabledText = "Out of Stock",
 }: {
   productId: string | number;
   quantity?: number;
   className?: string;
   children?: React.ReactNode;
+
+  // ✅ NEW
+  disabled?: boolean;
+  disabledText?: string;
 }) {
-  const router = useRouter();
   const { addToCart } = useCart();
   const [loading, setLoading] = useState(false);
 
+  const isDisabled = disabled || loading || !productId;
+
   const handleAdd = async () => {
-    if (!productId) return;
+    if (isDisabled) return;
 
     try {
       setLoading(true);
 
       // ✅ Your existing CartContext function (localStorage cart)
       addToCart(productId, quantity);
-
-      // optional: small success feedback
-      // (You can replace alert with toast if you have one)
-      // alert("Added to cart!");
     } catch (e) {
       console.error(e);
       alert("Failed to add to cart");
@@ -43,13 +45,13 @@ export default function AddToCartButton({
     <button
       type="button"
       onClick={handleAdd}
-      disabled={loading}
+      disabled={isDisabled}
       className={
         className ||
-        "h-11 px-6 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-95 transition disabled:opacity-50"
+        "h-11 px-6 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
       }
     >
-      {loading ? "Adding..." : children}
+      {loading ? "Adding..." : isDisabled && disabled ? disabledText : children}
     </button>
   );
 }
