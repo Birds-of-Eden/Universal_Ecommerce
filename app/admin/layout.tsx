@@ -20,7 +20,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       status === "authenticated" &&
       !(session?.user?.permissions || []).includes("admin.panel.access")
     ) {
-      router.push("/kitabghor/user");
+      router.push("/ecommerce/user");
     }
   }, [status, session, router]);
 

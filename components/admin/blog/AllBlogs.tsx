@@ -174,7 +174,7 @@ export default function AllBlogs() {
   const blogItems = useMemo(() => {
     return blogs.map((blog) => ({
       ...blog,
-      href: `/kitabghor/blogs/${blog.slug || generateSlug(blog.title)}`,
+      href: `/ecommerce/blogs/${blog.slug || generateSlug(blog.title)}`,
       formattedDate: formatFacebookTime(blog.createdAt),
     }));
   }, [blogs, formatFacebookTime]);

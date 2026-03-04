@@ -128,7 +128,7 @@ export default function FeaturedCategories({
                 return (
                   <Link
                     key={c.id}
-                    href={`/kitabghor/categories/${c.slug}`}
+                    href={`/ecommerce/categories/${c.slug}`}
                     className="
                       group rounded-2xl border border-border bg-background
                       p-4 sm:p-5 text-center shadow-sm

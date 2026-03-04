@@ -25,7 +25,7 @@ export default function RelatedBooks({ books }: RelatedBooksProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {books.map((book) => (
           <Card key={book.id} className="overflow-hidden">
-            <Link href={`/kitabghor/books/${book.id}`}>
+            <Link href={`/ecommerce/books/${book.id}`}>
               <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] lg:aspect-[3/4] max-w-[500px] mx-auto rounded-xl overflow-hidden bg-gray-50 group">
                 <Image
                   src={book.image}
@@ -36,7 +36,7 @@ export default function RelatedBooks({ books }: RelatedBooksProps) {
               </div>
             </Link>
             <CardContent className="p-4">
-              <Link href={`/kitabghor/books/${book.id}`}>
+              <Link href={`/ecommerce/books/${book.id}`}>
                 <h4 className="font-semibold text-lg mb-1 hover:text-primary transition-colors line-clamp-2">
                   {book.name}
                 </h4>
