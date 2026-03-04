@@ -14,6 +14,10 @@ export type ProductCardData = {
   image?: string | null;
   price: number;
   originalPrice?: number | null;
+
+  // stock ALWAYS number from parent (we are passing computed stock)
+  stock?: number | null;
+
   available?: boolean;
   discountPct?: number;
   badgeText?: string | null;
@@ -38,7 +42,8 @@ type ProductCardProps = {
   className?: string;
 };
 
-const defaultFormatPrice = (value: number) => `Tk ${Math.round(value).toLocaleString("en-US")}`;
+const defaultFormatPrice = (value: number) =>
+  `Tk ${Math.round(value).toLocaleString("en-US")}`;
 
 export default function ProductCard({
   product,
@@ -54,10 +59,15 @@ export default function ProductCard({
   unavailableLabel = "Up Coming",
   className,
 }: ProductCardProps) {
-  const available = Boolean(product.available ?? true);
+  const isOutOfStock = product.stock === 0;
+
+  // ✅ only stock controls availability
+  const available = !isOutOfStock;
+
   const hasDiscount = Number(product.discountPct ?? 0) > 0;
   const showOriginal = Number(product.originalPrice ?? 0) > product.price;
-  const badge = product.badgeText ?? (hasDiscount ? `Save ${product.discountPct}%` : null);
+  const badge =
+    product.badgeText ?? (hasDiscount ? `Save ${product.discountPct}%` : null);
 
   return (
     <Card
@@ -88,7 +98,11 @@ export default function ProductCard({
           </button>
         ) : null}
 
-        {badge ? (
+        {isOutOfStock ? (
+          <div className="absolute left-2 top-2 z-10 rounded-full bg-destructive px-2 py-1 text-[11px] font-semibold text-destructive-foreground">
+            Out of Stock
+          </div>
+        ) : badge ? (
           <div className="absolute left-2 top-2 z-10 rounded-full bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground">
             {badge}
           </div>
@@ -154,7 +168,9 @@ export default function ProductCard({
               ))}
             </ul>
           ) : (
-            <div className="mt-3 text-sm text-muted-foreground">{specsFallback ?? "Specs not available"}</div>
+            <div className="mt-3 text-sm text-muted-foreground">
+              {specsFallback ?? "Specs not available"}
+            </div>
           )
         ) : null}
 
@@ -171,7 +187,9 @@ export default function ProductCard({
               ) : null}
             </div>
           ) : (
-            <div className="text-center font-semibold text-muted-foreground">{unavailableLabel}</div>
+            <div className="text-center font-semibold text-muted-foreground">
+              Out of Stock
+            </div>
           )}
         </div>
       </CardContent>
@@ -183,7 +201,7 @@ export default function ProductCard({
           onClick={onAddToCart}
         >
           <ShoppingCart className="mr-2 h-4 w-4" />
-          {available ? addToCartLabel : unavailableLabel}
+          {available ? addToCartLabel : "Out of Stock"}
         </Button>
       </CardFooter>
     </Card>

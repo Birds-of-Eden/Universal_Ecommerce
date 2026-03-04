@@ -48,7 +48,101 @@ function formatMoney(amount: number, currencySymbol = "৳") {
     c++;
     if (c % 3 === 0 && i !== 0) out = "," + out;
   }
-  return `${out}${currencySymbol}`; // 26,500৳
+  return `${out}${currencySymbol}`;
+}
+
+/* =========================
+   ✅ Skeleton helpers
+========================= */
+function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded-md bg-muted ${className}`}
+      aria-hidden="true"
+    />
+  );
+}
+
+function CategoryPageSkeleton() {
+  return (
+    <div className="min-h-screen bg-background text-foreground py-6">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+          <aside className="space-y-4">
+            <Card className="rounded-md border border-border bg-card text-card-foreground shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-5 w-28" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+                <div className="mt-3">
+                  <Skeleton className="h-10 w-full rounded-md" />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="rounded border border-border bg-background px-3 py-2">
+                    <Skeleton className="h-3 w-10 mb-2" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  <div className="rounded border border-border bg-background px-3 py-2">
+                    <Skeleton className="h-3 w-10 mb-2" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <Skeleton className="h-4 w-44" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-md border border-border bg-card text-card-foreground shadow-sm">
+              <CardContent className="p-4">
+                <Skeleton className="h-5 w-24" />
+                <div className="mt-3 flex items-center gap-3">
+                  <Skeleton className="h-5 w-5 rounded" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              </CardContent>
+            </Card>
+          </aside>
+
+          <section>
+            <div className="mb-4">
+              <div className="w-full rounded-md border border-border bg-background text-foreground">
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <Skeleton className="h-5 w-40" />
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-9 w-16 rounded" />
+                    <Skeleton className="h-9 w-36 rounded" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <Card
+                  key={idx}
+                  className="rounded-md border border-border bg-card text-card-foreground shadow-sm overflow-hidden"
+                >
+                  <CardContent className="p-0">
+                    <Skeleton className="h-56 w-full rounded-none" />
+                    <div className="p-4 space-y-3">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                      <div className="flex items-center justify-between pt-2">
+                        <Skeleton className="h-9 w-24 rounded-md" />
+                        <Skeleton className="h-9 w-10 rounded-md" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function CategoryPage({
@@ -61,31 +155,7 @@ export default function CategoryPage({
   handleAddToCart,
   isInWishlist,
 }: CategoryPageProps) {
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <p className="text-muted-foreground">ডাটা লোড হচ্ছে...</p>
-      </div>
-    );
-  }
-
-  if (!category || error) {
-    return (
-      <div className="min-h-screen bg-background text-foreground py-16 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">ক্যাটাগরি পাওয়া যায়নি</h2>
-          <p className="text-muted-foreground mb-6">
-            আপনার অনুসন্ধানকৃত ক্যাটাগরি খুঁজে পাওয়া যায়নি
-          </p>
-          <Link href="/ecommerce/categories">
-            <Button className="rounded-lg">সকল ক্যাটাগরি দেখুন</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // ✅ ALWAYS compute valid numeric prices
+  // ✅ hooks must be top-level
   const prices = useMemo(() => {
     return categoryProducts
       .map((p) => Number(p.price))
@@ -94,36 +164,30 @@ export default function CategoryPage({
 
   const computedMin = useMemo(
     () => (prices.length ? Math.min(...prices) : 0),
-    [prices],
+    [prices]
   );
   const computedMax = useMemo(
     () => (prices.length ? Math.max(...prices) : 0),
-    [prices],
+    [prices]
   );
 
-  // ✅ IMPORTANT: keep filter state in sync when products change
   const [priceMin, setPriceMin] = useState<number>(computedMin);
   const [priceMax, setPriceMax] = useState<number>(computedMax);
 
   useEffect(() => {
-    // when category/products changes, reset slider to full range (Starlink behavior)
     setPriceMin(computedMin);
     setPriceMax(computedMax);
   }, [computedMin, computedMax, category?.id]);
 
-  // ✅ Only "In Stock"
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
-
   const [pageSize, setPageSize] = useState<number>(20);
   const [sortBy, setSortBy] = useState<
     "default" | "price_asc" | "price_desc" | "name_asc"
   >("default");
 
-  // ✅ clamp helpers so min never crosses max
   const setMinSafe = (v: number) => setPriceMin(Math.min(v, priceMax));
   const setMaxSafe = (v: number) => setPriceMax(Math.max(v, priceMin));
 
-  // ✅ Filter works correctly (price + availability)
   const filteredProducts = useMemo(() => {
     return categoryProducts.filter((p) => {
       const price = Number(p.price);
@@ -132,10 +196,10 @@ export default function CategoryPage({
 
       if (!inStockOnly) return okPrice;
 
-      const av = (p.availability ??
-        (p.stock === 0 ? "up_coming" : "in_stock")) as AvailabilityKey;
-      const okStock =
-        av === "in_stock" && (typeof p.stock !== "number" || p.stock > 0);
+      // ✅ In stock means: stock is a number AND > 0
+      // If stock is missing/undefined, treat as in stock (so products won't disappear incorrectly)
+      const hasStockNumber = typeof p.stock === "number" && Number.isFinite(p.stock);
+      const okStock = hasStockNumber ? p.stock! > 0 : true;
 
       return okPrice && okStock;
     });
@@ -149,7 +213,6 @@ export default function CategoryPage({
     return arr;
   }, [filteredProducts, sortBy]);
 
-  // ✅ Keep pageSize valid when filter reduces items
   const safePageSize = useMemo(() => {
     if (sortedProducts.length === 0) return pageSize;
     return Math.min(pageSize, sortedProducts.length);
@@ -157,10 +220,28 @@ export default function CategoryPage({
 
   const visibleProducts = useMemo(
     () => sortedProducts.slice(0, safePageSize),
-    [sortedProducts, safePageSize],
+    [sortedProducts, safePageSize]
   );
 
   const currencySymbol = categoryProducts?.[0]?.currencySymbol ?? "৳";
+
+  if (loading) return <CategoryPageSkeleton />;
+
+  if (!category || error) {
+    return (
+      <div className="min-h-screen bg-background text-foreground py-16 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Category not found</h2>
+          <p className="text-muted-foreground mb-6">
+            The category you are looking for could not be found.
+          </p>
+          <Link href="/ecommerce/categories">
+            <Button className="rounded-lg">View All Categories</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground py-6">
@@ -168,7 +249,6 @@ export default function CategoryPage({
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
           {/* LEFT SIDEBAR */}
           <aside className="space-y-4">
-            {/* ✅ Price Range (fixed) */}
             <Card className="rounded-md border border-border bg-card text-card-foreground shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -185,7 +265,6 @@ export default function CategoryPage({
                   </button>
                 </div>
 
-                {/* ✅ dual range slider */}
                 <div className="relative mt-3 h-10">
                   <input
                     type="range"
@@ -205,7 +284,6 @@ export default function CategoryPage({
                   />
                 </div>
 
-                {/* ✅ inputs editable (filter will work immediately) */}
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div className="rounded border border-border bg-background px-3 py-2">
                     <div className="text-[11px] text-muted-foreground mb-1">
@@ -250,12 +328,9 @@ export default function CategoryPage({
               </CardContent>
             </Card>
 
-            {/* ✅ Availability (works) */}
             <Card className="rounded-md border border-border bg-card text-card-foreground shadow-sm">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">Availability</h3>
-                </div>
+                <h3 className="font-semibold">Availability</h3>
 
                 <label className="mt-3 flex items-center gap-3 cursor-pointer select-none">
                   <button
@@ -280,7 +355,6 @@ export default function CategoryPage({
 
           {/* RIGHT CONTENT */}
           <section>
-            {/* Top Bar */}
             <div className="mb-4">
               <div className="w-full rounded-md border border-border bg-background text-foreground">
                 <div className="flex items-center justify-between gap-4 px-4 py-3">
@@ -322,8 +396,6 @@ export default function CategoryPage({
                   </div>
                 </div>
               </div>
-
-              {/* ✅ Products */}
             </div>
 
             {sortedProducts.length === 0 ? (
@@ -333,18 +405,23 @@ export default function CategoryPage({
                     No Products Found In This Category
                   </p>
                   <p className="text-muted-foreground text-sm">
-                    Filter Change & Try Again
+                    Change filters and try again.
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
                 {visibleProducts.map((product) => {
-                  const availabilityKey =
-                    product.availability ??
-                    (product.stock === 0 ? "up_coming" : "in_stock");
-                  
-                  const hasDiscount = product.original_price && product.original_price > product.price;
+                  const hasDiscount =
+                    product.original_price &&
+                    product.original_price > product.price;
+
+                  // ✅ IMPORTANT: pass stock to ProductCard
+                  // If stock is undefined/null => ProductCard will NOT show "Out of Stock"
+                  const stock =
+                    typeof product.stock === "number" && Number.isFinite(product.stock)
+                      ? product.stock
+                      : null;
 
                   return (
                     <ProductCard
@@ -357,11 +434,12 @@ export default function CategoryPage({
                         price: product.price,
                         originalPrice: product.original_price,
                         available: true,
+                        stock, // ✅ THIS FIXES OUT-OF-STOCK BADGE/BTN
                         discountPct: hasDiscount
                           ? Math.round(
                               ((product.original_price! - product.price) /
                                 product.original_price!) *
-                                100,
+                                100
                             )
                           : undefined,
                         sku: product.sku,
