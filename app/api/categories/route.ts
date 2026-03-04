@@ -31,13 +31,16 @@ export async function GET() {
       id: c.id,
       name: c.name,
       slug: c.slug,
-      image: c.image, // ✅ added
+      image: c.image,
       parentId: c.parentId,
       parentName: c.parent?.name || null,
       productCount: c._count.products,
       childrenCount: c.children.length,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
+
+      // ✅ added: deleted field
+      deleted: c.deleted,
     }));
 
     return NextResponse.json(formatted);
@@ -45,7 +48,7 @@ export async function GET() {
     console.error(error);
     return NextResponse.json(
       { error: "Failed to fetch categories" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -60,7 +63,7 @@ export async function POST(req: Request) {
     if (!name) {
       return NextResponse.json(
         { error: "Category name is required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -73,7 +76,7 @@ export async function POST(req: Request) {
     if (existing) {
       return NextResponse.json(
         { error: "Category already exists" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -81,7 +84,7 @@ export async function POST(req: Request) {
       data: {
         name,
         slug,
-        image: image || null, // ✅ added
+        image: image || null,
         parentId: parentId || null,
       },
     });
@@ -91,7 +94,7 @@ export async function POST(req: Request) {
     console.error(error);
     return NextResponse.json(
       { error: "Failed to create category" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
