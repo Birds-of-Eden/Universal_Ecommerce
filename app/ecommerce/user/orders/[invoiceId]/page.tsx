@@ -41,8 +41,8 @@ interface Order {
   transactionId: string | null;
   total: number;
   createdAt: string;
-  status: string; // OrderStatus from API
-  paymentStatus: string; // PaymentStatus from API
+  status: string;
+  paymentStatus: string;
 }
 
 interface Shipment {
@@ -111,6 +111,182 @@ const getPaymentStatusConfig = (paymentStatus: string) => {
     className: "bg-rose-50 text-rose-700 border border-rose-200",
   };
 };
+
+/* =========================
+   ✅ Skeleton helpers
+========================= */
+function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded-md bg-muted ${className}`}
+      aria-hidden="true"
+    />
+  );
+}
+
+function OrderDetailsSkeleton() {
+  return (
+    <div className="min-h-screen bg-background py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header skeleton */}
+        <div className="mb-8">
+          <div className="inline-flex items-center gap-2 mb-4">
+            <Skeleton className="h-4 w-24" />
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-56" />
+              <Skeleton className="h-4 w-72" />
+            </div>
+
+            <div className="bg-card text-card-foreground px-4 py-3 rounded-lg border border-border shadow-sm text-sm w-full sm:w-[260px]">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-5 w-32 mt-2" />
+              <div className="mt-3 flex gap-2">
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-6 w-24 rounded-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Status card skeleton */}
+            <Card className="bg-primary text-primary-foreground overflow-hidden border-0">
+              <div className="p-8">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="bg-primary-foreground/10 p-3 rounded-2xl">
+                    <Skeleton className="h-8 w-8 rounded-xl bg-primary-foreground/20" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-6 w-72 bg-primary-foreground/20" />
+                    <Skeleton className="h-4 w-80 bg-primary-foreground/20" />
+                  </div>
+                </div>
+
+                <div className="bg-primary-foreground/10 rounded-xl p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-28 bg-primary-foreground/20" />
+                      <Skeleton className="h-5 w-40 bg-primary-foreground/20" />
+                    </div>
+                    <Skeleton className="h-10 w-28 rounded-lg bg-primary-foreground/20" />
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Order Journey skeleton */}
+            <Card className="card-theme p-8">
+              <div className="flex items-center gap-3 mb-8">
+                <Skeleton className="h-6 w-6 rounded-md" />
+                <Skeleton className="h-6 w-40" />
+              </div>
+
+              <div className="space-y-6">
+                {[1, 2, 3, 4].map((k) => (
+                  <div key={k} className="flex gap-6">
+                    <div className="flex flex-col items-center">
+                      <Skeleton className="h-12 w-12 rounded-2xl" />
+                      {k !== 4 && (
+                        <Skeleton className="w-0.5 flex-1 mt-2 mb-1 rounded-none" />
+                      )}
+                    </div>
+
+                    <div className="flex-1 pb-6">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-3">
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-4 w-72" />
+                          <Skeleton className="h-4 w-56" />
+                        </div>
+                        <Skeleton className="h-6 w-24 rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Order Summary skeleton */}
+            <Card className="card-theme p-0 shadow-sm">
+              <div className="px-6 py-3 border-b border-border">
+                <Skeleton className="h-5 w-32" />
+              </div>
+
+              <div className="px-4 md:px-6 py-4 space-y-4">
+                {[1, 2, 3].map((k) => (
+                  <div
+                    key={k}
+                    className="flex gap-4 pb-4 border-b last:border-b-0 border-dashed border-border"
+                  >
+                    <Skeleton className="w-20 h-28 rounded-sm" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-2/3" />
+                      <div className="flex gap-4">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                      <Skeleton className="h-4 w-40" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-6 py-4 border-t border-border flex justify-end">
+                <div className="w-full sm:w-[260px] space-y-2">
+                  <div className="flex justify-between gap-8">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <div className="flex justify-between gap-8">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <div className="flex justify-between gap-8">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Sidebar skeleton */}
+          <div className="space-y-8">
+            <Card className="card-theme p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <Skeleton className="h-5 w-5 rounded-md" />
+                <Skeleton className="h-5 w-44" />
+              </div>
+
+              <div className="space-y-4">
+                {[1, 2, 3, 4].map((k) => (
+                  <div key={k} className="space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-4 w-56" />
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="bg-accent text-accent-foreground border border-border p-6">
+              <div className="text-center">
+                <Skeleton className="h-16 w-16 rounded-2xl mx-auto mb-4" />
+                <Skeleton className="h-5 w-40 mx-auto mb-3" />
+                <Skeleton className="h-4 w-56 mx-auto mb-4" />
+                <Skeleton className="h-12 w-full rounded-lg" />
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function OrderDetailsPage() {
   const params = useParams();
@@ -362,7 +538,9 @@ export default function OrderDetailsPage() {
       label: "Shipped",
       description: shipment?.courier
         ? `Handed over to courier (${shipment.courier})${
-            shipment.trackingNumber ? `, Tracking: ${shipment.trackingNumber}` : ""
+            shipment.trackingNumber
+              ? `, Tracking: ${shipment.trackingNumber}`
+              : ""
           }.`
         : "Order has been shipped from our warehouse.",
       dateLabel: formatDate(shipment?.shippedAt || shipment?.createdAt),
@@ -404,24 +582,13 @@ export default function OrderDetailsPage() {
     if (sStatus === "DELIVERED" || oStatus === "DELIVERED") {
       return stages.length - 1;
     }
-    if (sStatus === "OUT_FOR_DELIVERY") {
-      return Math.min(2, stages.length - 1);
-    }
-    if (sStatus === "IN_TRANSIT") {
-      return Math.min(1, stages.length - 1);
-    }
+    if (sStatus === "OUT_FOR_DELIVERY") return Math.min(2, stages.length - 1);
+    if (sStatus === "IN_TRANSIT") return Math.min(1, stages.length - 1);
     return 0;
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="card-theme px-6 py-4 text-sm text-muted-foreground">
-          Loading order...
-        </Card>
-      </div>
-    );
-  }
+  // ✅ only skeleton, no text
+  if (loading) return <OrderDetailsSkeleton />;
 
   if (error || !order) {
     return (
@@ -440,7 +607,10 @@ export default function OrderDetailsPage() {
   }
 
   const items = Array.isArray(order.cartItems) ? order.cartItems : [];
-  const subTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subTotal = items.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
   const deliveryCharge = Math.max(order.total - subTotal, 0);
 
   const statusCfg = getOrderStatusConfig(order.status);
@@ -506,7 +676,7 @@ export default function OrderDetailsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main */}
           <div className="lg:col-span-2 space-y-8">
-            {/* ✅ Theme-friendly status card */}
+            {/* Theme-friendly status card */}
             <Card className="bg-primary text-primary-foreground overflow-hidden border-0">
               <div className="p-8">
                 <div className="flex items-center gap-4 mb-4">
@@ -521,8 +691,11 @@ export default function OrderDetailsPage() {
                     </h2>
 
                     <p className="text-primary-foreground/80">
-                      Payment: {paymentCfg.label} • Method: {order.paymentMethod}
-                      {order.transactionId ? ` • TxID: ${order.transactionId}` : ""}
+                      Payment: {paymentCfg.label} • Method:{" "}
+                      {order.paymentMethod}
+                      {order.transactionId
+                        ? ` • TxID: ${order.transactionId}`
+                        : ""}
                     </p>
                   </div>
                 </div>
@@ -578,10 +751,12 @@ export default function OrderDetailsPage() {
                   const orderStatus = order.status?.toUpperCase();
                   const isDeliveredStage = stage.label === "Delivered";
                   const isDeliveredFinal =
-                    shipmentStatus === "DELIVERED" || orderStatus === "DELIVERED";
+                    shipmentStatus === "DELIVERED" ||
+                    orderStatus === "DELIVERED";
 
                   let badgeText = "Pending";
-                  let badgeClass = "bg-muted text-muted-foreground border-border";
+                  let badgeClass =
+                    "bg-muted text-muted-foreground border-border";
 
                   if (isCompleted || (isDeliveredStage && isDeliveredFinal)) {
                     badgeText = "Completed";
