@@ -55,7 +55,9 @@ function saveText(p: Product) {
 export default function BookDetail() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const { addToCart } = useCart();
+
+  const { addToCart, getQuantityByProductId, incProductQty, decProductQty } = useCart();
+
   const id = params?.id;
 
   const [loading, setLoading] = useState(true);
@@ -64,7 +66,6 @@ export default function BookDetail() {
   const [err, setErr] = useState<string | null>(null);
 
   const [activeImg, setActiveImg] = useState<string | null>(null);
-  const [qty, setQty] = useState(1);
   const [tab, setTab] = useState<"desc" | "spec" | "reviews">("desc");
 
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
@@ -188,6 +189,9 @@ export default function BookDetail() {
   }
 
   const badge = saveText(product);
+
+  // ✅ cart quantity (single source of truth)
+  const cartQty = getQuantityByProductId(product.id);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -387,23 +391,24 @@ export default function BookDetail() {
                   </div>
                 </div>
 
+                {/* ✅ Cart-based +/- counter */}
                 <div className="mt-6 grid grid-cols-[140px_1fr] gap-3">
                   <div className="h-11 rounded-lg border border-border flex items-center justify-between px-2 bg-card">
                     <button
                       type="button"
                       className="h-9 w-9 rounded-md hover:bg-accent transition"
-                      onClick={() => setQty((q) => Math.max(1, q - 1))}
-                      disabled={stock <= 0}
+                      onClick={() => decProductQty(product.id, 1)}
+                      disabled={stock <= 0 || cartQty <= 0}
                     >
                       −
                     </button>
 
-                    <div className="text-sm font-semibold">{qty}</div>
+                    <div className="text-sm font-semibold">{cartQty}</div>
 
                     <button
                       type="button"
                       className="h-9 w-9 rounded-md hover:bg-accent transition"
-                      onClick={() => setQty((q) => Math.min(99, q + 1))}
+                      onClick={() => incProductQty(product.id, 1)}
                       disabled={stock <= 0}
                     >
                       +
@@ -421,7 +426,10 @@ export default function BookDetail() {
                       className="h-11 btn-primary rounded-lg font-semibold hover:opacity-95 transition disabled:opacity-50"
                       disabled={stock <= 0}
                       onClick={() => {
-                        addToCart(product.id, qty);
+                        // ✅ if not in cart, add 1 then go checkout
+                        if (getQuantityByProductId(product.id) <= 0) {
+                          addToCart(product.id, 1);
+                        }
                         router.push("/ecommerce/checkout");
                       }}
                     >
@@ -477,9 +485,7 @@ export default function BookDetail() {
             {tab === "desc" && (
               <div className="prose prose-sm max-w-none dark:prose-invert">
                 {product.description ? (
-                  <div
-                    dangerouslySetInnerHTML={{ __html: product.description }}
-                  />
+                  <div dangerouslySetInnerHTML={{ __html: product.description }} />
                 ) : (
                   <p className="text-muted-foreground text-sm">
                     No description available.
