@@ -161,11 +161,103 @@ export default function BookDetail() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-10">
-        <div className="h-8 w-56 bg-muted animate-pulse rounded mb-6" />
-        <div className="grid lg:grid-cols-[320px_1fr] gap-6">
-          <div className="h-[620px] bg-muted animate-pulse rounded-xl" />
-          <div className="h-[620px] bg-muted animate-pulse rounded-xl" />
+      <div className="container mx-auto px-4 py-8">
+        {/* Product Details Skeleton */}
+        <div className="card-theme rounded-xl p-4 sm:p-6 mb-6">
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Product Image Skeleton */}
+            <div>
+              <div className="w-full h-[320px] sm:h-[380px] bg-muted animate-pulse rounded-xl" />
+              <div className="mt-4 flex gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-16 w-16 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
+            </div>
+
+            {/* Product Info Skeleton */}
+            <div className="space-y-4">
+              <div className="h-8 w-3/4 bg-muted animate-pulse rounded" />
+              <div className="flex gap-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-6 w-20 bg-muted animate-pulse rounded" />
+                ))}
+              </div>
+              <div className="h-16 w-full bg-muted animate-pulse rounded" />
+              <div className="space-y-2">
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+              </div>
+              <div className="h-11 w-40 bg-muted animate-pulse rounded" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-11 bg-muted animate-pulse rounded" />
+                <div className="h-11 bg-muted animate-pulse rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs Skeleton */}
+        <div className="card-theme rounded-xl overflow-hidden mb-6">
+          <div className="flex gap-2 border-b border-border px-3 sm:px-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-12 w-24 bg-muted animate-pulse rounded" />
+            ))}
+          </div>
+          <div className="p-4 sm:p-6">
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-4 bg-muted animate-pulse rounded" style={{ width: `${Math.random() * 40 + 60}%` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Related Products Skeleton */}
+        <div className="card-theme rounded-xl overflow-hidden">
+          <div className="px-4 sm:px-6 py-4 border-b border-border">
+            <div className="h-6 w-48 bg-muted animate-pulse rounded mb-2" />
+            <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+          </div>
+          
+          <div className="p-4 sm:p-6">
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4 p-4 border border-border rounded-xl">
+                  <div className="h-20 w-20 bg-muted animate-pulse rounded-lg shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                    <div className="h-6 w-24 bg-muted animate-pulse rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Skeleton */}
+            <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="border border-border rounded-xl overflow-hidden">
+                  <div className="h-48 bg-muted animate-pulse" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                    <div className="h-6 w-24 bg-muted animate-pulse rounded" />
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                      <div className="h-8 w-20 bg-muted animate-pulse rounded" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* View All Button Skeleton */}
+            <div className="mt-8 text-center">
+              <div className="h-12 w-64 mx-auto bg-muted animate-pulse rounded-lg" />
+            </div>
+          </div>
         </div>
       </div>
     );
