@@ -74,6 +74,7 @@ function calcDiscountPercent(base: number, original: number | null) {
 
 export default function NewArrivals({
   title = "New Arrivals",
+  subtitle = "Check Our Latest Products",
   limit = 20,
   productsData,
   categoriesData,
@@ -81,6 +82,7 @@ export default function NewArrivals({
   isAuthenticated = false,
 }: {
   title?: string;
+  subtitle?: string;
   limit?: number;
   productsData?: any[];
   categoriesData?: any[];
@@ -286,12 +288,17 @@ export default function NewArrivals({
       {/* ✅ responsive padding */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         {/* ✅ responsive header: wrap */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h2 className="text-xl sm:text-2xl font-bold text-foreground">
-            {title}
-          </h2>
+       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+              {title}
+            </h2>
+            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+              {subtitle}
+            </p>
+          </div>
 
-          {/* Tabs wrap on mobile */}
+          {/* ✅ Tabs (ALL + 4 categories) */}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
             <button
               onClick={() => setActive("ALL")}
