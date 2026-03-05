@@ -56,7 +56,8 @@ export default function BookDetail() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
 
-  const { addToCart, getQuantityByProductId, incProductQty, decProductQty } = useCart();
+  const { addToCart, getQuantityByProductId, incProductQty, decProductQty } =
+    useCart();
 
   const id = params?.id;
 
@@ -160,11 +161,103 @@ export default function BookDetail() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-10">
-        <div className="h-8 w-56 bg-muted animate-pulse rounded mb-6" />
-        <div className="grid lg:grid-cols-[320px_1fr] gap-6">
-          <div className="h-[620px] bg-muted animate-pulse rounded-xl" />
-          <div className="h-[620px] bg-muted animate-pulse rounded-xl" />
+      <div className="container mx-auto px-4 py-8">
+        {/* Product Details Skeleton */}
+        <div className="card-theme rounded-xl p-4 sm:p-6 mb-6">
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Product Image Skeleton */}
+            <div>
+              <div className="w-full h-[320px] sm:h-[380px] bg-muted animate-pulse rounded-xl" />
+              <div className="mt-4 flex gap-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-16 w-16 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
+            </div>
+
+            {/* Product Info Skeleton */}
+            <div className="space-y-4">
+              <div className="h-8 w-3/4 bg-muted animate-pulse rounded" />
+              <div className="flex gap-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-6 w-20 bg-muted animate-pulse rounded" />
+                ))}
+              </div>
+              <div className="h-16 w-full bg-muted animate-pulse rounded" />
+              <div className="space-y-2">
+                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+              </div>
+              <div className="h-11 w-40 bg-muted animate-pulse rounded" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-11 bg-muted animate-pulse rounded" />
+                <div className="h-11 bg-muted animate-pulse rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs Skeleton */}
+        <div className="card-theme rounded-xl overflow-hidden mb-6">
+          <div className="flex gap-2 border-b border-border px-3 sm:px-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-12 w-24 bg-muted animate-pulse rounded" />
+            ))}
+          </div>
+          <div className="p-4 sm:p-6">
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-4 bg-muted animate-pulse rounded" style={{ width: `${Math.random() * 40 + 60}%` }} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Related Products Skeleton */}
+        <div className="card-theme rounded-xl overflow-hidden">
+          <div className="px-4 sm:px-6 py-4 border-b border-border">
+            <div className="h-6 w-48 bg-muted animate-pulse rounded mb-2" />
+            <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+          </div>
+          
+          <div className="p-4 sm:p-6">
+            {/* Mobile Skeleton */}
+            <div className="lg:hidden space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4 p-4 border border-border rounded-xl">
+                  <div className="h-20 w-20 bg-muted animate-pulse rounded-lg shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                    <div className="h-6 w-24 bg-muted animate-pulse rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Skeleton */}
+            <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="border border-border rounded-xl overflow-hidden">
+                  <div className="h-48 bg-muted animate-pulse" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                    <div className="h-6 w-24 bg-muted animate-pulse rounded" />
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                      <div className="h-8 w-20 bg-muted animate-pulse rounded" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* View All Button Skeleton */}
+            <div className="mt-8 text-center">
+              <div className="h-12 w-64 mx-auto bg-muted animate-pulse rounded-lg" />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -196,62 +289,7 @@ export default function BookDetail() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-[320px_1fr] gap-6">
-          <aside className="card-theme rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-border font-semibold text-card-foreground">
-              Related Products
-            </div>
-
-            <div className="max-h-[620px] overflow-auto p-3 space-y-3">
-              {related.length === 0 ? (
-                <div className="text-sm text-muted-foreground px-2 py-3">
-                  No featured related products found.
-                </div>
-              ) : (
-                related.map((p) => (
-                  <Link
-                    key={p.id}
-                    href={`/ecommerce/books/${p.id}`}
-                    className="flex gap-3 rounded-xl border border-border p-3 hover:bg-accent transition"
-                  >
-                    <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-card border border-border shrink-0">
-                      {p.image ? (
-                        <Image
-                          src={p.image}
-                          alt={p.name}
-                          fill
-                          className="object-contain p-2"
-                          sizes="56px"
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
-                          No Image
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-medium text-foreground line-clamp-2">
-                        {p.name}
-                      </div>
-
-                      <div className="mt-1 flex items-end gap-2">
-                        <div className="text-sm font-bold text-primary">
-                          {moneyBDT(p.basePrice ?? 0)}
-                        </div>
-                        {isDiscounted(p) && (
-                          <div className="text-[11px] text-muted-foreground line-through">
-                            {moneyBDT(p.originalPrice!)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
-          </aside>
-
+        <div className="grid lg:grid-cols-[1fr] gap-6">
           <section className="card-theme rounded-xl p-4 sm:p-6">
             <div className="grid md:grid-cols-2 gap-8">
               <div>
@@ -419,7 +457,10 @@ export default function BookDetail() {
                 <div className="mt-6">
                   <div className="grid grid-cols-2 gap-3">
                     {/* ✅ DISABLE AddToCartButton when out of stock */}
-                    <AddToCartButton productId={product.id} disabled={stock <= 0} />
+                    <AddToCartButton
+                      productId={product.id}
+                      disabled={stock <= 0}
+                    />
 
                     <button
                       type="button"
@@ -485,7 +526,9 @@ export default function BookDetail() {
             {tab === "desc" && (
               <div className="prose prose-sm max-w-none dark:prose-invert">
                 {product.description ? (
-                  <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                  <div
+                    dangerouslySetInnerHTML={{ __html: product.description }}
+                  />
                 ) : (
                   <p className="text-muted-foreground text-sm">
                     No description available.
@@ -505,7 +548,9 @@ export default function BookDetail() {
                 <div className="flex justify-between border-b border-border pb-2">
                   <span>Dimensions</span>
                   <span className="text-foreground">
-                    {product.dimensions ? JSON.stringify(product.dimensions) : "—"}
+                    {product.dimensions
+                      ? JSON.stringify(product.dimensions)
+                      : "—"}
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
@@ -515,9 +560,180 @@ export default function BookDetail() {
               </div>
             )}
 
-            {tab === "reviews" && <ProductReviews productId={Number(product.id)} />}
+            {tab === "reviews" && (
+              <ProductReviews productId={Number(product.id)} />
+            )}
           </div>
         </div>
+
+        {/* Related Products Section - Below Product Details */}
+        {related.length > 0 && (
+          <div className="mt-8 card-theme rounded-xl overflow-hidden">
+            <div className="px-4 sm:px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-bold text-foreground">
+                Related Products
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Discover similar products in same category
+              </p>
+            </div>
+
+            <div className="p-4 sm:p-6">
+              {/* Mobile: Single column scrollable */}
+              <div className="lg:hidden">
+                <div className="space-y-4">
+                  {related.slice(0, 5).map((p) => (
+                    <Link
+                      key={p.id}
+                      href={`/ecommerce/products/${p.id}`}
+                      className="flex gap-4 rounded-xl border border-border p-4 hover:bg-accent transition"
+                    >
+                      <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-card border border-border shrink-0">
+                        {p.image ? (
+                          <Image
+                            src={p.image}
+                            alt={p.name}
+                            fill
+                            className="object-contain p-2"
+                            sizes="80px"
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
+                            No Image
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-foreground line-clamp-2 mb-2">
+                          {p.name}
+                        </div>
+
+                        <div className="flex items-end gap-2 mb-2">
+                          <div className="text-lg font-bold text-primary">
+                            {moneyBDT(p.basePrice ?? 0)}
+                          </div>
+                          {isDiscounted(p) && (
+                            <div className="text-sm text-muted-foreground line-through">
+                              {moneyBDT(p.originalPrice!)}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-1">
+                          {p.featured && (
+                            <span className="px-2 py-1 text-[10px] font-medium rounded bg-primary/10 text-primary">
+                              Featured
+                            </span>
+                          )}
+                          {p.category?.name && (
+                            <span className="px-2 py-1 text-[10px] font-medium rounded bg-muted text-muted-foreground">
+                              {p.category.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* Desktop: Grid layout */}
+              <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                {related.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/ecommerce/products/${p.id}`}
+                    className="group rounded-xl border border-border overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300"
+                  >
+                    <div className="relative h-48 bg-card border-b border-border overflow-hidden">
+                      {p.image ? (
+                        <Image
+                          src={p.image}
+                          alt={p.name}
+                          fill
+                          className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+                          No Image
+                        </div>
+                      )}
+
+                      {isDiscounted(p) && (
+                        <div className="absolute top-3 left-3">
+                          <span className="px-2 py-1 text-xs font-semibold rounded bg-destructive text-destructive-foreground">
+                            {Math.round(
+                              ((p.originalPrice! - p.basePrice) /
+                                p.originalPrice!) *
+                                100,
+                            )}
+                            % OFF
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-4">
+                      <div className="font-semibold text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+                        {p.name}
+                      </div>
+
+                      <div className="flex items-end gap-2 mb-3">
+                        <div className="text-lg font-bold text-primary">
+                          {moneyBDT(p.basePrice ?? 0)}
+                        </div>
+                        {isDiscounted(p) && (
+                          <div className="text-sm text-muted-foreground line-through">
+                            {moneyBDT(p.originalPrice!)}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap gap-1">
+                          {p.featured && (
+                            <span className="px-2 py-1 text-[10px] font-medium rounded bg-primary/10 text-primary">
+                              Featured
+                            </span>
+                          )}
+                        </div>
+
+                        <button className="px-3 py-1 text-xs font-medium rounded-lg bg-primary text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          View Details
+                        </button>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {/* View All Button */}
+              <div className="mt-8 text-center">
+                <Link
+                  href={`/ecommerce/categories/${product.categoryId}`}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  View All Products in This Category
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

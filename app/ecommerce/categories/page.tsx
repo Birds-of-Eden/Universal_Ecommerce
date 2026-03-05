@@ -1,216 +1,676 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState, useMemo, useCallback, memo, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, ArrowRight, Library } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  RefreshCcw,
+  Menu,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import ProductCard from "@/components/ecommarce/ProductCard";
+import { useCart } from "@/components/ecommarce/CartContext";
+import { useWishlist } from "@/components/ecommarce/WishlistContext";
+import { useSession } from "@/lib/auth-client";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-type Category = {
-  id: number;
+type ApiCategory = {
+  id: number | string;
   name: string;
-  productCount: number;
-  slug?: string; // thakle use korte parba
+  parentId?: number | string | null;
+  productCount?: number;
+  childrenCount?: number;
 };
 
-const CategoryCardsPage = memo(function CategoryCardsPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+type ApiVariant = {
+  stock?: number | string | null;
+};
 
-  // 🔹 Memoized icon function
-  const getCategoryIcon = useCallback((name: string) => {
-    switch (name) {
-      case "আত্মজীবনী":
-        return "📖";
-      case "রীতিনীতি":
-        return "🏛️";
-      case "হযরত মাওলানা কালিম সিদ্দিকী":
-        return "👳";
-      case "ইসলাম ও হেদায়েত":
-        return "🕌";
-      case "দাওয়াত ও দায়ী":
-        return "📢";
-      case "হিন্দু ভাইদের জন্য":
-        return "🕉️";
-      case "খ্রিষ্টান ভাইদের জন্য":
-        return "✝️";
-      default:
-        return "📚";
+type ApiProduct = {
+  id: number | string;
+  name: string;
+  slug?: string | null;
+  type?: string | null;
+  sku?: string | null;
+  shortDesc?: string | null;
+  description?: string | null;
+  basePrice?: number | string | null;
+  originalPrice?: number | string | null;
+  image?: string | null;
+  available?: boolean | null;
+  categoryId?: number | string | null;
+  variants?: ApiVariant[] | null;
+};
+
+type CategoryNode = {
+  id: number;
+  name: string;
+  parentId: number | null;
+  productCount: number;
+  childrenCount: number;
+  children: CategoryNode[];
+};
+
+type ProductUI = {
+  id: number;
+  name: string;
+  slug: string;
+  price: number;
+  originalPrice: number;
+  discountPct: number;
+  sku: string;
+  type: string;
+  shortDesc: string;
+  image: string;
+  stock: number;
+  categoryId: number | null;
+};
+
+const toNumber = (value: unknown) => {
+  const num =
+    typeof value === "string" ? Number(value.replace(/,/g, "")) : Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const formatPrice = (value: number) =>
+  `Tk ${Math.round(value).toLocaleString("en-US")}`;
+
+function computeStock(variants?: ApiVariant[] | null) {
+  const list = Array.isArray(variants) ? variants : [];
+  if (!list.length) return 0;
+  return list.reduce((sum, variant) => sum + toNumber(variant?.stock), 0);
+}
+
+function buildCategoryTree(categories: ApiCategory[]): CategoryNode[] {
+  const map = new Map<number, CategoryNode>();
+
+  categories.forEach((category) => {
+    const id = Number(category.id);
+    if (!Number.isFinite(id)) return;
+
+    const rawParentId = category.parentId;
+    const parentId =
+      rawParentId === null || rawParentId === undefined || rawParentId === ""
+        ? null
+        : Number(rawParentId);
+
+    map.set(id, {
+      id,
+      name: String(category.name || "Untitled"),
+      parentId: Number.isFinite(parentId) ? parentId : null,
+      productCount: toNumber(category.productCount),
+      childrenCount: toNumber(category.childrenCount),
+      children: [],
+    });
+  });
+
+  const roots: CategoryNode[] = [];
+
+  map.forEach((node) => {
+    if (node.parentId !== null && map.has(node.parentId)) {
+      map.get(node.parentId)!.children.push(node);
+      return;
     }
-  }, []);
+    roots.push(node);
+  });
+
+  const sortTree = (nodes: CategoryNode[]) => {
+    nodes.sort((a, b) => a.name.localeCompare(b.name));
+    nodes.forEach((node) => sortTree(node.children));
+  };
+
+  sortTree(roots);
+  return roots;
+}
+
+function flattenTree(tree: CategoryNode[]) {
+  const nodeMap = new Map<number, CategoryNode>();
+  const walk = (nodes: CategoryNode[]) => {
+    nodes.forEach((node) => {
+      nodeMap.set(node.id, node);
+      if (node.children.length) walk(node.children);
+    });
+  };
+  walk(tree);
+  return nodeMap;
+}
+
+function collectDescendantIds(node: CategoryNode): number[] {
+  const ids: number[] = [];
+  const stack = [...node.children];
+
+  while (stack.length) {
+    const current = stack.pop()!;
+    ids.push(current.id);
+    if (current.children.length) stack.push(...current.children);
+  }
+
+  return ids;
+}
+
+function collectExpandableIds(nodes: CategoryNode[]): number[] {
+  const ids: number[] = [];
+  const stack = [...nodes];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node.children.length > 0) ids.push(node.id);
+    if (node.children.length) stack.push(...node.children);
+  }
+  return ids;
+}
+
+function CategoryTree({
+  tree,
+  selectedCategoryId,
+  onSelect,
+}: {
+  tree: CategoryNode[];
+  selectedCategoryId: number | null;
+  onSelect: (id: number | null) => void;
+}) {
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const nodeMap = useMemo(() => flattenTree(tree), [tree]);
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch("/api/categories", {
-          cache: "force-cache",
-          next: { revalidate: 600 } // Cache for 10 minutes
-        });
+    const firstLevelIds = new Set<number>();
+    tree.forEach((node) => {
+      if (node.children.length) firstLevelIds.add(node.id);
+    });
+    setExpandedIds(firstLevelIds);
+  }, [tree]);
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch categories");
+  const toggleExpand = (id: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const expandAll = () => setExpandedIds(new Set(collectExpandableIds(tree)));
+  const collapseAll = () => setExpandedIds(new Set<number>());
+
+  const selectedNode = selectedCategoryId
+    ? (nodeMap.get(selectedCategoryId) ?? null)
+    : null;
+  const selectedParent =
+    selectedNode && selectedNode.parentId !== null
+      ? (nodeMap.get(selectedNode.parentId) ?? null)
+      : null;
+
+  const Row = ({ node, level }: { node: CategoryNode; level: number }) => {
+    const hasChildren = node.children.length > 0;
+    const isOpen = expandedIds.has(node.id);
+    const isActive = selectedCategoryId === node.id;
+
+    return (
+      <div>
+        <div
+          className={`group flex items-center justify-between rounded-md px-3 py-2 text-sm transition ${
+            isActive
+              ? "bg-primary text-primary-foreground"
+              : "text-foreground hover:bg-muted"
+          }`}
+          style={{ paddingLeft: `${12 + level * 14}px` }}
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {hasChildren ? (
+              <button
+                type="button"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-muted/60"
+                onClick={() => toggleExpand(node.id)}
+                aria-label={
+                  isOpen ? `Collapse ${node.name}` : `Expand ${node.name}`
+                }
+              >
+                {isOpen ? (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5" />
+                )}
+              </button>
+            ) : (
+              <span className="h-4 w-4 shrink-0" />
+            )}
+
+            <button
+              type="button"
+              className="truncate text-left font-medium"
+              onClick={() => {
+                onSelect(node.id);
+                if (hasChildren) toggleExpand(node.id);
+              }}
+            >
+              {node.name}
+            </button>
+          </div>
+
+          <span
+            className={`ml-2 shrink-0 text-xs ${
+              isActive ? "text-primary-foreground/80" : "text-muted-foreground"
+            }`}
+          >
+            {node.productCount}
+          </span>
+        </div>
+
+        {hasChildren && isOpen ? (
+          <div className="mt-1 space-y-1">
+            {node.children.map((child) => (
+              <Row key={child.id} node={child} level={level + 1} />
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-4 flex flex-col gap-3">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Categories</h2>
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+          >
+            <RefreshCcw className="h-3.5 w-3.5" />
+            Reset
+          </button>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/50">
+          <button
+            type="button"
+            onClick={expandAll}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-background hover:bg-accent transition-colors border border-border/50"
+          >
+            <ChevronsDownUp className="h-3.5 w-3.5" />
+            Expand All
+          </button>
+          <button
+            type="button"
+            onClick={collapseAll}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-background hover:bg-accent transition-colors border border-border/50"
+          >
+            <ChevronsUpDown className="h-3.5 w-3.5" />
+            Collapse All
+          </button>
+        </div>
+      </div>
+
+      <div className="max-h-[65vh] space-y-1 overflow-y-auto pr-1">
+        {tree.map((node) => (
+          <Row key={node.id} node={node} level={0} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function CategoriesPage() {
+  const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { status } = useSession();
+
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const [categories, setCategories] = useState<CategoryNode[]>([]);
+  const [products, setProducts] = useState<ProductUI[]>([]);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
+  const [sortBy, setSortBy] = useState<
+    "default" | "price_low" | "price_high" | "name_az"
+  >("default");
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [categoriesRes, productsRes] = await Promise.all([
+          fetch("/api/categories", { cache: "no-store" }),
+          fetch("/api/products", { cache: "no-store" }),
+        ]);
+
+        if (!categoriesRes.ok || !productsRes.ok) {
+          throw new Error("Failed to fetch categories/products");
         }
 
-        const data: Category[] = await res.json();
-        setCategories(data);
-      } catch (err) {
-        console.error(err);
-        setError("বিষয়সমূহ লোড করতে সমস্যা হচ্ছে");
+        const categoriesJson = (await categoriesRes.json()) as ApiCategory[];
+        const productsJson = (await productsRes.json()) as ApiProduct[];
+
+        const tree = buildCategoryTree(
+          Array.isArray(categoriesJson) ? categoriesJson : [],
+        );
+
+        const mappedProducts: ProductUI[] = (
+          Array.isArray(productsJson) ? productsJson : []
+        ).map((product) => {
+          const price = toNumber(product.basePrice);
+          const originalPrice = toNumber(
+            product.originalPrice || product.basePrice,
+          );
+          const stock = computeStock(product.variants);
+          const discountPct =
+            originalPrice > 0 && price < originalPrice
+              ? Math.round(((originalPrice - price) / originalPrice) * 100)
+              : 0;
+
+          return {
+            id: Number(product.id),
+            name: String(product.name ?? "Untitled Product"),
+            slug: String(product.slug ?? product.id),
+            price,
+            originalPrice,
+            discountPct,
+            sku: String(product.sku ?? ""),
+            type: String(product.type ?? ""),
+            shortDesc: String(product.shortDesc ?? product.description ?? ""),
+            image: product.image ?? "/placeholder.svg",
+            stock,
+            categoryId:
+              product.categoryId === null || product.categoryId === undefined
+                ? null
+                : Number(product.categoryId),
+          };
+        });
+
+        setCategories(tree);
+        setProducts(mappedProducts);
+      } catch (fetchError) {
+        console.error(fetchError);
+        setError("Failed to load categories and products.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCategories();
+    loadData();
   }, []);
 
+  const categoryMap = useMemo(() => flattenTree(categories), [categories]);
+
+  const allowedCategoryIds = useMemo(() => {
+    if (!selectedCategoryId) return null;
+
+    const node = categoryMap.get(selectedCategoryId);
+    if (!node) return new Set<number>([selectedCategoryId]);
+
+    return new Set<number>([selectedCategoryId, ...collectDescendantIds(node)]);
+  }, [selectedCategoryId, categoryMap]);
+
+  const selectedCategoryName = useMemo(() => {
+    if (!selectedCategoryId) return "All Products";
+    return categoryMap.get(selectedCategoryId)?.name ?? "Selected Category";
+  }, [selectedCategoryId, categoryMap]);
+
+  const filteredProducts = useMemo(() => {
+    let list = [...products];
+
+    if (allowedCategoryIds && allowedCategoryIds.size > 0) {
+      list = list.filter(
+        (product) =>
+          product.categoryId !== null &&
+          allowedCategoryIds.has(product.categoryId),
+      );
+    }
+
+    if (sortBy === "price_low") list.sort((a, b) => a.price - b.price);
+    if (sortBy === "price_high") list.sort((a, b) => b.price - a.price);
+    if (sortBy === "name_az") list.sort((a, b) => a.name.localeCompare(b.name));
+
+    return list;
+  }, [products, allowedCategoryIds, sortBy]);
+
+  const handleAddToCart = useCallback(
+    (product: ProductUI) => {
+      if (product.stock === 0) {
+        toast.error("This product is out of stock.");
+        return;
+      }
+
+      addToCart(product.id);
+      toast.success(`\"${product.name}\" added to cart.`);
+    },
+    [addToCart],
+  );
+
+  const handleWishlist = useCallback(
+    async (product: ProductUI) => {
+      try {
+        if (status !== "authenticated") {
+          setLoginModalOpen(true);
+          return;
+        }
+
+        const alreadyWishlisted = isInWishlist(product.id);
+
+        if (alreadyWishlisted) {
+          const res = await fetch(`/api/wishlist?productId=${product.id}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) throw new Error("Failed to remove from wishlist");
+
+          removeFromWishlist(product.id);
+          toast.success("Removed from wishlist.");
+          return;
+        }
+
+        const res = await fetch("/api/wishlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId: product.id }),
+        });
+        if (!res.ok) throw new Error("Failed to add to wishlist");
+
+        addToWishlist(product.id);
+        toast.success("Added to wishlist.");
+      } catch (wishlistError) {
+        console.error(wishlistError);
+        toast.error("Wishlist update failed.");
+      }
+    },
+    [status, isInWishlist, removeFromWishlist, addToWishlist],
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F4F8F7]/30 to-white py-8 md:py-12 lg:py-16">
+    <div className="min-h-screen bg-background py-8 text-foreground">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Enhanced Header */}
-        <div className="text-center mb-12 md:mb-16">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-2 h-12 bg-gradient-to-b from-[#0E4B4B] to-[#5FA3A3] rounded-full"></div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#0D1414]">
-              বিষয়সমূহ
-            </h1>
-            <Library className="h-8 w-8 md:h-10 md:w-10 text-[#0E4B4B]" />
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Category</h1>
+
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="h-9 rounded-md border border-border bg-background px-3"
+            >
+              <option value="default">Default</option>
+              <option value="price_low">Price Low to High</option>
+              <option value="price_high">Price High to Low</option>
+              <option value="name_az">Name A-Z</option>
+            </select>
           </div>
-          <p className="text-[#5FA3A3] text-lg max-w-2xl mx-auto">
-            বিভিন্ন বিষয়ের উপর লেখা আমাদের বইগুলির সংগ্রহ ব্রাউজ করুন
-          </p>
         </div>
 
-        {/* Loading / Error */}
-        {loading && (
-          <p className="text-center text-[#5FA3A3]">বিষয়সমূহ লোড হচ্ছে...</p>
-        )}
-        {error && (
-          <p className="text-center text-red-500 font-medium">{error}</p>
-        )}
-
-        {/* Categories Grid */}
-        {!loading && !error && (
-          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-            {categories.map((category) => {
-              const icon = getCategoryIcon(category.name);
-              const count = category.productCount ?? 0;
-
-              return (
-                <Link
-                  href={`/ecommerce/categories/${category.id}`}
-                  key={category.id}
-                  className="group hover:no-underline block"
-                >
-                  <Card className="h-full border-0 bg-gradient-to-br from-white to-[#F4F8F7] shadow-lg hover:shadow-2xl transition-all duration-500 rounded-2xl overflow-hidden relative">
-                    {/* Background Pattern */}
-                    <div className="absolute inset-0 opacity-5">
-                      <div className="absolute top-2 right-2 w-8 h-8 border border-[#0E4B4B] rounded-full"></div>
-                      <div className="absolute bottom-2 left-2 w-6 h-6 bg-[#5FA3A3] rotate-45"></div>
-                    </div>
-
-                    {/* Hover Border Effect */}
-                    <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-[#5FA3A3]/20 transition-all duration-500 pointer-events-none"></div>
-
-                    <CardContent className="p-6 md:p-8 text-center flex flex-col items-center justify-center h-full relative z-10">
-                      {/* Icon Container */}
-                      <div className="relative mb-4 md:mb-6">
-                        {/* Background Circle */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#0E4B4B] to-[#5FA3A3] rounded-full opacity-10 group-hover:opacity-20 transition-opacity duration-300"></div>
-
-                        {/* Main Icon */}
-                        <div className="relative bg-white p-4 rounded-2xl shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110 border border-[#5FA3A3]/30">
-                          <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center text-2xl md:text-3xl">
-                            {icon}
-                          </div>
-                        </div>
-
-                        {/* Book Count Badge */}
-                        <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-[#0E4B4B] to-[#5FA3A3] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                          {count}
-                        </div>
-                      </div>
-
-                      {/* Category Name */}
-                      <h3 className="text-lg md:text-xl font-bold text-[#0D1414] mb-2 group-hover:text-[#0E4B4B] transition-colors duration-300 line-clamp-2 leading-tight">
-                        {category.name}
-                      </h3>
-
-                      {/* Book Count Text */}
-                      <p className="text-sm text-[#5FA3A3] mb-4 flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-[#0E4B4B]" />
-                        <span>মোট {count} টি বই</span>
-                      </p>
-
-                      {/* CTA Button */}
-                      <div className="flex items-center justify-center gap-2 text-[#0E4B4B] group-hover:text-[#5FA3A3] transition-colors duration-300 font-semibold text-sm">
-                        <span>ব্রাউজ করুন</span>
-                        <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform duration-300" />
-                      </div>
-
-                      {/* Hover Effect Line */}
-                      <div className="w-0 group-hover:w-12 h-0.5 bg-gradient-to-r from-[#0E4B4B] to-[#5FA3A3] rounded-full transition-all duration-500 mt-2"></div>
-                    </CardContent>
-
-                    {/* Gradient Overlay on Hover */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#0E4B4B]/5 to-[#5FA3A3]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl pointer-events-none"></div>
-                  </Card>
-                </Link>
-              );
-            })}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+          {/* Mobile Menu Button */}
+          <div className="lg:hidden">
+            <button
+              type="button"
+              onClick={() => setIsDrawerOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 w-full rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+            >
+              <Menu className="h-4 w-4" />
+              <span className="font-medium">Browse Categories</span>
+            </button>
           </div>
-        )}
 
-        {/* Bottom CTA Section */}
-        <div className="text-center mt-12 md:mt-16">
-          <div className="bg-gradient-to-r from-[#0E4B4B] to-[#5FA3A3] p-0.5 rounded-full inline-block">
-            <div className="bg-white rounded-full px-8 py-4">
-              <p className="text-[#0D1414] font-semibold text-lg">
-                আরও বিষয়সমূহ শীঘ্রই আসছে...
+          {/* Desktop Sidebar */}
+          <aside className="hidden lg:block">
+            {loading ? (
+              <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                Loading categories...
+              </div>
+            ) : (
+              <CategoryTree
+                tree={categories}
+                selectedCategoryId={selectedCategoryId}
+                onSelect={setSelectedCategoryId}
+              />
+            )}
+          </aside>
+
+          {/* Main Content */}
+          <section>
+            <div className="mb-4 rounded-xl border border-border bg-card px-4 py-3">
+              <p className="text-sm text-muted-foreground">
+                {selectedCategoryName} • {filteredProducts.length} products
               </p>
+            </div>
+
+            {loading ? (
+              <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+                Loading products...
+              </div>
+            ) : error ? (
+              <div className="rounded-xl border border-border bg-card p-5 text-sm text-red-500">
+                {error}
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                No products found for this category.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={{
+                      id: product.id,
+                      name: product.name,
+                      href: `/ecommerce/products/${product.id}`,
+                      image: product.image,
+                      price: product.price,
+                      originalPrice: product.originalPrice,
+                      discountPct: product.discountPct,
+                      sku: product.sku,
+                      type: product.type,
+                      shortDesc: product.shortDesc,
+                      stock: product.stock,
+                      available: product.stock > 0,
+                    }}
+                    wishlisted={isInWishlist(product.id)}
+                    onWishlistClick={() => handleWishlist(product)}
+                    onAddToCart={() => handleAddToCart(product)}
+                    formatPrice={formatPrice}
+                    showMeta={false}
+                    showSpecs={false}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+
+      {/* Mobile Drawer */}
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50"
+            onClick={() => setIsDrawerOpen(false)}
+          />
+
+          {/* Drawer Content */}
+          <div className="fixed left-0 top-0 h-full w-80 max-w-full bg-background shadow-xl">
+            <div className="flex h-full flex-col">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <h2 className="text-lg font-semibold">Categories</h2>
+                <button
+                  type="button"
+                  onClick={() => setIsDrawerOpen(false)}
+                  className="p-1 rounded-md hover:bg-muted transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Drawer Body */}
+              <div className="flex-1 overflow-y-auto">
+                {loading ? (
+                  <div className="p-4 text-sm text-muted-foreground">
+                    Loading categories...
+                  </div>
+                ) : (
+                  <CategoryTree
+                    tree={categories}
+                    selectedCategoryId={selectedCategoryId}
+                    onSelect={(id) => {
+                      setSelectedCategoryId(id);
+                      setIsDrawerOpen(false);
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-});
+      )}
 
-CategoryCardsPage.displayName = 'CategoryCardsPage';
+      <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Please login first</DialogTitle>
+            <DialogDescription>
+              You need to be logged in to use the wishlist.
+            </DialogDescription>
+          </DialogHeader>
 
-export default function CategoriesPage() {
-  return (
-    <Suspense fallback={<CategoriesSkeleton />}>
-      <CategoryCardsPage />
-    </Suspense>
-  );
-}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              onClick={() => setLoginModalOpen(false)}
+              className="h-10 rounded-lg border border-border bg-background px-4 font-semibold text-foreground transition hover:bg-accent"
+            >
+              Cancel
+            </button>
 
-// Skeleton component for loading state
-function CategoriesSkeleton() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50 py-12">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header Skeleton */}
-        <div className="text-center mb-12">
-          <Skeleton className="h-12 w-48 mx-auto mb-4" />
-          <Skeleton className="h-6 w-96 mx-auto" />
-        </div>
-
-        {/* Grid Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(8)].map((_, i) => (
-            <Card key={i} className="h-48 bg-white rounded-2xl shadow-lg">
-              <CardContent className="p-8 text-center space-y-4">
-                <Skeleton className="h-12 w-12 mx-auto rounded-full" />
-                <Skeleton className="h-6 w-3/4 mx-auto" />
-                <Skeleton className="h-4 w-1/2 mx-auto" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+            <Link
+              href="/signin"
+              onClick={() => setLoginModalOpen(false)}
+              className="btn-primary inline-flex h-10 items-center justify-center rounded-lg px-4 font-semibold transition"
+            >
+              Login
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

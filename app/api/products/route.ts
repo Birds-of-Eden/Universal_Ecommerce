@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 import slugify from "slugify";
 
 const createVariantSku = (slug: string, index: number) =>
-  `${slug}-v${index + 1}-${Date.now()}-${Math.random()
+  `${slug.substring(0, 20)}-V${index + 1}-${Math.random()
     .toString(36)
-    .slice(2, 7)}`.toUpperCase();
+    .slice(2, 5)}`.toUpperCase();
 
 const productInclude = {
   category: true,
@@ -57,9 +57,12 @@ export async function POST(req: Request) {
     }
 
     const slug = slugify(body.name, { lower: true, strict: true });
-
+    
+    // Ensure slug doesn't exceed database limits (typically 255 chars)
+    const truncatedSlug = slug.substring(0, 250);
+    
     const existing = await prisma.product.findUnique({
-      where: { slug },
+      where: { slug: truncatedSlug },
     });
 
     if (existing) {
@@ -78,7 +81,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const currency = body.currency || "USD";
+    const currency = String(body.currency || "USD")
+      .trim()
+      .toUpperCase()
+      .slice(0, 3);
+    if (currency.length !== 3) {
+      return NextResponse.json(
+        { error: "Currency must be a 3-letter code (e.g., USD, BDT)" },
+        { status: 400 },
+      );
+    }
     const basePrice = Number(body.basePrice);
     if (!Number.isFinite(basePrice) || basePrice < 0) {
       return NextResponse.json(
@@ -114,14 +126,18 @@ export async function POST(req: Request) {
               ? Number(item.stock)
               : 0
             : 0;
-        const sku =
+        const skuRaw =
           typeof item?.sku === "string" && item.sku.trim()
             ? item.sku.trim().toUpperCase()
-            : createVariantSku(slug, index);
+            : createVariantSku(truncatedSlug, index);
+        const sku = skuRaw.slice(0, 64);
         const variantCurrency =
           typeof item?.currency === "string" && item.currency.trim()
-            ? item.currency.trim().toUpperCase()
+            ? item.currency.trim().toUpperCase().slice(0, 3)
             : currency;
+        if (variantCurrency.length !== 3) {
+          return null;
+        }
         return {
           sku,
           price,
@@ -132,7 +148,7 @@ export async function POST(req: Request) {
           digitalAssetId: item?.digitalAssetId ? Number(item.digitalAssetId) : null,
         };
       })
-      .filter((item: { sku: string }) => !!item.sku);
+      .filter((item: { sku: string } | null) => !!item && !!item.sku);
 
     const invalidVariant = parsedVariants.find(
       (item: { price: number; stock: number }) =>
@@ -152,9 +168,12 @@ export async function POST(req: Request) {
       const created = await tx.product.create({
         data: {
           name: body.name,
-          slug,
+          slug: truncatedSlug,
           type,
-          sku: body.sku || null,
+          sku:
+            typeof body.sku === "string" && body.sku.trim()
+              ? body.sku.trim().toUpperCase().slice(0, 64)
+              : null,
 
           categoryId: Number(body.categoryId),
           brandId: body.brandId ? Number(body.brandId) : null,
@@ -234,7 +253,7 @@ export async function POST(req: Request) {
         const fallbackVariant = await tx.productVariant.create({
           data: {
             productId: created.id,
-            sku: createVariantSku(slug, 0),
+            sku: createVariantSku(truncatedSlug, 0).slice(0, 64),
             price: basePrice,
             currency,
             stock: type === "PHYSICAL" ? initialStock : 0,
