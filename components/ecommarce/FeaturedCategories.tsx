@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutGrid } from "lucide-react";
+import { cachedFetchJson } from "@/lib/client-cache-fetch";
 
 type CategoryDTO = {
   id: number;
@@ -42,8 +43,10 @@ function CardSkeletonRow({ count = 8 }: { count?: number }) {
 
 export default function FeaturedCategories({
   title = "Category",
+  categoriesData,
 }: {
   title?: string;
+  categoriesData?: CategoryDTO[];
 }) {
   const [loading, setLoading] = useState(true);
   const [cats, setCats] = useState<CategoryDTO[]>([]);
@@ -59,10 +62,11 @@ export default function FeaturedCategories({
         setLoading(true);
         setError(null);
 
-        const res = await fetch("/api/categories", { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to load categories");
-
-        const data = (await res.json()) as any;
+        const data =
+          categoriesData ??
+          ((await cachedFetchJson<any>("/api/categories", {
+            ttlMs: 5 * 60 * 1000,
+          })) as any);
         if (!mounted) return;
 
         // supports both array and {data:[]}
@@ -80,7 +84,7 @@ export default function FeaturedCategories({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [categoriesData]);
 
   // ✅ top 7 parent categories
   const top7 = useMemo(() => {

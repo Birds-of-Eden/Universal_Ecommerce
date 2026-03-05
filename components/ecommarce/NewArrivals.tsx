@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useCart } from "@/components/ecommarce/CartContext";
-import { useSession } from "@/lib/auth-client";
+import { cachedFetchJson } from "@/lib/client-cache-fetch";
 
 import {
   Dialog,
@@ -75,9 +75,17 @@ function calcDiscountPercent(base: number, original: number | null) {
 export default function NewArrivals({
   title = "New Arrivals",
   limit = 20,
+  productsData,
+  categoriesData,
+  reviewsData,
+  isAuthenticated = false,
 }: {
   title?: string;
   limit?: number;
+  productsData?: any[];
+  categoriesData?: any[];
+  reviewsData?: any[];
+  isAuthenticated?: boolean;
 }) {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ProductDTO[]>([]);
@@ -92,12 +100,11 @@ export default function NewArrivals({
 
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const { status } = useSession();
 
   const toggleWishlist = useCallback(
     async (p: ProductDTO) => {
       try {
-        if (status !== "authenticated") {
+        if (!isAuthenticated) {
           setLoginModalOpen(true);
           return;
         }
@@ -123,7 +130,7 @@ export default function NewArrivals({
         console.error(err);
       }
     },
-    [status, isInWishlist, addToWishlist, removeFromWishlist]
+    [isAuthenticated, isInWishlist, addToWishlist, removeFromWishlist]
   );
 
   const handleAddToCart = useCallback(
@@ -145,19 +152,15 @@ export default function NewArrivals({
         setLoading(true);
         setError(null);
 
-        const [pRes, cRes, rRes] = await Promise.all([
-          fetch("/api/products", { cache: "no-store" }),
-          fetch("/api/categories", { cache: "no-store" }),
-          fetch("/api/reviews", { cache: "no-store" }),
-        ]);
-
-        if (!pRes.ok) throw new Error("Failed to load products");
-        if (!cRes.ok) throw new Error("Failed to load categories");
-        if (!rRes.ok) throw new Error("Failed to load reviews");
-
-        const pData = await pRes.json();
-        const cData = await cRes.json();
-        const rData = await rRes.json();
+        const pData =
+          productsData ??
+          (await cachedFetchJson<any>("/api/products", { ttlMs: 2 * 60 * 1000 }));
+        const cData =
+          categoriesData ??
+          (await cachedFetchJson<any>("/api/categories", { ttlMs: 5 * 60 * 1000 }));
+        const rData =
+          reviewsData ??
+          (await cachedFetchJson<any>("/api/reviews", { ttlMs: 60 * 1000 }));
 
         if (!mounted) return;
 
@@ -219,7 +222,7 @@ export default function NewArrivals({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [productsData, categoriesData, reviewsData]);
 
   const reviewStats = useMemo(() => {
     const map: Record<string, { count: number; sum: number; avg: number }> = {};

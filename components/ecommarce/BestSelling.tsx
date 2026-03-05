@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useCart } from "@/components/ecommarce/CartContext";
-import { useSession } from "@/lib/auth-client";
+import { cachedFetchJson } from "@/lib/client-cache-fetch";
 
 import {
   Dialog,
@@ -78,10 +78,16 @@ export default function BestSelling({
   title = "Best Selling",
   subtitle = "Top selling products right now",
   limit = 20,
+  topSellingData,
+  reviewsData,
+  isAuthenticated = false,
 }: {
   title?: string;
   subtitle?: string;
   limit?: number;
+  topSellingData?: any[];
+  reviewsData?: any[];
+  isAuthenticated?: boolean;
 }) {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ProductDTO[]>([]);
@@ -94,13 +100,12 @@ export default function BestSelling({
 
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const { status } = useSession();
 
   /* ================= Wishlist toggle ================= */
   const toggleWishlist = useCallback(
     async (p: ProductDTO) => {
       try {
-        if (status !== "authenticated") {
+        if (!isAuthenticated) {
           setLoginModalOpen(true);
           return;
         }
@@ -126,7 +131,7 @@ export default function BestSelling({
         console.error(err);
       }
     },
-    [status, isInWishlist, addToWishlist, removeFromWishlist]
+    [isAuthenticated, isInWishlist, addToWishlist, removeFromWishlist]
   );
 
   /* ================= Add to cart ================= */
@@ -150,16 +155,14 @@ export default function BestSelling({
         setLoading(true);
         setError(null);
 
-        const [pRes, rRes] = await Promise.all([
-          fetch("/api/products/top-selling", { cache: "no-store" }),
-          fetch("/api/reviews", { cache: "no-store" }),
-        ]);
-
-        if (!pRes.ok) throw new Error("Failed to load best selling products");
-        if (!rRes.ok) throw new Error("Failed to load reviews");
-
-        const pData = await pRes.json();
-        const rData = await rRes.json();
+        const pData =
+          topSellingData ??
+          (await cachedFetchJson<any>("/api/products/top-selling", {
+            ttlMs: 2 * 60 * 1000,
+          }));
+        const rData =
+          reviewsData ??
+          (await cachedFetchJson<any>("/api/reviews", { ttlMs: 60 * 1000 }));
 
         if (!mounted) return;
 
@@ -214,7 +217,7 @@ export default function BestSelling({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [topSellingData, reviewsData]);
 
   /* ================= Review stats (productId wise) ================= */
   const reviewStats = useMemo(() => {

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { isDarkLikeTheme } from "@/lib/theme";
 import { useSession, signOut } from "@/lib/auth-client";
+import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import {
@@ -61,6 +62,20 @@ interface CategoryDTO {
 interface CategoryNode extends CategoryDTO {
   children: CategoryNode[];
 }
+
+type SiteSettings = {
+  logo?: string | null;
+  siteTitle?: string | null;
+  footerDescription?: string | null;
+  contactNumber?: string | null;
+  contactEmail?: string | null;
+  address?: string | null;
+  facebookLink?: string | null;
+  instagramLink?: string | null;
+  twitterLink?: string | null;
+  tiktokLink?: string | null;
+  youtubeLink?: string | null;
+};
 
 /* =========================
    Helpers
@@ -359,7 +374,15 @@ function MobileCategoryTree({
 /* =========================
    Header
 ========================= */
-export default function Header() {
+export default function Header({
+  siteSettingsData,
+  productsData,
+  categoriesData,
+}: {
+  siteSettingsData?: SiteSettings;
+  productsData?: ProductSummary[];
+  categoriesData?: CategoryDTO[];
+}) {
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -372,19 +395,9 @@ export default function Header() {
   const [isPending, setIsPending] = useState(false);
 
   // Site settings
-  const [siteSettings, setSiteSettings] = useState<{
-    logo?: string | null;
-    siteTitle?: string | null;
-    footerDescription?: string | null;
-    contactNumber?: string | null;
-    contactEmail?: string | null;
-    address?: string | null;
-    facebookLink?: string | null;
-    instagramLink?: string | null;
-    twitterLink?: string | null;
-    tiktokLink?: string | null;
-    youtubeLink?: string | null;
-  }>({});
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(
+    siteSettingsData ?? {}
+  );
 
   // Mobile drawer
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -417,8 +430,14 @@ export default function Header() {
   useEffect(() => {
     const loadSiteSettings = async () => {
       try {
-        const res = await fetch("/api/site", { cache: "no-store" });
-        const data = await res.json();
+        if (siteSettingsData) {
+          setSiteSettings(siteSettingsData);
+          return;
+        }
+
+        const data = await cachedFetchJson<any>("/api/site", {
+          ttlMs: 5 * 60 * 1000,
+        });
         setSiteSettings(data);
       } catch (error) {
         console.error("Failed to load site settings:", error);
@@ -426,7 +445,7 @@ export default function Header() {
     };
 
     loadSiteSettings();
-  }, []);
+  }, [siteSettingsData]);
 
   const activeTheme = (theme === "system" ? resolvedTheme : theme) ?? "light";
   const darkLikeActiveTheme = isDarkLikeTheme(activeTheme);
@@ -441,11 +460,16 @@ export default function Header() {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        setSearchLoading(true);
-        const res = await fetch("/api/products", { cache: "no-store" });
-        if (!res.ok) return;
+        if (productsData) {
+          setAllProducts(productsData);
+          setHasLoadedProducts(true);
+          return;
+        }
 
-        const data = await res.json();
+        setSearchLoading(true);
+        const data = await cachedFetchJson<any[]>("/api/products", {
+          ttlMs: 2 * 60 * 1000,
+        });
         const mapped: ProductSummary[] = Array.isArray(data)
           ? data.map((p: any) => ({
               id: p.id,
@@ -462,16 +486,22 @@ export default function Header() {
       }
     };
     loadProducts();
-  }, []);
+  }, [productsData]);
 
   // load categories
   useEffect(() => {
     const loadCategories = async () => {
       try {
+        if (categoriesData) {
+          setCategoryTree(buildCategoryTree(categoriesData));
+          setCategoryLoading(false);
+          return;
+        }
+
         setCategoryLoading(true);
-        const res = await fetch(CATEGORIES_API, { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as any[];
+        const data = await cachedFetchJson<any[]>(CATEGORIES_API, {
+          ttlMs: 5 * 60 * 1000,
+        });
         const mapped: CategoryDTO[] = Array.isArray(data)
           ? data.map((c) => ({
               id: Number(c.id),
@@ -489,7 +519,7 @@ export default function Header() {
       }
     };
     loadCategories();
-  }, []);
+  }, [categoriesData]);
 
   // search filtering
   useEffect(() => {

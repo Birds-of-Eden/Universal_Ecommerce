@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -8,7 +8,6 @@ import { Heart, ShoppingCart, Star, Zap, BookOpen } from "lucide-react";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
 
 // Skeleton Loader Component
 const BookCardSkeleton = () => (
@@ -104,14 +103,15 @@ export default function CategoryBooks({
   category,
   allProducts,
   ratings,
+  isAuthenticated = false,
 }: {
   category: Category;
   allProducts?: Product[];
   ratings?: Record<string, RatingInfo>;
+  isAuthenticated?: boolean;
 }) {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const { data: session } = useSession();
 
   // Use shared data if provided, otherwise fall back to local fetching
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
@@ -120,11 +120,11 @@ export default function CategoryBooks({
   );
   const [loadingProducts, setLoadingProducts] = useState(!allProducts);
 
-  // 🔹 Use shared products or fetch locally if not provided
+  // ðŸ”¹ Use shared products or fetch locally if not provided
   const products = allProducts || localProducts;
   const reviewRatings = ratings || localRatings;
 
-  // 🔹 Only fetch locally if shared data is not provided
+  // ðŸ”¹ Only fetch locally if shared data is not provided
   useEffect(() => {
     if (allProducts) {
       setLoadingProducts(false);
@@ -169,11 +169,11 @@ export default function CategoryBooks({
           stock: Number(p.stock ?? 0),
           writer: {
             id: Number(p.writer?.id ?? 0),
-            name: p.writer?.name ?? "অজ্ঞাত লেখক",
+            name: p.writer?.name ?? "à¦…à¦œà§à¦žà¦¾à¦¤ à¦²à§‡à¦–à¦•",
           },
           publisher: {
             id: Number(p.publisher?.id ?? 0),
-            name: p.publisher?.name ?? "অজ্ঞাত প্রকাশক",
+            name: p.publisher?.name ?? "à¦…à¦œà§à¦žà¦¾à¦¤ à¦ªà§à¦°à¦•à¦¾à¦¶à¦•",
           },
           image: p.image ?? "/placeholder.svg",
         }));
@@ -190,7 +190,7 @@ export default function CategoryBooks({
     fetchProducts();
   }, [allProducts]);
 
-  // 🔹 Only fetch ratings locally if shared data is not provided
+  // ðŸ”¹ Only fetch ratings locally if shared data is not provided
   useEffect(() => {
     if (ratings) {
       return;
@@ -263,7 +263,7 @@ export default function CategoryBooks({
     fetchRatings();
   }, [products, category.id, ratings]);
 
-  // 🔹 Filter products based on category and ensure all required relations exist
+  // ðŸ”¹ Filter products based on category and ensure all required relations exist
   const categoryBooks = products.filter((product: Product) => {
     // Skip products that are marked as deleted or not available
     if (product.deleted || product.available === false) {
@@ -290,45 +290,45 @@ export default function CategoryBooks({
 
   const displayBooks = categoryBooks.slice(0, 8);
 
-  // 🔹 Wishlist toggle (with API) - শুধু wishlist-এ login required
+  // ðŸ”¹ Wishlist toggle (with API) - à¦¶à§à¦§à§ wishlist-à¦ login required
   const toggleWishlist = async (product: Product) => {
     try {
-      if (!session?.user) {
-        toast.error("উইশলিস্ট ব্যবহার করতে আগে লগইন করুন");
+      if (!isAuthenticated) {
+        toast.error("à¦‰à¦‡à¦¶à¦²à¦¿à¦¸à§à¦Ÿ à¦¬à§à¦¯à¦¬à¦¹à¦¾à¦° à¦•à¦°à¦¤à§‡ à¦†à¦—à§‡ à¦²à¦—à¦‡à¦¨ à¦•à¦°à§à¦¨");
         return;
       }
 
       const numericId = Number(product.id);
       if (!numericId || Number.isNaN(numericId)) {
         console.error("Invalid product id for wishlist:", product.id);
-        toast.error("পণ্যের তথ্য সঠিক নয়");
+        toast.error("à¦ªà¦£à§à¦¯à§‡à¦° à¦¤à¦¥à§à¦¯ à¦¸à¦ à¦¿à¦• à¦¨à¦¯à¦¼");
         return;
       }
 
       const alreadyInWishlist = isInWishlist(product.id);
 
       if (alreadyInWishlist) {
-        // ✅ Remove from wishlist (DELETE)
+        // âœ… Remove from wishlist (DELETE)
         const res = await fetch(`/api/wishlist?productId=${numericId}`, {
           method: "DELETE",
         });
 
         if (res.status === 401) {
-          toast.error("উইশলিস্ট থেকে সরাতে আগে লগইন করুন");
+          toast.error("à¦‰à¦‡à¦¶à¦²à¦¿à¦¸à§à¦Ÿ à¦¥à§‡à¦•à§‡ à¦¸à¦°à¦¾à¦¤à§‡ à¦†à¦—à§‡ à¦²à¦—à¦‡à¦¨ à¦•à¦°à§à¦¨");
           return;
         }
 
         if (!res.ok) {
           const data = await res.json().catch(() => null);
           console.error("Remove from wishlist failed:", data || res.statusText);
-          toast.error("উইশলিস্ট থেকে সরানো যায়নি");
+          toast.error("à¦‰à¦‡à¦¶à¦²à¦¿à¦¸à§à¦Ÿ à¦¥à§‡à¦•à§‡ à¦¸à¦°à¦¾à¦¨à§‹ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
           return;
         }
 
         removeFromWishlist(product.id);
-        toast.success("উইশলিস্ট থেকে সরানো হয়েছে");
+        toast.success("à¦‰à¦‡à¦¶à¦²à¦¿à¦¸à§à¦Ÿ à¦¥à§‡à¦•à§‡ à¦¸à¦°à¦¾à¦¨à§‹ à¦¹à¦¯à¦¼à§‡à¦›à§‡");
       } else {
-        // ✅ Add to wishlist (POST)
+        // âœ… Add to wishlist (POST)
         const res = await fetch("/api/wishlist", {
           method: "POST",
           headers: {
@@ -338,34 +338,34 @@ export default function CategoryBooks({
         });
 
         if (res.status === 401) {
-          toast.error("উইশলিস্টে যোগ করতে আগে লগইন করুন");
+          toast.error("à¦‰à¦‡à¦¶à¦²à¦¿à¦¸à§à¦Ÿà§‡ à¦¯à§‹à¦— à¦•à¦°à¦¤à§‡ à¦†à¦—à§‡ à¦²à¦—à¦‡à¦¨ à¦•à¦°à§à¦¨");
           return;
         }
 
         if (!res.ok) {
           const data = await res.json().catch(() => null);
           console.error("Add to wishlist failed:", data || res.statusText);
-          toast.error("উইশলিস্টে যোগ করা যায়নি");
+          toast.error("à¦‰à¦‡à¦¶à¦²à¦¿à¦¸à§à¦Ÿà§‡ à¦¯à§‹à¦— à¦•à¦°à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿");
           return;
         }
 
         addToWishlist(product.id);
-        toast.success("উইশলিস্টে যোগ করা হয়েছে");
+        toast.success("à¦‰à¦‡à¦¶à¦²à¦¿à¦¸à§à¦Ÿà§‡ à¦¯à§‹à¦— à¦•à¦°à¦¾ à¦¹à¦¯à¦¼à§‡à¦›à§‡");
       }
     } catch (error) {
       console.error("Error toggling wishlist:", error);
-      toast.error("উইশলিস্ট হালনাগাদ করতে সমস্যা হয়েছে");
+      toast.error("à¦‰à¦‡à¦¶à¦²à¦¿à¦¸à§à¦Ÿ à¦¹à¦¾à¦²à¦¨à¦¾à¦—à¦¾à¦¦ à¦•à¦°à¦¤à§‡ à¦¸à¦®à¦¸à§à¦¯à¦¾ à¦¹à¦¯à¦¼à§‡à¦›à§‡");
     }
   };
 
-  // 🔹 Cart-এ add করতে login এর requirement নেই - localStorage/cart context ব্যবহার
+  // ðŸ”¹ Cart-à¦ add à¦•à¦°à¦¤à§‡ login à¦à¦° requirement à¦¨à§‡à¦‡ - localStorage/cart context à¦¬à§à¦¯à¦¬à¦¹à¦¾à¦°
   const handleAddToCart = (book: Product) => {
     try {
       addToCart(book.id);
-      toast.success(`"${book.name}" কার্টে যোগ করা হয়েছে`);
+      toast.success(`"${book.name}" à¦•à¦¾à¦°à§à¦Ÿà§‡ à¦¯à§‹à¦— à¦•à¦°à¦¾ à¦¹à¦¯à¦¼à§‡à¦›à§‡`);
 
-      // Optional: logged-in অবস্থায় backend sync
-      if (session?.user) {
+      // Optional: logged-in à¦…à¦¬à¦¸à§à¦¥à¦¾à§Ÿ backend sync
+      if (isAuthenticated) {
         fetch("/api/cart", {
           method: "POST",
           headers: {
@@ -381,11 +381,11 @@ export default function CategoryBooks({
       }
     } catch (error) {
       console.error("Error adding to cart:", error);
-      toast.error("কার্টে যোগ করতে সমস্যা হয়েছে");
+      toast.error("à¦•à¦¾à¦°à§à¦Ÿà§‡ à¦¯à§‹à¦— à¦•à¦°à¦¤à§‡ à¦¸à¦®à¦¸à§à¦¯à¦¾ à¦¹à¦¯à¦¼à§‡à¦›à§‡");
     }
   };
 
-  // ⛔ এই ক্যাটাগরিতে যদি কোনো প্রোডাক্ট না থাকে, তাহলে কিছুই দেখাব না
+  // â›” à¦à¦‡ à¦•à§à¦¯à¦¾à¦Ÿà¦¾à¦—à¦°à¦¿à¦¤à§‡ à¦¯à¦¦à¦¿ à¦•à§‹à¦¨à§‹ à¦ªà§à¦°à§‹à¦¡à¦¾à¦•à§à¦Ÿ à¦¨à¦¾ à¦¥à¦¾à¦•à§‡, à¦¤à¦¾à¦¹à¦²à§‡ à¦•à¦¿à¦›à§à¦‡ à¦¦à§‡à¦–à¦¾à¦¬ à¦¨à¦¾
   if (!loadingProducts && categoryBooks.length === 0) {
     return null;
   }
@@ -418,7 +418,7 @@ export default function CategoryBooks({
               {category.name}
             </h3>
             <p className="text-[#5FA3A3] mt-1">
-              {categoryBooks.length}টি বই পাওয়া যাচ্ছে
+              {categoryBooks.length}à¦Ÿà¦¿ à¦¬à¦‡ à¦ªà¦¾à¦“à¦¯à¦¼à¦¾ à¦¯à¦¾à¦šà§à¦›à§‡
             </p>
           </div>
         </div>
@@ -428,7 +428,7 @@ export default function CategoryBooks({
               variant="outline"
               className="rounded-full border-[#5FA3A3] text-[#5FA3A3] hover:bg-[#5FA3A3] hover:text-white transition-all duration-300 px-6 group"
             >
-              সব দেখুন
+              à¦¸à¦¬ à¦¦à§‡à¦–à§à¦¨
               <Zap className="ml-2 h-4 w-4 group-hover:rotate-12 transition-transform" />
             </Button>
           </Link>
@@ -455,17 +455,17 @@ export default function CategoryBooks({
               <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
                 {book.discount > 0 && (
                   <div className="bg-gradient-to-r from-[#C0704D] to-[#A85D3F] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                    {book.discount}% ছাড়
+                    {book.discount}% à¦›à¦¾à¦¡à¦¼
                   </div>
                 )}
                 {isBestseller && (
                   <div className="bg-gradient-to-r from-[#C0704D] to-[#A85D3F] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                    বেস্টসেলার
+                    à¦¬à§‡à¦¸à§à¦Ÿà¦¸à§‡à¦²à¦¾à¦°
                   </div>
                 )}
                 {isNew && (
                   <div className="bg-gradient-to-r from-[#5FA3A3] to-[#0E4B4B] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                    নতুন
+                    à¦¨à¦¤à§à¦¨
                   </div>
                 )}
               </div>
@@ -536,12 +536,12 @@ export default function CategoryBooks({
                         ))}
                       </div>
                       <span className="text-xs text-[#5FA3A3] ml-1">
-                        ({avgRating.toFixed(1)} · {reviewCount} রিভিউ)
+                        ({avgRating.toFixed(1)} Â· {reviewCount} à¦°à¦¿à¦­à¦¿à¦‰)
                       </span>
                     </>
                   ) : (
                     <span className="text-xs text-[#5FA3A3]">
-                      এখনও কোন রিভিউ নেই
+                      à¦à¦–à¦¨à¦“ à¦•à§‹à¦¨ à¦°à¦¿à¦­à¦¿à¦‰ à¦¨à§‡à¦‡
                     </span>
                   )}
                 </div>
@@ -563,11 +563,11 @@ export default function CategoryBooks({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-baseline gap-2">
                     <span className="font-bold text-xl text-[#0E4B4B]">
-                      ৳{book.price}
+                      à§³{book.price}
                     </span>
                     {book.discount > 0 && (
                       <span className="text-sm text-[#5FA3A3] line-through">
-                        ৳{book.original_price}
+                        à§³{book.original_price}
                       </span>
                     )}
                   </div>
@@ -578,7 +578,7 @@ export default function CategoryBooks({
                   ) : (
                     book.discount > 0 && (
                       <div className="text-xs font-semibold bg-[#C0704D] text-white px-2 py-1 rounded-full">
-                        সাশ্রয় করুন
+                        à¦¸à¦¾à¦¶à§à¦°à¦¯à¦¼ à¦•à¦°à§à¦¨
                       </div>
                     )
                   )}
@@ -602,7 +602,7 @@ export default function CategoryBooks({
                   }}
                 >
                   <ShoppingCart className="mr-2 h-4 w-4 group-hover/btn:scale-110 transition-transform" />
-                  {book.stock === 0 ? "স্টক শেষ" : "কার্টে যোগ করুন"}
+                  {book.stock === 0 ? "à¦¸à§à¦Ÿà¦• à¦¶à§‡à¦·" : "à¦•à¦¾à¦°à§à¦Ÿà§‡ à¦¯à§‹à¦— à¦•à¦°à§à¦¨"}
                 </Button>
               </CardFooter>
 
@@ -622,7 +622,7 @@ export default function CategoryBooks({
               className="rounded-full bg-[#F4F8F7] hover:bg-[#C0704D] text-[#0D1414] hover:text-white transition-all duration-300 px-8 py-6 group"
             >
               <span className="mr-2">
-                {categoryBooks.length - 8}+ আরও বই দেখুন
+                {categoryBooks.length - 8}+ à¦†à¦°à¦“ à¦¬à¦‡ à¦¦à§‡à¦–à§à¦¨
               </span>
               <Zap className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
             </Button>
@@ -632,3 +632,5 @@ export default function CategoryBooks({
     </div>
   );
 }
+
+

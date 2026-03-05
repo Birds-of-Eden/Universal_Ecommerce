@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { cachedFetchJson } from "@/lib/client-cache-fetch";
 
 interface Banner {
   id: number;
@@ -18,12 +19,14 @@ type Props = {
   heroInterval?: number;
   banner1Interval?: number;
   banner2Interval?: number;
+  bannersData?: Banner[];
 };
 
 export default function Hero({
   heroInterval = 5000,
   banner1Interval = 3000,
   banner2Interval = 4000,
+  bannersData,
 }: Props) {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentHero, setCurrentHero] = useState(0);
@@ -37,12 +40,15 @@ export default function Hero({
   /* ================= FETCH ================= */
   useEffect(() => {
     const load = async () => {
-      const res = await fetch("/api/banners", { cache: "no-store" });
-      const data = await res.json();
+      const data =
+        bannersData ??
+        (await cachedFetchJson<Banner[]>("/api/banners", {
+          ttlMs: 2 * 60 * 1000,
+        }));
       setBanners((data as Banner[]).filter((b) => b.isActive));
     };
     load();
-  }, []);
+  }, [bannersData]);
 
   /* ================= SPLIT ================= */
   const heroSlides = useMemo(

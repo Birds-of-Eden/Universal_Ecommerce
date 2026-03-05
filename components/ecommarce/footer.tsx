@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import {
   Facebook,
   Instagram,
@@ -34,34 +34,43 @@ type ApiCategory = {
   parentId?: number | string | null;
 };
 
-export default function Footer() {
+type SiteSettings = {
+  logo?: string | null;
+  siteTitle?: string | null;
+  footerDescription?: string | null;
+  contactNumber?: string | null;
+  contactEmail?: string | null;
+  address?: string | null;
+  facebookLink?: string | null;
+  instagramLink?: string | null;
+  twitterLink?: string | null;
+  tiktokLink?: string | null;
+  youtubeLink?: string | null;
+};
+
+export default function Footer({
+  siteSettingsData,
+  categoriesData,
+}: {
+  siteSettingsData?: SiteSettings;
+  categoriesData?: ApiCategory[];
+}) {
   const currentYear = new Date().getFullYear();
-  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const isAuthenticated = status === "authenticated";
 
   // Site settings
-  const [siteSettings, setSiteSettings] = useState<{
-    logo?: string | null;
-    siteTitle?: string | null;
-    footerDescription?: string | null;
-    contactNumber?: string | null;
-    contactEmail?: string | null;
-    address?: string | null;
-    facebookLink?: string | null;
-    instagramLink?: string | null;
-    twitterLink?: string | null;
-    tiktokLink?: string | null;
-    youtubeLink?: string | null;
-  }>({});
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({});
 
   // Load site settings
   useEffect(() => {
     const loadSiteSettings = async () => {
       try {
-        const res = await fetch("/api/site", { cache: "no-store" });
-        const data = await res.json();
+        const data =
+          siteSettingsData ??
+          (await cachedFetchJson<any>("/api/site", {
+            ttlMs: 5 * 60 * 1000,
+          }));
         setSiteSettings(data);
       } catch (error) {
         console.error("Failed to load site settings:", error);
@@ -69,7 +78,7 @@ export default function Footer() {
     };
 
     loadSiteSettings();
-  }, []);
+  }, [siteSettingsData]);
 
   // ✅ categories from API
   const [categories, setCategories] = useState<
@@ -81,10 +90,11 @@ export default function Footer() {
 
     const loadCategories = async () => {
       try {
-        const res = await fetch("/api/categories", { cache: "no-store" });
-        if (!res.ok) return;
-
-        const data = (await res.json()) as ApiCategory[];
+        const data =
+          categoriesData ??
+          ((await cachedFetchJson<ApiCategory[]>("/api/categories", {
+            ttlMs: 5 * 60 * 1000,
+          })) as ApiCategory[]);
         if (!mounted) return;
 
         const list = Array.isArray(data) ? data : [];
@@ -118,7 +128,7 @@ export default function Footer() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [categoriesData]);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
