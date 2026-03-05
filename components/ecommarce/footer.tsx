@@ -209,7 +209,7 @@ export default function Footer({
   return (
     <footer className="bg-card border-t border-border">
       {/* Features Bar */}
-      <div className="border-b border-border bg-muted/30">
+      <div className="border-b border-border bg-muted/30 shadow-sm transition-all duration-300 ease-out hover:shadow-lg hover:scale-102 hover:-translate-y-1 group">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6">
             {features.map((feature, index) => (
