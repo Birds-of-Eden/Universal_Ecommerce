@@ -189,7 +189,7 @@ body {
 
   .btn-danger {
     /* eslint-disable-next-line at-rule-no-unknown */
-    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90;
+    @apply bg-red-500 text-destructive-foreground hover:bg-red-500/90;
   }
 
   .input-theme {

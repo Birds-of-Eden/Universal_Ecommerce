@@ -11,6 +11,8 @@ import FeaturedCategories from "@/components/ecommarce/FeaturedCategories";
 import FeaturedProducts from "@/components/ecommarce/FeaturedProducts";
 import FeaturedLatestBest from "@/components/ecommarce/FeaturedLatestBest";
 import PopupBanner from "@/components/ecommarce/PopupBanner";
+import FeatureStrip from "@/components/ecommarce/FeatureCard";
+import NewArrivals from "@/components/ecommarce/NewArrivals";
 
 type Category = {
   id: number;
@@ -161,8 +163,14 @@ export default function Home() {
         <div className="min-h-screen flex flex-col">
           <Header />
           <Hero />
-         <div className="mt-10 mb-10 p-5">
+         {/* <div className="mt-10 mb-10 p-5">
            <FeaturedCategories />
+         </div> */}
+         <div>
+           <FeatureStrip/>
+         </div>
+         <div>
+           <NewArrivals/>
          </div>
          <div className="mt-10 mb-10 p-5">
           <FeaturedProducts/>

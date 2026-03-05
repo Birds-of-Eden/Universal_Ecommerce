@@ -2,9 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, ShoppingCart, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ProductCardData = {
@@ -14,196 +12,150 @@ export type ProductCardData = {
   image?: string | null;
   price: number;
   originalPrice?: number | null;
-
-  // stock ALWAYS number from parent (we are passing computed stock)
   stock?: number | null;
-
-  available?: boolean;
+  ratingAvg?: number | null;
+  ratingCount?: number | null;
   discountPct?: number;
-  badgeText?: string | null;
-  sku?: string | null;
-  type?: string | null;
-  shortDesc?: string | null;
-  specs?: string[];
 };
 
-type ProductCardProps = {
+type Props = {
   product: ProductCardData;
   wishlisted?: boolean;
-  wishlistMode?: "toggle" | "remove";
   onWishlistClick?: () => void;
   onAddToCart?: () => void;
   formatPrice?: (value: number) => string;
-  showMeta?: boolean;
-  showSpecs?: boolean;
-  specsFallback?: string;
-  addToCartLabel?: string;
-  unavailableLabel?: string;
   className?: string;
 };
 
 const defaultFormatPrice = (value: number) =>
-  `Tk ${Math.round(value).toLocaleString("en-US")}`;
+  `৳${Math.round(value).toLocaleString("en-US")}`;
 
-export default function ProductCard({
+function Stars({ value }: { value: number }) {
+  const v = Math.max(0, Math.min(5, value || 0));
+  const full = Math.floor(v);
+  const half = v - full >= 0.5;
+
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: 5 }).map((_, i) => {
+        const isFull = i < full;
+        const isHalf = i === full && half;
+        return (
+          <span
+            key={i}
+            className={cn(
+              "text-[12px]",
+              isFull || isHalf ? "text-yellow-400" : "text-muted-foreground/40",
+            )}
+          >
+            ★
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function ProductCardCompact({
   product,
   wishlisted = false,
-  wishlistMode = "toggle",
   onWishlistClick,
   onAddToCart,
   formatPrice = defaultFormatPrice,
-  showMeta = true,
-  showSpecs = false,
-  specsFallback,
-  addToCartLabel = "Add To Cart",
-  unavailableLabel = "Up Coming",
   className,
-}: ProductCardProps) {
+}: Props) {
   const isOutOfStock = product.stock === 0;
 
-  // ✅ only stock controls availability
-  const available = !isOutOfStock;
-
-  const hasDiscount = Number(product.discountPct ?? 0) > 0;
-  const showOriginal = Number(product.originalPrice ?? 0) > product.price;
-  const badge =
-    product.badgeText ?? (hasDiscount ? `Save ${product.discountPct}%` : null);
+  const showOriginal =
+    (product.originalPrice ?? 0) > (product.price ?? 0) && !isOutOfStock;
 
   return (
-    <Card
+    <div
       className={cn(
-        "group overflow-hidden border border-border bg-card shadow-sm hover:shadow-lg transition-shadow",
-        className
+        // ✅ responsive width: mobile 220, desktop 240 (design same)
+        "min-w-[220px] max-w-[220px] sm:min-w-[240px] sm:max-w-[240px]",
+        "overflow-hidden rounded-2xl border border-border bg-card shadow-sm",
+        className,
       )}
     >
-      <div className="relative bg-white dark:bg-card">
+      <div className="relative h-[160px] sm:h-[170px] bg-muted/40">
+        {product.discountPct && product.discountPct > 0 ? (
+          <span className="absolute left-3 top-3 z-10 rounded-md bg-orange-500 px-2 py-1 text-[11px] font-semibold text-white">
+            {product.discountPct}%
+          </span>
+        ) : null}
+
         {onWishlistClick ? (
           <button
             type="button"
             onClick={onWishlistClick}
-            className="absolute right-2 top-2 z-10 h-9 w-9 rounded-full border border-border bg-background/90 backdrop-blur flex items-center justify-center hover:bg-accent transition"
-            aria-label={
-              wishlistMode === "remove"
-                ? "Remove from wishlist"
-                : wishlisted
-                ? "Remove from wishlist"
-                : "Add to wishlist"
-            }
+            className="absolute right-3 top-3 z-10 h-9 w-9 rounded-full border border-border bg-background/90 backdrop-blur flex items-center justify-center hover:bg-muted transition"
+            aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
           >
-            {wishlistMode === "remove" ? (
-              <Trash2 className="h-4 w-4 text-destructive" />
-            ) : (
-              <Heart className={cn("h-5 w-5", wishlisted && "fill-current")} />
-            )}
+            <Heart
+              className={cn(
+                "h-5 w-5",
+                wishlisted
+                  ? "fill-primary text-primary"
+                  : "text-muted-foreground",
+              )}
+            />
           </button>
         ) : null}
 
-        {isOutOfStock ? (
-          <div className="absolute left-2 top-2 z-10 rounded-full bg-destructive px-2 py-1 text-[11px] font-semibold text-destructive-foreground">
-            Out of Stock
-          </div>
-        ) : badge ? (
-          <div className="absolute left-2 top-2 z-10 rounded-full bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground">
-            {badge}
-          </div>
-        ) : null}
-
-        <Link href={product.href}>
-          <div className="relative aspect-[4/3] w-full p-6">
-            <Image
-              src={product.image || "/placeholder.svg"}
-              alt={product.name}
-              fill
-              className="object-contain transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, 25vw"
-            />
-          </div>
+        <Link href={product.href} className="block h-full w-full">
+          <Image
+            src={product.image || "/placeholder.svg"}
+            alt={product.name}
+            fill
+            className="object-contain p-5"
+            sizes="(max-width: 640px) 220px, 240px"
+          />
         </Link>
       </div>
 
-      <CardContent className="p-4">
+      <div className="p-4">
+        <div className="flex items-center gap-2">
+          <Stars value={Number(product.ratingAvg ?? 0)} />
+          <span className="text-[12px] text-muted-foreground">
+            ({Number(product.ratingCount ?? 0)})
+          </span>
+        </div>
+
         <Link href={product.href}>
-          <h3 className="font-semibold text-sm leading-snug line-clamp-2 hover:underline">
+          <p className="mt-2 text-[13px] text-foreground leading-snug line-clamp-2">
             {product.name}
-          </h3>
+          </p>
         </Link>
 
-        {showMeta ? (
-          <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-            {product.sku ? (
-              <li className="flex gap-2">
-                <span className="mt-[6px] h-1 w-1 rounded-full bg-muted-foreground/60" />
-                <span>
-                  <b className="text-foreground/80">SKU:</b> {product.sku}
-                </span>
-              </li>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="flex flex-col leading-tight">
+            <span className="font-semibold text-foreground">
+              {formatPrice(product.price)}
+            </span>
+
+            {showOriginal ? (
+              <span className="mt-1 text-[12px] text-muted-foreground line-through">
+                {formatPrice(Number(product.originalPrice))}
+              </span>
             ) : null}
+          </div>
 
-            {product.type ? (
-              <li className="flex gap-2">
-                <span className="mt-[6px] h-1 w-1 rounded-full bg-muted-foreground/60" />
-                <span>
-                  <b className="text-foreground/80">Type:</b> {product.type}
-                </span>
-              </li>
-            ) : null}
-
-            {product.shortDesc ? (
-              <li className="flex gap-2">
-                <span className="mt-[6px] h-1 w-1 rounded-full bg-muted-foreground/60" />
-                <span className="line-clamp-2">{product.shortDesc}</span>
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
-
-        {showSpecs ? (
-          product.specs?.length ? (
-            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              {product.specs.slice(0, 4).map((spec, i) => (
-                <li key={`${product.id}-spec-${i}`} className="flex gap-2">
-                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-muted-foreground/70 shrink-0" />
-                  <span className="leading-5">{spec}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="mt-3 text-sm text-muted-foreground">
-              {specsFallback ?? "Specs not available"}
-            </div>
-          )
-        ) : null}
-
-        <div className="mt-4 border-t border-border pt-3">
-          {available ? (
-            <div className={cn("flex items-center justify-between", showSpecs && "justify-center gap-3")}>
-              <div className="font-semibold text-destructive">
-                {formatPrice(product.price)}
-              </div>
-              {showOriginal ? (
-                <div className="text-xs text-muted-foreground line-through">
-                  {formatPrice(Number(product.originalPrice))}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="text-center font-semibold text-muted-foreground">
-              Out of Stock
-            </div>
-          )}
+          <button
+            type="button"
+            disabled={isOutOfStock}
+            onClick={onAddToCart}
+            className={cn(
+              "rounded-lg border border-border px-3 py-1.5 text-[12px] transition",
+              isOutOfStock
+                ? " btn-danger cursor-not-allowed"
+                : "btn-primary hover:bg-muted",
+            )}
+          >
+            {isOutOfStock ? "Out of Stock" : "Add To Cart"}
+          </button>
         </div>
-      </CardContent>
-
-      <CardFooter className="p-4 pt-0">
-        <Button
-          className="w-full btn-primary"
-          disabled={!available}
-          onClick={onAddToCart}
-        >
-          <ShoppingCart className="mr-2 h-4 w-4" />
-          {available ? addToCartLabel : "Out of Stock"}
-        </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }
