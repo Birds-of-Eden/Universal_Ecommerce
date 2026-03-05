@@ -70,7 +70,6 @@ enum BannerType {
   HERO
   BANNER1
   BANNER2
-  CATEGORY
   PROMOTION
   POPUP
 }
