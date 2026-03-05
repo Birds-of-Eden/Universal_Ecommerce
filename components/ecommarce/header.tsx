@@ -26,7 +26,6 @@ import {
   LogIn,
   LogOut,
   LayoutDashboard,
-  House,
   Newspaper,
   Boxes,
   Sun,
@@ -92,29 +91,21 @@ const clamp = (v: number, min: number, max: number) =>
 
 /* =========================
    Dropdown shared styles
-   ✅ Light: bg white + text black
-   ✅ Dark: bg dark + text light
 ========================= */
 const ddItemBase =
   "w-full flex items-center justify-between px-4 py-2.5 text-sm transition select-none";
 
-const ddItemInactive =
-  "text-foreground hover:bg-accent";
-
-const ddItemActive =
-  "bg-primary text-primary-foreground";
+const ddItemInactive = "text-foreground hover:bg-accent";
+const ddItemActive = "bg-primary text-primary-foreground";
 
 const ddColShell =
-  "w-[260px] max-h-[420px] overflow-y-auto overflow-x-hidden " +
-  "bg-popover";
+  "w-[260px] max-h-[420px] overflow-y-auto overflow-x-hidden bg-popover";
 
 const ddWrapperShell =
   "bg-popover text-foreground border border-border shadow-2xl rounded-md overflow-hidden";
 
 /* =========================
-   ✅ Row-2 All Category Dropdown
-   Parent hover => Sub show
-   Sub hover => Child show
+   Row-2 All Category Dropdown
 ========================= */
 function TechlandCategoryDropdown({
   categories,
@@ -174,9 +165,7 @@ function TechlandCategoryDropdown({
     <div className={ddWrapperShell}>
       <div className="flex">
         {/* Parent */}
-        <div
-          className={`${ddColShell} border-r border-border`}
-        >
+        <div className={`${ddColShell} border-r border-border`}>
           {categories.map((p) => {
             const isActive = p.id === activeParentId;
             const hasSub = (p.children?.length ?? 0) > 0;
@@ -206,7 +195,7 @@ function TechlandCategoryDropdown({
           })}
         </div>
 
-        {/* Sub (hidden until parent hover) */}
+        {/* Sub */}
         <div
           className={`${ddColShell} border-r border-border ${
             activeParentId ? "block" : "hidden"
@@ -244,7 +233,7 @@ function TechlandCategoryDropdown({
           )}
         </div>
 
-        {/* Child (hidden until sub hover) */}
+        {/* Child */}
         <div className={`${ddColShell} ${activeSubId ? "block" : "hidden"}`}>
           {childList.length === 0 ? (
             <div className="px-4 py-3 text-sm text-muted-foreground">
@@ -271,115 +260,6 @@ function TechlandCategoryDropdown({
 }
 
 /* =========================
-   ✅ Row-3 Hover Flyout (3 columns)
-   Parent hover => Sub column show
-   Sub hover => Child column show
-   ✅ Same behavior as Row-2
-   ✅ Dark/Light perfect
-========================= */
-function Row3Flyout({
-  parent,
-  onClose,
-}: {
-  parent: CategoryNode;
-  onClose: () => void;
-}) {
-  const router = useRouter();
-
-  // Parent column shows hovered parent children.
-  // Sub + Child behave like row2.
-  const [activeSubId, setActiveSubId] = useState<number | null>(null);
-
-  const subList = parent.children ?? [];
-
-  const activeSub = useMemo(() => {
-    if (!subList.length) return null;
-    if (!activeSubId) return null;
-    return subList.find((s) => s.id === activeSubId) ?? null;
-  }, [subList, activeSubId]);
-
-  const childList = activeSub?.children ?? [];
-
-  // Reset on parent change
-  useEffect(() => {
-    setActiveSubId(null);
-  }, [parent.id]);
-
-  const go = (slug: string) => {
-    router.push(`/ecommerce/categories/${slug}`);
-    onClose();
-  };
-
-  return (
-    <div className={ddWrapperShell}>
-      <div className="flex">
-        {/* Parent column (ONLY this hovered parent’s direct children as "Sub") */}
-        <div
-          className={`${ddColShell} border-r border-border`}
-        >
-          {subList.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
-              No subcategories.
-            </div>
-          ) : (
-            subList.map((s) => {
-              const isActive = s.id === activeSubId;
-              const hasChild = (s.children?.length ?? 0) > 0;
-
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onMouseEnter={() => setActiveSubId(s.id)}
-                  onClick={() => go(s.slug)}
-                  className={`${ddItemBase} ${
-                    isActive ? ddItemActive : ddItemInactive
-                  }`}
-                  title={s.name}
-                >
-                  <span className="truncate">{s.name}</span>
-                  {hasChild ? (
-                    <ChevronRight className="h-4 w-4 opacity-80" />
-                  ) : (
-                    <span className="w-4" />
-                  )}
-                </button>
-              );
-            })
-          )}
-        </div>
-
-        {/* Child column (hidden until sub hover) */}
-        <div className={`${ddColShell} ${activeSubId ? "block" : "hidden"}`}>
-          {activeSubId && childList.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
-              No child categories.
-            </div>
-          ) : activeSubId ? (
-            childList.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => go(c.slug)}
-                className={`${ddItemBase} ${ddItemInactive}`}
-                title={c.name}
-              >
-                <span className="truncate">{c.name}</span>
-                <span className="w-4" />
-              </button>
-            ))
-          ) : (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
-              Hover a subcategory to see child categories.
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================
    Header
 ========================= */
 export default function Header() {
@@ -396,7 +276,7 @@ export default function Header() {
 
   // Site settings
   const [siteSettings, setSiteSettings] = useState<{
-    logo?: string | null; 
+    logo?: string | null;
     siteTitle?: string | null;
     footerDescription?: string | null;
     contactNumber?: string | null;
@@ -434,32 +314,6 @@ export default function Header() {
   const catWrapRef = useRef<HTMLDivElement | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
 
-  // Row-3 hover state
-  const [hoverTopCatId, setHoverTopCatId] = useState<number | null>(null);
-  const catItemRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
-  const [dropdownPos, setDropdownPos] = useState<{ left: number; top: number } | null>(null);
-
-  // ✅ Row-3 no-stuck controller
-  const row3InsideRef = useRef(false);
-  const closeTimerRef = useRef<number | null>(null);
-
-  const clearCloseTimer = () => {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  };
-
-  const scheduleCloseRow3 = () => {
-    clearCloseTimer();
-    closeTimerRef.current = window.setTimeout(() => {
-      if (!row3InsideRef.current) {
-        setHoverTopCatId(null);
-        setDropdownPos(null);
-      }
-    }, 120);
-  };
-
   useEffect(() => setHasMounted(true), []);
 
   // Load site settings
@@ -481,7 +335,8 @@ export default function Header() {
   const darkLikeActiveTheme = isDarkLikeTheme(activeTheme);
 
   useEffect(() => {
-    const total = cartItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    const total =
+      cartItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
     setCartCount(total);
   }, [cartItems]);
 
@@ -547,7 +402,9 @@ export default function Header() {
       return;
     }
     const term = searchTerm.toLowerCase();
-    const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(term)).slice(0, 8);
+    const filtered = allProducts
+      .filter((p) => p.name.toLowerCase().includes(term))
+      .slice(0, 8);
     setSearchResults(filtered);
     setShowSearchDropdown(filtered.length > 0);
   }, [searchTerm, allProducts, hasLoadedProducts]);
@@ -557,8 +414,10 @@ export default function Header() {
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
 
-      if (catWrapRef.current && !catWrapRef.current.contains(target)) setCatOpen(false);
-      if (profileRef.current && !profileRef.current.contains(target)) setProfileOpen(false);
+      if (catWrapRef.current && !catWrapRef.current.contains(target))
+        setCatOpen(false);
+      if (profileRef.current && !profileRef.current.contains(target))
+        setProfileOpen(false);
 
       const el = e.target as HTMLElement;
       if (!el.closest?.(".header-search-wrapper")) setShowSearchDropdown(false);
@@ -577,11 +436,6 @@ export default function Header() {
       document.body.style.overflow = prev;
     };
   }, [mobileMenuOpen]);
-
-  // cleanup row3 timer
-  useEffect(() => {
-    return () => clearCloseTimer();
-  }, []);
 
   const handleSelectProduct = (p: ProductSummary) => {
     setSearchTerm("");
@@ -618,95 +472,156 @@ export default function Header() {
     | null;
   const userName = sessionUser?.name || "User";
   const userRole = sessionUser?.role || "user";
-  const displayRole = Array.isArray(sessionUser?.roleNames) && sessionUser.roleNames.length > 0
-    ? sessionUser.roleNames.join(", ")
-    : userRole;
-  const permissionKeys = Array.isArray(sessionUser?.permissions) ? sessionUser.permissions : [];
+  const displayRole =
+    Array.isArray(sessionUser?.roleNames) && sessionUser.roleNames.length > 0
+      ? sessionUser.roleNames.join(", ")
+      : userRole;
+  const permissionKeys = Array.isArray(sessionUser?.permissions)
+    ? sessionUser.permissions
+    : [];
   const canAccessAdminPanel =
-    permissionKeys.includes("admin.panel.access") || userRole.toLowerCase() === "admin";
-
-  const topCategories = categoryTree;
-
-  const hoveredTop = useMemo(() => {
-    if (!hoverTopCatId) return null;
-    return topCategories.find((c) => c.id === hoverTopCatId) ?? null;
-  }, [hoverTopCatId, topCategories]);
+    permissionKeys.includes("admin.panel.access") ||
+    userRole.toLowerCase() === "admin";
 
   const topBtnClass =
     "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent";
-  const iconBtnClass =
-    "relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent";
-
-  const underlinePill =
-    "relative flex items-center px-4 py-2 transition-colors duration-200 " +
-    "text-foreground " +
-    "after:absolute after:left-4 after:right-4 after:-bottom-1 after:h-[2px] " +
-    "after:bg-current after:scale-x-0 after:origin-left " +
-    "after:transition-transform after:duration-300 hover:after:scale-x-100";
-
-  // Row3 dropdown positioning
-  const positionHoverDropdown = (catId: number) => {
-    const el = catItemRefs.current.get(catId);
-    if (!el) return;
-
-    const rect = el.getBoundingClientRect();
-
-    // Row3Flyout width: 260*2 = 520
-    const W = 520;
-    const margin = 8;
-
-    const left = clamp(rect.left, margin, window.innerWidth - W - margin);
-    const top = rect.bottom + 8;
-
-    setDropdownPos({ left, top });
-  };
-
-  // keep dropdown in place on scroll/resize
-  useEffect(() => {
-    if (!hoverTopCatId) return;
-
-    const onUpdate = () => positionHoverDropdown(hoverTopCatId);
-
-    window.addEventListener("resize", onUpdate);
-    window.addEventListener("scroll", onUpdate, true);
-
-    return () => {
-      window.removeEventListener("resize", onUpdate);
-      window.removeEventListener("scroll", onUpdate, true);
-    };
-  }, [hoverTopCatId]);
 
   return (
     <header className="sticky top-0 z-50">
-      {/* Main Header (Row1 + Row2) */}
       <div className="bg-background text-foreground border-b border-border">
-        <div className="container mx-auto px-4 py-4 space-y-4">
-          {/* Row 1 */}
-          <div className="flex items-center justify-between gap-3">
-            <Link href="/" className="flex items-center gap-3 min-w-0">
+        <div className="container mx-auto px-4 py-4">
+          {/* ✅ Desktop: Row1 + Row2 merged into ONE line */}
+          <div className="hidden md:flex items-center gap-4">
+            {/* Left: Logo + Title */}
+            <Link href="/" className="flex items-center gap-3 min-w-0 shrink-0">
               <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-border bg-background/10 shrink-0">
-                <Image 
-                  src={siteSettings.logo || "/assets/examplelogo.jpg"} 
-                  alt="Logo" 
-                  fill 
-                  className="object-contain 2xl" 
+                <Image
+                  src={siteSettings.logo || "/assets/examplelogo.jpg"}
+                  alt="Logo"
+                  fill
+                  className="object-contain 2xl"
                 />
               </div>
-              <div className="text-md sm:text-3xl tracking-wider truncate">
-                {siteSettings.siteTitle || "BOED ECOMMERCE"}
+              <div className="text-lg sm:text-2xl tracking-wider truncate max-w-[260px]">
+                {siteSettings.siteTitle}
               </div>
             </Link>
 
-            {/* Desktop actions */}
-            <div className="hidden md:flex items-center gap-3">
+            {/* Middle: Category + Search */}
+            <div className="flex-1 flex items-center min-w-0">
+              {/* All Category */}
+              <div ref={catWrapRef} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setCatOpen((p) => !p)}
+                  className="
+                    h-11 w-[190px]
+                    rounded-l-md rounded-r-none
+                    bg-background text-foreground
+                    border border-border
+                    flex items-center justify-between
+                    px-4 transition focus:outline-none focus:ring-2 focus:ring-primary/40
+                  "
+                >
+                  <span className="text-sm font-semibold">All Category</span>
+                  <ChevronDown className="h-4 w-4 opacity-70" />
+                </button>
+
+                {catOpen && (
+                  <div className="absolute left-0 mt-2 z-[9999]">
+                    <TechlandCategoryDropdown
+                      categories={categoryTree}
+                      loading={categoryLoading}
+                      onClose={() => setCatOpen(false)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Search */}
+              <div className="flex-1 header-search-wrapper relative min-w-0">
+                <div className="relative">
+                  <input
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={handleSearchKeyDown}
+                    onFocus={() =>
+                      searchResults.length > 0 && setShowSearchDropdown(true)
+                    }
+                    placeholder="Search for products..."
+                    className="
+                      w-full h-11
+                      rounded-r-md rounded-l-none
+                      bg-background text-foreground
+                      border border-border border-l-0
+                      pl-4 pr-[54px]
+                      placeholder:text-muted-foreground
+                      focus:outline-none focus:ring-2 focus:ring-primary/40
+                    "
+                  />
+
+                  <button
+                    type="button"
+                    className="
+                      absolute right-1 top-1
+                      h-9 w-11 rounded-md
+                      bg-primary text-primary-foreground
+                      border border-border
+                      flex items-center justify-center
+                      hover:bg-primary/90 transition
+                    "
+                    onClick={() => {
+                      if (searchResults.length > 0)
+                        handleSelectProduct(searchResults[0]);
+                    }}
+                    aria-label="Search"
+                  >
+                    <Search className="h-4 w-4" />
+                  </button>
+
+                  {showSearchDropdown && (
+                    <div className="absolute mt-2 w-full bg-popover text-foreground rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-[9999]">
+                      {searchLoading && !hasLoadedProducts ? (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                          Loading...
+                        </div>
+                      ) : searchResults.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                          No results found.
+                        </div>
+                      ) : (
+                        searchResults.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleSelectProduct(p)}
+                            className="w-full flex items-start px-4 py-2 text-left hover:bg-accent transition text-sm"
+                          >
+                            <span className="font-medium">{p.name}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: actions */}
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Theme */}
               {hasMounted && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="rounded-full bg-muted hover:bg-accent text-foreground h-11 w-11 flex items-center justify-center border border-border"
+                      className="rounded-lg bg-muted hover:bg-accent text-foreground h-11 w-11 flex items-center justify-center border border-border"
                       title="Select theme"
                     >
-                      {darkLikeActiveTheme ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                      {darkLikeActiveTheme ? (
+                        <Sun className="h-5 w-5" />
+                      ) : (
+                        <Moon className="h-5 w-5" />
+                      )}
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -717,24 +632,125 @@ export default function Header() {
                         className="flex items-center justify-between"
                       >
                         <span>{option.label}</span>
-                        {activeTheme === option.value ? <Check className="h-4 w-4" /> : null}
+                        {activeTheme === option.value ? (
+                          <Check className="h-4 w-4" />
+                        ) : null}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
 
-              <Link href="/ecommerce/blogs" className={topBtnClass}>
+              {/* <Link href="/ecommerce/blogs" className={topBtnClass}>
                 <Newspaper className="h-4 w-4" />
                 Blog
               </Link>
+
               <Link href="/ecommerce/products" className={topBtnClass}>
                 <Boxes className="h-4 w-4" />
                 All Products
-              </Link>
-            </div>
+              </Link> */}
 
-            {/* Mobile actions */}
+              <Link
+                href="/ecommerce/cart"
+                className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {hasMounted && cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+
+              <Link
+                href="/ecommerce/wishlist"
+                className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
+              >
+                <Heart className="h-5 w-5" />
+                {hasMounted && wishlistCount > 0 && (
+                  <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                    {wishlistCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Profile */}
+              <div ref={profileRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProfileOpen((p) => !p)}
+                  className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
+                  aria-label="Profile"
+                >
+                  <UserIcon className="h-5 w-5" />
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-background text-foreground border border-border rounded-xl shadow-2xl overflow-hidden z-50">
+                    {hasMounted && session ? (
+                      <>
+                        <div className="px-4 py-3 border-b border-border">
+                          <div className="text-sm font-semibold">{userName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {displayRole}
+                          </div>
+                        </div>
+
+                        <Link
+                          href={canAccessAdminPanel ? "/admin" : "/ecommerce/user/"}
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                          Dashboard
+                        </Link>
+
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={async () => {
+                            setProfileOpen(false);
+                            await handleSignOut();
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Logout
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => router.push("/signin")}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
+                      >
+                        <LogIn className="h-4 w-4" />
+                        Login
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ✅ Mobile (kept same as your original) */}
+          <div className="flex md:hidden items-center justify-between gap-3">
+            <Link href="/" className="flex items-center gap-3 min-w-0">
+              <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-border bg-background/10 shrink-0">
+                <Image
+                  src={siteSettings.logo || "/assets/examplelogo.jpg"}
+                  alt="Logo"
+                  fill
+                  className="object-contain 2xl"
+                />
+              </div>
+              <div className="text-md sm:text-3xl tracking-wider truncate">
+                {siteSettings.siteTitle}
+              </div>
+            </Link>
+
             <div className="flex md:hidden items-center gap-2">
               {hasMounted && (
                 <DropdownMenu>
@@ -743,7 +759,11 @@ export default function Header() {
                       className="rounded-lg bg-muted hover:bg-accent text-foreground h-10 w-10 flex items-center justify-center border border-border"
                       title="Select theme"
                     >
-                      {darkLikeActiveTheme ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                      {darkLikeActiveTheme ? (
+                        <Sun className="h-5 w-5" />
+                      ) : (
+                        <Moon className="h-5 w-5" />
+                      )}
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -754,7 +774,9 @@ export default function Header() {
                         className="flex items-center justify-between"
                       >
                         <span>{option.label}</span>
-                        {activeTheme === option.value ? <Check className="h-4 w-4" /> : null}
+                        {activeTheme === option.value ? (
+                          <Check className="h-4 w-4" />
+                        ) : null}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
@@ -795,246 +817,8 @@ export default function Header() {
               </button>
             </div>
           </div>
-
-          {/* Row 2 (Desktop only) */}
-          <div className="hidden md:flex items-center gap-4">
-            <div className="flex-1 flex items-center">
-              {/* All Category */}
-              <div ref={catWrapRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setCatOpen((p) => !p)}
-                  className="
-                    h-11 w-[200px]
-                    rounded-l-md rounded-r-none
-                    bg-background text-foreground
-                    border border-border
-                    flex items-center justify-between
-                    px-4 transition focus:outline-none focus:ring-2 focus:ring-primary/40
-                  "
-                >
-                  <span className="text-sm font-semibold">All Category</span>
-                  <ChevronDown className="h-4 w-4 opacity-70" />
-                </button>
-
-                {catOpen && (
-                  <div className="absolute left-0 mt-2 z-[9999]">
-                    <TechlandCategoryDropdown
-                      categories={categoryTree}
-                      loading={categoryLoading}
-                      onClose={() => setCatOpen(false)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Search */}
-              <div className="flex-1 header-search-wrapper relative">
-                <div className="relative">
-                  <input
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={handleSearchKeyDown}
-                    onFocus={() => searchResults.length > 0 && setShowSearchDropdown(true)}
-                    placeholder="Search for products..."
-                    className="
-                      w-full h-11
-                      rounded-r-md rounded-l-none
-                      bg-background text-foreground
-                      border border-border border-l-0
-                      pl-4 pr-[54px]
-                      placeholder:text-muted-foreground
-                      focus:outline-none focus:ring-2 focus:ring-primary/40
-                    "
-                  />
-
-                  <button
-                    type="button"
-                    className="
-                      absolute right-1 top-1
-                      h-9 w-11 rounded-md
-                      bg-primary text-primary-foreground
-                      border border-border
-                      flex items-center justify-center
-                      hover:bg-primary/90 transition
-                    "
-                    onClick={() => {
-                      if (searchResults.length > 0) handleSelectProduct(searchResults[0]);
-                    }}
-                    aria-label="Search"
-                  >
-                    <Search className="h-4 w-4" />
-                  </button>
-
-                  {showSearchDropdown && (
-                    <div className="absolute mt-2 w-full bg-popover text-foreground rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-[9999]">
-                      {searchLoading && !hasLoadedProducts ? (
-                        <div className="px-4 py-3 text-sm text-muted-foreground">
-                          Loading...
-                        </div>
-                      ) : searchResults.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-muted-foreground">
-                          No results found.
-                        </div>
-                      ) : (
-                        searchResults.map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => handleSelectProduct(p)}
-                            className="w-full flex items-start px-4 py-2 text-left hover:bg-accent transition text-sm"
-                          >
-                            <span className="font-medium">{p.name}</span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Icons + Profile (kept same) */}
-            <div className="flex items-center gap-3">
-              <Link href="/ecommerce/cart" className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent">
-                <ShoppingCart className="h-5 w-5" />
-                {hasMounted && cartCount > 0 && (
-                  <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
-
-              <Link href="/ecommerce/wishlist" className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent">
-                <Heart className="h-5 w-5" />
-                {hasMounted && wishlistCount > 0 && (
-                  <span className="absolute -top-2 -right-2 h-5 min-w-[20px] px-1 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
-                    {wishlistCount}
-                  </span>
-                )}
-              </Link>
-
-              <div ref={profileRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setProfileOpen((p) => !p)}
-                  className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
-                  aria-label="Profile"
-                >
-                  <UserIcon className="h-5 w-5" />
-                </button>
-
-                {profileOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-background text-foreground border border-border rounded-xl shadow-2xl overflow-hidden z-50">
-                    {hasMounted && session ? (
-                      <>
-                        <div className="px-4 py-3 border-b border-border">
-                          <div className="text-sm font-semibold">{userName}</div>
-                          <div className="text-xs text-muted-foreground">{displayRole}</div>
-                        </div>
-
-                        <Link
-                          href={canAccessAdminPanel ? "/admin" : "/ecommerce/user/"}
-                          onClick={() => setProfileOpen(false)}
-                          className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
-                        >
-                          <LayoutDashboard className="h-4 w-4" />
-                          Dashboard
-                        </Link>
-
-                        <button
-                          type="button"
-                          disabled={isPending}
-                          onClick={async () => {
-                            setProfileOpen(false);
-                            await handleSignOut();
-                          }}
-                          className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
-                        >
-                          <LogOut className="h-4 w-4" />
-                          Logout
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => router.push("/signin")}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
-                      >
-                        <LogIn className="h-4 w-4" />
-                        Login
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-
-      {/* Row 3 (Desktop only) */}
-      <div className="bg-background border-b border-border hidden md:block text-foreground">
-        <div className="container mx-auto px-4">
-          <div className="h-12 flex items-center gap-2 relative">
-            <Link href="/" className={underlinePill}>
-              Home
-            </Link>
-
-            {topCategories.map((cat) => (
-              <div
-                key={cat.id}
-                ref={(el) => {
-                  catItemRefs.current.set(cat.id, el);
-                }}
-                className="relative"
-                onMouseEnter={() => {
-                  row3InsideRef.current = true;
-                  clearCloseTimer();
-                  setHoverTopCatId(cat.id);
-                  requestAnimationFrame(() => positionHoverDropdown(cat.id));
-                }}
-                onMouseLeave={() => {
-                  row3InsideRef.current = false;
-                  scheduleCloseRow3();
-                }}
-              >
-                <Link href={`/ecommerce/categories/${cat.slug}`} className={underlinePill}>
-                  {cat.name}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ✅ Row-3 Hover dropdown:
-          Parent hover => open Sub
-          Sub hover => open Child */}
-      {hoveredTop && hoveredTop.children.length > 0 && dropdownPos && (
-        <div
-          className="fixed z-[9999]"
-          style={{ left: dropdownPos.left, top: dropdownPos.top }}
-          onMouseEnter={() => {
-            row3InsideRef.current = true;
-            clearCloseTimer();
-          }}
-          onMouseLeave={() => {
-            row3InsideRef.current = false;
-            scheduleCloseRow3();
-          }}
-        >
-          <Row3Flyout
-            parent={hoveredTop}
-            onClose={() => {
-              row3InsideRef.current = false;
-              clearCloseTimer();
-              setHoverTopCatId(null);
-              setDropdownPos(null);
-            }}
-          />
-        </div>
-      )}
     </header>
   );
 }
