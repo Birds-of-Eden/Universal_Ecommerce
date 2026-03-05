@@ -635,7 +635,7 @@ export default function Header({
                 />
               </div>
               <div className="text-lg sm:text-2xl tracking-wider truncate max-w-[260px]">
-                {siteSettings.siteTitle || "BOED ECOMMERCE"}
+                {siteSettings.siteTitle}
               </div>
             </Link>
 
