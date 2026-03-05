@@ -147,13 +147,8 @@ function CartSkeleton() {
 }
 
 export default function CartPage() {
-  const {
-    cartItems,
-    removeFromCart,
-    updateQuantity,
-    clearCart,
-    replaceCart,
-  } = useCart();
+  const { cartItems, removeFromCart, updateQuantity, clearCart, replaceCart } =
+    useCart();
 
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
@@ -341,7 +336,13 @@ export default function CartPage() {
     };
 
     run();
-  }, [isAuthenticated, hasMounted, cartItems, fetchServerCart, syncGuestCartToServer]);
+  }, [
+    isAuthenticated,
+    hasMounted,
+    cartItems,
+    fetchServerCart,
+    syncGuestCartToServer,
+  ]);
 
   // manual retry
   const retryServerCart = async () => {
@@ -508,7 +509,9 @@ export default function CartPage() {
       }
     } catch (error) {
       console.error("Coupon application error:", error);
-      toast.error(error instanceof Error ? error.message : "Invalid coupon code.");
+      toast.error(
+        error instanceof Error ? error.message : "Invalid coupon code."
+      );
       setDiscountAmount(0);
       setAppliedCoupon(null);
     }
@@ -553,7 +556,9 @@ export default function CartPage() {
           <CartSkeleton />
         ) : showAuthError ? (
           <div className="rounded-xl border border-border bg-card p-10 text-center shadow-sm">
-            <h2 className="text-lg font-semibold mb-2">Couldn’t load your cart</h2>
+            <h2 className="text-lg font-semibold mb-2">
+              Couldn’t load your cart
+            </h2>
             <p className="text-sm text-muted-foreground mb-6">
               {serverCartError}
             </p>
@@ -580,8 +585,8 @@ export default function CartPage() {
             {/* Left */}
             <div className="lg:col-span-2 space-y-6">
               {/* Items Card */}
-              <div className="rounded-xl border border-border bg-card shadow-sm">
-                <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+              <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-5 border-b border-border bg-card/50">
                   <div>
                     <h2 className="text-lg font-semibold">Your Products</h2>
                     <p className="text-sm text-muted-foreground">
@@ -591,7 +596,7 @@ export default function CartPage() {
                   <Button
                     variant="outline"
                     onClick={handleClearCart}
-                    className="rounded-md"
+                    className="rounded-xl w-full sm:w-auto"
                   >
                     Clear Cart
                   </Button>
@@ -599,35 +604,97 @@ export default function CartPage() {
 
                 <div className="divide-y divide-border">
                   {itemsToRender.map((item) => (
-                    <div key={item.id} className="px-6 py-5">
-                      <div className="flex items-center gap-4">
-                        {/* Image */}
-                        <div className="relative h-16 w-16 rounded-md overflow-hidden border border-border bg-background">
-                          <Image
-                            src={item.image || "/placeholder.svg"}
-                            alt={item.name}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
+                    <div key={item.id} className="px-4 sm:px-6 py-5">
+                      {/* ✅ Professional mobile layout */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        {/* ✅ Bigger image on mobile */}
+                        <Link
+                          href={`/ecommerce/products/${item.productId}`}
+                          className="block"
+                        >
+                          <div className="relative w-full sm:w-20 h-44 sm:h-20 rounded-xl overflow-hidden border border-border bg-background">
+                            <Image
+                              src={item.image || "/placeholder.svg"}
+                              alt={item.name}
+                              fill
+                              className="object-contain p-4"
+                              sizes="(max-width: 640px) 100vw, 80px"
+                            />
+                          </div>
+                        </Link>
 
-                        {/* Name */}
+                        {/* Name + unit price */}
                         <div className="min-w-0 flex-1">
                           <Link
                             href={`/ecommerce/products/${item.productId}`}
                             className="block"
                           >
-                            <div className="font-medium truncate hover:underline">
+                            <div className="font-semibold text-base leading-snug line-clamp-2 hover:underline">
                               {item.name}
                             </div>
                           </Link>
                           <div className="mt-1 text-sm text-muted-foreground">
                             Unit Price: ৳{item.price.toLocaleString()}
                           </div>
+
+                          {/* ✅ Mobile: Qty + price inline row */}
+                          <div className="mt-4 flex flex-col sm:hidden gap-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center rounded-xl border border-border overflow-hidden bg-background">
+                                <button
+                                  className="h-10 w-10 grid place-items-center hover:bg-muted transition disabled:opacity-40"
+                                  onClick={() =>
+                                    handleUpdateQuantity(
+                                      item.id,
+                                      item.quantity - 1
+                                    )
+                                  }
+                                  disabled={item.quantity <= 1}
+                                  aria-label="Decrease quantity"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </button>
+                                <div className="h-10 w-12 grid place-items-center text-sm font-semibold border-x border-border bg-background">
+                                  {item.quantity}
+                                </div>
+                                <button
+                                  className="h-10 w-10 grid place-items-center hover:bg-muted transition"
+                                  onClick={() =>
+                                    handleUpdateQuantity(
+                                      item.id,
+                                      item.quantity + 1
+                                    )
+                                  }
+                                  aria-label="Increase quantity"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </button>
+                              </div>
+
+                              <div className="text-right">
+                                <div className="font-bold">
+                                  ৳
+                                  {(item.price * item.quantity).toLocaleString()}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  ৳{item.price.toLocaleString()}/unit
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              className="w-full h-10 rounded-xl border border-border bg-muted hover:bg-accent transition text-sm font-semibold flex items-center justify-center gap-2"
+                              onClick={() => handleRemoveItem(item.id)}
+                              aria-label="Remove item"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Remove item
+                            </button>
+                          </div>
                         </div>
 
-                        {/* Qty */}
-                        <div className="flex items-center rounded-md border border-border overflow-hidden bg-background">
+                        {/* ✅ Desktop: Qty */}
+                        <div className="hidden sm:flex items-center rounded-xl border border-border overflow-hidden bg-background">
                           <button
                             className="h-10 w-10 grid place-items-center hover:bg-muted transition disabled:opacity-40"
                             onClick={() =>
@@ -638,7 +705,7 @@ export default function CartPage() {
                           >
                             <Minus className="h-4 w-4" />
                           </button>
-                          <div className="h-10 w-12 grid place-items-center text-sm font-medium border-x border-border bg-background">
+                          <div className="h-10 w-12 grid place-items-center text-sm font-semibold border-x border-border bg-background">
                             {item.quantity}
                           </div>
                           <button
@@ -652,10 +719,10 @@ export default function CartPage() {
                           </button>
                         </div>
 
-                        {/* Price + remove */}
-                        <div className="flex items-center gap-4">
+                        {/* ✅ Desktop: Price + remove */}
+                        <div className="hidden sm:flex items-center gap-4">
                           <div className="text-right">
-                            <div className="font-semibold">
+                            <div className="font-bold">
                               ৳{(item.price * item.quantity).toLocaleString()}
                             </div>
                             <div className="text-xs text-muted-foreground">
@@ -664,7 +731,7 @@ export default function CartPage() {
                           </div>
 
                           <button
-                            className="h-10 w-10 grid place-items-center rounded-md hover:bg-muted transition text-muted-foreground hover:text-foreground"
+                            className="h-10 w-10 grid place-items-center rounded-xl hover:bg-muted transition text-muted-foreground hover:text-foreground"
                             onClick={() => handleRemoveItem(item.id)}
                             aria-label="Remove item"
                           >
@@ -677,7 +744,7 @@ export default function CartPage() {
                 </div>
 
                 {/* Bottom left link */}
-                <div className="px-6 py-5 border-t border-border">
+                <div className="px-4 sm:px-6 py-5 border-t border-border bg-card/40">
                   <Link
                     href="/"
                     className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition"
@@ -689,8 +756,8 @@ export default function CartPage() {
               </div>
 
               {/* Coupon Card */}
-              <div className="rounded-xl border border-border bg-card shadow-sm">
-                <div className="p-6 md:border-r md:border-border">
+              <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                <div className="p-6">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 text-muted-foreground">
                       <Tag className="h-5 w-5" />
@@ -705,9 +772,9 @@ export default function CartPage() {
 
                   <div className="mt-4">
                     {appliedCoupon ? (
-                      <div className="rounded-md border border-border bg-muted/40 p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm">
+                      <div className="rounded-xl border border-border bg-muted/40 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm min-w-0">
                             <span className="font-semibold">
                               {appliedCoupon.code}
                             </span>
@@ -719,7 +786,7 @@ export default function CartPage() {
                           </div>
                           <button
                             onClick={removeCoupon}
-                            className="text-sm text-foreground hover:underline"
+                            className="text-sm text-foreground hover:underline shrink-0"
                           >
                             Remove
                           </button>
@@ -729,14 +796,17 @@ export default function CartPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <Input
                           placeholder="PROMO / COUPON Code"
                           value={couponCode}
                           onChange={(e) => setCouponCode(e.target.value)}
-                          className="rounded-md input-theme"
+                          className="rounded-xl input-theme"
                         />
-                        <Button onClick={applyCoupon} className="rounded-md">
+                        <Button
+                          onClick={applyCoupon}
+                          className="rounded-xl w-full sm:w-auto"
+                        >
                           Apply Coupon
                         </Button>
                       </div>
@@ -748,8 +818,8 @@ export default function CartPage() {
 
             {/* Right */}
             <div className="lg:col-span-1">
-              <div className="rounded-xl border border-border bg-card shadow-sm sticky top-6">
-                <div className="px-6 py-5 border-b border-border">
+              <div className="rounded-2xl border border-border bg-card shadow-sm lg:sticky lg:top-6 overflow-hidden">
+                <div className="px-6 py-5 border-b border-border bg-card/50">
                   <h2 className="text-lg font-semibold">Order Summary</h2>
                 </div>
 
@@ -790,16 +860,16 @@ export default function CartPage() {
                     </span>
                   </div>
 
-                  <div className="pt-2 flex gap-3">
-                    <Link href="/" className="flex-1">
-                      <Button variant="outline" className="w-full rounded-md">
+                  <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                    <Link href="/" className="flex-1 w-full">
+                      <Button variant="outline" className="w-full rounded-xl">
                         <Plus className="mr-2 h-4 w-4" />
                         Add More
                       </Button>
                     </Link>
 
                     <Button
-                      className="flex-1 rounded-md btn-primary"
+                      className="flex-1 rounded-xl btn-primary"
                       onClick={handleCheckout}
                       disabled={isCartEmpty}
                     >
@@ -809,7 +879,7 @@ export default function CartPage() {
                   </div>
 
                   <div className="pt-4 border-t border-border">
-                    <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <Shield className="h-4 w-4" />
                         Secure payment

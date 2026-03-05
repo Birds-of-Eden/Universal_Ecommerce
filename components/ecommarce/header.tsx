@@ -31,6 +31,7 @@ import {
   Sun,
   Moon,
   Check,
+  X,
 } from "lucide-react";
 
 const CATEGORIES_API = "/api/categories";
@@ -94,7 +95,6 @@ const clamp = (v: number, min: number, max: number) =>
 ========================= */
 const ddItemBase =
   "w-full flex items-center justify-between px-4 py-2.5 text-sm transition select-none";
-
 const ddItemInactive = "text-foreground hover:bg-accent";
 const ddItemActive = "bg-primary text-primary-foreground";
 
@@ -105,7 +105,7 @@ const ddWrapperShell =
   "bg-popover text-foreground border border-border shadow-2xl rounded-md overflow-hidden";
 
 /* =========================
-   Row-2 All Category Dropdown
+   Row-2 All Category Dropdown (Desktop)
 ========================= */
 function TechlandCategoryDropdown({
   categories,
@@ -255,6 +255,103 @@ function TechlandCategoryDropdown({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* =========================
+   ✅ Mobile Categories Drawer List
+========================= */
+function MobileCategoryTree({
+  categories,
+  loading,
+  onGo,
+}: {
+  categories: CategoryNode[];
+  loading: boolean;
+  onGo: (slug: string) => void;
+}) {
+  const [openIds, setOpenIds] = useState<Set<number>>(new Set());
+
+  const toggle = (id: number) => {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="h-10 w-full rounded-lg bg-muted animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!categories.length) {
+    return (
+      <div className="text-sm text-muted-foreground">No categories found.</div>
+    );
+  }
+
+  const Node = ({ node, level }: { node: CategoryNode; level: number }) => {
+    const hasChildren = (node.children?.length ?? 0) > 0;
+    const isOpen = openIds.has(node.id);
+
+    return (
+      <div>
+        <div
+          className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
+          style={{ marginLeft: level * 10 }}
+        >
+          <button
+            type="button"
+            onClick={() => onGo(node.slug)}
+            className="flex-1 text-left text-sm font-medium text-foreground truncate"
+            title={node.name}
+          >
+            {node.name}
+          </button>
+
+          {hasChildren ? (
+            <button
+              type="button"
+              onClick={() => toggle(node.id)}
+              className="h-8 w-8 rounded-md border border-border bg-muted hover:bg-accent flex items-center justify-center"
+              aria-label="Toggle subcategories"
+              title="Toggle"
+            >
+              <ChevronRight
+                className={`h-4 w-4 transition-transform ${
+                  isOpen ? "rotate-90" : "rotate-0"
+                }`}
+              />
+            </button>
+          ) : (
+            <span className="w-8" />
+          )}
+        </div>
+
+        {hasChildren && isOpen && (
+          <div className="mt-2 space-y-2">
+            {node.children.map((ch) => (
+              <Node key={ch.id} node={ch} level={level + 1} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-2">
+      {categories.map((c) => (
+        <Node key={c.id} node={c} level={0} />
+      ))}
     </div>
   );
 }
@@ -486,13 +583,18 @@ export default function Header() {
   const topBtnClass =
     "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent";
 
+  const goCategoryFromMobile = (slug: string) => {
+    setMobileMenuOpen(false);
+    router.push(`/ecommerce/categories/${slug}`);
+  };
+
   return (
     <header className="sticky top-0 z-50">
       <div className="bg-background text-foreground border-b border-border">
         <div className="container mx-auto px-4 py-4">
-          {/* ✅ Desktop: Row1 + Row2 merged into ONE line */}
+          {/* ✅ Desktop: single line header */}
           <div className="hidden md:flex items-center gap-4">
-            {/* Left: Logo + Title */}
+            {/* Left */}
             <Link href="/" className="flex items-center gap-3 min-w-0 shrink-0">
               <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-border bg-background/10 shrink-0">
                 <Image
@@ -503,11 +605,11 @@ export default function Header() {
                 />
               </div>
               <div className="text-lg sm:text-2xl tracking-wider truncate max-w-[260px]">
-                {siteSettings.siteTitle}
+                {siteSettings.siteTitle || "BOED ECOMMERCE"}
               </div>
             </Link>
 
-            {/* Middle: Category + Search */}
+            {/* Middle */}
             <div className="flex-1 flex items-center min-w-0">
               {/* All Category */}
               <div ref={catWrapRef} className="relative shrink-0">
@@ -607,9 +709,8 @@ export default function Header() {
               </div>
             </div>
 
-            {/* Right: actions */}
+            {/* Right */}
             <div className="flex items-center gap-3 shrink-0">
-              {/* Theme */}
               {hasMounted && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -641,7 +742,7 @@ export default function Header() {
                 </DropdownMenu>
               )}
 
-              {/* <Link href="/ecommerce/blogs" className={topBtnClass}>
+              <Link href="/ecommerce/blogs" className={topBtnClass}>
                 <Newspaper className="h-4 w-4" />
                 Blog
               </Link>
@@ -649,7 +750,7 @@ export default function Header() {
               <Link href="/ecommerce/products" className={topBtnClass}>
                 <Boxes className="h-4 w-4" />
                 All Products
-              </Link> */}
+              </Link>
 
               <Link
                 href="/ecommerce/cart"
@@ -675,7 +776,6 @@ export default function Header() {
                 )}
               </Link>
 
-              {/* Profile */}
               <div ref={profileRef} className="relative">
                 <button
                   type="button"
@@ -735,7 +835,7 @@ export default function Header() {
             </div>
           </div>
 
-          {/* ✅ Mobile (kept same as your original) */}
+          {/* ✅ Mobile header (same as before) */}
           <div className="flex md:hidden items-center justify-between gap-3">
             <Link href="/" className="flex items-center gap-3 min-w-0">
               <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-border bg-background/10 shrink-0">
@@ -747,7 +847,7 @@ export default function Header() {
                 />
               </div>
               <div className="text-md sm:text-3xl tracking-wider truncate">
-                {siteSettings.siteTitle}
+                {siteSettings.siteTitle || "BOED ECOMMERCE"}
               </div>
             </Link>
 
@@ -819,6 +919,112 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {/* ✅ Mobile Drawer: All Categories */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-[9999]">
+          {/* overlay */}
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            aria-label="Close menu overlay"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* panel */}
+          <div className="absolute right-0 top-0 h-full w-[86%] max-w-[380px] bg-background text-foreground border-l border-border shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-border">
+              <div className="font-semibold">Menu</div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="h-10 w-10 rounded-lg border border-border bg-muted hover:bg-accent flex items-center justify-center"
+                aria-label="Close menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4 overflow-y-auto h-[calc(100%-64px)]">
+              {/* quick links */}
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/ecommerce/products"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="rounded-lg border border-border bg-muted hover:bg-accent px-3 py-2 text-sm font-semibold flex items-center gap-2"
+                >
+                  <Boxes className="h-4 w-4" />
+                  All Products
+                </Link>
+                <Link
+                  href="/ecommerce/blogs"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="rounded-lg border border-border bg-muted hover:bg-accent px-3 py-2 text-sm font-semibold flex items-center gap-2"
+                >
+                  <Newspaper className="h-4 w-4" />
+                  Blog
+                </Link>
+              </div>
+
+              {/* account */}
+              <div className="rounded-xl border border-border overflow-hidden">
+                {hasMounted && session ? (
+                  <>
+                    <div className="px-4 py-3 border-b border-border">
+                      <div className="text-sm font-semibold">{userName}</div>
+                      <div className="text-xs text-muted-foreground">{displayRole}</div>
+                    </div>
+
+                    <Link
+                      href={canAccessAdminPanel ? "/admin" : "/ecommerce/user/"}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
+                    >
+                      <LayoutDashboard className="h-4 w-4" />
+                      Dashboard
+                    </Link>
+
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={async () => {
+                        setMobileMenuOpen(false);
+                        await handleSignOut();
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      router.push("/signin");
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    Login
+                  </button>
+                )}
+              </div>
+
+              {/* categories */}
+              <div>
+                <div className="mb-2 text-sm font-semibold">All Categories</div>
+                <MobileCategoryTree
+                  categories={categoryTree}
+                  loading={categoryLoading}
+                  onGo={goCategoryFromMobile}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
