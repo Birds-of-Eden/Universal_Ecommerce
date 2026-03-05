@@ -13,6 +13,7 @@ import FeaturedLatestBest from "@/components/ecommarce/FeaturedLatestBest";
 import PopupBanner from "@/components/ecommarce/PopupBanner";
 import FeatureStrip from "@/components/ecommarce/FeatureCard";
 import NewArrivals from "@/components/ecommarce/NewArrivals";
+import BestSelling from "@/components/ecommarce/BestSelling";
 
 type Category = {
   id: number;
@@ -166,17 +167,22 @@ export default function Home() {
          {/* <div className="mt-10 mb-10 p-5">
            <FeaturedCategories />
          </div> */}
+     
          <div>
            <FeatureStrip/>
          </div>
          <div>
+           <FeaturedCategories/>
+         </div>
+         <div>
            <NewArrivals/>
          </div>
-         <div className="mt-10 mb-10 p-5">
+        
+         <div>
           <FeaturedProducts/>
          </div>
-         <div className="mt-10 mb-10 p-5">
-          <FeaturedLatestBest/>
+         <div>
+          <BestSelling limit={20} />
          </div>
           <DataProvider>
             {(data) => (

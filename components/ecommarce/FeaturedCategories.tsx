@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutGrid } from "lucide-react";
 
 type CategoryDTO = {
@@ -23,29 +23,17 @@ function getInitials(name: string) {
   return (a + b).toUpperCase();
 }
 
-// ✅ gradient palette
-const CARD_STYLES = [
-  "from-emerald-500/25 to-emerald-500/5 border-emerald-500/20",
-  "from-orange-500/25 to-orange-500/5 border-orange-500/20",
-  "from-rose-500/25 to-rose-500/5 border-rose-500/20",
-  "from-lime-500/25 to-lime-500/5 border-lime-500/20",
-  "from-fuchsia-500/25 to-fuchsia-500/5 border-fuchsia-500/20",
-  "from-sky-500/25 to-sky-500/5 border-sky-500/20",
-  "from-violet-500/25 to-violet-500/5 border-violet-500/20",
-  "from-amber-500/25 to-amber-500/5 border-amber-500/20",
-];
-
-// ✅ All Category card style (neutral)
-const ALL_CARD_STYLE =
-  "from-slate-500/15 to-slate-500/5 border-slate-500/20";
-
 function CardSkeletonRow({ count = 8 }: { count?: number }) {
   return (
-    <div className="flex gap-4 min-w-max pb-2">
+    <div className="flex gap-3 sm:gap-4 min-w-max pb-3">
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="w-[170px] sm:w-[190px] h-[140px] rounded-2xl border border-border bg-muted/30 animate-pulse"
+          className="snap-start
+            w-[120px] h-[92px]
+            sm:w-[140px] sm:h-[105px]
+            lg:w-[150px] lg:h-[110px]
+            rounded-2xl border border-border bg-muted/30 animate-pulse"
         />
       ))}
     </div>
@@ -53,13 +41,15 @@ function CardSkeletonRow({ count = 8 }: { count?: number }) {
 }
 
 export default function FeaturedCategories({
-  title = "Shop Our Top Categories",
+  title = "Category",
 }: {
   title?: string;
 }) {
   const [loading, setLoading] = useState(true);
   const [cats, setCats] = useState<CategoryDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -72,10 +62,12 @@ export default function FeaturedCategories({
         const res = await fetch("/api/categories", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load categories");
 
-        const data = (await res.json()) as CategoryDTO[];
+        const data = (await res.json()) as any;
         if (!mounted) return;
 
-        setCats(Array.isArray(data) ? data : []);
+        // supports both array and {data:[]}
+        const list: CategoryDTO[] = Array.isArray(data) ? data : data?.data ?? [];
+        setCats(Array.isArray(list) ? list : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || "Something went wrong");
@@ -90,19 +82,20 @@ export default function FeaturedCategories({
     };
   }, []);
 
-  // ✅ only show 7 category cards (parent only)
+  // ✅ top 7 parent categories
   const top7 = useMemo(() => {
     const filtered = cats.filter((c) => c.parentId === null);
 
     filtered.sort((a, b) => {
+      // image first
       const ai = a.image ? 1 : 0;
       const bi = b.image ? 1 : 0;
       if (bi !== ai) return bi - ai;
 
+      // more products first
       if ((b.productCount ?? 0) !== (a.productCount ?? 0)) {
         return (b.productCount ?? 0) - (a.productCount ?? 0);
       }
-
       return (b.id ?? 0) - (a.id ?? 0);
     });
 
@@ -110,11 +103,11 @@ export default function FeaturedCategories({
   }, [cats]);
 
   return (
-    <section className="w-full">
-      <div className="w-full px-4 sm:px-6">
-        {/* Title */}
+    <section className="w-full bg-background">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
+        {/* Title (screenshot like) */}
         <div className="mb-3 sm:mb-4">
-          <h2 className="text-sm sm:text-base font-semibold text-foreground">
+          <h2 className="text-lg sm:text-xl font-bold text-foreground">
             {title}
           </h2>
         </div>
@@ -125,95 +118,85 @@ export default function FeaturedCategories({
           </div>
         ) : null}
 
-        {/* Horizontal cards */}
+        {/* Horizontal scroll row */}
         <div className="w-full overflow-x-auto no-scrollbar">
-          <div className="min-w-max">
+          <div
+            ref={scrollerRef}
+            className="flex gap-3 sm:gap-4 pb-3 min-w-max scroll-smooth
+              snap-x snap-mandatory"
+            style={{ scrollbarWidth: "none" }}
+          >
             {loading ? (
               <CardSkeletonRow count={8} />
             ) : (
-              <div className="flex gap-4 pb-2">
-                {/* ✅ 7 categories */}
-                {top7.map((c, idx) => {
-                  const name = c.name;
-                  const style = CARD_STYLES[idx % CARD_STYLES.length];
-
-                  return (
-                    <Link
-                      key={c.id}
-                      href={`/ecommerce/categories/${c.slug}`}
-                      className={[
-                        "group relative w-[170px] sm:w-[190px] h-[140px]",
-                        "rounded-2xl border bg-gradient-to-br",
-                        style,
-                        "shadow-sm hover:shadow-md transition",
-                        "hover:-translate-y-[1px]",
-                        "overflow-hidden",
-                      ].join(" ")}
-                      title={name}
-                    >
-                      {/* Label */}
-                      <div className="absolute left-4 top-4 right-4">
-                        <div className="text-sm font-bold text-foreground/90 line-clamp-1">
-                          {name}
-                        </div>
-                      </div>
-
-                      {/* Image bottom */}
-                      <div className="absolute inset-x-0 bottom-0 h-[86px]">
-                        {c.image ? (
-                          <div className="absolute right-2 bottom-2 h-[78px] w-[110px]">
-                            <Image
-                              src={c.image}
-                              alt={name}
-                              fill
-                              className="object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-[1.03]"
-                              sizes="120px"
-                            />
-                          </div>
-                        ) : (
-                          <div className="absolute right-3 bottom-3 h-14 w-14 rounded-2xl bg-background/60 border border-border flex items-center justify-center text-xs font-bold text-foreground/80">
-                            {getInitials(name)}
-                          </div>
-                        )}
-
-                        <div className="absolute -left-10 -bottom-10 h-28 w-28 rounded-full bg-white/25 blur-2xl pointer-events-none" />
-                      </div>
-
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/[0.02] transition pointer-events-none" />
-                    </Link>
-                  );
-                })}
-
-                {/* ✅ All Category card (shows rest on /ecommerce/categories) */}
+              <>
+                {/* ✅ All */}
                 <Link
                   href="/ecommerce/categories"
-                  className={[
-                    "group relative w-[170px] sm:w-[190px] h-[140px]",
-                    "rounded-2xl border bg-gradient-to-br",
-                    ALL_CARD_STYLE,
-                    "shadow-sm hover:shadow-md transition",
-                    "hover:-translate-y-[1px]",
-                    "overflow-hidden",
-                    "flex flex-col items-center justify-center gap-2",
-                  ].join(" ")}
-                  title="All Category"
+                  className="
+                    snap-start
+                    w-[120px] h-[92px]
+                    sm:w-[140px] sm:h-[105px]
+                    lg:w-[150px] lg:h-[110px]
+                    rounded-2xl border border-border bg-card
+                    shadow-sm hover:shadow-md transition
+                    flex flex-col items-center justify-center gap-2
+                  "
+                  title="All"
                 >
-                  <div className="h-12 w-12 rounded-2xl bg-background/70 border border-border grid place-items-center">
-                    <LayoutGrid className="h-6 w-6 text-foreground/80" />
+                  <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-muted/40 border border-border/60 grid place-items-center">
+                    <LayoutGrid className="h-5 w-5 text-foreground/80" />
                   </div>
-                  <div className="text-sm font-bold text-foreground/90">
-                    All Category
+                  <div className="text-xs sm:text-sm font-semibold text-foreground">
+                    All
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    View all categories
-                  </div>
-
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/[0.02] transition pointer-events-none" />
                 </Link>
-              </div>
+
+                {/* ✅ top 7 */}
+                {top7.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/ecommerce/categories/${c.slug}`}
+                    className="
+                      snap-start
+                      w-[120px] h-[92px]
+                      sm:w-[140px] sm:h-[105px]
+                      lg:w-[150px] lg:h-[110px]
+                      rounded-2xl border border-border bg-card
+                      shadow-sm hover:shadow-md transition
+                      flex flex-col items-center justify-center
+                      gap-2
+                    "
+                    title={c.name}
+                  >
+                    <div className="relative h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-muted/30 border border-border/60 overflow-hidden grid place-items-center">
+                      {c.image ? (
+                        <Image
+                          src={c.image}
+                          alt={c.name}
+                          fill
+                          className="object-contain p-2"
+                          sizes="48px"
+                        />
+                      ) : (
+                        <span className="text-xs font-bold text-foreground/80">
+                          {getInitials(c.name)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="px-2 text-center text-[11px] sm:text-xs font-semibold text-foreground line-clamp-1">
+                      {c.name}
+                    </div>
+                  </Link>
+                ))}
+              </>
             )}
           </div>
         </div>
+
+        {/* bottom line like screenshot */}
+        <div className="h-px w-full bg-border" />
       </div>
     </section>
   );

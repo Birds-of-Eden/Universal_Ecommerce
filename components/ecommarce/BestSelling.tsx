@@ -18,14 +18,9 @@ import {
 
 import ProductCardCompact from "./ProductCard";
 
-type CategoryDTO = {
-  id: number | string;
-  name: string;
-  slug: string;
-};
-
 type ApiVariant = {
   stock?: number | string | null;
+  price?: number | string | null;
 };
 
 type ProductDTO = {
@@ -34,30 +29,29 @@ type ProductDTO = {
   slug: string;
   image: string | null;
 
-  categoryId: number;
-
   basePrice: number;
   originalPrice: number | null;
   currency: string;
 
-  featured: boolean;
+  createdAt?: string;
 
-  createdAt: string;
+  // from top-selling API
+  totalSold?: number | null;
+  rank?: number | null;
 
   variants?: ApiVariant[] | null;
+
+  // computed
   stock: number;
 };
 
 type ReviewDTO = {
   id?: number | string;
   rating: number | string;
+  comment?: string | null;
   productId: number | string;
   createdAt?: string;
 };
-
-function formatBDT(n: number) {
-  return `${Math.round(n).toLocaleString("en-US")}৳`;
-}
 
 function toNumber(v: any, fallback = 0) {
   const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : Number(v);
@@ -70,15 +64,19 @@ function computeStockFromVariants(variants?: ApiVariant[] | null) {
   return list.reduce((sum, v) => sum + toNumber(v?.stock, 0), 0);
 }
 
+function formatBDT(n: number) {
+  return `${Math.round(n).toLocaleString("en-US")}৳`;
+}
+
 function calcDiscountPercent(base: number, original: number | null) {
   if (!original || original <= base) return null;
   const p = Math.round(((original - base) / original) * 100);
   return p > 0 ? p : null;
 }
 
-export default function FeaturedProducts({
-  title = "Featured Products",
-  subtitle = "Check & Get Your Desired Product!",
+export default function BestSelling({
+  title = "Best Selling",
+  subtitle = "Top selling products right now",
   limit = 20,
 }: {
   title?: string;
@@ -87,12 +85,10 @@ export default function FeaturedProducts({
 }) {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ProductDTO[]>([]);
-  const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [reviews, setReviews] = useState<ReviewDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
-  const [active, setActive] = useState<"ALL" | number>("ALL");
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
@@ -100,6 +96,7 @@ export default function FeaturedProducts({
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { status } = useSession();
 
+  /* ================= Wishlist toggle ================= */
   const toggleWishlist = useCallback(
     async (p: ProductDTO) => {
       try {
@@ -132,6 +129,7 @@ export default function FeaturedProducts({
     [status, isInWishlist, addToWishlist, removeFromWishlist]
   );
 
+  /* ================= Add to cart ================= */
   const handleAddToCart = useCallback(
     (p: ProductDTO) => {
       try {
@@ -143,7 +141,7 @@ export default function FeaturedProducts({
     [addToCart]
   );
 
-  /* ================= FETCH (products + categories + reviews) ================= */
+  /* ================= FETCH (top-selling + reviews) ================= */
   useEffect(() => {
     let mounted = true;
 
@@ -152,33 +150,21 @@ export default function FeaturedProducts({
         setLoading(true);
         setError(null);
 
-        const [pRes, cRes, rRes] = await Promise.all([
-          fetch("/api/products", { cache: "no-store" }),
-          fetch("/api/categories", { cache: "no-store" }),
+        const [pRes, rRes] = await Promise.all([
+          fetch("/api/products/top-selling", { cache: "no-store" }),
           fetch("/api/reviews", { cache: "no-store" }),
         ]);
 
-        if (!pRes.ok) throw new Error("Failed to load products");
-        if (!cRes.ok) throw new Error("Failed to load categories");
+        if (!pRes.ok) throw new Error("Failed to load best selling products");
         if (!rRes.ok) throw new Error("Failed to load reviews");
 
         const pData = await pRes.json();
-        const cData = await cRes.json();
         const rData = await rRes.json();
 
         if (!mounted) return;
 
         const pList: any[] = Array.isArray(pData) ? pData : pData?.data ?? [];
-        const cList: any[] = Array.isArray(cData) ? cData : cData?.data ?? [];
-
-        // ✅ reviews response: {reviews:[], pagination:{}, averageRating}
         const rList: any[] = Array.isArray(rData?.reviews) ? rData.reviews : [];
-
-        const mappedCats: CategoryDTO[] = cList.map((c) => ({
-          id: c.id,
-          name: String(c.name ?? ""),
-          slug: String(c.slug ?? ""),
-        }));
 
         const mappedProducts: ProductDTO[] = pList.map((p) => {
           const variants = Array.isArray(p?.variants) ? p.variants : [];
@@ -195,14 +181,12 @@ export default function FeaturedProducts({
             name: String(p.name ?? ""),
             slug: String(p.slug ?? ""),
             image: p.image ?? null,
-            categoryId: toNumber(p?.categoryId, 0),
-
             basePrice,
             originalPrice,
             currency: String(p.currency ?? "BDT"),
-            featured: Boolean(p.featured),
-
-            createdAt: String(p.createdAt ?? ""),
+            createdAt: p.createdAt ? String(p.createdAt) : undefined,
+            totalSold: p.totalSold ?? p.soldCount ?? null,
+            rank: p.rank ?? null,
             variants,
             stock,
           };
@@ -210,12 +194,12 @@ export default function FeaturedProducts({
 
         const mappedReviews: ReviewDTO[] = rList.map((r) => ({
           id: r.id,
-          productId: r.productId,
           rating: r.rating,
+          comment: r.comment ?? null,
+          productId: r.productId,
           createdAt: r.createdAt,
         }));
 
-        setCategories(mappedCats);
         setItems(mappedProducts);
         setReviews(mappedReviews);
       } catch (e: any) {
@@ -232,7 +216,7 @@ export default function FeaturedProducts({
     };
   }, []);
 
-  /* ================= review stats (productId wise) ================= */
+  /* ================= Review stats (productId wise) ================= */
   const reviewStats = useMemo(() => {
     const map: Record<string, { count: number; sum: number; avg: number }> = {};
     for (const r of reviews) {
@@ -248,33 +232,10 @@ export default function FeaturedProducts({
     return map;
   }, [reviews]);
 
-  /* ================= categories tabs: A-Z then first 4 ================= */
-  const top4Tabs = useMemo(() => {
-    const sorted = [...categories].sort((a, b) =>
-      String(a.name).localeCompare(String(b.name), "en", { sensitivity: "base" })
-    );
-    return sorted.slice(0, 4);
-  }, [categories]);
+  /* ================= Visible list ================= */
+  const visible = useMemo(() => items.slice(0, limit), [items, limit]);
 
-  /* ================= featured only + latest first ================= */
-  const featuredLatest = useMemo(() => {
-    const list = items.filter((p) => p.featured);
-    list.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-    return list;
-  }, [items]);
-
-  /* ================= filter by category ================= */
-  const filtered = useMemo(() => {
-    const base = featuredLatest;
-    if (active === "ALL") return base;
-    return base.filter((p) => p.categoryId === active);
-  }, [featuredLatest, active]);
-
-  const visible = useMemo(() => filtered.slice(0, limit), [filtered, limit]);
-
-  /* ================= arrows scroll ================= */
+  /* ================= Scroll arrows ================= */
   const scrollByCards = (dir: "left" | "right") => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -288,15 +249,10 @@ export default function FeaturedProducts({
     });
   };
 
-  /* tab change -> scroll start */
-  useEffect(() => {
-    scrollerRef.current?.scrollTo({ left: 0, behavior: "smooth" });
-  }, [active]);
-
   return (
     <section className="w-full bg-background">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-        {/* ✅ Header row (same as new arrivals) */}
+        {/* ✅ Header (same as NewArrivals) */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-foreground">
@@ -306,34 +262,6 @@ export default function FeaturedProducts({
               {subtitle}
             </p>
           </div>
-
-          {/* ✅ Tabs (ALL + 4 categories) */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-            <button
-              onClick={() => setActive("ALL")}
-              className={`uppercase tracking-wide ${
-                active === "ALL"
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground"
-              }`}
-            >
-              ALL
-            </button>
-
-            {top4Tabs.map((c) => (
-              <button
-                key={String(c.id)}
-                onClick={() => setActive(Number(c.id))}
-                className={`capitalize ${
-                  active === Number(c.id)
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {String(c.name).toLowerCase()}
-              </button>
-            ))}
-          </div>
         </div>
 
         {error ? (
@@ -342,7 +270,7 @@ export default function FeaturedProducts({
           </div>
         ) : null}
 
-        {/* ✅ Carousel row */}
+        {/* ✅ Carousel row (same as NewArrivals) */}
         <div className="relative mt-5 sm:mt-6">
           <button
             onClick={() => scrollByCards("left")}
@@ -419,17 +347,16 @@ export default function FeaturedProducts({
           </button>
         </div>
 
-        {/* divider like screenshot */}
         <div className="mt-4 h-px w-full bg-border" />
 
         {!loading && visible.length === 0 ? (
           <div className="mt-6 text-center text-sm text-muted-foreground">
-            No featured products found.
+            No best selling products found.
           </div>
         ) : null}
       </div>
 
-      {/* login modal */}
+      {/* Login modal (same as NewArrivals) */}
       <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
