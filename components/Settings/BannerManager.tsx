@@ -175,7 +175,7 @@ export default function BannerManager({
 
       {/* Modal */}
       {open && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+        <div className="fixed inset-0 bg-gray-400/40 flex items-center justify-center">
           <div className="bg-card p-6 rounded-xl w-[400px] space-y-4">
             <h2 className="text-lg font-semibold">
               {editing ? "Edit Banner" : "New Banner"}
@@ -236,7 +236,6 @@ export default function BannerManager({
                 <option value="HERO">HERO</option>
                 <option value="BANNER1">BANNER1</option>
                 <option value="BANNER2">BANNER2</option>
-                <option value="CATEGORY">CATEGORY</option>
                 <option value="PROMOTION">PROMOTION</option>
                 <option value="POPUP">POPUP</option>
               </select>

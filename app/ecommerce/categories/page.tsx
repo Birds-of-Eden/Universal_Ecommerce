@@ -587,8 +587,6 @@ export default function CategoriesPage() {
                     onWishlistClick={() => handleWishlist(product)}
                     onAddToCart={() => handleAddToCart(product)}
                     formatPrice={formatPrice}
-                    showMeta={false}
-                    showSpecs={false}
                   />
                 ))}
               </div>

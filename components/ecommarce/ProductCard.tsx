@@ -16,6 +16,10 @@ export type ProductCardData = {
   ratingAvg?: number | null;
   ratingCount?: number | null;
   discountPct?: number;
+  sku?: string;
+  type?: string;
+  shortDesc?: string;
+  available?: boolean;
 };
 
 type Props = {
