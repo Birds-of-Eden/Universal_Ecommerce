@@ -41,6 +41,8 @@ const THEME_OPTIONS = [
   { value: "dark", label: "Dark" },
   { value: "navy", label: "Navy" },
   { value: "plum", label: "Plum" },
+  { value: "olive", label: "Olive" },
+  { value: "rose", label: "Rose" },
 ] as const;
 
 /* =========================

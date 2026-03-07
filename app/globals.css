@@ -159,6 +159,76 @@ body {
     --input: 285 15% 30%;
     --ring: 287 32% 25%;
   }
+
+  /* ========================
+   OLIVE DARK THEME (UPDATED)
+======================== */
+
+  .olive,
+  .theme-olive {
+    --background: 60 12% 10%; /* deep olive black */
+    --foreground: 0 0% 96%;
+
+    --card: 60 10% 14%;
+    --card-foreground: 0 0% 96%;
+
+    --popover: 60 10% 14%;
+    --popover-foreground: 0 0% 96%;
+
+    --primary: 55 46% 36%; /* olive button */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 60 8% 20%; /* soft olive gray */
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 60 6% 18%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 43 97% 70%; /* freesia highlight */
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 60 6% 25%;
+    --input: 60 6% 25%;
+    --ring: 55 46% 36%;
+  }
+
+  /* ========================
+   ROSE PEACH THEME
+======================== */
+
+  .rose,
+  .theme-rose {
+    --background: 56 100% 96%; /* #feffe9 */
+    --foreground: 350 30% 20%;
+
+    --card: 48 80% 90%; /* #fae5c2 */
+    --card-foreground: 350 30% 20%;
+
+    --popover: 48 80% 90%;
+    --popover-foreground: 350 30% 20%;
+
+    --primary: 350 73% 64%; /* #e65f76 */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 350 100% 77%; /* #ff8795 */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 350 60% 80%; /* #f2aaaa */
+    --muted-foreground: 350 30% 30%;
+
+    --accent: 40 85% 86%; /* #fae5c2 */
+    --accent-foreground: 350 30% 20%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 40% 80%;
+    --input: 40 40% 80%;
+    --ring: 350 73% 64%;
+  }
 }
 
 /* ========================
@@ -184,12 +254,27 @@ body {
 @layer utilities {
   .btn-primary {
     /* eslint-disable-next-line at-rule-no-unknown */
-    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 transition;
+  }
+
+  .btn-secondary {
+    /* eslint-disable-next-line at-rule-no-unknown */
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 transition;
+  }
+
+  .btn-accent {
+    /* eslint-disable-next-line at-rule-no-unknown */
+    @apply bg-accent text-accent-foreground hover:bg-accent/90 transition;
+  }
+
+  .btn-outline {
+    /* eslint-disable-next-line at-rule-no-unknown */
+    @apply border border-border bg-transparent hover:bg-muted transition;
   }
 
   .btn-danger {
     /* eslint-disable-next-line at-rule-no-unknown */
-    @apply bg-red-500 text-destructive-foreground hover:bg-red-500/90;
+    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90 transition;
   }
 
   .input-theme {
@@ -200,5 +285,9 @@ body {
   .card-theme {
     /* eslint-disable-next-line at-rule-no-unknown */
     @apply bg-card text-card-foreground border-border;
+  }
+
+  .product-card {
+    @apply transition duration-300 hover:-translate-y-1 hover:shadow-xl;
   }
 }
