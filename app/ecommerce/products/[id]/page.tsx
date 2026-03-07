@@ -1,13 +1,23 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ProductReviews from "@/components/ecommarce/ProductReviews";
 import AddToCartButton from "@/components/ecommarce/AddToCartButton";
 import RelatedProducts from "@/components/ecommarce/RelatedProducts";
+import VariantSelector from "@/components/ecommarce/VariantSelector";
 import { useCart } from "@/components/ecommarce/CartContext";
+
+type Variant = {
+  id: number | string;
+  stock?: number | null;
+  price?: number | string | null;
+  sku?: string | null;
+  image?: string | null;
+  originalPrice?: number | string | null;
+  options?: Record<string, string>;
+};
 
 type Product = {
   id: number | string;
@@ -17,46 +27,40 @@ type Product = {
   model?: string | null;
   available?: boolean;
   featured?: boolean;
-
   image: string | null;
   gallery?: string[] | null;
-
-  basePrice: number;
-  originalPrice: number | null;
+  basePrice: number | string;
+  originalPrice: number | string | null;
   currency?: string | null;
-
   description?: string | null;
   shortDesc?: string | null;
   dimensions?: any;
   weight?: number | null;
-
   categoryId?: number | null;
   category?: { id: number; name: string } | null;
-
   brand?: { id: number; name: string } | null;
-
-  variants?: { id: number; stock?: number | null; price?: number | null }[];
+  variants?: Variant[];
 };
 
 function moneyBDT(n: number) {
   return `${Math.round(n).toLocaleString("en-US")}৳`;
 }
 
-function isDiscounted(p: Product) {
-  return !!p.originalPrice && p.originalPrice > p.basePrice;
+function toNumber(value: number | string | null | undefined) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function saveText(p: Product) {
-  if (!p.originalPrice || p.originalPrice <= p.basePrice) return null;
-  const diff = p.originalPrice - p.basePrice;
-  const pct = Math.round((diff / p.originalPrice) * 100);
+function saveText(price: number, originalPrice: number | null | undefined) {
+  if (!originalPrice || originalPrice <= price) return null;
+  const diff = originalPrice - price;
+  const pct = Math.round((diff / originalPrice) * 100);
   return `Save: ${moneyBDT(diff)} (-${pct}%)`;
 }
 
 export default function BookDetail() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-
   const { addToCart, getQuantityByProductId, incProductQty, decProductQty } =
     useCart();
 
@@ -66,10 +70,9 @@ export default function BookDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [all, setAll] = useState<Product[]>([]);
   const [err, setErr] = useState<string | null>(null);
-
   const [activeImg, setActiveImg] = useState<string | null>(null);
   const [tab, setTab] = useState<"desc" | "spec" | "reviews">("desc");
-
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isZooming, setIsZooming] = useState(false);
 
@@ -85,13 +88,13 @@ export default function BookDetail() {
         const res = await fetch("/api/products", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load products");
 
-        const data = (await res.json()) as any[];
+        const data = (await res.json()) as unknown[];
         if (!mounted) return;
 
-        const list: Product[] = Array.isArray(data) ? data : [];
+        const list: Product[] = Array.isArray(data) ? (data as Product[]) : [];
         setAll(list);
 
-        const found = list.find((p) => String(p.id) === String(id)) ?? null;
+        const found = list.find((item) => String(item.id) === String(id)) ?? null;
         if (!found) {
           setProduct(null);
           setErr("Product not found");
@@ -100,14 +103,22 @@ export default function BookDetail() {
 
         setProduct(found);
 
-        const first =
+        const initialVariant =
+          Array.isArray(found.variants) && found.variants.length === 1
+            ? found.variants[0]
+            : null;
+
+        setSelectedVariant(initialVariant);
+
+        const firstImage =
+          initialVariant?.image ||
           found.image ||
           (Array.isArray(found.gallery) ? found.gallery[0] : null) ||
           null;
-        setActiveImg(first);
-      } catch (e: any) {
+        setActiveImg(firstImage);
+      } catch (error: any) {
         if (!mounted) return;
-        setErr(e?.message || "Something went wrong");
+        setErr(error?.message || "Something went wrong");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -119,163 +130,121 @@ export default function BookDetail() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (selectedVariant?.image) {
+      setActiveImg(selectedVariant.image);
+      return;
+    }
+
+    const fallback =
+      product?.image ||
+      (Array.isArray(product?.gallery) ? product.gallery[0] : null) ||
+      null;
+    setActiveImg(fallback);
+  }, [product, selectedVariant]);
+
   const related = useMemo(() => {
     if (!product) return [];
-    const cid = product.categoryId ?? product.category?.id ?? null;
-    if (!cid) return [];
+    const categoryId = product.categoryId ?? product.category?.id ?? null;
+    if (!categoryId) return [];
 
     return all
-      .filter((p) => {
-        const pcid = p.categoryId ?? p.category?.id ?? null;
+      .filter((item) => {
+        const itemCategoryId = item.categoryId ?? item.category?.id ?? null;
         return (
-          pcid === cid &&
-          Boolean(p.featured) === true &&
-          String(p.id) !== String(product.id)
+          itemCategoryId === categoryId &&
+          Boolean(item.featured) &&
+          String(item.id) !== String(product.id)
         );
       })
       .slice(0, 10);
   }, [all, product]);
 
-  // ✅ STOCK: sum variants stocks (your API stores stock inside variants)
   const stock = useMemo(() => {
-    const variants = Array.isArray(product?.variants) ? product!.variants! : [];
+    if (selectedVariant) {
+      return toNumber(selectedVariant.stock);
+    }
+
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
     if (variants.length) {
-      return variants.reduce((sum, v) => {
-        const s = typeof v?.stock === "number" ? v.stock : Number(v?.stock);
-        return sum + (Number.isFinite(s) ? s : 0);
+      return variants.reduce((sum, variant) => {
+        return sum + toNumber(variant.stock);
       }, 0);
     }
-    // fallback if variants missing
+
     return product?.available ? 10 : 0;
-  }, [product]);
+  }, [product, selectedVariant]);
 
   const images = useMemo(() => {
-    const arr: string[] = [];
-    if (product?.image) arr.push(product.image);
+    const list: string[] = [];
+    if (selectedVariant?.image) list.push(selectedVariant.image);
+    else if (product?.image) list.push(product.image);
+
     if (Array.isArray(product?.gallery)) {
-      product!.gallery!.forEach((g) => {
-        if (g && !arr.includes(g)) arr.push(g);
+      product.gallery.forEach((image) => {
+        if (image && !list.includes(image)) list.push(image);
       });
     }
-    return arr;
-  }, [product]);
+
+    return list;
+  }, [product, selectedVariant]);
 
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        {/* Product Details Skeleton */}
-        <div className="card-theme rounded-xl p-4 sm:p-6 mb-6">
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Product Image Skeleton */}
+        <div className="card-theme mb-6 rounded-xl p-4 sm:p-6">
+          <div className="grid gap-8 md:grid-cols-2">
             <div>
-              <div className="w-full h-[320px] sm:h-[380px] bg-muted animate-pulse rounded-xl" />
+              <div className="h-[320px] w-full rounded-xl bg-muted animate-pulse sm:h-[380px]" />
               <div className="mt-4 flex gap-3">
-                {[1, 2, 3, 4].map((i) => (
+                {[1, 2, 3, 4].map((item) => (
                   <div
-                    key={i}
-                    className="h-16 w-16 bg-muted animate-pulse rounded-lg"
+                    key={item}
+                    className="h-16 w-16 rounded-lg bg-muted animate-pulse"
                   />
                 ))}
               </div>
             </div>
 
-            {/* Product Info Skeleton */}
             <div className="space-y-4">
-              <div className="h-8 w-3/4 bg-muted animate-pulse rounded" />
+              <div className="h-8 w-3/4 rounded bg-muted animate-pulse" />
               <div className="flex gap-2">
-                {[1, 2, 3, 4].map((i) => (
+                {[1, 2, 3, 4].map((item) => (
                   <div
-                    key={i}
-                    className="h-6 w-20 bg-muted animate-pulse rounded"
+                    key={item}
+                    className="h-6 w-20 rounded bg-muted animate-pulse"
                   />
                 ))}
               </div>
-              <div className="h-16 w-full bg-muted animate-pulse rounded" />
+              <div className="h-16 w-full rounded bg-muted animate-pulse" />
               <div className="space-y-2">
-                <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-                <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-16 rounded bg-muted animate-pulse" />
+                <div className="h-8 w-32 rounded bg-muted animate-pulse" />
               </div>
-              <div className="h-11 w-40 bg-muted animate-pulse rounded" />
+              <div className="h-11 w-40 rounded bg-muted animate-pulse" />
               <div className="grid grid-cols-2 gap-3">
-                <div className="h-11 bg-muted animate-pulse rounded" />
-                <div className="h-11 bg-muted animate-pulse rounded" />
+                <div className="h-11 rounded bg-muted animate-pulse" />
+                <div className="h-11 rounded bg-muted animate-pulse" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Tabs Skeleton */}
-        <div className="card-theme rounded-xl overflow-hidden mb-6">
+        <div className="card-theme mb-6 overflow-hidden rounded-xl">
           <div className="flex gap-2 border-b border-border px-3 sm:px-4">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-12 w-24 bg-muted animate-pulse rounded"
-              />
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="h-12 w-24 rounded bg-muted animate-pulse" />
             ))}
           </div>
           <div className="p-4 sm:p-6">
             <div className="space-y-2">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4].map((item) => (
                 <div
-                  key={i}
-                  className="h-4 bg-muted animate-pulse rounded"
+                  key={item}
+                  className="h-4 rounded bg-muted animate-pulse"
                   style={{ width: `${Math.random() * 40 + 60}%` }}
                 />
               ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Related Products Skeleton */}
-        <div className="card-theme rounded-xl overflow-hidden">
-          <div className="px-4 sm:px-6 py-4 border-b border-border">
-            <div className="h-6 w-48 bg-muted animate-pulse rounded mb-2" />
-            <div className="h-4 w-64 bg-muted animate-pulse rounded" />
-          </div>
-
-          <div className="p-4 sm:p-6">
-            {/* Mobile Skeleton */}
-            <div className="lg:hidden space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  className="flex gap-4 p-4 border border-border rounded-xl"
-                >
-                  <div className="h-20 w-20 bg-muted animate-pulse rounded-lg shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-muted animate-pulse rounded" />
-                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
-                    <div className="h-6 w-24 bg-muted animate-pulse rounded" />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Desktop Skeleton */}
-            <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className="border border-border rounded-xl overflow-hidden"
-                >
-                  <div className="h-48 bg-muted animate-pulse" />
-                  <div className="p-4 space-y-2">
-                    <div className="h-4 bg-muted animate-pulse rounded" />
-                    <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
-                    <div className="h-6 w-24 bg-muted animate-pulse rounded" />
-                    <div className="flex justify-between items-center">
-                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-                      <div className="h-8 w-20 bg-muted animate-pulse rounded" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* View All Button Skeleton */}
-            <div className="mt-8 text-center">
-              <div className="h-12 w-64 mx-auto bg-muted animate-pulse rounded-lg" />
             </div>
           </div>
         </div>
@@ -287,12 +256,12 @@ export default function BookDetail() {
     return (
       <div className="container mx-auto px-4 py-10">
         <div className="rounded-xl border border-border bg-card p-6">
-          <div className="text-destructive font-semibold">
+          <div className="font-semibold text-destructive">
             {err || "Product not found"}
           </div>
           <button
             onClick={() => router.back()}
-            className="mt-4 px-4 py-2 btn-primary rounded-lg transition"
+            className="btn-primary mt-4 rounded-lg px-4 py-2 transition"
           >
             Go Back
           </button>
@@ -301,25 +270,48 @@ export default function BookDetail() {
     );
   }
 
-  const badge = saveText(product);
-
-  // ✅ cart quantity (single source of truth)
-  const cartQty = getQuantityByProductId(product.id);
+  const displayPrice = selectedVariant
+    ? toNumber(selectedVariant.price)
+    : toNumber(product.basePrice);
+  const displayOriginalPrice = selectedVariant
+    ? selectedVariant.originalPrice != null
+      ? toNumber(selectedVariant.originalPrice)
+      : null
+    : product.originalPrice != null
+      ? toNumber(product.originalPrice)
+      : null;
+  const badge = saveText(displayPrice, displayOriginalPrice);
+  const basePrice = toNumber(product.basePrice);
+  const hasMultipleVariants = (product.variants?.length ?? 0) > 1;
+  const selectionRequired = hasMultipleVariants && !selectedVariant;
+  const purchaseDisabled = selectionRequired || stock <= 0;
+  const stockLabel = selectionRequired
+    ? "Select variant"
+    : stock > 0
+      ? "In Stock"
+      : "Out of Stock";
+  const stockClassName = selectionRequired
+    ? "text-amber-600 dark:text-amber-400"
+    : stock > 0
+      ? "text-green-600 dark:text-green-400"
+      : "text-destructive";
+  const cartId = selectedVariant?.id || product.id;
+  const cartQty = getQuantityByProductId(cartId);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-[1fr] gap-6">
+        <div className="grid gap-6 lg:grid-cols-[1fr]">
           <section className="card-theme rounded-xl p-4 sm:p-6">
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid gap-8 md:grid-cols-2">
               <div>
                 <div
-                  className="relative w-full h-[320px] sm:h-[380px] bg-card rounded-xl border border-border overflow-hidden"
-                  onMouseMove={(e) => {
+                  className="relative h-[320px] w-full overflow-hidden rounded-xl border border-border bg-card sm:h-[380px]"
+                  onMouseMove={(event) => {
                     const { left, top, width, height } =
-                      e.currentTarget.getBoundingClientRect();
-                    const x = ((e.clientX - left) / width) * 100;
-                    const y = ((e.clientY - top) / height) * 100;
+                      event.currentTarget.getBoundingClientRect();
+                    const x = ((event.clientX - left) / width) * 100;
+                    const y = ((event.clientY - top) / height) * 100;
                     setZoomPos({ x, y });
                   }}
                   onMouseEnter={() => setIsZooming(true)}
@@ -328,7 +320,7 @@ export default function BookDetail() {
                 >
                   {badge && (
                     <div className="absolute left-3 top-3 z-10">
-                      <span className="h-6 px-2 inline-flex items-center text-[11px] font-semibold rounded bg-primary text-primary-foreground">
+                      <span className="inline-flex h-6 items-center rounded bg-primary px-2 text-[11px] font-semibold text-primary-foreground">
                         {badge}
                       </span>
                     </div>
@@ -336,7 +328,7 @@ export default function BookDetail() {
 
                   {activeImg ? (
                     <div
-                      className="w-full h-full bg-no-repeat transition-[background-size,background-position] duration-75"
+                      className="h-full w-full bg-no-repeat transition-[background-size,background-position] duration-75"
                       style={{
                         backgroundImage: `url(${activeImg})`,
                         backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
@@ -344,7 +336,7 @@ export default function BookDetail() {
                       }}
                     />
                   ) : (
-                    <div className="h-full flex items-center justify-center text-muted-foreground">
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
                       No Image
                     </div>
                   )}
@@ -353,15 +345,16 @@ export default function BookDetail() {
                 {images.length > 1 && (
                   <div className="mt-4 flex gap-3 overflow-auto pb-1">
                     {images.map((src) => {
-                      const active = src === activeImg;
+                      const isActive = src === activeImg;
+
                       return (
                         <button
                           key={src}
                           type="button"
                           onClick={() => setActiveImg(src)}
                           className={[
-                            "relative h-16 w-16 rounded-lg border bg-card overflow-hidden shrink-0",
-                            active
+                            "relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-card",
+                            isActive
                               ? "border-primary ring-2 ring-primary/30"
                               : "border-border hover:border-primary/60",
                           ].join(" ")}
@@ -382,81 +375,133 @@ export default function BookDetail() {
               </div>
 
               <div>
-                <h1 className="text-lg sm:text-xl font-bold text-foreground">
+                <h1 className="text-lg font-bold text-foreground sm:text-xl">
                   {product.name}
                 </h1>
 
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="px-2 py-1 rounded border border-border bg-muted/30">
+                  <span className="rounded border border-border bg-muted/30 px-2 py-1">
                     Stock:{" "}
-                    <span
-                      className={
-                        stock > 0
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-destructive"
-                      }
-                    >
-                      {stock > 0 ? "In Stock" : "Out of Stock"}
-                    </span>
+                    <span className={stockClassName}>{stockLabel}</span>
                   </span>
 
-                  {product.sku ? (
-                    <span className="px-2 py-1 rounded border border-border bg-muted/30">
+                  {selectedVariant?.sku ? (
+                    <span className="rounded border border-border bg-muted/30 px-2 py-1">
+                      SKU: {selectedVariant.sku}
+                    </span>
+                  ) : product.sku ? (
+                    <span className="rounded border border-border bg-muted/30 px-2 py-1">
                       PID: {product.sku}
                     </span>
                   ) : null}
 
                   {product.brand?.name ? (
-                    <span className="px-2 py-1 rounded border border-border bg-muted/30">
+                    <span className="rounded border border-border bg-muted/30 px-2 py-1">
                       Brand: {product.brand.name}
                     </span>
                   ) : null}
 
                   {product.model ? (
-                    <span className="px-2 py-1 rounded border border-border bg-muted/30">
+                    <span className="rounded border border-border bg-muted/30 px-2 py-1">
                       Model: {product.model}
                     </span>
                   ) : null}
 
                   {product.category?.name ? (
-                    <span className="px-2 py-1 rounded border border-border bg-muted/30">
+                    <span className="rounded border border-border bg-muted/30 px-2 py-1">
                       Category: {product.category.name}
                     </span>
                   ) : null}
                 </div>
 
                 {product.shortDesc ? (
-                  <p className="mt-6 text-sm text-muted-foreground leading-relaxed">
+                  <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
                     {product.shortDesc}
                   </p>
                 ) : null}
 
+                {Array.isArray(product.variants) && hasMultipleVariants && (
+                  <div className="mt-6">
+                    <VariantSelector
+                      variants={product.variants}
+                      value={selectedVariant}
+                      onChange={(variant) => setSelectedVariant(variant as Variant | null)}
+                    />
+                  </div>
+                )}
+
                 <div className="mt-6">
-                  <div className="text-sm text-muted-foreground">
-                    {isDiscounted(product) ? "Discount Price" : "Price"}
-                  </div>
-
-                  <div className="mt-1 flex items-end gap-3">
-                    <div className="text-2xl font-bold text-destructive">
-                      {moneyBDT(product.basePrice ?? 0)}
-                    </div>
-
-                    {isDiscounted(product) && (
-                      <div className="text-sm text-muted-foreground line-through">
-                        {moneyBDT(product.originalPrice!)}
+                  {hasMultipleVariants ? (
+                    <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+                      <div className="text-sm text-muted-foreground">
+                        Starting from
                       </div>
-                    )}
-                  </div>
+                      <div className="mt-1 flex items-end gap-3">
+                        <div className="text-2xl font-bold text-foreground">
+                          {moneyBDT(basePrice)}
+                        </div>
+                        {product.originalPrice != null &&
+                          toNumber(product.originalPrice) > basePrice && (
+                            <div className="text-sm text-muted-foreground line-through">
+                              {moneyBDT(toNumber(product.originalPrice))}
+                            </div>
+                          )}
+                      </div>
+
+                      {selectedVariant ? (
+                        <div className="mt-4 rounded-xl border border-primary/15 bg-background p-3">
+                          <div className="text-sm font-medium text-foreground">
+                            Selected variant price
+                          </div>
+                          <div className="mt-1 flex items-end gap-3">
+                            <div className="text-2xl font-bold text-destructive">
+                              {moneyBDT(displayPrice)}
+                            </div>
+                            {displayOriginalPrice &&
+                              displayOriginalPrice > displayPrice && (
+                                <div className="text-sm text-muted-foreground line-through">
+                                  {moneyBDT(displayOriginalPrice)}
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-sm text-muted-foreground">
+                          Select a variant to see the exact final price.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-sm text-muted-foreground">
+                        {displayOriginalPrice && displayOriginalPrice > displayPrice
+                          ? "Discount Price"
+                          : "Price"}
+                      </div>
+
+                      <div className="mt-1 flex items-end gap-3">
+                        <div className="text-2xl font-bold text-destructive">
+                          {moneyBDT(displayPrice)}
+                        </div>
+
+                        {displayOriginalPrice &&
+                          displayOriginalPrice > displayPrice && (
+                            <div className="text-sm text-muted-foreground line-through">
+                              {moneyBDT(displayOriginalPrice)}
+                            </div>
+                          )}
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                {/* ✅ Cart-based +/- counter */}
                 <div className="mt-6 grid grid-cols-[140px_1fr] gap-3">
-                  <div className="h-11 rounded-lg border border-border flex items-center justify-between px-2 bg-card">
+                  <div className="flex h-11 items-center justify-between rounded-lg border border-border bg-card px-2">
                     <button
                       type="button"
-                      className="h-9 w-9 rounded-md hover:bg-accent transition"
-                      onClick={() => decProductQty(product.id, 1)}
-                      disabled={stock <= 0 || cartQty <= 0}
+                      className="h-9 w-9 rounded-md transition hover:bg-accent"
+                      onClick={() => decProductQty(cartId, 1)}
+                      disabled={purchaseDisabled || cartQty <= 0}
                     >
                       −
                     </button>
@@ -465,9 +510,9 @@ export default function BookDetail() {
 
                     <button
                       type="button"
-                      className="h-9 w-9 rounded-md hover:bg-accent transition"
-                      onClick={() => incProductQty(product.id, 1)}
-                      disabled={stock <= 0}
+                      className="h-9 w-9 rounded-md transition hover:bg-accent"
+                      onClick={() => incProductQty(cartId, 1)}
+                      disabled={purchaseDisabled}
                     >
                       +
                     </button>
@@ -475,21 +520,25 @@ export default function BookDetail() {
                 </div>
 
                 <div className="mt-6">
+                  {selectionRequired && (
+                    <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+                      Please select a variant to enable cart and checkout.
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
-                    {/* ✅ DISABLE AddToCartButton when out of stock */}
                     <AddToCartButton
-                      productId={product.id}
-                      disabled={stock <= 0}
+                      productId={cartId}
+                      disabled={purchaseDisabled}
                     />
 
                     <button
                       type="button"
-                      className="h-11 btn-primary rounded-lg font-semibold hover:opacity-95 transition disabled:opacity-50"
-                      disabled={stock <= 0}
+                      className="btn-primary h-11 rounded-lg font-semibold transition hover:opacity-95 disabled:opacity-50"
+                      disabled={purchaseDisabled}
                       onClick={() => {
-                        // ✅ if not in cart, add 1 then go checkout
-                        if (getQuantityByProductId(product.id) <= 0) {
-                          addToCart(product.id, 1);
+                        if (getQuantityByProductId(cartId) <= 0) {
+                          addToCart(cartId, 1);
                         }
                         router.push("/ecommerce/checkout");
                       }}
@@ -503,11 +552,11 @@ export default function BookDetail() {
           </section>
         </div>
 
-        <div className="mt-6 card-theme rounded-xl overflow-hidden">
+        <div className="card-theme mt-6 overflow-hidden rounded-xl">
           <div className="flex gap-2 border-b border-border px-3 sm:px-4">
             <button
               className={[
-                "px-4 py-3 text-sm font-semibold border-b-2 transition",
+                "border-b-2 px-4 py-3 text-sm font-semibold transition",
                 tab === "desc"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground",
@@ -519,7 +568,7 @@ export default function BookDetail() {
 
             <button
               className={[
-                "px-4 py-3 text-sm font-semibold border-b-2 transition",
+                "border-b-2 px-4 py-3 text-sm font-semibold transition",
                 tab === "spec"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground",
@@ -531,7 +580,7 @@ export default function BookDetail() {
 
             <button
               className={[
-                "px-4 py-3 text-sm font-semibold border-b-2 transition",
+                "border-b-2 px-4 py-3 text-sm font-semibold transition",
                 tab === "reviews"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground",
@@ -546,11 +595,9 @@ export default function BookDetail() {
             {tab === "desc" && (
               <div className="prose prose-sm max-w-none dark:prose-invert">
                 {product.description ? (
-                  <div
-                    dangerouslySetInnerHTML={{ __html: product.description }}
-                  />
+                  <div dangerouslySetInnerHTML={{ __html: product.description }} />
                 ) : (
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-sm text-muted-foreground">
                     No description available.
                   </p>
                 )}
@@ -558,7 +605,7 @@ export default function BookDetail() {
             )}
 
             {tab === "spec" && (
-              <div className="text-sm text-muted-foreground space-y-2">
+              <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex justify-between border-b border-border pb-2">
                   <span>Weight</span>
                   <span className="text-foreground">
@@ -568,25 +615,23 @@ export default function BookDetail() {
                 <div className="flex justify-between border-b border-border pb-2">
                   <span>Dimensions</span>
                   <span className="text-foreground">
-                    {product.dimensions
-                      ? JSON.stringify(product.dimensions)
-                      : "—"}
+                    {product.dimensions ? JSON.stringify(product.dimensions) : "—"}
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
                   <span>SKU</span>
-                  <span className="text-foreground">{product.sku ?? "—"}</span>
+                  <span className="text-foreground">
+                    {selectedVariant?.sku ?? product.sku ?? "—"}
+                  </span>
                 </div>
               </div>
             )}
 
-            {tab === "reviews" && (
-              <ProductReviews productId={Number(product.id)} />
-            )}
+            {tab === "reviews" && <ProductReviews productId={Number(product.id)} />}
           </div>
         </div>
+
         <div className="mt-2">
-          {/* Related Products Section - Below Product Details */}
           <RelatedProducts
             products={related}
             currentProductId={product.id}
