@@ -55,6 +55,13 @@ type ReviewDTO = {
   createdAt?: string;
 };
 
+function normalizeReviewsPayload(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.reviews)) return data.reviews;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
+
 function formatBDT(n: number) {
   return `${Math.round(n).toLocaleString("en-US")}৳`;
 }
@@ -174,8 +181,7 @@ export default function FeaturedProducts({
         const pList: any[] = Array.isArray(pData) ? pData : pData?.data ?? [];
         const cList: any[] = Array.isArray(cData) ? cData : cData?.data ?? [];
 
-        // ✅ reviews response: {reviews:[], pagination:{}, averageRating}
-        const rList: any[] = Array.isArray(rData?.reviews) ? rData.reviews : [];
+        const rList = normalizeReviewsPayload(rData);
 
         const mappedCats: CategoryDTO[] = cList.map((c) => ({
           id: c.id,

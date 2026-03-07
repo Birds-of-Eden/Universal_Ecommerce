@@ -51,6 +51,13 @@ type ReviewDTO = {
   createdAt?: string;
 };
 
+function normalizeReviewsPayload(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.reviews)) return data.reviews;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
+
 function toNumber(v: any, fallback = 0) {
   const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -168,7 +175,7 @@ export default function NewArrivals({
 
         const pList: any[] = Array.isArray(pData) ? pData : pData?.data ?? [];
         const cList: any[] = Array.isArray(cData) ? cData : cData?.data ?? [];
-        const rList: any[] = Array.isArray(rData?.reviews) ? rData.reviews : [];
+        const rList = normalizeReviewsPayload(rData);
 
         const mappedCats: Category[] = cList.map((c) => ({
           id: c.id,

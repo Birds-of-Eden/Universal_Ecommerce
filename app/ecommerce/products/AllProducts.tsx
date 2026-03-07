@@ -73,8 +73,15 @@ type ProductUI = {
   price: number;
   originalPrice: number;
   discountPct: number;
+  ratingAvg: number;
+  ratingCount: number;
 
   categoryId: number | null;
+};
+
+type ReviewDTO = {
+  productId: number | string;
+  rating: number | string;
 };
 
 type ApiCategory = {
@@ -156,6 +163,13 @@ function collectDescendantIds(node: CategoryNode): number[] {
     if (cur.children?.length) stack.push(...cur.children);
   }
   return out;
+}
+
+function normalizeReviewsPayload(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.reviews)) return data.reviews;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
 }
 
 /* =========================
@@ -475,10 +489,28 @@ export default function ProductsPage() {
         setLoading(true);
         setError(null);
 
-        const res = await fetch("/api/products", { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to load products");
+        const [productsRes, reviewsRes] = await Promise.all([
+          fetch("/api/products", { cache: "no-store" }),
+          fetch("/api/reviews", { cache: "no-store" }),
+        ]);
+        if (!productsRes.ok) throw new Error("Failed to load products");
+        if (!reviewsRes.ok) throw new Error("Failed to load reviews");
 
-        const data = (await res.json()) as ApiProduct[];
+        const data = (await productsRes.json()) as ApiProduct[];
+        const reviewsData = await reviewsRes.json();
+        const reviewList = normalizeReviewsPayload(reviewsData) as ReviewDTO[];
+        const reviewStats = reviewList.reduce<
+          Record<string, { sum: number; count: number }>
+        >((acc, review) => {
+          const productId = String(review.productId);
+          const rating = toNumber(review.rating);
+          if (!acc[productId]) {
+            acc[productId] = { sum: 0, count: 0 };
+          }
+          acc[productId].sum += rating;
+          acc[productId].count += 1;
+          return acc;
+        }, {});
 
         const mapped: ProductUI[] = (Array.isArray(data) ? data : []).map(
           (p) => {
@@ -502,7 +534,7 @@ export default function ProductsPage() {
             // stock > 0 => in stock
             // stock === 0 => out of stock
             // (do not trust p.available for stock UI)
-            const isInStock = stock > 0;
+            const rating = reviewStats[String(p.id)] ?? { sum: 0, count: 0 };
 
             return {
               id: Number(p.id),
@@ -521,6 +553,8 @@ export default function ProductsPage() {
               price,
               originalPrice: original,
               discountPct,
+              ratingAvg: rating.count ? rating.sum / rating.count : 0,
+              ratingCount: rating.count,
               categoryId: cId,
             };
           }
@@ -836,6 +870,8 @@ export default function ProductsPage() {
 
                       // ✅ IMPORTANT: pass stock
                       stock: p.stock,
+                      ratingAvg: p.ratingAvg,
+                      ratingCount: p.ratingCount,
 
                       // ✅ optional (ProductCard will use stock anyway)
                       available: p.stock > 0,
