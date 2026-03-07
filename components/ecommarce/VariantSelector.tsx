@@ -106,6 +106,10 @@ export default function VariantSelector({
     Record<string, string>
   >({});
 
+  const missingOptionLabels = optionKeys
+    .filter((optionKey) => !selectedOptions[optionKey])
+    .map((optionKey) => optionMeta.labelByKey.get(optionKey) ?? optionKey);
+
   useEffect(() => {
     if (!value) {
       setSelectedOptions({});
@@ -115,6 +119,10 @@ export default function VariantSelector({
   }, [value]);
 
   const pickBestVariant = (selection: Record<string, string>) => {
+    if (!optionKeys.every((optionKey) => selection[optionKey])) {
+      return null;
+    }
+
     const exactMatch = normalizedVariants.find((variant) => {
       const keys = Object.keys(variant.options ?? {});
       if (keys.length !== optionKeys.length) return false;
@@ -123,17 +131,7 @@ export default function VariantSelector({
       );
     });
 
-    if (exactMatch) return exactMatch;
-
-    const partialMatch = normalizedVariants.find((variant) => {
-      const keys = Object.keys(variant.options ?? {});
-      if (keys.length === 0) return false;
-      return keys.every(
-        (optionKey) => selection[optionKey] === variant.options?.[optionKey],
-      );
-    });
-
-    return partialMatch ?? null;
+    return exactMatch ?? null;
   };
 
   const handleChipSelect = (optionKey: string, optionValue: string) => {
@@ -155,7 +153,9 @@ export default function VariantSelector({
 
   const helperText = useVariantCards
     ? "Starting price is shown above. Pick a variant to see exact price, stock, and SKU."
-    : "Starting price is shown above. Choose your options to reveal the exact final price.";
+    : missingOptionLabels.length > 0
+      ? `Starting price is shown above. Choose ${missingOptionLabels.join(" and ")} to reveal the exact final price.`
+      : "Exact final price is now ready for the selected combination.";
 
   return (
     <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
