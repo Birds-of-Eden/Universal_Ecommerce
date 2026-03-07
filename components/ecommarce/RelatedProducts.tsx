@@ -178,7 +178,7 @@ export default function RelatedProducts({
         </div>
 
         {/* Desktop: Grid layout using ProductCard */}
-        <div className="hidden lg:grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="hidden lg:grid md:grid-cols-4 lg:grid-cols-5 gap-6">
           {products.map((product) => (
             <ProductCard
               key={product.id}
