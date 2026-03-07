@@ -137,46 +137,48 @@ const DataProvider = memo(function DataProvider({
           cachedFetchJson<SiteSettings>("/api/site", { ttlMs: 5 * 60 * 1000 }),
         ]);
 
-        const mappedProducts: Product[] = (Array.isArray(productsData) ? productsData : []).map(
-          (product: any) => {
-            const price = toNumber(product?.basePrice ?? product?.price);
-            const original = toNumber(product?.originalPrice ?? product?.original_price ?? price);
-            const discount =
-              original > 0 && price < original
-                ? Math.round(((original - price) / original) * 100)
-                : 0;
+        const mappedProducts: Product[] = (
+          Array.isArray(productsData) ? productsData : []
+        ).map((product: any) => {
+          const price = toNumber(product?.basePrice ?? product?.price);
+          const original = toNumber(
+            product?.originalPrice ?? product?.original_price ?? price,
+          );
+          const discount =
+            original > 0 && price < original
+              ? Math.round(((original - price) / original) * 100)
+              : 0;
 
-            return {
-              id: toNumber(product?.id),
-              name: String(product?.name ?? "Untitled Product"),
-              category: {
-                id: toNumber(product?.category?.id ?? product?.categoryId),
-                name: String(product?.category?.name ?? "Uncategorized"),
-              },
-              price,
-              original_price: original,
-              discount,
-              writer: product?.writer
-                ? {
-                    id: toNumber(product.writer.id),
-                    name: String(product.writer.name ?? "Unknown Writer"),
-                  }
-                : null,
-              publisher: product?.publisher
-                ? {
-                    id: toNumber(product.publisher.id),
-                    name: String(product.publisher.name ?? "Unknown Publisher"),
-                  }
-                : null,
-              image: String(product?.image ?? "/placeholder.svg"),
-              stock: computeStock(product?.variants),
-              available: Boolean(product?.available ?? true),
-              deleted: Boolean(product?.deleted ?? false),
-              ratingAvg: toNumber(product?.ratingAvg),
-              ratingCount: toNumber(product?.ratingCount),
-            };
-          }
-        );
+          return {
+            id: toNumber(product?.id),
+            name: String(product?.name ?? "Untitled Product"),
+            category: {
+              id: toNumber(product?.category?.id ?? product?.categoryId),
+              name: String(product?.category?.name ?? "Uncategorized"),
+            },
+            price,
+            original_price: original,
+            discount,
+            writer: product?.writer
+              ? {
+                  id: toNumber(product.writer.id),
+                  name: String(product.writer.name ?? "Unknown Writer"),
+                }
+              : null,
+            publisher: product?.publisher
+              ? {
+                  id: toNumber(product.publisher.id),
+                  name: String(product.publisher.name ?? "Unknown Publisher"),
+                }
+              : null,
+            image: String(product?.image ?? "/placeholder.svg"),
+            stock: computeStock(product?.variants),
+            available: Boolean(product?.available ?? true),
+            deleted: Boolean(product?.deleted ?? false),
+            ratingAvg: toNumber(product?.ratingAvg),
+            ratingCount: toNumber(product?.ratingCount),
+          };
+        });
 
         const ratingsMap: Record<string, RatingInfo> = {};
         mappedProducts.forEach((product) => {
@@ -189,34 +191,41 @@ const DataProvider = memo(function DataProvider({
         const productCategoryIds = new Set(
           mappedProducts
             .map((product) => Number(product.category?.id))
-            .filter((id) => Number.isFinite(id) && id > 0)
+            .filter((id) => Number.isFinite(id) && id > 0),
         );
 
-        const mappedCategories: Category[] = (Array.isArray(categoriesData) ? categoriesData : [])
+        const mappedCategories: Category[] = (
+          Array.isArray(categoriesData) ? categoriesData : []
+        )
           .map((category: any) => ({
             id: toNumber(category?.id),
             name: String(category?.name ?? ""),
             productCount: toNumber(category?.productCount),
           }))
-          .filter((category) => category.id > 0 && productCategoryIds.has(category.id));
+          .filter(
+            (category) =>
+              category.id > 0 && productCategoryIds.has(category.id),
+          );
 
         setCategories(mappedCategories);
         setAllProducts(mappedProducts);
         setRatings(ratingsMap);
         setBanners(
           (Array.isArray(bannersData) ? bannersData : []).filter(
-            (banner) => banner.isActive
-          )
+            (banner) => banner.isActive,
+          ),
         );
         setRawCategories(Array.isArray(categoriesData) ? categoriesData : []);
         setRawProducts(Array.isArray(productsData) ? productsData : []);
-        setRawReviews(Array.isArray(reviewsData?.reviews) ? reviewsData.reviews : []);
+        setRawReviews(
+          Array.isArray(reviewsData?.reviews) ? reviewsData.reviews : [],
+        );
         setTopSellingProducts(
           Array.isArray(topSellingData)
             ? topSellingData
             : Array.isArray((topSellingData as any)?.data)
-            ? (topSellingData as any).data
-            : []
+              ? (topSellingData as any).data
+              : [],
         );
         setSiteSettings(siteData ?? {});
       } catch (fetchError) {
@@ -256,7 +265,7 @@ const DataProvider = memo(function DataProvider({
       siteSettings,
       loading,
       error,
-    ]
+    ],
   );
 
   return <>{children(value)}</>;
@@ -292,47 +301,50 @@ export default function Home() {
                       : Number(c.parentId),
                 }))}
               />
-              <Hero bannersData={data.banners} />
-
-              <FeatureStrip />
-              <FeaturedCategories categoriesData={data.rawCategories} />
-              <NewArrivals
-                productsData={data.rawProducts}
-                categoriesData={data.rawCategories}
-                reviewsData={data.rawReviews}
-                isAuthenticated={isAuthenticated}
-              />
-              <FeaturedProducts
-                productsData={data.rawProducts}
-                categoriesData={data.rawCategories}
-                reviewsData={data.rawReviews}
-                isAuthenticated={isAuthenticated}
-              />
-              <BestSelling
-                limit={20}
-                topSellingData={data.topSellingProducts}
-                reviewsData={data.rawReviews}
-                isAuthenticated={isAuthenticated}
-              />
-
-              <PopupBanner banners={data.banners} />
-
+  
               <div className="container mx-auto">
-                {data.error && <p className="text-destructive">{data.error}</p>}
+                <Hero bannersData={data.banners} />
+                <FeatureStrip />
+                <FeaturedCategories categoriesData={data.rawCategories} />
+                <NewArrivals
+                  productsData={data.rawProducts}
+                  categoriesData={data.rawCategories}
+                  reviewsData={data.rawReviews}
+                  isAuthenticated={isAuthenticated}
+                />
+                <FeaturedProducts
+                  productsData={data.rawProducts}
+                  categoriesData={data.rawCategories}
+                  reviewsData={data.rawReviews}
+                  isAuthenticated={isAuthenticated}
+                />
+                <BestSelling
+                  limit={20}
+                  topSellingData={data.topSellingProducts}
+                  reviewsData={data.rawReviews}
+                  isAuthenticated={isAuthenticated}
+                />
 
-                {!data.loading &&
-                  !data.error &&
-                  data.categories.map((category) => (
-                    <CategoryBooks
-                      key={category.id}
-                      category={category}
-                      allProducts={data.allProducts}
-                      ratings={data.ratings}
-                      isAuthenticated={isAuthenticated}
-                    />
-                  ))}
+                <PopupBanner banners={data.banners} />
+
+                <div className="container mx-auto">
+                  {data.error && (
+                    <p className="text-destructive">{data.error}</p>
+                  )}
+
+                  {!data.loading &&
+                    !data.error &&
+                    data.categories.map((category) => (
+                      <CategoryBooks
+                        key={category.id}
+                        category={category}
+                        allProducts={data.allProducts}
+                        ratings={data.ratings}
+                        isAuthenticated={isAuthenticated}
+                      />
+                    ))}
+                </div>
               </div>
-
               <Footer
                 siteSettingsData={data.siteSettings}
                 categoriesData={data.rawCategories}
