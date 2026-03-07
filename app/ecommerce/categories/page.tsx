@@ -74,7 +74,14 @@ type ProductUI = {
   shortDesc: string;
   image: string;
   stock: number;
+  ratingAvg: number;
+  ratingCount: number;
   categoryId: number | null;
+};
+
+type ReviewDTO = {
+  productId: number | string;
+  rating: number | string;
 };
 
 const toNumber = (value: unknown) => {
@@ -168,6 +175,13 @@ function collectExpandableIds(nodes: CategoryNode[]): number[] {
     if (node.children.length) stack.push(...node.children);
   }
   return ids;
+}
+
+function normalizeReviewsPayload(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.reviews)) return data.reviews;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
 }
 
 function CategoryTree({
@@ -349,17 +363,32 @@ export default function CategoriesPage() {
         setLoading(true);
         setError(null);
 
-        const [categoriesRes, productsRes] = await Promise.all([
+        const [categoriesRes, productsRes, reviewsRes] = await Promise.all([
           fetch("/api/categories", { cache: "no-store" }),
           fetch("/api/products", { cache: "no-store" }),
+          fetch("/api/reviews", { cache: "no-store" }),
         ]);
 
-        if (!categoriesRes.ok || !productsRes.ok) {
-          throw new Error("Failed to fetch categories/products");
+        if (!categoriesRes.ok || !productsRes.ok || !reviewsRes.ok) {
+          throw new Error("Failed to fetch categories/products/reviews");
         }
 
         const categoriesJson = (await categoriesRes.json()) as ApiCategory[];
         const productsJson = (await productsRes.json()) as ApiProduct[];
+        const reviewsJson = await reviewsRes.json();
+        const reviewList = normalizeReviewsPayload(reviewsJson) as ReviewDTO[];
+        const reviewStats = reviewList.reduce<
+          Record<string, { sum: number; count: number }>
+        >((acc, review) => {
+          const productId = String(review.productId);
+          const rating = toNumber(review.rating);
+          if (!acc[productId]) {
+            acc[productId] = { sum: 0, count: 0 };
+          }
+          acc[productId].sum += rating;
+          acc[productId].count += 1;
+          return acc;
+        }, {});
 
         const tree = buildCategoryTree(
           Array.isArray(categoriesJson) ? categoriesJson : [],
@@ -377,6 +406,7 @@ export default function CategoriesPage() {
             originalPrice > 0 && price < originalPrice
               ? Math.round(((originalPrice - price) / originalPrice) * 100)
               : 0;
+          const rating = reviewStats[String(product.id)] ?? { sum: 0, count: 0 };
 
           return {
             id: Number(product.id),
@@ -390,6 +420,8 @@ export default function CategoriesPage() {
             shortDesc: String(product.shortDesc ?? product.description ?? ""),
             image: product.image ?? "/placeholder.svg",
             stock,
+            ratingAvg: rating.count ? rating.sum / rating.count : 0,
+            ratingCount: rating.count,
             categoryId:
               product.categoryId === null || product.categoryId === undefined
                 ? null
@@ -581,6 +613,8 @@ export default function CategoriesPage() {
                       type: product.type,
                       shortDesc: product.shortDesc,
                       stock: product.stock,
+                      ratingAvg: product.ratingAvg,
+                      ratingCount: product.ratingCount,
                       available: product.stock > 0,
                     }}
                     wishlisted={isInWishlist(product.id)}
