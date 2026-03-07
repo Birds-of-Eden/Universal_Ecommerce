@@ -34,7 +34,7 @@ type ProductDTO = {
   slug: string;
   image: string | null;
 
-  categoryId: number;
+  categoryId: string;
 
   basePrice: number;
   originalPrice: number | null;
@@ -107,7 +107,7 @@ export default function FeaturedProducts({
   const [error, setError] = useState<string | null>(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
-  const [active, setActive] = useState<"ALL" | number>("ALL");
+  const [active, setActive] = useState<"ALL" | string>("ALL");
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
@@ -204,7 +204,7 @@ export default function FeaturedProducts({
             name: String(p.name ?? ""),
             slug: String(p.slug ?? ""),
             image: p.image ?? null,
-            categoryId: toNumber(p?.categoryId, 0),
+            categoryId: String(p?.categoryId ?? ""),
 
             basePrice,
             originalPrice,
@@ -259,11 +259,14 @@ export default function FeaturedProducts({
 
   /* ================= categories tabs: A-Z then first 4 ================= */
   const top4Tabs = useMemo(() => {
-    const sorted = [...categories].sort((a, b) =>
-      String(a.name).localeCompare(String(b.name), "en", { sensitivity: "base" })
-    );
+    const categoryIdsWithProducts = new Set(items.map((item) => item.categoryId));
+    const sorted = categories
+      .filter((category) => categoryIdsWithProducts.has(String(category.id)))
+      .sort((a, b) =>
+        String(a.name).localeCompare(String(b.name), "en", { sensitivity: "base" })
+      );
     return sorted.slice(0, 4);
-  }, [categories]);
+  }, [categories, items]);
 
   /* ================= featured only + latest first ================= */
   const featuredLatest = useMemo(() => {
@@ -302,6 +305,14 @@ export default function FeaturedProducts({
     scrollerRef.current?.scrollTo({ left: 0, behavior: "smooth" });
   }, [active]);
 
+  useEffect(() => {
+    if (active === "ALL") return;
+    const hasActiveTab = top4Tabs.some((category) => String(category.id) === active);
+    if (!hasActiveTab) {
+      setActive("ALL");
+    }
+  }, [active, top4Tabs]);
+
   return (
     <section className="w-full bg-background">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
@@ -332,9 +343,9 @@ export default function FeaturedProducts({
             {top4Tabs.map((c) => (
               <button
                 key={String(c.id)}
-                onClick={() => setActive(Number(c.id))}
+                onClick={() => setActive(String(c.id))}
                 className={`capitalize ${
-                  active === Number(c.id)
+                  active === String(c.id)
                     ? "text-primary font-semibold"
                     : "text-muted-foreground"
                 }`}

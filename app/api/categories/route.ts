@@ -27,6 +27,38 @@ export async function GET() {
       },
     });
 
+    const categoryMap = new Map(
+      categories.map((category) => [category.id, category]),
+    );
+    const childMap = new Map<number, number[]>();
+
+    categories.forEach((category) => {
+      if (!category.parentId) return;
+      const siblings = childMap.get(category.parentId) ?? [];
+      siblings.push(category.id);
+      childMap.set(category.parentId, siblings);
+    });
+
+    const totals = new Map<number, number>();
+
+    const computeTotalProductCount = (categoryId: number): number => {
+      if (totals.has(categoryId)) {
+        return totals.get(categoryId)!;
+      }
+
+      const category = categoryMap.get(categoryId);
+      if (!category) return 0;
+
+      const children = childMap.get(categoryId) ?? [];
+      const childrenTotal = children.reduce((sum, childId) => {
+        return sum + computeTotalProductCount(childId);
+      }, 0);
+      const total = category._count.products + childrenTotal;
+
+      totals.set(categoryId, total);
+      return total;
+    };
+
     const formatted = categories.map((c) => ({
       id: c.id,
       name: c.name,
@@ -34,7 +66,7 @@ export async function GET() {
       image: c.image,
       parentId: c.parentId,
       parentName: c.parent?.name || null,
-      productCount: c._count.products,
+      productCount: computeTotalProductCount(c.id),
       childrenCount: c.children.length,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,

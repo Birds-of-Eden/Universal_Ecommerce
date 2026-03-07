@@ -34,7 +34,7 @@ type ProductDTO = {
   name: string;
   slug: string;
   image: string | null;
-  categoryId: number;
+  categoryId: string;
   basePrice: number;
   originalPrice: number | null;
   currency: string;
@@ -102,7 +102,7 @@ export default function NewArrivals({
   const [reviews, setReviews] = useState<ReviewDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const [active, setActive] = useState<"ALL" | number>("ALL");
+  const [active, setActive] = useState<"ALL" | string>("ALL");
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -198,7 +198,7 @@ export default function NewArrivals({
             name: String(p.name ?? ""),
             slug: String(p.slug ?? ""),
             image: p.image ?? null,
-            categoryId: toNumber(p?.categoryId, 0),
+            categoryId: String(p?.categoryId ?? ""),
             basePrice,
             originalPrice,
             currency: String(p.currency ?? "BDT"),
@@ -252,11 +252,14 @@ export default function NewArrivals({
   }, [reviews]);
 
   const topTabs = useMemo(() => {
-    const sorted = [...categories].sort((a, b) =>
-      String(a.name).localeCompare(String(b.name), "en", { sensitivity: "base" })
-    );
-    return sorted.slice(0, 3);
-  }, [categories]);
+    const categoryIdsWithProducts = new Set(items.map((item) => item.categoryId));
+    const sorted = categories
+      .filter((category) => categoryIdsWithProducts.has(String(category.id)))
+      .sort((a, b) =>
+        String(a.name).localeCompare(String(b.name), "en", { sensitivity: "base" })
+      );
+    return sorted.slice(0, 4);
+  }, [categories, items]);
 
   const latestSorted = useMemo(() => {
     const list = [...items];
@@ -290,6 +293,14 @@ export default function NewArrivals({
     scrollerRef.current?.scrollTo({ left: 0, behavior: "smooth" });
   }, [active]);
 
+  useEffect(() => {
+    if (active === "ALL") return;
+    const hasActiveTab = topTabs.some((category) => String(category.id) === active);
+    if (!hasActiveTab) {
+      setActive("ALL");
+    }
+  }, [active, topTabs]);
+
   return (
     <section className="w-full bg-background">
       {/* ✅ responsive padding */}
@@ -321,9 +332,9 @@ export default function NewArrivals({
             {topTabs.map((c) => (
               <button
                 key={String(c.id)}
-                onClick={() => setActive(Number(c.id))}
+                onClick={() => setActive(String(c.id))}
                 className={`capitalize ${
-                  active === Number(c.id)
+                  active === String(c.id)
                     ? "text-primary font-semibold"
                     : "text-muted-foreground"
                 }`}
