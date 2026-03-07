@@ -18,6 +18,7 @@ import {
   Tag,
   Truck,
   MessageCircle,
+  BarChart3,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -42,6 +43,11 @@ const menuItems: MenuItem[] = [
     requiredPermissions: ["dashboard.read", "admin.panel.access"],
   },
   {
+    name: "Analytics",
+    href: "/admin/analytics",
+    icon: BarChart3,
+  },
+  {
     name: "Users",
     href: "/admin/users",
     icon: Users,
@@ -59,12 +65,7 @@ const menuItems: MenuItem[] = [
     icon: FileText,
     requiredPermissions: ["orders.read_all"],
   },
-  {
-    name: "Chats",
-    href: "/admin/chats",
-    icon: MessageCircle,
-    requiredPermissions: ["chats.manage"],
-  },
+
   {
     name: "Shipments",
     href: "/admin/shipments",
@@ -101,25 +102,28 @@ const menuItems: MenuItem[] = [
         href: "/admin/management/stock",
         requiredPermissions: ["inventory.manage"],
       },
+      {
+        name: "Blogs",
+        href: "/admin/blogs",
+        requiredPermissions: ["blogs.manage"],
+      },
+      {
+        name: "Newsletter",
+        href: "/admin/newsletter",
+        requiredPermissions: ["newsletter.manage"],
+      },
+      {
+        name: "Coupons",
+        href: "/admin/coupons",
+        requiredPermissions: ["coupons.manage"],
+      },
     ],
   },
   {
-    name: "Blogs",
-    href: "/admin/blogs",
-    icon: BookOpen,
-    requiredPermissions: ["blogs.manage"],
-  },
-  {
-    name: "Newsletter",
-    href: "/admin/newsletter",
-    icon: Mail,
-    requiredPermissions: ["newsletter.manage"],
-  },
-  {
-    name: "Coupons",
-    href: "/admin/coupons",
-    icon: Tag,
-    requiredPermissions: ["coupons.manage"],
+    name: "Chats",
+    href: "/admin/chats",
+    icon: MessageCircle,
+    requiredPermissions: ["chats.manage"],
   },
   {
     name: "Settings",
@@ -335,10 +339,13 @@ export default function Sidebar({
     ? ((session?.user as any).permissions as string[])
     : [];
 
-  const hasPermission = useCallback((required?: string[]) => {
-    if (!required || required.length === 0) return true;
-    return required.some((permission) => permissionKeys.includes(permission));
-  }, [permissionKeys]);
+  const hasPermission = useCallback(
+    (required?: string[]) => {
+      if (!required || required.length === 0) return true;
+      return required.some((permission) => permissionKeys.includes(permission));
+    },
+    [permissionKeys],
+  );
 
   const visibleMenuItems = useMemo<MenuItem[]>(() => {
     return menuItems
@@ -347,7 +354,10 @@ export default function Sidebar({
           const visibleSubItems = item.subItems.filter((subItem) =>
             hasPermission(subItem.requiredPermissions),
           );
-          if (visibleSubItems.length === 0 && !hasPermission(item.requiredPermissions)) {
+          if (
+            visibleSubItems.length === 0 &&
+            !hasPermission(item.requiredPermissions)
+          ) {
             return null;
           }
           return {
@@ -379,7 +389,11 @@ export default function Sidebar({
           </div>
         </div>
         <div className="flex-1 overflow-y-auto" onClick={onClose}>
-          <SidebarContent pathname={pathname} items={visibleMenuItems} onClose={onClose} />
+          <SidebarContent
+            pathname={pathname}
+            items={visibleMenuItems}
+            onClose={onClose}
+          />
         </div>
       </div>
     );

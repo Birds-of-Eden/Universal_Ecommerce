@@ -9,6 +9,7 @@ import { CartProvider } from "@/components/ecommarce/CartContext";
 import { WishlistProvider } from "@/components/ecommarce/WishlistContext";
 import { Providers } from "./providers";
 import SupportChatWidget from "@/components/chat/SupportChatWidget";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,6 +48,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Providers>
+             <AnalyticsTracker />
             <TreeProvider>
               <CartProvider>
                 <WishlistProvider>

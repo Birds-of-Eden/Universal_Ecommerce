@@ -48,6 +48,21 @@ body {
     --chart-3: 0 0% 50%;
     --chart-4: 0 0% 65%;
     --chart-5: 0 0% 80%;
+
+    /* Scrollbar Colors */
+    --scrollbar-thumb: 0 0% 40%;
+    --scrollbar-track: 0 0% 95%;
+    --scrollbar-thumb-hover: 0 0% 30%;
+
+    /* Analytics Theme Colors */
+    --analytics-primary: 214 44% 14%;
+    --analytics-secondary: 56 100% 96%;
+    --analytics-accent: 350 73% 64%;
+    --analytics-chart-1: 99 61% 47%;
+    --analytics-chart-2: 261 76% 53%;
+    --analytics-chart-3: 344 84% 48%;
+    --analytics-chart-4: 5 85% 57%;
+    --analytics-chart-5: 163 65% 40%;
   }
 
   /* ========================
@@ -88,6 +103,21 @@ body {
     --chart-3: 0 0% 50%;
     --chart-4: 0 0% 35%;
     --chart-5: 0 0% 20%;
+
+    /* Scrollbar Colors */
+    --scrollbar-thumb: 0 0% 60%;
+    --scrollbar-track: 0 0% 15%;
+    --scrollbar-thumb-hover: 0 0% 70%;
+
+    /* Analytics Theme Colors */
+    --analytics-primary: 210 38% 35%;
+    --analytics-secondary: 214 30% 22%;
+    --analytics-accent: 287 32% 25%;
+    --analytics-chart-1: 214 44% 60%;
+    --analytics-chart-2: 210 38% 70%;
+    --analytics-chart-3: 285 24% 65%;
+    --analytics-chart-4: 55 46% 75%;
+    --analytics-chart-5: 350 73% 80%;
   }
 
   /* ========================
@@ -123,6 +153,21 @@ body {
     --border: 214 25% 30%;
     --input: 214 25% 30%;
     --ring: 210 38% 35%;
+
+    /* Scrollbar Colors */
+    --scrollbar-thumb: 210 38% 45%;
+    --scrollbar-track: 214 44% 10%;
+    --scrollbar-thumb-hover: 210 38% 55%;
+
+    /* Analytics Theme Colors */
+    --analytics-primary: 210 38% 35%;
+    --analytics-secondary: 214 30% 22%;
+    --analytics-accent: 210 38% 45%;
+    --analytics-chart-1: 214 44% 50%;
+    --analytics-chart-2: 210 38% 60%;
+    --analytics-chart-3: 213 40% 55%;
+    --analytics-chart-4: 214 25% 65%;
+    --analytics-chart-5: 210 38% 70%;
   }
 
   /* ========================
@@ -158,6 +203,21 @@ body {
     --border: 285 15% 30%;
     --input: 285 15% 30%;
     --ring: 287 32% 25%;
+
+    /* Scrollbar Colors */
+    --scrollbar-thumb: 287 32% 35%;
+    --scrollbar-track: 285 24% 10%;
+    --scrollbar-thumb-hover: 287 32% 45%;
+
+    /* Analytics Theme Colors */
+    --analytics-primary: 287 32% 25%;
+    --analytics-secondary: 285 18% 22%;
+    --analytics-accent: 287 32% 35%;
+    --analytics-chart-1: 285 24% 50%;
+    --analytics-chart-2: 287 32% 60%;
+    --analytics-chart-3: 285 15% 55%;
+    --analytics-chart-4: 287 20% 65%;
+    --analytics-chart-5: 285 24% 70%;
   }
 
   /* ========================
@@ -193,6 +253,21 @@ body {
     --border: 60 6% 25%;
     --input: 60 6% 25%;
     --ring: 55 46% 36%;
+
+    /* Scrollbar Colors */
+    --scrollbar-thumb: 55 46% 40%;
+    --scrollbar-track: 60 12% 8%;
+    --scrollbar-thumb-hover: 55 46% 50%;
+
+    /* Analytics Theme Colors */
+    --analytics-primary: 55 46% 36%;
+    --analytics-secondary: 60 8% 20%;
+    --analytics-accent: 43 97% 70%;
+    --analytics-chart-1: 60 12% 50%;
+    --analytics-chart-2: 55 46% 60%;
+    --analytics-chart-3: 60 6% 55%;
+    --analytics-chart-4: 43 97% 65%;
+    --analytics-chart-5: 55 46% 70%;
   }
 
   /* ========================
@@ -228,6 +303,21 @@ body {
     --border: 40 40% 80%;
     --input: 40 40% 80%;
     --ring: 350 73% 64%;
+
+    /* Scrollbar Colors */
+    --scrollbar-thumb: 350 73% 70%;
+    --scrollbar-track: 56 100% 94%;
+    --scrollbar-thumb-hover: 350 73% 80%;
+
+    /* Analytics Theme Colors */
+    --analytics-primary: 350 73% 64%;
+    --analytics-secondary: 350 100% 77%;
+    --analytics-accent: 40 85% 86%;
+    --analytics-chart-1: 56 100% 50%;
+    --analytics-chart-2: 350 73% 60%;
+    --analytics-chart-3: 350 60% 55%;
+    --analytics-chart-4: 40 40% 65%;
+    --analytics-chart-5: 48 80% 70%;
   }
 }
 
@@ -289,5 +379,32 @@ body {
 
   .product-card {
     @apply transition duration-300 hover:-translate-y-1 hover:shadow-xl;
+  }
+
+  /* Global Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--scrollbar-track));
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--scrollbar-thumb));
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--scrollbar-thumb-hover));
+  }
+
+  /* Firefox scrollbar styles */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--scrollbar-thumb)) hsl(var(--scrollbar-track));
   }
 }

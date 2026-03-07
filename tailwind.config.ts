@@ -50,6 +50,18 @@ export default {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        analytics: {
+          primary: "hsl(var(--analytics-primary))",
+          secondary: "hsl(var(--analytics-secondary))",
+          accent: "hsl(var(--analytics-accent))",
+          chart: {
+            "1": "hsl(var(--analytics-chart-1))",
+            "2": "hsl(var(--analytics-chart-2))",
+            "3": "hsl(var(--analytics-chart-3))",
+            "4": "hsl(var(--analytics-chart-4))",
+            "5": "hsl(var(--analytics-chart-5))",
+          },
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
