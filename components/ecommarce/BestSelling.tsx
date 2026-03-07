@@ -53,6 +53,13 @@ type ReviewDTO = {
   createdAt?: string;
 };
 
+function normalizeReviewsPayload(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.reviews)) return data.reviews;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
+
 function toNumber(v: any, fallback = 0) {
   const n = typeof v === "string" ? Number(v.replace(/,/g, "")) : Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -167,7 +174,7 @@ export default function BestSelling({
         if (!mounted) return;
 
         const pList: any[] = Array.isArray(pData) ? pData : pData?.data ?? [];
-        const rList: any[] = Array.isArray(rData?.reviews) ? rData.reviews : [];
+        const rList = normalizeReviewsPayload(rData);
 
         const mappedProducts: ProductDTO[] = pList.map((p) => {
           const variants = Array.isArray(p?.variants) ? p.variants : [];

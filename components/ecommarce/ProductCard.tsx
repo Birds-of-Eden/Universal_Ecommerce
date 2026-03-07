@@ -71,6 +71,8 @@ export default function ProductCardCompact({
   className,
 }: Props) {
   const isOutOfStock = product.stock === 0;
+  const ratingAvg = Number(product.ratingAvg ?? 0);
+  const ratingCount = Number(product.ratingCount ?? 0);
 
   const showOriginal =
     (product.originalPrice ?? 0) > (product.price ?? 0) && !isOutOfStock;
@@ -126,9 +128,9 @@ export default function ProductCardCompact({
 
           <div className="p-4">
             <div className="flex items-center gap-2">
-              <Stars value={Number(product.ratingAvg ?? 0)} />
+              <Stars value={ratingAvg} />
               <span className="text-[12px] text-muted-foreground">
-                ({Number(product.ratingCount ?? 0)})
+                {ratingCount > 0 ? `${ratingAvg.toFixed(1)} (${ratingCount})` : "No reviews"}
               </span>
             </div>
 

@@ -10,9 +10,21 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const productIdParam = searchParams.get("productId");
+    const limitParam = searchParams.get("limit");
     const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
+    const limit = parseInt(
+      limitParam || (productIdParam ? "10" : "1000"),
+      10
+    );
     const skip = (page - 1) * limit;
+
+    if (!Number.isInteger(page) || page < 1) {
+      return NextResponse.json({ error: "Invalid page" }, { status: 400 });
+    }
+
+    if (!Number.isInteger(limit) || limit < 1) {
+      return NextResponse.json({ error: "Invalid limit" }, { status: 400 });
+    }
 
     const where: any = {};
     if (productIdParam) {
