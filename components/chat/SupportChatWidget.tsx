@@ -5,7 +5,14 @@ import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { MessageCircle, Send, Star, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 type ChatStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
 type SenderRole = "admin" | "user" | "guest" | string;
@@ -75,7 +82,9 @@ export default function SupportChatWidget() {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [conversation, setConversation] = useState<ChatConversation | null>(null);
+  const [conversation, setConversation] = useState<ChatConversation | null>(
+    null,
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -108,32 +117,43 @@ export default function SupportChatWidget() {
     setHydrated(true);
   }, []);
 
-  const syncConversationToLocal = useCallback((conversationId: string | null) => {
-    if (typeof window === "undefined") return;
-    if (!conversationId) {
-      localStorage.removeItem(LS_CONVERSATION_ID);
-      return;
-    }
-    localStorage.setItem(LS_CONVERSATION_ID, conversationId);
-  }, []);
+  const syncConversationToLocal = useCallback(
+    (conversationId: string | null) => {
+      if (typeof window === "undefined") return;
+      if (!conversationId) {
+        localStorage.removeItem(LS_CONVERSATION_ID);
+        return;
+      }
+      localStorage.setItem(LS_CONVERSATION_ID, conversationId);
+    },
+    [],
+  );
 
   const loadMessages = useCallback(
     async (conversationId: string, silent = true) => {
       const params = new URLSearchParams();
       params.set("limit", "120");
       params.set("markRead", "true");
-      if (!session?.user?.id && guestEmail) params.set("guestEmail", guestEmail);
+      if (!session?.user?.id && guestEmail)
+        params.set("guestEmail", guestEmail);
 
       if (!silent) setLoading(true);
       try {
-        const data = await fetchJson<{ conversation: ChatConversation; messages: ChatMessage[] }>(
+        const data = await fetchJson<{
+          conversation: ChatConversation;
+          messages: ChatMessage[];
+        }>(
           `/api/chat/conversations/${conversationId}/messages?${params.toString()}`,
         );
         setConversation(data.conversation);
         setMessages(data.messages);
         setError(null);
       } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : "Failed to load messages.");
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Failed to load messages.",
+        );
       } finally {
         if (!silent) setLoading(false);
       }
@@ -151,9 +171,7 @@ export default function SupportChatWidget() {
           `/api/chat/conversations?limit=10`,
         );
         const preferred =
-          list.find((item) => item.status !== "CLOSED") ??
-          list[0] ??
-          null;
+          list.find((item) => item.status !== "CLOSED") ?? list[0] ?? null;
         setConversation(preferred);
         syncConversationToLocal(preferred?.id ?? null);
         if (preferred) {
@@ -164,7 +182,9 @@ export default function SupportChatWidget() {
       } else {
         if (!hydrated) return;
         const existingId =
-          typeof window !== "undefined" ? localStorage.getItem(LS_CONVERSATION_ID) : null;
+          typeof window !== "undefined"
+            ? localStorage.getItem(LS_CONVERSATION_ID)
+            : null;
         if (existingId && guestEmail) {
           await loadMessages(existingId, true);
         } else {
@@ -181,7 +201,14 @@ export default function SupportChatWidget() {
     } finally {
       setLoading(false);
     }
-  }, [guestEmail, hydrated, loadMessages, session?.user?.id, status, syncConversationToLocal]);
+  }, [
+    guestEmail,
+    hydrated,
+    loadMessages,
+    session?.user?.id,
+    status,
+    syncConversationToLocal,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -208,7 +235,11 @@ export default function SupportChatWidget() {
   }, [guestEmail, guestName]);
 
   const createConversation = useCallback(
-    async (payload?: { message?: string; quickAction?: string; orderReference?: string }) => {
+    async (payload?: {
+      message?: string;
+      quickAction?: string;
+      orderReference?: string;
+    }) => {
       const body: Record<string, unknown> = {
         message: payload?.message ?? "",
         quickAction: payload?.quickAction ?? "",
@@ -220,25 +251,36 @@ export default function SupportChatWidget() {
         body.guestEmail = guestEmail.trim().toLowerCase();
       }
 
-      const created = await fetchJson<ChatConversation>("/api/chat/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const created = await fetchJson<ChatConversation>(
+        "/api/chat/conversations",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
 
       setConversation(created);
       syncConversationToLocal(created.id);
       await loadMessages(created.id, false);
       return created;
     },
-    [guestEmail, guestName, loadMessages, session?.user?.id, syncConversationToLocal],
+    [
+      guestEmail,
+      guestName,
+      loadMessages,
+      session?.user?.id,
+      syncConversationToLocal,
+    ],
   );
 
   const sendMessage = useCallback(
     async (quickAction?: string) => {
       const messageText =
         draftMessage.trim() ||
-        (quickAction ? `I need help regarding ${quickAction.toLowerCase()}.` : "");
+        (quickAction
+          ? `I need help regarding ${quickAction.toLowerCase()}.`
+          : "");
 
       if (!messageText && !quickAction) return;
 
@@ -260,16 +302,23 @@ export default function SupportChatWidget() {
           if (!session?.user?.id) {
             body.guestEmail = guestEmail.trim().toLowerCase();
           }
-          await fetchJson(`/api/chat/conversations/${conversation.id}/messages`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          });
+          await fetchJson(
+            `/api/chat/conversations/${conversation.id}/messages`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            },
+          );
           await loadMessages(conversation.id, true);
         }
         setDraftMessage("");
       } catch (sendError) {
-        setError(sendError instanceof Error ? sendError.message : "Failed to send message.");
+        setError(
+          sendError instanceof Error
+            ? sendError.message
+            : "Failed to send message.",
+        );
       } finally {
         setSending(false);
       }
@@ -298,21 +347,35 @@ export default function SupportChatWidget() {
       if (!session?.user?.id) {
         body.guestEmail = guestEmail.trim().toLowerCase();
       }
-      const updated = await fetchJson<ChatConversation>(`/api/chat/conversations/${conversation.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const updated = await fetchJson<ChatConversation>(
+        `/api/chat/conversations/${conversation.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
       setConversation(updated);
       setShowFeedback(false);
       setFeedback("");
       await loadMessages(updated.id, true);
     } catch (closeError) {
-      setError(closeError instanceof Error ? closeError.message : "Failed to close chat.");
+      setError(
+        closeError instanceof Error
+          ? closeError.message
+          : "Failed to close chat.",
+      );
     } finally {
       setSending(false);
     }
-  }, [conversation?.id, feedback, guestEmail, loadMessages, rating, session?.user?.id]);
+  }, [
+    conversation?.id,
+    feedback,
+    guestEmail,
+    loadMessages,
+    rating,
+    session?.user?.id,
+  ]);
 
   if (!shouldRender) return null;
 
@@ -323,202 +386,137 @@ export default function SupportChatWidget() {
       <SheetTrigger asChild>
         <button
           type="button"
-          className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-[#0E4B4B] px-4 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-[#0A3838]"
+          className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full btn-primary px-4 py-3 text-sm font-semibold shadow-xl"
         >
           <MessageCircle className="h-4 w-4" />
           Live Support
         </button>
       </SheetTrigger>
 
-      <SheetContent side="right" className="w-full sm:max-w-[430px] p-0">
-        <SheetHeader className="bg-gradient-to-r from-[#0E4B4B] to-[#145A5A] text-white">
+      <SheetContent
+        side="right"
+        className="!top-auto !bottom-6 !right-6 h-[60vh] sm:w-[380px] rounded-xl shadow-2xl flex flex-col p-0"
+      >
+        {/* HEADER */}
+        <SheetHeader className="flex items-center justify-between bg-gradient-to-r from-primary to-primary/90 px-4 py-3 text-primary-foreground rounded-xl">
           <div>
-            <SheetTitle className="text-white">Customer Support</SheetTitle>
-            <SheetDescription className="px-0 py-1 text-xs text-white/80">
+            <SheetTitle className="text-sm text-primary-foreground font-semibold">
+              Customer Support
+            </SheetTitle>
+            <SheetDescription className="text-[11px] text-primary-foreground/80">
               Average response under 15 minutes
             </SheetDescription>
           </div>
-          <span className="rounded-full bg-emerald-500/20 px-2 py-1 text-[11px] text-emerald-100">
-            Online
-          </span>
+
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-accent/20 px-2 py-1 text-[10px] text-primary-foreground">
+              Online
+            </span>
+
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded-md p-1 hover:bg-white/10"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
         </SheetHeader>
 
-        {!session?.user?.id && (!guestReady || !hydrated) ? (
-          <div className="space-y-3 p-4">
-            <p className="text-sm font-medium text-foreground">
-              Start with a quick intro
+        {/* CHAT MESSAGES */}
+        <div className="flex-1 overflow-y-auto bg-muted/30 p-4">
+          {messages.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Send your first message. Our team will reply shortly.
             </p>
-            <input
-              value={guestName}
-              onChange={(event) => setGuestName(event.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              placeholder="Your name"
-            />
-            <input
-              value={guestEmail}
-              onChange={(event) => setGuestEmail(event.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              placeholder="Email address"
-              type="email"
-            />
-            <Button
-              className="w-full"
-              onClick={() => {
-                persistGuestProfile();
-                void hydrateConversation();
+          ) : (
+            <div className="space-y-3">
+              {messages.map((item) => {
+                const mine = item.senderRole === role;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex ${mine ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-sm ${
+                        mine
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card text-card-foreground border border-border"
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap">{item.message}</p>
+
+                      <p
+                        className={`mt-1 text-[11px] ${
+                          mine
+                            ? "text-primary-foreground/75"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {formatChatTime(item.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messageEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* INPUT AREA */}
+        <div className="border-t bg-background p-3 space-y-3">
+          {/* QUICK ACTIONS */}
+          <div className="flex flex-wrap gap-2">
+            {QUICK_ACTIONS.map((action) => (
+              <button
+                key={action}
+                type="button"
+                className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-[11px] font-medium text-primary hover:bg-primary/10"
+                onClick={() => void sendMessage(action)}
+              >
+                {action}
+              </button>
+            ))}
+          </div>
+
+          {/* MESSAGE BOX */}
+          <div className="flex items-end gap-2">
+            <textarea
+              value={draftMessage}
+              onChange={(event) => setDraftMessage(event.target.value)}
+              rows={2}
+              className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
+              placeholder="Type your message..."
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void sendMessage();
+                }
               }}
+            />
+
+            <Button
+              size="icon"
+              onClick={() => void sendMessage()}
+              disabled={sending}
             >
-              Start Chat
+              <Send className="h-4 w-4" />
             </Button>
           </div>
-        ) : (
-          <>
-            <div className="border-b px-4 py-3">
-              <div className="mb-2 flex flex-wrap gap-2">
-                {QUICK_ACTIONS.map((action) => (
-                  <button
-                    key={action}
-                    type="button"
-                    className="rounded-full border border-[#0E4B4B]/20 bg-[#0E4B4B]/5 px-3 py-1 text-xs font-medium text-[#0E4B4B] transition hover:bg-[#0E4B4B]/10"
-                    onClick={() => void sendMessage(action)}
-                    disabled={sending}
-                  >
-                    {action}
-                  </button>
-                ))}
-              </div>
-              <input
-                value={orderReference}
-                onChange={(event) => setOrderReference(event.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
-                placeholder="Optional order reference (e.g. #1234)"
-              />
-            </div>
 
-            <div className="h-[52vh] overflow-y-auto bg-[#F7FAFA] p-4">
-              {loading && messages.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Loading chat...</p>
-              ) : messages.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Send your first message. Our team will reply shortly.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {messages.map((item) => {
-                    const mine = item.senderRole === role;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`flex ${mine ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
-                            mine
-                              ? "bg-[#0E4B4B] text-white"
-                              : "bg-white text-foreground"
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap">{item.message}</p>
-                          {item.attachmentUrl ? (
-                            <a
-                              href={item.attachmentUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className={`mt-1 block text-xs underline ${
-                                mine ? "text-white/90" : "text-[#0E4B4B]"
-                              }`}
-                            >
-                              View attachment
-                            </a>
-                          ) : null}
-                          <p className={`mt-1 text-[11px] ${mine ? "text-white/75" : "text-muted-foreground"}`}>
-                            {formatChatTime(item.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div ref={messageEndRef} />
-                </div>
-              )}
-            </div>
-
-            <div className="border-t bg-background p-4">
-              {error ? <p className="mb-2 text-xs text-red-600">{error}</p> : null}
-              {showFeedback ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-foreground">Rate support:</span>
-                    {[1, 2, 3, 4, 5].map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setRating(value)}
-                        className={value <= rating ? "text-amber-500" : "text-gray-300"}
-                      >
-                        <Star className="h-4 w-4 fill-current" />
-                      </button>
-                    ))}
-                  </div>
-                  <textarea
-                    value={feedback}
-                    onChange={(event) => setFeedback(event.target.value)}
-                    rows={3}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    placeholder="Optional feedback"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => void closeConversation()}
-                      disabled={sending}
-                    >
-                      Submit & Close
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setShowFeedback(false)}
-                    >
-                      Continue Chat
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      value={draftMessage}
-                      onChange={(event) => setDraftMessage(event.target.value)}
-                      rows={2}
-                      className="min-h-[44px] flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      placeholder="Type your message..."
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !event.shiftKey) {
-                          event.preventDefault();
-                          void sendMessage();
-                        }
-                      }}
-                    />
-                    <Button size="icon" onClick={() => void sendMessage()} disabled={sending}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {conversation ? (
-                    <button
-                      type="button"
-                      className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowFeedback(true)}
-                    >
-                      <XCircle className="h-3.5 w-3.5" />
-                      End chat & leave feedback
-                    </button>
-                  ) : null}
-                </>
-              )}
-            </div>
-          </>
-        )}
+          {/* {conversation && (
+            <button
+              type="button"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setShowFeedback(true)}
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              End chat & leave feedback
+            </button>
+          )} */}
+        </div>
       </SheetContent>
     </Sheet>
   );

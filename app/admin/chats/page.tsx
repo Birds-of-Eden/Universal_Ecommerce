@@ -201,7 +201,7 @@ export default function AdminChatsPage() {
       </div>
 
       {error ? (
-        <Card className="border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</Card>
+        <Card className="border-destructive bg-destructive/10 p-3 text-sm text-destructive">{error}</Card>
       ) : null}
 
       <Card className="grid gap-3 p-3 md:grid-cols-4">
@@ -349,7 +349,7 @@ export default function AdminChatsPage() {
                 </p>
               </div>
 
-              <div className="flex-1 space-y-3 overflow-y-auto bg-[#F7FAFA] p-4">
+              <div className="flex-1 space-y-3 overflow-y-auto bg-muted p-4">
                 {loadingMessages && messages.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Loading messages...</p>
                 ) : messages.length === 0 ? (
@@ -361,7 +361,7 @@ export default function AdminChatsPage() {
                       <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                         <div
                           className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
-                            mine ? "bg-[#0E4B4B] text-white" : "bg-white text-foreground"
+                            mine ? "bg-primary text-primary-foreground" : "bg-card text-card-foreground border border-border"
                           }`}
                         >
                           <p className="whitespace-pre-wrap">{message.message}</p>
@@ -371,13 +371,13 @@ export default function AdminChatsPage() {
                               target="_blank"
                               rel="noreferrer"
                               className={`mt-1 block text-xs underline ${
-                                mine ? "text-white/80" : "text-[#0E4B4B]"
+                                mine ? "text-primary-foreground/80" : "text-primary"
                               }`}
                             >
                               View attachment
                             </a>
                           ) : null}
-                          <p className={`mt-1 text-[11px] ${mine ? "text-white/75" : "text-muted-foreground"}`}>
+                          <p className={`mt-1 text-[11px] ${mine ? "text-primary-foreground/75" : "text-muted-foreground"}`}>
                             <Clock3 className="mr-1 inline h-3 w-3" />
                             {new Date(message.createdAt).toLocaleTimeString([], {
                               hour: "2-digit",
