@@ -99,7 +99,7 @@ export default function ProductCardCompact({
                   e.stopPropagation();
                   onWishlistClick();
                 }}
-                className="absolute right-3 top-3 z-10 h-9 w-9 rounded-full border border-border bg-background/90 backdrop-blur flex items-center justify-center hover:bg-muted transition"
+                className="absolute right-3 top-3 z-10 h-9 w-9 rounded-full border border-border bg-background/90 backdrop-blur flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors"
                 aria-label={
                   wishlisted ? "Remove from wishlist" : "Add to wishlist"
                 }
@@ -160,10 +160,10 @@ export default function ProductCardCompact({
                   onAddToCart?.();
                 }}
                 className={cn(
-                  "rounded-lg border border-border px-3 py-1.5 text-[12px] transition",
+                  "rounded-lg border border-border px-3 py-1.5 text-[12px] transition-colors",
                   isOutOfStock
-                    ? " btn-danger cursor-not-allowed"
-                    : "btn-primary hover:bg-muted",
+                    ? "bg-destructive text-destructive-foreground cursor-not-allowed opacity-50"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
                 )}
               >
                 {isOutOfStock ? "Out of Stock" : "Add To Cart"}

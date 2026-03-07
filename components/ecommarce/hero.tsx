@@ -9,7 +9,7 @@ interface Banner {
   id: number;
   title: string;
   image: string;
-  type: "HERO" | "BANNER1" | "BANNER2";
+  type: "HERO" | "BANNER1" | "BANNER2" | "POPUP";
   position: number;
   isActive: boolean;
   href?: string;
@@ -45,7 +45,7 @@ export default function Hero({
         (await cachedFetchJson<Banner[]>("/api/banners", {
           ttlMs: 2 * 60 * 1000,
         }));
-      setBanners((data as Banner[]).filter((b) => b.isActive));
+      setBanners((data as Banner[]).filter((b) => b.isActive && b.type !== "POPUP"));
     };
     load();
   }, [bannersData]);

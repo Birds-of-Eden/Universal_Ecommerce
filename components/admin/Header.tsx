@@ -2,7 +2,15 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Menu, Home, LogOut, LayoutDashboard, Moon, Sun, Check } from "lucide-react";
+import {
+  Menu,
+  Home,
+  LogOut,
+  LayoutDashboard,
+  Moon,
+  Sun,
+  Check,
+} from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -20,6 +28,8 @@ const THEME_OPTIONS = [
   { value: "dark", label: "Dark" },
   { value: "navy", label: "Navy" },
   { value: "plum", label: "Plum" },
+  { value: "olive", label: "Olive" },
+  { value: "rose", label: "Rose" },
 ] as const;
 
 export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
@@ -103,7 +113,9 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
                   className="flex items-center justify-between"
                 >
                   <span>{option.label}</span>
-                  {activeTheme === option.value ? <Check className="h-4 w-4" /> : null}
+                  {activeTheme === option.value ? (
+                    <Check className="h-4 w-4" />
+                  ) : null}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
