@@ -13,6 +13,7 @@ import NewArrivals from "@/components/ecommarce/NewArrivals";
 import BestSelling from "@/components/ecommarce/BestSelling";
 import { useSession } from "@/lib/auth-client";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
+import PromotionBanner from "@/components/ecommarce/PromotionBanner";
 
 type Category = {
   id: number;
@@ -301,7 +302,7 @@ export default function Home() {
                       : Number(c.parentId),
                 }))}
               />
-  
+
               <div className="container mx-auto">
                 <Hero bannersData={data.banners} />
                 <FeatureStrip />
@@ -312,6 +313,7 @@ export default function Home() {
                   reviewsData={data.rawReviews}
                   isAuthenticated={isAuthenticated}
                 />
+                <PromotionBanner banners={data.banners} />
                 <FeaturedProducts
                   productsData={data.rawProducts}
                   categoriesData={data.rawCategories}
