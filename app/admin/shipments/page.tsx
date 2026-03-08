@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ShipmentCreateForm from "@/components/admin/shipments/ShipmentCreateForm";
+import ShipmentsSkeleton from "@/components/ui/ShipmentsSkeleton";
 
 type ShipmentStatusType =
   | "PENDING"
@@ -258,7 +259,7 @@ export default function AdminShipmentsPage() {
         )}
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading shipments...</p>
+          <ShipmentsSkeleton />
         ) : filteredShipments.length === 0 ? (
           <p className="text-sm text-muted-foreground">No shipments found.</p>
         ) : (
