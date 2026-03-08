@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import UserTable from "@/components/admin/users/UserTable";
 import UserFilters from "@/components/admin/users/UserFilters";
 import Pagination from "@/components/admin/users/Pagination";
-import { Users, Loader2, AlertCircle, RefreshCw, UserPlus } from "lucide-react";
+import { Users, Loader2, AlertCircle, RefreshCw, UserPlus, Eye, EyeOff } from "lucide-react";
 
 interface User {
   id: string;
@@ -89,6 +89,7 @@ export default function AdminUsersPage() {
     password: "",
     addresses: [""],
   });
+  const [showPassword, setShowPassword] = useState(false);
   // Memoize fetch function with persistent page-level caching
   const fetchUsers = useCallback(async (showRefresh = false) => {
     const queryState: UsersQueryState = {
@@ -703,15 +704,18 @@ export default function AdminUsersPage() {
                   <label className="block text-sm font-medium text-foreground mb-1">
                     Legacy Role
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={newUser.role}
                     onChange={(e) =>
                       setNewUser((prev) => ({ ...prev, role: e.target.value }))
                     }
                     className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                    placeholder="e.g. user"
-                  />
+                  >
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="moderator">Moderator</option>
+                    <option value="manager">Manager</option>
+                  </select>
                 </div>
               </div>
 
@@ -735,16 +739,29 @@ export default function AdminUsersPage() {
                   <label className="block text-sm font-medium text-foreground mb-1">
                     Password
                   </label>
-                  <input
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) =>
-                      setNewUser((prev) => ({ ...prev, password: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
-                    placeholder="Minimum 6 characters"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={newUser.password}
+                      onChange={(e) =>
+                        setNewUser((prev) => ({ ...prev, password: e.target.value }))
+                      }
+                      className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground pr-10"
+                      placeholder="Minimum 6 characters"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
 

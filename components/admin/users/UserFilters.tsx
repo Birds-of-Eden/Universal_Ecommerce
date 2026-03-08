@@ -51,13 +51,17 @@ export default function UserFilters({
             <Shield className="h-4 w-4 mr-2" />
             Role
           </label>
-          <input
-            type="text"
+          <select
             value={role}
             onChange={(e) => onRoleChange(e.target.value)}
-            placeholder="All roles (e.g. admin)"
             className="w-full px-4 py-3 rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground shadow-sm"
-          />
+          >
+            <option value="">All Roles</option>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+            <option value="moderator">Moderator</option>
+            <option value="manager">Manager</option>
+          </select>
         </div>
         
         {/* Reset Button */}

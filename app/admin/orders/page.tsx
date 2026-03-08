@@ -869,90 +869,87 @@ const OrderManagement = () => {
                 {filteredOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="overflow-hidden rounded-2xl bg-card shadow-sm border-border"
+                    className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
                   >
-                    <div className="h-24 bg-gradient-to-r from-primary/80 to-primary/60"></div>
-
-                    <div className="-mt-10 px-5 pb-5">
-                      {/* avatar circle */}
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted shadow-md">
-                        <span className="text-3xl font-semibold text-muted-foreground">
-                          {order.name?.[0]?.toUpperCase() || "O"}
-                        </span>
-                      </div>
-
-                      <div className="mt-3">
-                        <h3 className="text-lg font-semibold text-foreground">
-                          {order.name || "No Name"}
-                        </h3>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Order ID:{" "}
-                          <span className="font-medium">{order.id}</span>
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Mobile:{" "}
-                          <span className="font-medium">
-                            {order.phone_number || "-"}
-                          </span>
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Date:{" "}
-                          <span className="font-medium">
-                            {formatDate(order.order_date || order.createdAt)}
-                          </span>
-                        </p>
-                      </div>
-
-                      {/* totals */}
-                      <div className="mt-3 rounded-xl bg-muted/30 px-3 py-2 text-xs text-foreground">
-                        <div className="flex items-center justify-between">
-                          <span>Total Items</span>
-                          <span className="font-semibold">
-                            {order.orderItems?.reduce(
-                              (sum, item) => sum + Number(item.quantity || 0),
-                              0,
-                            ) || 0}
-                          </span>
+                    <div className="border-b border-border bg-muted/20 px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">
+                            Order #{order.id} • {order.name || "Guest Customer"}
+                          </p>
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                            {order.address_details}, {order.area}, {order.district}, {order.country}
+                          </p>
                         </div>
-                        <div className="mt-1 flex items-center justify-between">
-                          <span>Grand Total</span>
-                          <span className="font-semibold">
-                            {formatMoney(
-                              Number(order.grand_total ?? 0),
-                              order.currency || "BDT",
-                            )}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* status badges */}
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
                         <span
-                          className={`rounded-full border px-3 py-1 font-semibold ${statusBadgeClass(
+                          className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusBadgeClass(
                             order.status,
                           )}`}
                         >
-                          Status: {order.status}
-                        </span>
-                        <span
-                          className={`rounded-full border px-3 py-1 font-semibold ${paymentBadgeClass(
-                            order.paymentStatus,
-                          )}`}
-                        >
-                          Payment: {order.paymentStatus}
+                          {order.status.toLowerCase()}
                         </span>
                       </div>
+                    </div>
 
-                      {/* actions */}
-                      <div className="mt-4 flex items-center gap-3">
-                        <button
-                          type="button"
-                          className="flex-1 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
-                          onClick={() => openDetails(order.id)}
-                        >
-                          Details
-                        </button>
+                    <div className="grid grid-cols-3 gap-3 px-4 py-3 text-[11px]">
+                      <div>
+                        <p className="text-muted-foreground">Created on</p>
+                        <p className="mt-1 font-semibold text-foreground">
+                          {formatDate(order.createdAt)}
+                        </p>
                       </div>
+                      <div>
+                        <p className="text-muted-foreground">Payment</p>
+                        <p className="mt-1 font-semibold text-foreground">
+                          {order.payment_method}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Items</p>
+                        <p className="mt-1 font-semibold text-foreground">
+                          {order.orderItems?.reduce(
+                            (sum, item) => sum + Number(item.quantity || 0),
+                            0,
+                          ) || 0}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="px-4 pb-3">
+                      <p className="truncate text-xs text-muted-foreground">
+                        {(order.orderItems && order.orderItems[0]?.product?.name) ||
+                          "No product details"}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-border px-4 py-3">
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${paymentBadgeClass(
+                          order.paymentStatus,
+                        )}`}
+                      >
+                        {order.paymentStatus.toLowerCase()}
+                      </span>
+
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Grand Total</p>
+                        <p className="text-xl font-semibold text-foreground">
+                          {formatMoney(
+                            Number(order.grand_total ?? 0),
+                            order.currency || "BDT",
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="px-4 pb-4">
+                      <button
+                        type="button"
+                        className="w-full rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
+                        onClick={() => openDetails(order.id)}
+                      >
+                        View Details
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1017,8 +1014,146 @@ const OrderManagement = () => {
             {/* Body */}
             <div className="max-h-[70vh] overflow-y-auto px-6 py-4">
               {detailLoading && (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  Loading details...
+                <div className="space-y-5 text-sm animate-pulse">
+                  {/* Customer + Address Skeleton */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl bg-muted/30 p-4">
+                      <div className="mb-2 h-3 w-24 rounded bg-gray-200"></div>
+                      <div className="h-4 w-32 rounded bg-gray-200 mb-2"></div>
+                      <div className="h-3 w-40 rounded bg-gray-200 mb-1"></div>
+                      <div className="h-3 w-36 rounded bg-gray-200 mb-1"></div>
+                      <div className="h-3 w-28 rounded bg-gray-200 mb-1"></div>
+                      <div className="h-3 w-32 rounded bg-gray-200 mb-1"></div>
+                      <div className="h-3 w-20 rounded bg-gray-200 mb-1"></div>
+                      <div className="h-3 w-24 rounded bg-gray-200"></div>
+                    </div>
+                    <div className="rounded-2xl bg-muted/30 p-4">
+                      <div className="mb-2 h-3 w-28 rounded bg-gray-200"></div>
+                      <div className="h-3 w-full rounded bg-gray-200 mb-1"></div>
+                      <div className="h-3 w-20 rounded bg-gray-200 mb-1"></div>
+                      <div className="h-3 w-24 rounded bg-gray-200 mb-1"></div>
+                      <div className="h-3 w-16 rounded bg-gray-200"></div>
+                    </div>
+                  </div>
+
+                  {/* Payment Screenshot Skeleton */}
+                  <div className="rounded-2xl bg-muted/30 p-4">
+                    <div className="mb-3 h-3 w-32 rounded bg-gray-200"></div>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                      <div className="w-full max-w-xs overflow-hidden rounded-xl border border-border bg-card">
+                        <div className="h-48 w-full bg-gray-200"></div>
+                      </div>
+                      <div className="space-y-3">
+                        <div className="h-3 w-48 rounded bg-gray-200"></div>
+                        <div className="h-8 w-32 rounded-full bg-gray-200"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Items Skeleton */}
+                  <div className="rounded-2xl bg-muted/30 p-4">
+                    <div className="mb-3 h-3 w-24 rounded bg-gray-200"></div>
+                    <div className="space-y-2">
+                      {[...Array(3)].map((_, index) => (
+                        <div key={index} className="flex items-center justify-between rounded-xl bg-card px-3 py-2">
+                          <div>
+                            <div className="h-3 w-32 rounded bg-gray-200 mb-1"></div>
+                            <div className="h-3 w-20 rounded bg-gray-200"></div>
+                          </div>
+                          <div className="h-3 w-16 rounded bg-gray-200"></div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 border-t border-border pt-2">
+                      <div className="flex justify-between mb-1">
+                        <div className="h-3 w-16 rounded bg-gray-200"></div>
+                        <div className="h-3 w-12 rounded bg-gray-200"></div>
+                      </div>
+                      <div className="flex justify-between mb-1">
+                        <div className="h-3 w-14 rounded bg-gray-200"></div>
+                        <div className="h-3 w-10 rounded bg-gray-200"></div>
+                      </div>
+                      <div className="flex justify-between mb-1">
+                        <div className="h-3 w-8 rounded bg-gray-200"></div>
+                        <div className="h-3 w-10 rounded bg-gray-200"></div>
+                      </div>
+                      <div className="flex justify-between mb-1">
+                        <div className="h-3 w-12 rounded bg-gray-200"></div>
+                        <div className="h-3 w-10 rounded bg-gray-200"></div>
+                      </div>
+                      <div className="flex justify-between">
+                        <div className="h-4 w-16 rounded bg-gray-200"></div>
+                        <div className="h-4 w-16 rounded bg-gray-200"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Status Skeleton */}
+                  <div className="rounded-2xl bg-muted/30 p-4">
+                    <div className="mb-3 h-3 w-24 rounded bg-gray-200"></div>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="space-y-1">
+                        <div className="h-3 w-20 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-3 w-24 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-3 w-28 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                    </div>
+                    <div className="mt-1 h-3 w-48 rounded bg-gray-200"></div>
+                  </div>
+
+                  {/* Shipment Status Skeleton */}
+                  <div className="rounded-2xl bg-muted/30 p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="h-3 w-28 rounded bg-gray-200"></div>
+                      <div className="h-5 w-16 rounded-full bg-gray-200"></div>
+                    </div>
+                    <div className="mb-3 h-3 w-64 rounded bg-gray-200"></div>
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <div className="space-y-1">
+                        <div className="h-3 w-12 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-3 w-16 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-3 w-28 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-3 w-24 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-3 md:grid-cols-3">
+                      <div className="space-y-1">
+                        <div className="h-3 w-20 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-3 w-24 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="h-3 w-16 rounded bg-gray-200"></div>
+                        <div className="h-8 w-full rounded bg-gray-200"></div>
+                      </div>
+                    </div>
+                    <div className="mt-3 h-3 w-56 rounded bg-gray-200"></div>
+                  </div>
+
+                  {/* Save Button Skeleton */}
+                  <div className="pt-2 pb-4">
+                    <div className="h-8 w-full rounded-full bg-gray-200"></div>
+                  </div>
                 </div>
               )}
 

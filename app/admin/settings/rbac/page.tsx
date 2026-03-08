@@ -536,68 +536,6 @@ export default function RbacSettingsPage() {
           ) : null}
         </Card>
       </div>
-
-      <Card className="space-y-3 p-4">
-        <h2 className="text-lg font-semibold">Assign Roles to User</h2>
-        <form
-          className="flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void searchUsers();
-          }}
-        >
-          <input
-            value={userSearch}
-            onChange={(event) => setUserSearch(event.target.value)}
-            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-            placeholder="Search user by name/email"
-          />
-          <Button type="submit">Search</Button>
-        </form>
-
-        {searchResults.length > 0 ? (
-          <div className="grid gap-2 md:grid-cols-2">
-            {searchResults.map((user) => (
-              <button
-                key={user.id}
-                type="button"
-                className={`rounded-md border p-2 text-left ${
-                  selectedUser?.id === user.id ? "border-primary bg-accent" : "border-border"
-                }`}
-                onClick={() => void loadUserRoles(user)}
-              >
-                <p className="text-sm font-medium">{user.name || user.email}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-              </button>
-            ))}
-          </div>
-        ) : userSearch.trim() ? (
-          <p className="text-sm text-muted-foreground">No users found for this query.</p>
-        ) : null}
-
-        {selectedUser ? (
-          <div className="space-y-3 rounded-md border p-3">
-            <p className="text-sm font-medium">
-              Selected: {selectedUser.email} ({assignedRoleIds.length} roles)
-            </p>
-            <div className="grid gap-2 md:grid-cols-2">
-              {assignableRoles.map((role) => (
-                <label key={role.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={assignedRoleIds.includes(role.id)}
-                    onChange={() => toggleAssignedRole(role.id)}
-                  />
-                  <span>{role.label}</span>
-                </label>
-              ))}
-            </div>
-            <Button onClick={() => void saveUserRoles()} disabled={savingAssignment}>
-              Save User Roles
-            </Button>
-          </div>
-        ) : null}
-      </Card>
     </div>
   );
 }
