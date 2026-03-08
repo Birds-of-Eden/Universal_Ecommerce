@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, memo } from "react";
 import PublishersManager from "@/components/management/PublishersManager";
 
 interface Publisher {
@@ -14,7 +14,7 @@ interface Publisher {
   updatedAt: string;
 }
 
-export default function PublishersPage() {
+const PublishersPage = memo(function PublishersPage() {
   const [publishers, setPublishers] = useState<Publisher[]>([]);
   const [loading, setLoading] = useState(true);
   const [publishersCache, setPublishersCache] = useState<Map<string, Publisher[]>>(new Map());
@@ -109,4 +109,6 @@ export default function PublishersPage() {
       onDelete={onDelete}
     />
   );
-}
+});
+
+export default PublishersPage;

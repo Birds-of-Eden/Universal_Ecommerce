@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, memo } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, RefreshCw, Warehouse as WarehouseIcon } from "lucide-react";
 
@@ -76,7 +76,7 @@ interface AttributeValue {
   attributeId: number;
 }
 
-export default function StockManagementPage() {
+const StockManagementPage = memo(function StockManagementPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<number, boolean>>({});
   const [search, setSearch] = useState("");
@@ -457,25 +457,25 @@ export default function StockManagementPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Physical Products</p>
-            <p className="text-2xl font-semibold">{physicalProducts.length}</p>
+            <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : physicalProducts.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Variants</p>
-            <p className="text-2xl font-semibold">{filteredVariants.length}</p>
+            <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : filteredVariants.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Variant Stock</p>
-            <p className="text-2xl font-semibold">{totalVariantStock}</p>
+            <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : totalVariantStock}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Low Stock Variants</p>
-            <p className="text-2xl font-semibold">{lowStockVariants.length}</p>
+            <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : lowStockVariants.length}</p>
           </CardContent>
         </Card>
       </div>
@@ -560,6 +560,36 @@ export default function StockManagementPage() {
               <p className="text-sm text-muted-foreground">
                 Select a product and variant to manage stock levels.
               </p>
+            ) : loading ? (
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Reserved</TableHead>
+                      <TableHead>Available</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...Array(5)].map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+                        <TableCell><div className="h-8 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                        <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
+                        <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <div className="h-8 w-16 bg-muted animate-pulse rounded" />
+                            <div className="h-8 w-12 bg-muted animate-pulse rounded" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             ) : sortedWarehouses.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No warehouses found. Create one from the Warehouses button.
@@ -647,7 +677,17 @@ export default function StockManagementPage() {
         <Card>
           <CardContent className="p-4 space-y-3">
             <p className="font-semibold">Variant Stock Summary</p>
-            {filteredVariants.length === 0 ? (
+            {loading ? (
+              <div className="space-y-2">
+                {[...Array(5)].map((_, index) => (
+                  <div key={index} className="border rounded-lg p-3">
+                    <div className="h-4 w-24 bg-muted animate-pulse rounded mb-2" />
+                    <div className="h-3 w-32 bg-muted animate-pulse rounded mb-1" />
+                    <div className="h-3 w-16 bg-muted animate-pulse rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : filteredVariants.length === 0 ? (
               <p className="text-sm text-muted-foreground">No variants found.</p>
             ) : (
               <div className="space-y-2">
@@ -691,7 +731,32 @@ export default function StockManagementPage() {
       <Card>
         <CardContent className="p-4 space-y-3">
           <p className="font-semibold">Inventory Logs</p>
-          {logs.length === 0 ? (
+          {loading ? (
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Change</TableHead>
+                    <TableHead>Variant</TableHead>
+                    <TableHead>Warehouse</TableHead>
+                    <TableHead>Reason</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...Array(5)].map((_, index) => (
+                    <TableRow key={index}>
+                      <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-4 w-8 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-4 w-16 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : logs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No inventory logs found.</p>
           ) : (
             <div className="border rounded-lg overflow-hidden">
@@ -741,4 +806,6 @@ export default function StockManagementPage() {
       )}
     </div>
   );
-}
+});
+
+export default StockManagementPage;

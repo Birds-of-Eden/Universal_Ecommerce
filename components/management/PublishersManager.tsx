@@ -180,7 +180,21 @@ export default function PublishersManager({
 
       {/* Publishers Grid */}
       {loading ? (
-        <p className="text-center text-lg mt-20" style={{ color: 'hsl(var(--foreground))' }}>Loading...</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, index) => (
+            <Card key={index} className="rounded-2xl shadow" style={{ backgroundColor: 'hsl(var(--card))' }}>
+              <div className="h-48 rounded-t-2xl overflow-hidden flex items-center justify-center relative bg-muted animate-pulse" />
+              <CardContent className="p-5">
+                <div className="h-6 bg-muted animate-pulse rounded mb-2" />
+                <div className="h-4 bg-muted animate-pulse rounded w-3/4 mb-4" />
+                <div className="flex gap-3">
+                  <div className="h-9 bg-muted animate-pulse rounded flex-1" />
+                  <div className="h-9 bg-muted animate-pulse rounded w-9" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="col-span-full text-center py-12">
           <BookOpen className="h-16 w-16 mx-auto mb-4" style={{ color: 'hsl(var(--muted-foreground))' }} />

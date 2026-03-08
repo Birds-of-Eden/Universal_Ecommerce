@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, memo } from "react";
 import WritersManager from "@/components/management/WritersManager";
 
 interface Writer {
@@ -12,7 +12,7 @@ interface Writer {
   updatedAt: string;
 }
 
-export default function WritersPage() {
+const WritersPage = memo(function WritersPage() {
   const [writers, setWriters] = useState<Writer[]>([]);
   const [loading, setLoading] = useState(true);
   const [writersCache, setWritersCache] = useState<Map<string, Writer[]>>(new Map());
@@ -113,4 +113,6 @@ export default function WritersPage() {
       onDelete={handleDelete}
     />
   );
-}
+});
+
+export default WritersPage;
