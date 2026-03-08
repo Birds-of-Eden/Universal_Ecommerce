@@ -62,7 +62,7 @@ export default function RelatedProducts({
 
   return (
     <div className="card-theme rounded-xl overflow-hidden">
-      <div className="px-4 sm:px-6 py-4 border-b border-border flex justify-between">
+      <div className="px-4 sm:px-6 py-4 border-b border-border flex flex-col md:flex-row md:justify-between">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-foreground">
@@ -75,7 +75,7 @@ export default function RelatedProducts({
         </div>
 
         {/* View Category Button */}
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex">
           <Link
             href={`/ecommerce/categories/${categoryId}`}
             className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm transition hover:bg-muted"
@@ -158,7 +158,7 @@ export default function RelatedProducts({
 
         {/* Desktop: Grid layout using ProductCard */}
         <div className="hidden lg:grid md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {products.map((product) => (
+          {products.slice(0, 5).map((product) => (
             <ProductCard
               key={product.id}
               product={{

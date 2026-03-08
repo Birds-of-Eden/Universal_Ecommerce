@@ -234,7 +234,7 @@ export default function AdminUsersPage() {
   if (loading && users.length === 0) {
     return (
       <div className="min-h-screen bg-background p-4 sm:p-6 transition-colors duration-300">
-        <div className="max-w-7xl mx-auto">
+        <div className=" mx-auto">
           {/* Header Skeleton */}
           <div className="mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -28,6 +28,7 @@ import ProductAddModal from "./ProductAddModal";
 import ProductRelationsModal from "./ProductRelationsModal";
 import AttributesManagerModal from "./AttributesManagerModal";
 import DigitalAssetManagerModal from "./DigitalAssetManagerModal";
+import SpotlightCard from "../SpotlightCard";
 
 export default function ProductManager({
   products,
@@ -186,7 +187,44 @@ export default function ProductManager({
 
       {/* LOADING */}
       {loading ? (
-        <p className="text-center">Loading...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, index) => (
+            <Card
+              key={`skeleton-${index}`}
+              className="bg-card shadow-sm rounded-2xl overflow-hidden border"
+            >
+              {/* Image Skeleton */}
+              <div className="relative h-60 bg-muted">
+                <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted/50 to-muted animate-pulse" />
+              </div>
+
+              {/* Content Skeleton */}
+              <CardContent className="p-5">
+                {/* Title Skeleton */}
+                <div className="h-6 bg-muted rounded animate-pulse mb-2" />
+
+                {/* Product Info Skeletons */}
+                <div className="space-y-2 mb-3">
+                  <div className="h-4 bg-muted rounded w-3/4 animate-pulse" />
+                  <div className="h-4 bg-muted rounded w-2/3 animate-pulse" />
+                  <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
+                  <div className="h-4 bg-muted rounded w-2/3 animate-pulse" />
+                  <div className="h-4 bg-muted rounded w-1/3 animate-pulse" />
+                  <div className="h-4 bg-muted rounded w-1/4 animate-pulse" />
+                </div>
+
+                {/* Price Skeleton */}
+                <div className="h-6 bg-muted rounded w-1/3 animate-pulse mb-4" />
+
+                {/* Buttons Skeleton */}
+                <div className="flex gap-2">
+                  <div className="h-9 bg-muted rounded flex-1 animate-pulse" />
+                  <div className="h-9 bg-muted rounded flex-1 animate-pulse" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filtered.map((p: any) => (
@@ -194,60 +232,65 @@ export default function ProductManager({
               key={p.id}
               className="bg-card shadow-sm hover:shadow-lg transition-all duration-200 rounded-2xl overflow-hidden border hover:border-primary/50"
             >
-              <div className="relative h-60 bg-muted">
-                {p.image ? (
-                  <Image
-                    src={p.image}
-                    alt={p.name}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full flex items-center justify-center bg-muted">
-                    <ImageIcon className="h-12 w-12 text-muted-foreground/50" />
+              <SpotlightCard
+                className="!p-0 !border-border !bg-card !rounded-xl overflow-hidden"
+                spotlightColor="rgba(0, 229, 255, 0.1)"
+              >
+                <div className="relative h-60 bg-muted">
+                  {p.image ? (
+                    <Image
+                      src={p.image}
+                      alt={p.name}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-muted">
+                      <ImageIcon className="h-12 w-12 text-muted-foreground/50" />
+                    </div>
+                  )}
+                </div>
+
+                <CardContent className="p-5">
+                  <h3 className="font-bold text-lg mb-2">{p.name}</h3>
+
+                  <div className="text-sm text-muted-foreground space-y-1 mb-3">
+                    <p>Category: {p.category?.name || "-"}</p>
+                    <p>Brand: {p.brand?.name || "-"}</p>
+                    <p>Type: {p.type || "-"}</p>
+                    <p>SKU: {p.sku || "-"}</p>
+                    <p>Available: {p.available ? "Yes" : "No"}</p>
+                    <p>Featured: {p.featured ? "Yes" : "No"}</p>
+                    {p.type === "PHYSICAL" && <p>Stock: {calculateStock(p)}</p>}
                   </div>
-                )}
-              </div>
 
-              <CardContent className="p-5">
-                <h3 className="font-bold text-lg mb-2">{p.name}</h3>
+                  <p className="font-semibold text-lg mb-4">৳{p.basePrice}</p>
 
-                <div className="text-sm text-muted-foreground space-y-1 mb-3">
-                  <p>Category: {p.category?.name || "-"}</p>
-                  <p>Brand: {p.brand?.name || "-"}</p>
-                  <p>Type: {p.type || "-"}</p>
-                  <p>SKU: {p.sku || "-"}</p>
-                  <p>Available: {p.available ? "Yes" : "No"}</p>
-                  <p>Featured: {p.featured ? "Yes" : "No"}</p>
-                  {p.type === "PHYSICAL" && <p>Stock: {calculateStock(p)}</p>}
-                </div>
-
-                <p className="font-semibold text-lg mb-4">৳{p.basePrice}</p>
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => openEdit(p)}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    <Edit3 className="h-3 w-3 mr-1" /> Edit
-                  </Button>
-                  <Button
-                    onClick={() => openManage(p)}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    Manage
-                  </Button>
-                  <Button
-                    onClick={() => openDeleteModal(p)}
-                    variant="outline"
-                    className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </CardContent>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => openEdit(p)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <Edit3 className="h-3 w-3 mr-1" /> Edit
+                    </Button>
+                    <Button
+                      onClick={() => openManage(p)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Manage
+                    </Button>
+                    <Button
+                      onClick={() => openDeleteModal(p)}
+                      variant="outline"
+                      className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </SpotlightCard>
             </Card>
           ))}
         </div>
