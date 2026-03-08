@@ -10,6 +10,7 @@ import {
   Moon,
   Sun,
   Check,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import Link from "next/link";
@@ -22,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isDarkLikeTheme } from "@/lib/theme";
+import Image from "next/image";
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light" },
@@ -37,10 +39,29 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [isPending, setIsPending] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [siteSettings, setSiteSettings] = useState<any>(null);
+  const [loadingSite, setLoadingSite] = useState(true);
 
   // Avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Fetch site settings
+  useEffect(() => {
+    const fetchSiteSettings = async () => {
+      try {
+        const response = await fetch('/api/site');
+        const data = await response.json();
+        setSiteSettings(data);
+      } catch (error) {
+        console.error('Failed to fetch site settings:', error);
+      } finally {
+        setLoadingSite(false);
+      }
+    };
+
+    fetchSiteSettings();
   }, []);
 
   const handleLogout = async () => {
@@ -73,17 +94,42 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
       {/* Logo and Title */}
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
-          <LayoutDashboard className="h-5 w-5 text-primary-foreground" />
+        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+          {loadingSite ? (
+            <div className="animate-pulse w-full h-full bg-gray-200"></div>
+          ) : siteSettings?.logo ? (
+            <Image
+              src={siteSettings.logo}
+              alt="Site Logo"
+              width={40}
+              height={40}
+              className="object-cover"
+              onError={(e) => {
+                // Fallback to default icon if image fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                target.parentElement!.innerHTML = '<svg class="h-5 w-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6v6H9z"></path></svg>';
+              }}
+            />
+          ) : (
+            <LayoutDashboard className="h-5 w-5 text-primary-foreground" />
+          )}
         </div>
         <div className="flex flex-col">
           <h1 className="text-lg font-bold text-foreground hidden sm:block">
-            BOED Admin
+            {loadingSite ? (
+              <div className="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>
+            ) : (
+              siteSettings?.siteTitle ? siteSettings.siteTitle + " Admin" : "BOED Admin"
+            )}
           </h1>
-          <p className="text-xs text-muted-foreground hidden sm:block">
-            E-Commarce Management System
-          </p>
-          <h1 className="text-lg font-bold text-foreground sm:hidden">Admin</h1>
+          <h1 className="text-lg font-bold text-foreground sm:hidden">
+            {loadingSite ? (
+              <div className="h-5 w-16 bg-gray-200 rounded animate-pulse"></div>
+            ) : (
+              siteSettings?.siteTitle?.split(' ')[0] || "Admin"
+            )}
+          </h1>
         </div>
       </div>
 
