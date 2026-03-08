@@ -144,14 +144,34 @@ export default function BrandManager({
       </div>
 
       {loading ? (
-        <p>Loading...</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, index) => (
+            <div key={index} className="border rounded-lg p-4 bg-card">
+              <div className="h-20 bg-muted animate-pulse rounded overflow-hidden" />
+              <div className="h-4 bg-muted animate-pulse rounded mt-3" />
+              <div className="flex gap-2 mt-3">
+                <div className="h-8 bg-muted animate-pulse rounded flex-1" />
+                <div className="h-8 bg-muted animate-pulse rounded w-8" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : brands.length === 0 ? (
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium mb-2">No brands Found</h3>
+          <p className="text-muted-foreground mb-6">Click the button below to add a new brand</p>
+          <Button onClick={openAdd}>
+            <Plus size={16} className="mr-2" />
+            Add Brand
+          </Button>
+        </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {brands.map((b: any) => (
             <div key={b.id} className="border rounded-lg p-4 bg-card">
               <div className="h-20 flex items-center justify-center bg-muted rounded overflow-hidden">
                 {b.logo ? (
-                  <img src={b.logo} className="h-full object-contain" />
+                  <img src={b.logo} className="h-full object-contain" alt={`${b.name} logo`} />
                 ) : (
                   <span className="text-xs text-muted-foreground">
                     No Logo
@@ -216,6 +236,7 @@ export default function BrandManager({
                       <img
                         src={imagePreviewUrl}
                         className="h-full w-full object-cover"
+                        alt="Brand logo preview"
                       />
                     ) : (
                       <span className="text-[10px] text-muted-foreground">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +37,7 @@ interface Coupon {
   createdAt: string;
 }
 
-export default function CouponManagement() {
+const CouponManagement = memo(function CouponManagement() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -723,4 +723,6 @@ export default function CouponManagement() {
       </div>
     </div>
   );
-}
+});
+
+export default CouponManagement;

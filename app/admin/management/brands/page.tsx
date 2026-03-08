@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, memo } from "react";
 import BrandManager from "@/components/management/Brands";
 
-export default function BrandsPage() {
+const BrandsPage = memo(function BrandsPage() {
   const [brands, setBrands] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,4 +59,6 @@ export default function BrandsPage() {
       onDelete={handleDelete}
     />
   );
-}
+});
+
+export default BrandsPage;

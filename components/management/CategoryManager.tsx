@@ -319,7 +319,23 @@ export default function CategoryManager({
       {/* Tree */}
       <div className="border rounded-lg p-4 bg-card">
         {loading ? (
-          <p className="text-muted-foreground">Loading...</p>
+          <div className="space-y-2">
+            {[...Array(8)].map((_, index) => (
+              <div key={index} className="flex items-center justify-between py-2 px-3 rounded-md">
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 bg-muted animate-pulse rounded" />
+                  <div className="h-7 w-7 bg-muted animate-pulse rounded border" />
+                  <div className="h-4 bg-muted animate-pulse rounded w-32" />
+                  <div className="h-3 bg-muted animate-pulse rounded w-20" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-8 w-8 bg-muted animate-pulse rounded" />
+                  <div className="h-8 w-8 bg-muted animate-pulse rounded" />
+                  <div className="h-8 w-8 bg-muted animate-pulse rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : treeData.length === 0 ? (
           <p className="text-muted-foreground">No categories found</p>
         ) : (

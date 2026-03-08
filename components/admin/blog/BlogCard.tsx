@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { processBlogSummary } from "./summaryUtils";
@@ -18,7 +18,7 @@ interface Blog {
   updatedAt: string | Date;
 }
 
-export default function BlogCard() {
+const BlogCard = memo(function BlogCard() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -550,4 +550,6 @@ export default function BlogCard() {
       )}
     </div>
   );
-}
+});
+
+export default BlogCard;

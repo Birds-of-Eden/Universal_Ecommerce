@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, memo } from "react";
 import CategoryManager from "@/components/management/CategoryManager";
 
 interface Category {
@@ -28,7 +28,7 @@ interface CategoryUpdatePayload {
   image?: string | null;
 }
 
-export default function CategoriesPage() {
+const CategoriesPage = memo(function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -111,4 +111,6 @@ export default function CategoriesPage() {
       onDelete={handleDelete}
     />
   );
-}
+});
+
+export default CategoriesPage;

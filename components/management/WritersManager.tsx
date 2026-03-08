@@ -178,11 +178,28 @@ export default function WritersManager({
           </Card>
         </div>
 
-        {/* Loading */}
+        {/* Loading - Skeleton Loader */}
         {loading ? (
-          <div className="rounded-2xl shadow p-12 text-center" style={{ backgroundColor: 'hsl(var(--card))' }}>
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 mx-auto" style={{ borderColor: 'hsl(var(--primary))' }}></div>
-            <p className="mt-4 text-lg" style={{ color: 'hsl(var(--foreground))' }}>Loading writers...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(8)].map((_, index) => (
+              <Card
+                key={index}
+                className="rounded-2xl shadow"
+                style={{ backgroundColor: 'hsl(var(--card))' }}
+              >
+                <div className="relative h-48">
+                  <div className="h-full w-full bg-muted animate-pulse rounded-t-2xl" />
+                </div>
+                <CardContent className="p-5">
+                  <div className="h-6 bg-muted animate-pulse rounded mb-2" />
+                  <div className="h-4 bg-muted animate-pulse rounded-full w-3/4" />
+                  <div className="flex gap-2 mt-3">
+                    <div className="h-9 bg-muted animate-pulse rounded flex-1" />
+                    <div className="h-9 bg-muted animate-pulse rounded w-9" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

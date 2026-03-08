@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import NewsletterManagement from "@/components/newsletter/NewsletterManager";
 import SubscriberManagement from "@/components/newsletter/SubscriberManagement";
 
-export default function NewsletterPage() {
+const NewsletterPage = memo(function NewsletterPage() {
   const [activeTab, setActiveTab] = useState<"newsletters" | "subscribers">("newsletters");
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
@@ -167,4 +167,6 @@ export default function NewsletterPage() {
       </div>
     </div>
   );
-}
+});
+
+export default NewsletterPage;
