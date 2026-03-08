@@ -26,12 +26,83 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (status === "loading") {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-xl animate-pulse">
-            <div className="w-8 h-8 bg-primary-foreground/20 rounded-lg animate-spin border-2 border-primary-foreground border-t-transparent"></div>
+      <div className="flex min-h-screen bg-background">
+        {/* Sidebar Skeleton */}
+        <div className="hidden lg:block lg:w-60 bg-card border-r border-border">
+          <div className="p-6 space-y-6">
+            {/* Logo Skeleton */}
+            <div className="h-10 bg-muted rounded-lg animate-pulse" />
+            
+            {/* Navigation Items Skeleton */}
+            <div className="space-y-2">
+              {[...Array(8)].map((_, index) => (
+                <div key={index} className="flex items-center gap-3 p-3">
+                  <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+                  <div className="h-4 bg-muted rounded flex-1 animate-pulse" />
+                </div>
+              ))}
+            </div>
           </div>
-          <p className="text-foreground font-semibold">Loading...</p>
+        </div>
+        
+        {/* Main Content Skeleton */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header Skeleton */}
+          <div className="h-16 bg-card border-b border-border px-6 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-8 w-8 bg-muted rounded animate-pulse" />
+              <div className="h-6 bg-muted rounded w-32 animate-pulse" />
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-8 w-8 bg-muted rounded-full animate-pulse" />
+              <div className="h-8 w-8 bg-muted rounded-full animate-pulse" />
+              <div className="h-8 w-20 bg-muted rounded-full animate-pulse" />
+            </div>
+          </div>
+          
+          {/* Content Area Skeleton */}
+          <div className="flex-1 p-6">
+            <div className="mx-auto space-y-6">
+              {/* Page Title Skeleton */}
+              <div className="space-y-2">
+                <div className="h-8 bg-muted rounded w-64 animate-pulse" />
+                <div className="h-4 bg-muted rounded w-96 animate-pulse" />
+              </div>
+              
+              {/* Stats Cards Skeleton */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, index) => (
+                  <div key={index} className="bg-card border border-border rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="h-8 w-8 bg-muted rounded-lg animate-pulse" />
+                      <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                    </div>
+                    <div className="h-6 bg-muted rounded w-24 animate-pulse mb-2" />
+                    <div className="h-4 bg-muted rounded w-32 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Recent Activity Skeleton */}
+              <div className="bg-card border border-border rounded-xl p-6">
+                <div className="h-6 bg-muted rounded w-48 animate-pulse mb-4" />
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 bg-muted rounded-full animate-pulse" />
+                        <div className="space-y-1">
+                          <div className="h-4 bg-muted rounded w-32 animate-pulse" />
+                          <div className="h-3 bg-muted rounded w-24 animate-pulse" />
+                        </div>
+                      </div>
+                      <div className="h-4 bg-muted rounded w-20 animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

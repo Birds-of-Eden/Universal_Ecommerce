@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
+import SpotlightCard from "../SpotlightCard";
 import {
   Facebook,
   Instagram,
@@ -414,55 +415,61 @@ export default function Footer({
 
           {/* Newsletter Column */}
           <div className="lg:col-span-3">
-            <div className="bg-muted/30 rounded-xl p-6 border border-border">
-              <h3 className="text-sm font-semibold text-foreground mb-2">
-                Newsletter
-              </h3>
-              <p className="text-xs text-muted-foreground mb-4">
-                Subscribe to our newsletter to get the latest updates and
-                exclusive offers.
-              </p>
+            <SpotlightCard
+              className="!p-0 !border-border !bg-card !rounded-xl overflow-hidden"
+              spotlightColor="rgba(0, 229, 255, 0.1)"
+            >
+              <div className="bg-muted/30 rounded-xl p-6 border border-border">
+                <h3 className="text-sm font-semibold text-foreground mb-2">
+                  Newsletter
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Subscribe to our newsletter to get the latest updates and
+                  exclusive offers.
+                </p>
 
-              <form onSubmit={handleSubscribe} className="space-y-3">
-                <div className="relative">
-                  <Input
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-background border-border text-foreground placeholder:text-muted-foreground/50 pr-10"
-                  />
-                  <Send className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={isSubscribing}
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 disabled:opacity-50"
-                >
-                  {isSubscribing ? (
-                    <span className="flex items-center gap-2">
-                      <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                      Subscribing...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      Subscribe
-                      <Send className="h-4 w-4" />
-                    </span>
-                  )}
-                </Button>
-              </form>
+                <form onSubmit={handleSubscribe} className="space-y-3">
+                  <div className="relative">
+                    <Input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-background border-border text-foreground placeholder:text-muted-foreground/50 pr-10"
+                    />
+                    <Send className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={isSubscribing}
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 disabled:opacity-50"
+                  >
+                    {isSubscribing ? (
+                      <span className="flex items-center gap-2">
+                        <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                        Subscribing...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        Subscribe
+                        <Send className="h-4 w-4" />
+                      </span>
+                    )}
+                  </Button>
+                </form>
 
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="flex items-center gap-2">
-                  <Heart className="h-4 w-4 text-primary" />
-                  <p className="text-xs text-muted-foreground">
-                    100% Secure Transactions
-                  </p>
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-center gap-2">
+                    <Heart className="h-4 w-4 text-primary" />
+                    <p className="text-xs text-muted-foreground">
+                      100% Secure Transactions
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </SpotlightCard>
           </div>
+          
         </div>
       </div>
 

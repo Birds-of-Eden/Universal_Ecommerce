@@ -196,7 +196,7 @@ export default function AllBlogs() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+        <div className=" mx-auto">
           {/* Header Skeleton */}
           <div className="text-center mb-12">
             <div className="h-12 bg-muted rounded-lg w-96 mx-auto mb-4 animate-pulse"></div>
@@ -257,7 +257,7 @@ export default function AllBlogs() {
 
   return (
     <main className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+      <div className=" mx-auto">
         {/* Enhanced Header */}
         <header className="text-center mb-12 relative">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
