@@ -28,7 +28,7 @@ function guessContentType(ext: string) {
   }
 }
 
-export async function GET(_req: Request, ctx: { params: Promise<Record<string, never>> }) {
+export async function GET() {
   try {
     // This endpoint doesn't serve files directly, use /api/upload/[...slug] instead
     return NextResponse.json(
@@ -68,8 +68,8 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(bytes);
     await fs.writeFile(filePath, buffer);
 
-    // Return the URL of the uploaded file
-    const fileUrl = `/upload/${filename}`;
+    // Return the API URL of the uploaded file for consistent serving
+    const fileUrl = `/api/upload/${filename}`;
     
     return NextResponse.json({
       success: true,
