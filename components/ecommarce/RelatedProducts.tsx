@@ -2,29 +2,8 @@
 
 import Link from "next/link";
 import ProductCard from "./ProductCard";
+import { Product } from "@/types/product";
 
-type Product = {
-  id: number | string;
-  name: string;
-  slug?: string | null;
-  sku?: string | null;
-  model?: string | null;
-  available?: boolean;
-  featured?: boolean;
-  image: string | null;
-  gallery?: string[] | null;
-  basePrice: number;
-  originalPrice: number | null;
-  currency?: string | null;
-  description?: string | null;
-  shortDesc?: string | null;
-  dimensions?: any;
-  weight?: number | null;
-  categoryId?: number | null;
-  category?: { id: number; name: string } | null;
-  brand?: { id: number; name: string } | null;
-  variants?: { id: number; stock?: number | null; price?: number | null }[];
-};
 
 type RelatedProductsProps = {
   products: Product[];

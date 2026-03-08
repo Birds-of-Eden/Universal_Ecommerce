@@ -8,39 +8,8 @@ import AddToCartButton from "@/components/ecommarce/AddToCartButton";
 import RelatedProducts from "@/components/ecommarce/RelatedProducts";
 import VariantSelector from "@/components/ecommarce/VariantSelector";
 import { useCart } from "@/components/ecommarce/CartContext";
+import { Product, Variant } from "@/types/product";
 
-type Variant = {
-  id: number | string;
-  stock?: number | null;
-  price?: number | string | null;
-  sku?: string | null;
-  image?: string | null;
-  originalPrice?: number | string | null;
-  options?: Record<string, string>;
-};
-
-type Product = {
-  id: number | string;
-  name: string;
-  slug?: string | null;
-  sku?: string | null;
-  model?: string | null;
-  available?: boolean;
-  featured?: boolean;
-  image: string | null;
-  gallery?: string[] | null;
-  basePrice: number | string;
-  originalPrice: number | string | null;
-  currency?: string | null;
-  description?: string | null;
-  shortDesc?: string | null;
-  dimensions?: any;
-  weight?: number | null;
-  categoryId?: number | null;
-  category?: { id: number; name: string } | null;
-  brand?: { id: number; name: string } | null;
-  variants?: Variant[];
-};
 
 function moneyBDT(n: number) {
   return `${Math.round(n).toLocaleString("en-US")}৳`;
@@ -49,6 +18,43 @@ function moneyBDT(n: number) {
 function toNumber(value: number | string | null | undefined) {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sanitizeHtml(html: string | null | undefined): string {
+  if (!html) return '';
+  
+  // Remove Facebook-specific classes and convert emoji images to actual emojis
+  return html
+    // Replace Facebook emoji images with actual emojis
+    .replace(/<img[^>]+alt="([^"]+)"[^>]*>/g, '$1')
+    // Remove Facebook span wrappers
+    .replace(/<span[^>]*class="html-span[^"]*"[^>]*>(.*?)<\/span>/g, '$1')
+    // Remove any remaining Facebook-specific classes
+    .replace(/class="[^"]*xexx8yu[^"]*"/g, '')
+    .replace(/class="[^"]*xyri2b[^"]*"/g, '')
+    .replace(/class="[^"]*x18d9i69[^"]*"/g, '')
+    .replace(/class="[^"]*x1c1uobl[^"]*"/g, '')
+    .replace(/class="[^"]*x1hl2dhg[^"]*"/g, '')
+    .replace(/class="[^"]*x16tdsg8[^"]*"/g, '')
+    .replace(/class="[^"]*x1vvkbs[^"]*"/g, '')
+    .replace(/class="[^"]*x3nfvp2[^"]*"/g, '')
+    .replace(/class="[^"]*x1j61x8r[^"]*"/g, '')
+    .replace(/class="[^"]*x1fcty0u[^"]*"/g, '')
+    .replace(/class="[^"]*xdj266r[^"]*"/g, '')
+    .replace(/class="[^"]*xat24cr[^"]*"/g, '')
+    .replace(/class="[^"]*xm2jcoa[^"]*"/g, '')
+    .replace(/class="[^"]*x1mpyi22[^"]*"/g, '')
+    .replace(/class="[^"]*xxymvpz[^"]*"/g, '')
+    .replace(/class="[^"]*xlup9mm[^"]*"/g, '')
+    .replace(/class="[^"]*x1kky2od[^"]*"/g, '')
+    // Clean up empty class attributes
+    .replace(/class="\s*"/g, '')
+    // Remove external Facebook image URLs
+    .replace(/<img[^>]+src="https:\/\/static\.xx\.fbcdn\.net[^>]*>/g, '')
+    // Basic HTML sanitization - keep only safe tags
+    .replace(/<script[^>]*>.*?<\/script>/gis, '')
+    .replace(/<style[^>]*>.*?<\/style>/gis, '')
+    .replace(/on\w+="[^"]*"/g, '');
 }
 
 function saveText(price: number, originalPrice: number | null | undefined) {
@@ -415,9 +421,10 @@ export default function BookDetail() {
                 </div>
 
                 {product.shortDesc ? (
-                  <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
-                    {product.shortDesc}
-                  </p>
+                  <div 
+                    className="mt-6 text-sm leading-relaxed text-muted-foreground" 
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.shortDesc) }}
+                  />
                 ) : null}
 
                 {Array.isArray(product.variants) && hasMultipleVariants && (
@@ -595,7 +602,7 @@ export default function BookDetail() {
             {tab === "desc" && (
               <div className="prose prose-sm max-w-none dark:prose-invert">
                 {product.description ? (
-                  <div dangerouslySetInnerHTML={{ __html: product.description }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description) }} />
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     No description available.

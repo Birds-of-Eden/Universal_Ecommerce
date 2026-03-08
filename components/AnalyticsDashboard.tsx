@@ -35,17 +35,6 @@ import {
   FaInternetExplorer,
 } from "react-icons/fa";
 
-type ApiBlog = {
-  id: number;
-  post_title: string;
-  post_content?: unknown;
-  category?: string;
-  tags?: string | string[] | null;
-  post_status: string;
-  createdAt?: string;
-  post_date?: string;
-};
-
 interface Blog {
   id: number;
   post_title: string;
