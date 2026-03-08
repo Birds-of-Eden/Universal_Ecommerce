@@ -51,16 +51,48 @@ const NEXT_STATUS_MAP: Record<ShipmentStatusType, ShipmentStatusType[]> = {
   CANCELLED: [],
 };
 
+interface ShipmentsQueryState {
+  filter: "ALL" | ShipmentStatusType;
+  search: string;
+}
+
+const shipmentsCache = new Map<"ALL" | ShipmentStatusType, ShipmentRow[]>();
+let lastShipmentsQueryState: ShipmentsQueryState = {
+  filter: "ALL",
+  search: "",
+};
+
 export default function AdminShipmentsPage() {
-  const [shipments, setShipments] = useState<ShipmentRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"ALL" | ShipmentStatusType>("ALL");
-  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"ALL" | ShipmentStatusType>(
+    lastShipmentsQueryState.filter
+  );
+  const [search, setSearch] = useState(lastShipmentsQueryState.search);
+  const [shipments, setShipments] = useState<ShipmentRow[]>(
+    () => shipmentsCache.get(lastShipmentsQueryState.filter) ?? []
+  );
+  const [loading, setLoading] = useState(
+    () => !shipmentsCache.has(lastShipmentsQueryState.filter)
+  );
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  const loadShipments = useCallback(async () => {
+  const loadShipments = useCallback(async (force = false) => {
+    lastShipmentsQueryState = {
+      filter,
+      search: lastShipmentsQueryState.search,
+    };
+
+    if (!force) {
+      const cached = shipmentsCache.get(filter);
+      if (cached) {
+        setShipments(cached);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -70,7 +102,9 @@ export default function AdminShipmentsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to load shipments");
-      setShipments(Array.isArray(data?.shipments) ? data.shipments : []);
+      const nextShipments = Array.isArray(data?.shipments) ? data.shipments : [];
+      shipmentsCache.set(filter, nextShipments);
+      setShipments(nextShipments);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load shipments");
     } finally {
@@ -81,6 +115,13 @@ export default function AdminShipmentsPage() {
   useEffect(() => {
     loadShipments();
   }, [loadShipments]);
+
+  useEffect(() => {
+    lastShipmentsQueryState = {
+      ...lastShipmentsQueryState,
+      search,
+    };
+  }, [search]);
 
   const filteredShipments = useMemo(() => {
     if (!search.trim()) return shipments;
@@ -119,7 +160,8 @@ export default function AdminShipmentsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to update shipment status");
-      await loadShipments();
+      shipmentsCache.clear();
+      await loadShipments(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to update shipment status");
     } finally {
@@ -142,7 +184,7 @@ export default function AdminShipmentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8 space-y-6">
+    <div className="min-h-screen bg-background p-4 space-y-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
         <h1 className="text-2xl font-bold text-foreground">Shipment Operations</h1>
@@ -201,7 +243,7 @@ export default function AdminShipmentsPage() {
             </select>
             <button
               type="button"
-              onClick={loadShipments}
+              onClick={() => loadShipments(true)}
               className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
             >
               Refresh
@@ -311,7 +353,8 @@ export default function AdminShipmentsPage() {
             <div className="p-4">
               <ShipmentCreateForm
                 onCreated={async () => {
-                  await loadShipments();
+                  shipmentsCache.clear();
+                  await loadShipments(true);
                   setCreateModalOpen(false);
                 }}
                 onClose={() => setCreateModalOpen(false)}

@@ -131,28 +131,22 @@ export default function ProductManager({
       </AlertDialog>
 
       {/* HEADER */}
-      <div className="text-center mb-10">
+      <div className="mb-4">
         <h1 className="text-3xl font-bold">Product Management</h1>
         <p className="text-muted-foreground">
           Manage all products in one place
         </p>
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-card shadow-sm border">
-          <CardContent className="p-6 flex justify-between items-center">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Products</p>
-              <h3 className="text-2xl font-bold">{filtered.length}</h3>
-            </div>
-            <Layers className="h-8 w-8 text-muted-foreground" />
-          </CardContent>
-        </Card>
-      </div>
-
       {/* SEARCH + ADD */}
-      <Card className="mb-8 bg-card shadow-sm border">
+      <Card className="mb-2 bg-card flex justify-between shadow-sm border">
+        <CardContent className="p-6 flex gap-4 justify-between items-center">
+          <Layers className="h-8 w-8 text-muted-foreground" />
+          <div>
+            <p className="text-sm text-muted-foreground">Total Products</p>
+            <h3 className="text-2xl font-bold">{filtered.length}</h3>
+          </div>
+        </CardContent>
         <CardContent className="p-6 flex flex-col md:flex-row gap-4 md:items-center">
           <div className="flex-1 relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

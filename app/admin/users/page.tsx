@@ -32,19 +32,50 @@ interface PaginationInfo {
   totalPages: number;
 }
 
+interface UsersCacheEntry {
+  users: User[];
+  pagination: PaginationInfo;
+}
+
+interface UsersQueryState {
+  page: number;
+  limit: number;
+  search: string;
+  role: string;
+}
+
+const usersCache = new Map<string, UsersCacheEntry>();
+let lastUsersQueryState: UsersQueryState = {
+  page: 1,
+  limit: 10,
+  search: "",
+  role: "",
+};
+
+const getCacheKey = (query: UsersQueryState) =>
+  JSON.stringify({
+    page: query.page,
+    limit: query.limit,
+    search: query.search,
+    role: query.role,
+  });
+
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [pagination, setPagination] = useState<PaginationInfo>({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0,
-  });
+  const initialCacheKey = getCacheKey(lastUsersQueryState);
+  const initialCachedEntry = usersCache.get(initialCacheKey);
+
+  const [users, setUsers] = useState<User[]>(() => initialCachedEntry?.users ?? []);
+  const [pagination, setPagination] = useState<PaginationInfo>(() => ({
+    page: lastUsersQueryState.page,
+    limit: lastUsersQueryState.limit,
+    total: initialCachedEntry?.pagination.total ?? 0,
+    totalPages: initialCachedEntry?.pagination.totalPages ?? 0,
+  }));
   const [filters, setFilters] = useState({
-    search: "",
-    role: "",
+    search: lastUsersQueryState.search,
+    role: lastUsersQueryState.role,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialCachedEntry);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -58,25 +89,28 @@ export default function AdminUsersPage() {
     password: "",
     addresses: [""],
   });
-  const [usersCache, setUsersCache] = useState<Map<string, { users: User[], pagination: PaginationInfo }>>(new Map());
-
-  // Memoize fetch function with caching
+  // Memoize fetch function with persistent page-level caching
   const fetchUsers = useCallback(async (showRefresh = false) => {
-    // Create cache key based on current filters and pagination
-    const cacheKey = JSON.stringify({
+    const queryState: UsersQueryState = {
       page: pagination.page,
       limit: pagination.limit,
-      search: filters.search,
+      search: filters.search.trim(),
       role: filters.role,
-    });
+    };
+    const cacheKey = getCacheKey(queryState);
+    lastUsersQueryState = queryState;
 
-    // Check cache first (unless refreshing)
     if (!showRefresh && usersCache.has(cacheKey)) {
       const cachedData = usersCache.get(cacheKey);
       if (cachedData) {
         setUsers(cachedData.users);
         setPagination(cachedData.pagination);
+        setFilters({
+          search: queryState.search,
+          role: queryState.role,
+        });
         setError("");
+        setLoading(false);
         return;
       }
     }
@@ -89,10 +123,10 @@ export default function AdminUsersPage() {
       }
 
       const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-        ...(filters.search && { search: filters.search }),
-        ...(filters.role && { role: filters.role }),
+        page: queryState.page.toString(),
+        limit: queryState.limit.toString(),
+        ...(queryState.search && { search: queryState.search }),
+        ...(queryState.role && { role: queryState.role }),
       });
 
       const response = await fetch(`/api/users?${params}`);
@@ -102,13 +136,12 @@ export default function AdminUsersPage() {
       }
 
       const data = await response.json();
-      
-      // Update cache
-      setUsersCache(prev => new Map(prev).set(cacheKey, {
+
+      usersCache.set(cacheKey, {
         users: data.users,
         pagination: data.pagination,
-      }));
-      
+      });
+
       setUsers(data.users);
       setPagination(data.pagination);
       setError("");
@@ -123,7 +156,7 @@ export default function AdminUsersPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [pagination.page, pagination.limit, filters.search, filters.role, usersCache]);
+  }, [pagination.page, pagination.limit, filters.search, filters.role]);
 
   useEffect(() => {
     fetchUsers();
@@ -149,15 +182,55 @@ export default function AdminUsersPage() {
   }, [fetchUsers]);
 
   const handleUserUpdate = useCallback((userId: string, updates: Partial<User>) => {
-    setUsers((prev) =>
-      prev.map((user) => (user.id === userId ? { ...user, ...updates } : user))
-    );
-  }, []);
+    setUsers((prev) => {
+      const nextUsers = prev.map((user) =>
+        user.id === userId ? { ...user, ...updates } : user
+      );
+
+      const cacheKey = getCacheKey({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: filters.search.trim(),
+        role: filters.role,
+      });
+      const cached = usersCache.get(cacheKey);
+      if (cached) {
+        usersCache.set(cacheKey, {
+          ...cached,
+          users: nextUsers,
+        });
+      }
+
+      return nextUsers;
+    });
+  }, [filters.role, filters.search, pagination.limit, pagination.page]);
 
   const handleUserDelete = useCallback((userId: string) => {
-    setUsers((prev) => prev.filter((user) => user.id !== userId));
-    setPagination((prev) => ({ ...prev, total: prev.total - 1 }));
-  }, []);
+    setUsers((prev) => {
+      const nextUsers = prev.filter((user) => user.id !== userId);
+
+      const cacheKey = getCacheKey({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: filters.search.trim(),
+        role: filters.role,
+      });
+      const cached = usersCache.get(cacheKey);
+      if (cached) {
+        usersCache.set(cacheKey, {
+          ...cached,
+          users: nextUsers,
+          pagination: {
+            ...cached.pagination,
+            total: Math.max(0, cached.pagination.total - 1),
+          },
+        });
+      }
+
+      return nextUsers;
+    });
+    setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+  }, [filters.role, filters.search, pagination.limit, pagination.page]);
 
   const handleResetFilters = useCallback(() => {
     setFilters({ search: "", role: "" });
@@ -222,6 +295,7 @@ export default function AdminUsersPage() {
         password: "",
         addresses: [""],
       });
+      usersCache.clear();
       await fetchUsers(true);
     } catch (err) {
       console.error("Error creating user:", err);
@@ -349,7 +423,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-6 transition-colors duration-300">
+    <div className="min-h-screen bg-background p-2 transition-colors duration-300">
       <div>
         {/* Header Section */}
         <div className="mb-8">

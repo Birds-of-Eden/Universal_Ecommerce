@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Plus, X } from "lucide-react";
 import { ALLOWED_SHIPPING_AREAS } from "@/lib/shipping-areas";
+import ShippingRatesSkeleton from "@/components/ui/ShippingRatesSkeleton";
 
 type ShippingRate = {
   id: number;
@@ -110,6 +111,58 @@ export default function ShippingRatesPage() {
       setLoadingCountries(false);
     }
   };
+
+  // Memoize country options to prevent unnecessary re-renders
+  const countryOptions = useMemo(() => {
+    return countries.map((c) => (
+      <option key={c.iso2} value={c.iso2}>
+        {c.name} ({c.iso2})
+      </option>
+    ));
+  }, [countries]);
+
+  // Memoize shipping rate items to prevent unnecessary re-renders
+  const shippingRateItems = useMemo(() => {
+    return rates.map((r) => (
+      <div
+        key={r.id}
+        className="border-b py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+      >
+        <div className="text-sm">
+          <p className="font-medium">
+            #{r.id} {r.country} {">"} {r.area}
+          </p>
+          <p className="text-muted-foreground">
+            Base: {Number(r.baseCost)} | Free Over:{" "}
+            {r.freeMinOrder === null || r.freeMinOrder === undefined
+              ? "Not set"
+              : Number(r.freeMinOrder)}{" "}
+            | Priority: {r.priority}
+          </p>
+          <p className="text-muted-foreground">
+            Weight Slabs: {Array.isArray(r.weightSlabs) ? r.weightSlabs.length : 0}
+          </p>
+          <p className="text-muted-foreground">
+            Status: {r.isActive ? "Active" : "Inactive"}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            className="btn-primary px-3 py-1 rounded text-sm"
+            onClick={() => beginEdit(r)}
+          >
+            Edit
+          </button>
+          <button
+            className="btn-danger px-3 py-1 rounded text-sm"
+            onClick={() => removeRate(r)}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ));
+  }, [rates]);
 
   useEffect(() => {
     loadCountries();
@@ -269,7 +322,7 @@ export default function ShippingRatesPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Shipping Rates</h1>
         <button
@@ -313,11 +366,7 @@ export default function ShippingRatesPage() {
                     <option value="">
                       {loadingCountries ? "Loading countries..." : "Select country"}
                     </option>
-                    {countries.map((c) => (
-                      <option key={c.iso2} value={c.iso2}>
-                        {c.name} ({c.iso2})
-                      </option>
-                    ))}
+                    {countryOptions}
                   </select>
                 </label>
                 <label className="text-sm">
@@ -481,49 +530,11 @@ export default function ShippingRatesPage() {
 
       <div className="card-theme border rounded-lg p-4 space-y-3">
         {loading ? (
-          <p>Loading...</p>
+          <ShippingRatesSkeleton />
         ) : rates.length === 0 ? (
           <p className="text-sm text-muted-foreground">No shipping rates found.</p>
         ) : (
-          rates.map((r) => (
-            <div
-              key={r.id}
-              className="border-b py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
-            >
-              <div className="text-sm">
-                <p className="font-medium">
-                  #{r.id} {r.country} {">"} {r.area}
-                </p>
-                <p className="text-muted-foreground">
-                  Base: {Number(r.baseCost)} | Free Over:{" "}
-                  {r.freeMinOrder === null || r.freeMinOrder === undefined
-                    ? "Not set"
-                    : Number(r.freeMinOrder)}{" "}
-                  | Priority: {r.priority}
-                </p>
-                <p className="text-muted-foreground">
-                  Weight Slabs: {Array.isArray(r.weightSlabs) ? r.weightSlabs.length : 0}
-                </p>
-                <p className="text-muted-foreground">
-                  Status: {r.isActive ? "Active" : "Inactive"}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  className="btn-primary px-3 py-1 rounded text-sm"
-                  onClick={() => beginEdit(r)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="btn-danger px-3 py-1 rounded text-sm"
-                  onClick={() => removeRate(r)}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))
+          shippingRateItems
         )}
       </div>
     </div>

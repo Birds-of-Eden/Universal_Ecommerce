@@ -1,23 +1,17 @@
 "use client";
 
-import CourierForm from "@/components/Settings/CourierForm";
+import CourierFormModal from "@/components/Settings/CourierFormModal";
+import CourierETAModal from "@/components/Settings/CourierETAModal";
+import CourierSkeleton from "@/components/ui/CourierSkeleton";
 import { useEffect, useState } from "react";
-
-type Courier = {
-  id: number;
-  name: string;
-  type: "PATHAO" | "REDX" | "STADFAST" | "CUSTOM";
-  baseUrl: string;
-  apiKey?: string;
-  secretKey?: string;
-  clientId?: string;
-  isActive: boolean;
-};
+import { Courier, CourierType } from "@/lib/types/courier";
 
 export default function CourierPage() {
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCourier, setEditingCourier] = useState<Courier | null>(null);
+  const [etaModalCourier, setEtaModalCourier] = useState<CourierType | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const loadCouriers = async () => {
     setLoading(true);
@@ -32,14 +26,20 @@ export default function CourierPage() {
   }, []);
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Courier Management</h1>
-
-      <CourierForm refresh={loadCouriers} editingCourier={editingCourier} setEditingCourier={setEditingCourier} />
+    <div className="p-2">
+      <div className="flex p-2 justify-between items-center">
+        <h1 className="text-2xl font-bold">Courier Management</h1>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="btn-primary px-4 py-2 rounded"
+        >
+          Add Courier
+        </button>
+      </div>
 
       <div className="card-theme border rounded-lg p-4">
         {loading ? (
-          <p>Loading...</p>
+          <CourierSkeleton />
         ) : (
           couriers.map((c) => (
             <div key={c.id} className="flex justify-between items-center border-b py-3">
@@ -59,6 +59,7 @@ export default function CourierPage() {
                 >
                   Edit
                 </button>
+  
                 <button
                   onClick={async () => {
                     if (confirm(`Are you sure you want to delete ${c.name}?`)) {
@@ -77,6 +78,22 @@ export default function CourierPage() {
           ))
         )}
       </div>
+
+
+      {showAddModal && (
+        <CourierFormModal
+          onClose={() => setShowAddModal(false)}
+          refresh={loadCouriers}
+        />
+      )}
+
+      {editingCourier && (
+        <CourierFormModal
+          onClose={() => setEditingCourier(null)}
+          refresh={loadCouriers}
+          editingCourier={editingCourier}
+        />
+      )}
     </div>
   );
 }

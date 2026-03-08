@@ -54,18 +54,64 @@ function labelForStatus(status: ChatStatus): string {
   return status.charAt(0) + status.slice(1).toLowerCase();
 }
 
+interface ChatsQueryState {
+  statusFilter: "ALL" | ChatStatus;
+  priorityFilter: "ALL" | ChatPriority;
+  assignmentFilter: "all" | "me" | "unassigned";
+  selectedId: string | null;
+}
+
+const conversationsCache = new Map<string, ChatConversationListItem[]>();
+const messagesCache = new Map<string, ChatMessage[]>();
+let lastChatsQueryState: ChatsQueryState = {
+  statusFilter: "ALL",
+  priorityFilter: "ALL",
+  assignmentFilter: "all",
+  selectedId: null,
+};
+
+const getConversationsCacheKey = (query: Omit<ChatsQueryState, "selectedId">) =>
+  JSON.stringify({
+    limit: 100,
+    assignedTo: query.assignmentFilter,
+    status: query.statusFilter,
+    priority: query.priorityFilter,
+  });
+
 export default function AdminChatsPage() {
   const { data: session } = useSession();
   const adminId = (session?.user as { id?: string } | undefined)?.id ?? null;
 
-  const [conversations, setConversations] = useState<ChatConversationListItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const initialConversationsCacheKey = getConversationsCacheKey({
+    statusFilter: lastChatsQueryState.statusFilter,
+    priorityFilter: lastChatsQueryState.priorityFilter,
+    assignmentFilter: lastChatsQueryState.assignmentFilter,
+  });
+  const initialConversations = conversationsCache.get(initialConversationsCacheKey) ?? [];
+
+  const [conversations, setConversations] = useState<ChatConversationListItem[]>(
+    () => initialConversations
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(
+    lastChatsQueryState.selectedId
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    () =>
+      (lastChatsQueryState.selectedId
+        ? messagesCache.get(lastChatsQueryState.selectedId)
+        : undefined) ?? []
+  );
   const [draft, setDraft] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | ChatStatus>("ALL");
-  const [priorityFilter, setPriorityFilter] = useState<"ALL" | ChatPriority>("ALL");
-  const [assignmentFilter, setAssignmentFilter] = useState<"all" | "me" | "unassigned">("all");
-  const [loadingList, setLoadingList] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"ALL" | ChatStatus>(
+    lastChatsQueryState.statusFilter
+  );
+  const [priorityFilter, setPriorityFilter] = useState<"ALL" | ChatPriority>(
+    lastChatsQueryState.priorityFilter
+  );
+  const [assignmentFilter, setAssignmentFilter] = useState<"all" | "me" | "unassigned">(
+    lastChatsQueryState.assignmentFilter
+  );
+  const [loadingList, setLoadingList] = useState(() => initialConversations.length === 0);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +122,29 @@ export default function AdminChatsPage() {
   );
 
   const loadConversations = useCallback(
-    async (silent = true) => {
+    async (silent = true, force = false) => {
+      const cacheKey = getConversationsCacheKey({
+        statusFilter,
+        priorityFilter,
+        assignmentFilter,
+      });
+
+      if (!force && !silent) {
+        const cached = conversationsCache.get(cacheKey);
+        if (cached) {
+          setConversations(cached);
+          setSelectedId((prev) => {
+            if (!prev && cached.length > 0) return cached[0].id;
+            if (prev && !cached.some((item) => item.id === prev)) {
+              return cached[0]?.id ?? null;
+            }
+            return prev;
+          });
+          setLoadingList(false);
+          return;
+        }
+      }
+
       if (!silent) setLoadingList(true);
       try {
         const params = new URLSearchParams();
@@ -89,12 +157,13 @@ export default function AdminChatsPage() {
           `/api/chat/conversations?${params.toString()}`,
         );
 
+        conversationsCache.set(cacheKey, list);
         setConversations(list);
-        if (!selectedId && list.length > 0) {
-          setSelectedId(list[0].id);
-        } else if (selectedId && !list.some((item) => item.id === selectedId)) {
-          setSelectedId(list[0]?.id ?? null);
-        }
+        setSelectedId((prev) => {
+          if (!prev && list.length > 0) return list[0].id;
+          if (prev && !list.some((item) => item.id === prev)) return list[0]?.id ?? null;
+          return prev;
+        });
       } catch (fetchError) {
         setError(
           fetchError instanceof Error ? fetchError.message : "Failed to load chats.",
@@ -103,11 +172,20 @@ export default function AdminChatsPage() {
         if (!silent) setLoadingList(false);
       }
     },
-    [assignmentFilter, priorityFilter, selectedId, statusFilter],
+    [assignmentFilter, priorityFilter, statusFilter],
   );
 
   const loadMessages = useCallback(
     async (conversationId: string, silent = true) => {
+      if (!silent) {
+        const cached = messagesCache.get(conversationId);
+        if (cached) {
+          setMessages(cached);
+          setLoadingMessages(false);
+          return;
+        }
+      }
+
       if (!silent) setLoadingMessages(true);
       try {
         const data = await fetchJson<{
@@ -115,6 +193,7 @@ export default function AdminChatsPage() {
           conversation: ChatConversationListItem;
         }>(`/api/chat/conversations/${conversationId}/messages?limit=200&markRead=true`);
 
+        messagesCache.set(conversationId, data.messages);
         setMessages(data.messages);
       } catch (fetchError) {
         setError(
@@ -132,6 +211,15 @@ export default function AdminChatsPage() {
   useEffect(() => {
     void loadConversations(false);
   }, [loadConversations]);
+
+  useEffect(() => {
+    lastChatsQueryState = {
+      statusFilter,
+      priorityFilter,
+      assignmentFilter,
+      selectedId,
+    };
+  }, [assignmentFilter, priorityFilter, selectedId, statusFilter]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -156,7 +244,8 @@ export default function AdminChatsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        await loadConversations(true);
+        conversationsCache.clear();
+        await loadConversations(true, true);
       } catch (updateError) {
         setError(
           updateError instanceof Error
@@ -182,8 +271,10 @@ export default function AdminChatsPage() {
         body: JSON.stringify({ message: text }),
       });
       setDraft("");
+      messagesCache.delete(selectedId);
+      conversationsCache.clear();
       await loadMessages(selectedId, true);
-      await loadConversations(true);
+      await loadConversations(true, true);
     } catch (sendError) {
       setError(sendError instanceof Error ? sendError.message : "Failed to send reply.");
     } finally {
@@ -236,7 +327,7 @@ export default function AdminChatsPage() {
           <option value="me">Assigned to Me</option>
           <option value="unassigned">Unassigned</option>
         </select>
-        <Button onClick={() => void loadConversations(false)} disabled={loadingList}>
+        <Button onClick={() => void loadConversations(false, true)} disabled={loadingList}>
           Refresh
         </Button>
       </Card>

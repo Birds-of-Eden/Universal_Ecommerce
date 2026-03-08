@@ -99,17 +99,51 @@ interface WarehouseOption {
   isDefault: boolean;
 }
 
+interface OrderListCacheEntry {
+  orders: Order[];
+  pagination: Pagination | null;
+}
+
+interface OrderListQueryState {
+  page: number;
+  statusFilter: string;
+  search: string;
+}
+
+const orderListCache = new Map<string, OrderListCacheEntry>();
+let lastOrderListQueryState: OrderListQueryState = {
+  page: 1,
+  statusFilter: "ALL",
+  search: "",
+};
+
+const getOrderListCacheKey = (query: Omit<OrderListQueryState, "search">) =>
+  JSON.stringify({
+    page: query.page,
+    statusFilter: query.statusFilter,
+    limit: 9,
+  });
+
 const OrderManagement = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
+  const initialCacheKey = getOrderListCacheKey({
+    page: lastOrderListQueryState.page,
+    statusFilter: lastOrderListQueryState.statusFilter,
+  });
+  const initialCachedOrders = orderListCache.get(initialCacheKey);
+
+  const [orders, setOrders] = useState<Order[]>(
+    () => initialCachedOrders?.orders ?? []
+  );
+  const [pagination, setPagination] = useState<Pagination | null>(
+    () => initialCachedOrders?.pagination ?? null
+  );
+  const [page, setPage] = useState(lastOrderListQueryState.page);
+  const [statusFilter, setStatusFilter] = useState<string>(
+    lastOrderListQueryState.statusFilter
+  );
+  const [search, setSearch] = useState(lastOrderListQueryState.search);
+  const [loading, setLoading] = useState(() => !initialCachedOrders);
   const [error, setError] = useState<string | null>(null);
-  const [ordersCache, setOrdersCache] = useState<
-    Map<string, { orders: Order[]; pagination: Pagination | null }>
-  >(new Map());
 
   // details modal states
   const [detailOpen, setDetailOpen] = useState(false);
@@ -147,20 +181,24 @@ const OrderManagement = () => {
 
   // Memoize fetch function with caching
   const fetchOrders = useCallback(async () => {
+    const query = {
+      page,
+      statusFilter,
+    };
+    const cacheKey = getOrderListCacheKey(query);
+    lastOrderListQueryState = {
+      page,
+      statusFilter,
+      search: lastOrderListQueryState.search,
+    };
+
     try {
       setLoading(true);
       setError(null);
 
-      // Create cache key based on current filters and page
-      const cacheKey = JSON.stringify({
-        page,
-        statusFilter,
-        limit: 9,
-      });
-
       // Check cache first
-      if (ordersCache.has(cacheKey)) {
-        const cachedData = ordersCache.get(cacheKey);
+      if (orderListCache.has(cacheKey)) {
+        const cachedData = orderListCache.get(cacheKey);
         if (cachedData) {
           setOrders(cachedData.orders);
           setPagination(cachedData.pagination);
@@ -183,12 +221,10 @@ const OrderManagement = () => {
       const data = await res.json();
 
       // Update cache
-      setOrdersCache((prev) =>
-        new Map(prev).set(cacheKey, {
-          orders: data.orders || [],
-          pagination: data.pagination || null,
-        }),
-      );
+      orderListCache.set(cacheKey, {
+        orders: data.orders || [],
+        pagination: data.pagination || null,
+      });
 
       setOrders(data.orders || []);
       setPagination(data.pagination || null);
@@ -201,11 +237,18 @@ const OrderManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, ordersCache]);
+  }, [page, statusFilter]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  useEffect(() => {
+    lastOrderListQueryState = {
+      ...lastOrderListQueryState,
+      search,
+    };
+  }, [search]);
 
   const filteredOrders = useMemo(() => {
     if (!search) return orders;
@@ -467,7 +510,7 @@ const OrderManagement = () => {
       );
 
       // Clear cache to force refresh on next load
-      setOrdersCache(new Map());
+      orderListCache.clear();
 
       // 2) Create / Update Shipment
       let savedShipment: Shipment | null = shipment;
@@ -604,12 +647,12 @@ const OrderManagement = () => {
   // ------------------- RENDER -------------------
 
   return (
-    <div className="min-h-screen w-full bg-background px-4 py-10 ">
+    <div className="min-h-screen w-full bg-background px-4 py-4 ">
       <div className="flex-col gap-8">
         {/* Heading */}
-        <div className="text-center mb-8 just">
+        <div className="mb-4">
           <h1 className="text-3xl font-semibold text-foreground">
-            | Order Management |
+            Order Management
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             View all library orders, update status and track shipments

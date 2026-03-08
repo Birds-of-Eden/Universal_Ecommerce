@@ -67,58 +67,57 @@ interface DigitalAsset {
   title: string;
 }
 
-export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [writers, setWriters] = useState<Writer[]>([]);
-  const [publishers, setPublishers] = useState<Publisher[]>([]);
-  const [vatClasses, setVatClasses] = useState<VatClass[]>([]);
-  const [digitalAssets, setDigitalAssets] = useState<DigitalAsset[]>([]);
-  const [loading, setLoading] = useState(true);
+interface ProductsPageCache {
+  products: Product[];
+  categories: Category[];
+  brands: Brand[];
+  writers: Writer[];
+  publishers: Publisher[];
+  vatClasses: VatClass[];
+  digitalAssets: DigitalAsset[];
+}
 
-  const [productsCache, setProductsCache] = useState<Map<string, Product[]>>(new Map());
-  const [categoriesCache, setCategoriesCache] = useState<Map<string, Category[]>>(new Map());
-  const [brandsCache, setBrandsCache] = useState<Map<string, Brand[]>>(new Map());
-  const [writersCache, setWritersCache] = useState<Map<string, Writer[]>>(new Map());
-  const [publishersCache, setPublishersCache] = useState<Map<string, Publisher[]>>(new Map());
-  const [vatClassesCache, setVatClassesCache] = useState<Map<string, VatClass[]>>(new Map());
-  const [digitalAssetsCache, setDigitalAssetsCache] = useState<Map<string, DigitalAsset[]>>(new Map());
+let productsPageCache: ProductsPageCache | null = null;
+
+export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>(
+    () => productsPageCache?.products ?? []
+  );
+  const [categories, setCategories] = useState<Category[]>(
+    () => productsPageCache?.categories ?? []
+  );
+  const [brands, setBrands] = useState<Brand[]>(
+    () => productsPageCache?.brands ?? []
+  );
+  const [writers, setWriters] = useState<Writer[]>(
+    () => productsPageCache?.writers ?? []
+  );
+  const [publishers, setPublishers] = useState<Publisher[]>(
+    () => productsPageCache?.publishers ?? []
+  );
+  const [vatClasses, setVatClasses] = useState<VatClass[]>(
+    () => productsPageCache?.vatClasses ?? []
+  );
+  const [digitalAssets, setDigitalAssets] = useState<DigitalAsset[]>(
+    () => productsPageCache?.digitalAssets ?? []
+  );
+  const [loading, setLoading] = useState(() => !productsPageCache);
 
   const loadAll = useCallback(async () => {
+    if (productsPageCache) {
+      setProducts(productsPageCache.products);
+      setCategories(productsPageCache.categories);
+      setBrands(productsPageCache.brands);
+      setWriters(productsPageCache.writers);
+      setPublishers(productsPageCache.publishers);
+      setVatClasses(productsPageCache.vatClasses);
+      setDigitalAssets(productsPageCache.digitalAssets);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-
     try {
-      const cacheKey = "all";
-
-      const cachedProducts = productsCache.get(cacheKey);
-      const cachedCategories = categoriesCache.get(cacheKey);
-      const cachedBrands = brandsCache.get(cacheKey);
-      const cachedWriters = writersCache.get(cacheKey);
-      const cachedPublishers = publishersCache.get(cacheKey);
-      const cachedVatClasses = vatClassesCache.get(cacheKey);
-      const cachedDigitalAssets = digitalAssetsCache.get(cacheKey);
-
-      if (
-        cachedProducts &&
-        cachedCategories &&
-        cachedBrands &&
-        cachedWriters &&
-        cachedPublishers &&
-        cachedVatClasses &&
-        cachedDigitalAssets
-      ) {
-        setProducts(cachedProducts);
-        setCategories(cachedCategories);
-        setBrands(cachedBrands);
-        setWriters(cachedWriters);
-        setPublishers(cachedPublishers);
-        setVatClasses(cachedVatClasses);
-        setDigitalAssets(cachedDigitalAssets);
-        setLoading(false);
-        return;
-      }
-
       const [p, c, b, w, pub, vat, da] = await Promise.all([
         fetch("/api/products").then((r) => r.json()),
         fetch("/api/categories").then((r) => r.json()),
@@ -129,13 +128,15 @@ export default function ProductsPage() {
         fetch("/api/digital-assets").then((r) => r.json()),
       ]);
 
-      setProductsCache((prev) => new Map(prev).set(cacheKey, p));
-      setCategoriesCache((prev) => new Map(prev).set(cacheKey, c));
-      setBrandsCache((prev) => new Map(prev).set(cacheKey, b));
-      setWritersCache((prev) => new Map(prev).set(cacheKey, w));
-      setPublishersCache((prev) => new Map(prev).set(cacheKey, pub));
-      setVatClassesCache((prev) => new Map(prev).set(cacheKey, vat));
-      setDigitalAssetsCache((prev) => new Map(prev).set(cacheKey, da));
+      productsPageCache = {
+        products: p,
+        categories: c,
+        brands: b,
+        writers: w,
+        publishers: pub,
+        vatClasses: vat,
+        digitalAssets: da,
+      };
 
       setProducts(p);
       setCategories(c);
@@ -149,15 +150,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [
-    productsCache,
-    categoriesCache,
-    brandsCache,
-    writersCache,
-    publishersCache,
-    vatClassesCache,
-    digitalAssetsCache,
-  ]);
+  }, []);
 
   useEffect(() => {
     loadAll();
@@ -178,13 +171,12 @@ export default function ProductsPage() {
     const newProduct = await res.json();
 
     setProducts((prev) => [newProduct, ...prev]);
-
-    setProductsCache((prev) => {
-      const map = new Map(prev);
-      const current = map.get("all") || [];
-      map.set("all", [newProduct, ...current]);
-      return map;
-    });
+    if (productsPageCache) {
+      productsPageCache = {
+        ...productsPageCache,
+        products: [newProduct, ...productsPageCache.products],
+      };
+    }
   }, []);
 
   const updateProduct = useCallback(async (id: number, data: unknown) => {
@@ -204,16 +196,14 @@ export default function ProductsPage() {
     setProducts((prev) =>
       prev.map((p) => (p.id === id ? updated : p))
     );
-
-    setProductsCache((prev) => {
-      const map = new Map(prev);
-      const current = map.get("all") || [];
-      map.set(
-        "all",
-        current.map((p) => (p.id === id ? updated : p))
-      );
-      return map;
-    });
+    if (productsPageCache) {
+      productsPageCache = {
+        ...productsPageCache,
+        products: productsPageCache.products.map((p) =>
+          p.id === id ? updated : p
+        ),
+      };
+    }
 
     return updated;
   }, []);
@@ -222,8 +212,12 @@ export default function ProductsPage() {
     await fetch(`/api/products/${id}`, { method: "DELETE" });
 
     setProducts((prev) => prev.filter((p) => p.id !== id));
-
-    setProductsCache(new Map());
+    if (productsPageCache) {
+      productsPageCache = {
+        ...productsPageCache,
+        products: productsPageCache.products.filter((p) => p.id !== id),
+      };
+    }
   }, []);
 
   const memoizedProducts = useMemo(() => products, [products]);

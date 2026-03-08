@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -21,7 +21,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-interface DashboardStats {
+export interface DashboardStats {
   totalUsers: number;
   totalOrders: number;
   totalProducts: number;
@@ -82,49 +82,26 @@ const compareLabelMap = {
   year: "vs last year",
 } as const;
 
-export default function AdminDashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<
-    "today" | "week" | "month" | "year"
-  >("today");
+export type TimeRange = "today" | "week" | "month" | "year";
+
+interface AdminDashboardProps {
+  stats: DashboardStats | null;
+  loading: boolean;
+  timeRange: TimeRange;
+  onTimeRangeChange: (range: TimeRange) => void;
+  onRefresh: () => void;
+}
+
+function AdminDashboard({
+  stats,
+  loading,
+  timeRange,
+  onTimeRangeChange,
+  onRefresh,
+}: AdminDashboardProps) {
   const [activeChart, setActiveChart] = useState<"sales" | "revenue">(
     "revenue"
   );
-  const [dashboardCache, setDashboardCache] = useState<
-    Map<string, DashboardStats>
-  >(new Map());
-
-  const fetchDashboardData = useCallback(async () => {
-    const cacheKey = timeRange;
-
-    if (dashboardCache.has(cacheKey)) {
-      const cachedData = dashboardCache.get(cacheKey);
-      if (cachedData) {
-        setStats(cachedData);
-        setLoading(false);
-        return;
-      }
-    }
-
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/admindashboard?range=${timeRange}`);
-      if (response.ok) {
-        const data: DashboardStats = await response.json();
-        setDashboardCache((prev) => new Map(prev).set(cacheKey, data));
-        setStats(data);
-      }
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [dashboardCache, timeRange]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
 
   const formatCurrency = useCallback((amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -272,7 +249,7 @@ export default function AdminDashboard() {
             Failed to load dashboard data
           </p>
           <button
-            onClick={fetchDashboardData}
+            onClick={onRefresh}
             className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition"
           >
             Try Again
@@ -313,8 +290,8 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <section className="rounded-2xl border border-border bg-card p-5">
+    <div className="space-y-6">
+      <section className="border border-border bg-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-sm font-medium text-muted-foreground">
@@ -333,7 +310,7 @@ export default function AdminDashboard() {
               {rangeOptions.map((range) => (
                 <button
                   key={range.value}
-                  onClick={() => setTimeRange(range.value)}
+                  onClick={() => onTimeRangeChange(range.value)}
                   className={`rounded-lg px-3 py-1.5 text-sm transition ${
                     timeRange === range.value
                       ? "bg-background text-foreground shadow-sm"
@@ -345,7 +322,7 @@ export default function AdminDashboard() {
               ))}
             </div>
             <button
-              onClick={fetchDashboardData}
+              onClick={onRefresh}
               disabled={loading}
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-1.5 text-sm text-foreground hover:bg-muted disabled:opacity-50"
             >
@@ -629,3 +606,8 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
+// Memoized AdminDashboard component to prevent unnecessary re-renders
+const MemoizedAdminDashboard = memo(AdminDashboard);
+
+export default MemoizedAdminDashboard;

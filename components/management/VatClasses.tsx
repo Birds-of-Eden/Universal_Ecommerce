@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,9 +35,13 @@ interface VatClass {
   rates?: VatRate[];
 }
 
+let vatClassesCache: VatClass[] | null = null;
+
 export default function VatClasses() {
-  const [vatClasses, setVatClasses] = useState<VatClass[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [vatClasses, setVatClasses] = useState<VatClass[]>(
+    () => vatClassesCache ?? []
+  );
+  const [loading, setLoading] = useState<boolean>(() => !vatClassesCache);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<VatClass | null>(null);
@@ -64,22 +68,30 @@ export default function VatClasses() {
   /* =========================
      LOAD DATA
   ========================= */
-  const loadVatClasses = async () => {
+  const loadVatClasses = useCallback(async (force = false) => {
+    if (!force && vatClassesCache) {
+      setVatClasses(vatClassesCache);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const res = await fetch("/api/vat-classes");
       const data = await res.json();
-      setVatClasses(data || []);
+      const nextVatClasses = Array.isArray(data) ? data : [];
+      vatClassesCache = nextVatClasses;
+      setVatClasses(nextVatClasses);
     } catch (err) {
       toast.error("Failed to load VAT classes");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadVatClasses();
-  }, []);
+  }, [loadVatClasses]);
 
   /* =========================
      MODAL
@@ -184,7 +196,7 @@ export default function VatClasses() {
       }
 
       closeModal();
-      loadVatClasses();
+      await loadVatClasses(true);
     } catch (err: any) {
       toast.error(err.message || "Something went wrong");
     }
@@ -245,7 +257,7 @@ export default function VatClasses() {
       }
 
       closeRateModal();
-      loadVatClasses();
+      await loadVatClasses(true);
     } catch (err: any) {
       toast.error(err.message || "Failed to save rate");
     }
@@ -262,7 +274,7 @@ export default function VatClasses() {
       }
 
       toast.success("Rate deleted");
-      loadVatClasses();
+      await loadVatClasses(true);
     } catch (err: any) {
       toast.error(err.message || "Delete failed");
     }
@@ -280,7 +292,7 @@ export default function VatClasses() {
       });
 
       toast.success("Deleted successfully");
-      loadVatClasses();
+      await loadVatClasses(true);
     } catch {
       toast.error("Delete failed");
     }
@@ -290,7 +302,7 @@ export default function VatClasses() {
      UI
   ========================= */
   return (
-    <div className="p-8">
+    <div className="p-4">
       <div className="flex justify-between items-center mb-2">
         <h1 className="text-2xl font-bold">VAT Classes</h1>
         <Button onClick={openAdd}>
@@ -300,7 +312,26 @@ export default function VatClasses() {
       </div>
 
       {loading ? (
-        <p>Loading...</p>
+        <div className="grid md:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }, (_, idx) => (
+            <Card key={idx}>
+              <CardContent className="p-6 space-y-4">
+                <div className="h-6 w-40 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-28 rounded bg-muted/80 animate-pulse" />
+                <div className="h-4 w-full rounded bg-muted/80 animate-pulse" />
+                <div className="space-y-2 pt-2">
+                  <div className="h-4 w-20 rounded bg-muted/80 animate-pulse" />
+                  <div className="h-14 w-full rounded bg-muted/70 animate-pulse" />
+                  <div className="h-14 w-full rounded bg-muted/70 animate-pulse" />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <div className="h-9 w-9 rounded bg-muted animate-pulse" />
+                  <div className="h-9 w-9 rounded bg-muted animate-pulse" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : (
         <div className="grid md:grid-cols-3 gap-6">
           {vatClasses.map((vat) => (

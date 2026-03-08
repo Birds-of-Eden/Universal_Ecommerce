@@ -1,22 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import WarehouseForm from "@/components/Settings/WarehouseForm";
-
-type Warehouse = {
-  id: number;
-  name: string;
-  code: string;
-  address?: {
-    location: string;
-  } | null;
-  isDefault: boolean;
-};
+import WarehouseFormModal from "@/components/Settings/WarehouseFormModal";
+import WarehouseSkeleton from "@/components/ui/WarehouseSkeleton";
+import { Warehouse } from "@/lib/types/warehouse";
 
 export default function WarehousePage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const loadWarehouses = async () => {
     setLoading(true);
@@ -31,18 +24,20 @@ export default function WarehousePage() {
   }, []);
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Warehouse Management</h1>
-
-      <WarehouseForm 
-        refresh={loadWarehouses} 
-        editingWarehouse={editingWarehouse} 
-        setEditingWarehouse={setEditingWarehouse} 
-      />
+    <div className="p-4 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Warehouse Management</h1>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="btn-primary px-4 py-2 rounded"
+        >
+          Add Warehouse
+        </button>
+      </div>
 
       <div className="card-theme border rounded-lg p-4 space-y-3">
         {loading ? (
-          <p>Loading...</p>
+          <WarehouseSkeleton />
         ) : (
           warehouses.map((w) => (
             <div
@@ -85,6 +80,21 @@ export default function WarehousePage() {
           ))
         )}
       </div>
+
+      {showAddModal && (
+        <WarehouseFormModal
+          onClose={() => setShowAddModal(false)}
+          refresh={loadWarehouses}
+        />
+      )}
+
+      {editingWarehouse && (
+        <WarehouseFormModal
+          onClose={() => setEditingWarehouse(null)}
+          refresh={loadWarehouses}
+          editingWarehouse={editingWarehouse}
+        />
+      )}
     </div>
   );
 }
