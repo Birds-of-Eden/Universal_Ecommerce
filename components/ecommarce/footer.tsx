@@ -469,7 +469,6 @@ export default function Footer({
               </div>
             </SpotlightCard>
           </div>
-          
         </div>
       </div>
 
@@ -478,7 +477,7 @@ export default function Footer({
         <div className="container mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-xs text-muted-foreground">
-              © {currentYear} BOED E-commerce. All rights reserved.
+              © {currentYear} {siteSettings?.siteTitle || "BEOD"} All rights reserved.
             </p>
 
             <div className="flex items-center gap-6">
