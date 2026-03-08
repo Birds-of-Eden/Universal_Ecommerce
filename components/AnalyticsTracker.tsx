@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 type CollectPayload = {
@@ -126,7 +126,7 @@ async function send(payload: CollectPayload) {
   }
 }
 
-export default function AnalyticsTracker({
+function AnalyticsTrackerContent({
   userId,
 }: {
   userId?: string | null;
@@ -297,4 +297,12 @@ export default function AnalyticsTracker({
   }, [pathname, userId]);
 
   return null;
+}
+
+export default function AnalyticsTracker(props: { userId?: string | null }) {
+  return (
+    <Suspense fallback={null}>
+      <AnalyticsTrackerContent {...props} />
+    </Suspense>
+  );
 }

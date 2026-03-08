@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, Suspense } from "react";
 import {
   Search,
   ChevronDown,
@@ -26,7 +26,7 @@ type FAQCategory = {
   questions: FAQItem[];
 };
 
-export default function FAQPage() {
+function FAQPageContent() {
   const [openCategory, setOpenCategory] = useState<string | null>("general");
   const [searchTerm, setSearchTerm] = useState("");
   const [openItems, setOpenItems] = useState<Set<string>>(new Set(["general-1"]));
@@ -421,5 +421,20 @@ export default function FAQPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function FAQPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading FAQ...</p>
+        </div>
+      </div>
+    }>
+      <FAQPageContent />
+    </Suspense>
   );
 }
