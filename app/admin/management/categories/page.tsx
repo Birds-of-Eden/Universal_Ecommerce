@@ -40,8 +40,16 @@ const CategoriesPage = memo(function CategoriesPage() {
     try {
       setLoading(true);
       const res = await fetch("/api/categories", { cache: "no-store" });
-      const data = await res.json();
-      setCategories(data || []);
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const message =
+          (data && typeof (data as any).error === "string" && (data as any).error) ||
+          `Failed to fetch categories (${res.status})`;
+        throw new Error(message);
+      }
+
+      setCategories(Array.isArray(data) ? (data as Category[]) : []);
     } catch (err) {
       console.error("Failed to fetch categories:", err);
     } finally {
@@ -64,9 +72,15 @@ const CategoriesPage = memo(function CategoriesPage() {
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) throw new Error("Create failed");
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const message =
+        (data && typeof (data as any).error === "string" && (data as any).error) ||
+        `Create failed (${res.status})`;
+      throw new Error(message);
+    }
 
-    await fetchCategories(); // ✅ refresh full tree
+    await fetchCategories(); // refresh full tree
   };
 
   /* =========================
@@ -83,9 +97,15 @@ const CategoriesPage = memo(function CategoriesPage() {
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) throw new Error("Update failed");
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const message =
+        (data && typeof (data as any).error === "string" && (data as any).error) ||
+        `Update failed (${res.status})`;
+      throw new Error(message);
+    }
 
-    await fetchCategories(); // ✅ refresh full tree
+    await fetchCategories(); // refresh full tree
   };
 
   /* =========================
@@ -97,9 +117,15 @@ const CategoriesPage = memo(function CategoriesPage() {
       method: "DELETE",
     });
 
-    if (!res.ok) throw new Error("Delete failed");
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      const message =
+        (data && typeof (data as any).error === "string" && (data as any).error) ||
+        `Delete failed (${res.status})`;
+      throw new Error(message);
+    }
 
-    await fetchCategories(); // ✅ refresh full tree
+    await fetchCategories(); // refresh full tree
   };
 
   return (
