@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     await fs.writeFile(filePath, buffer);
 
     // Return the API URL of the uploaded file for consistent serving
-    const fileUrl = `/api/upload/${filename}`;
+    const fileUrl = `/upload/${filename}`;
     
     return NextResponse.json({
       success: true,
