@@ -28,6 +28,11 @@ interface OrderItem {
     id: number;
     name: string;
   };
+  variant?: {
+    id: number;
+    sku?: string | null;
+    options?: Record<string, string> | null;
+  } | null;
 }
 
 interface Order {
@@ -336,6 +341,29 @@ const OrderManagement = () => {
     })}`;
   }, []);
 
+  const formatVariantLabel = useCallback((item?: OrderItem | null) => {
+    if (!item?.variant) return "";
+
+    const options =
+      item.variant.options && typeof item.variant.options === "object"
+        ? Object.entries(item.variant.options)
+            .filter(
+              ([key, value]) =>
+                key &&
+                value !== null &&
+                value !== undefined &&
+                String(value).trim(),
+            )
+            .map(([key, value]) => `${key}: ${String(value)}`)
+        : [];
+
+    if (options.length > 0) {
+      return options.join(", ");
+    }
+
+    return item.variant.sku || "";
+  }, []);
+
   // ------------------- DETAILS MODAL LOGIC -------------------
 
   // Memoize handler functions
@@ -589,7 +617,7 @@ const OrderManagement = () => {
         setShipment(savedShipment);
       }
 
-      // 3) Auto: shipment DELIVERED হলে order.status = DELIVERED করে দাও
+      // 3) Auto: if shipment DELIVERED, set order.status = DELIVERED
       if (editShipmentStatus === "DELIVERED" && editOrderStatus === "SHIPPED") {
         try {
           const autoRes = await fetch(`/api/orders/${orderDetail.id}`, {
@@ -621,11 +649,11 @@ const OrderManagement = () => {
         }
       }
 
-      // 4) Success modal দেখাও
-      setSuccessMessage("অর্ডার এবং শিপমেন্ট তথ্য সফলভাবে আপডেট হয়েছে ✅");
+      // 4) Show success modal
+      setSuccessMessage("Order and shipment information updated successfully ✅");
       setSuccessOpen(true);
     } catch (err: any) {
-      alert(err?.message || "আপডেট করতে সমস্যা হয়েছে");
+      alert(err?.message || "Problem updating information");
     } finally {
       setSaving(false);
     }
@@ -917,8 +945,15 @@ const OrderManagement = () => {
 
                     <div className="px-4 pb-3">
                       <p className="truncate text-xs text-muted-foreground">
-                        {(order.orderItems && order.orderItems[0]?.product?.name) ||
-                          "No product details"}
+                        {(() => {
+                          const firstItem = order.orderItems?.[0];
+                          if (!firstItem?.product?.name) return "No product details";
+
+                          const variantLabel = formatVariantLabel(firstItem);
+                          return variantLabel
+                            ? `${firstItem.product.name} - ${variantLabel}`
+                            : firstItem.product.name;
+                        })()}
                       </p>
                     </div>
 
@@ -1301,8 +1336,13 @@ const OrderManagement = () => {
                               {item.product?.name ||
                                 "Product Name Not Available"}
                             </p>
+                            {formatVariantLabel(item) && (
+                              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                Variant: {formatVariantLabel(item)}
+                              </p>
+                            )}
                             <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              Qty: {item.quantity} ×{" "}
+                              Qty: {item.quantity} x{" "}
                               {formatMoney(
                                 Number(item.price),
                                 orderDetail.currency || "BDT",

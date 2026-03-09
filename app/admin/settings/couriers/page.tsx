@@ -1,7 +1,6 @@
 "use client";
 
 import CourierFormModal from "@/components/Settings/CourierFormModal";
-import CourierETAModal from "@/components/Settings/CourierETAModal";
 import CourierSkeleton from "@/components/ui/CourierSkeleton";
 import { useEffect, useState } from "react";
 import { Courier, CourierType } from "@/lib/types/courier";

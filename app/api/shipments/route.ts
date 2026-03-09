@@ -178,6 +178,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    if (courier.type === "CUSTOM") {
+      const customShipment = await prisma.shipment.update({
+        where: { id: localShipment.id },
+        data: {
+          courierStatus: "LOCAL_CREATED",
+          lastSyncedAt: new Date(),
+        },
+        include: {
+          courierRef: { select: { id: true, name: true, type: true } },
+        },
+      });
+
+      return NextResponse.json(customShipment, { status: 201 });
+    }
+
     // 2) Hit courier API based on courier.type.
     try {
       const provider = getCourierProvider(courier);

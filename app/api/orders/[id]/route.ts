@@ -39,7 +39,16 @@ export async function GET(
       where: { id: orderId },
       include: {
         orderItems: {
-          include: { product: true },
+          include: {
+            product: true,
+            variant: {
+              select: {
+                id: true,
+                sku: true,
+                options: true,
+              },
+            },
+          },
         },
         user: true,
       },

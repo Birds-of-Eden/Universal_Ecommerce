@@ -79,6 +79,13 @@ export async function GET(request: NextRequest) {
           orderItems: {
             include: {
               product: true,
+              variant: {
+                select: {
+                  id: true,
+                  sku: true,
+                  options: true,
+                },
+              },
             },
           },
           user: true,

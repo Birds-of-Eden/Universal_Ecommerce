@@ -61,11 +61,6 @@ export default function CourierFormModal({ onClose, refresh, editingCourier }: C
       setLoading(false);
       return;
     }
-    if (!form.baseUrl.trim()) {
-      setError("Base URL is required");
-      setLoading(false);
-      return;
-    }
 
     try {
       const url = isEditing ? `/api/couriers/${editingCourier.id}` : "/api/couriers";
@@ -109,7 +104,7 @@ export default function CourierFormModal({ onClose, refresh, editingCourier }: C
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
           >
-            ×
+            x
           </button>
         </div>
 
@@ -145,20 +140,19 @@ export default function CourierFormModal({ onClose, refresh, editingCourier }: C
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              Base URL
+              Base URL (optional)
             </label>
             <input
-              placeholder="Base URL (e.g., https://api.pathao.com)"
+              placeholder="Base URL (optional)"
               className="input-theme border p-2 rounded w-full"
               value={form.baseUrl}
               onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
-              required
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2">
-              API Key
+              API Key (optional)
             </label>
             <input
               placeholder="API Key"

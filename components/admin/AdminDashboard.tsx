@@ -515,7 +515,7 @@ function DataBars({
             />
           </svg>
         </div>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {series.map((item) => (
             <div
               key={item.label}
@@ -769,9 +769,9 @@ function AdminDashboard({
   >("revenue");
 
   const formatCurrency = useCallback((amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-BD", {
       style: "currency",
-      currency: "USD",
+      currency: "BDT",
       maximumFractionDigits: 0,
     }).format(amount || 0);
   }, []);
