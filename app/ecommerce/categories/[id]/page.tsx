@@ -33,6 +33,8 @@ type Product = {
   sku?: string | null;
   type?: string | null;
   shortDesc?: string | null;
+  ratingAvg?: number | null;
+  ratingCount?: number | null;
 };
 
 // ---------- helpers ----------
@@ -301,6 +303,8 @@ export default function Page({ params }: PageProps) {
             sku: p?.sku ?? null,
             type: p?.type ?? null,
             shortDesc: p?.shortDesc ?? null,
+            ratingAvg: p?.ratingAvg ?? null,
+            ratingCount: p?.ratingCount ?? null,
           };
         });
 

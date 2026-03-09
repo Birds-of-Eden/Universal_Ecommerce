@@ -63,14 +63,35 @@ export async function GET(
         writer: true,
         publisher: true,
         variants: true,
+        _count: {
+          select: {
+            reviews: true,
+          },
+        },
       },
     });
+
+    // Calculate rating averages for each product
+    const productsWithRatings = await Promise.all(
+      products.map(async (product) => {
+        const ratingAggregation = await prisma.review.aggregate({
+          _avg: { rating: true },
+          where: { productId: product.id },
+        });
+
+        return {
+          ...product,
+          ratingAvg: ratingAggregation._avg.rating || 0,
+          ratingCount: product._count.reviews,
+        };
+      })
+    );
 
     return NextResponse.json({
       category,
       categoryIds,
-      total: products.length,
-      products,
+      total: productsWithRatings.length,
+      products: productsWithRatings,
     });
   } catch (error) {
     console.error(error);

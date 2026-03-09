@@ -4,7 +4,6 @@ import Link from "next/link";
 import ProductCard from "./ProductCard";
 import { Product } from "@/types/product";
 
-
 type RelatedProductsProps = {
   products: Product[];
   currentProductId: number | string;
@@ -174,6 +173,8 @@ export default function RelatedProducts({
                 shortDesc: product.shortDesc || undefined,
                 stock: calculateStock(product),
                 available: calculateStock(product) > 0,
+                ratingAvg: product.ratingAvg,
+                ratingCount: product.ratingCount,
               }}
               wishlisted={isInWishlist(product.id)}
               onWishlistClick={() => handleWishlist(product)}

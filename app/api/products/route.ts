@@ -42,10 +42,33 @@ export async function GET() {
         deleted: false,
       },
       orderBy: { id: "desc" },
-      include: productInclude,
+      include: {
+        ...productInclude,
+        _count: {
+          select: {
+            reviews: true,
+          },
+        },
+      },
     });
 
-    return NextResponse.json(products);
+    // Calculate rating averages for each product
+    const productsWithRatings = await Promise.all(
+      products.map(async (product) => {
+        const ratingAggregation = await prisma.review.aggregate({
+          _avg: { rating: true },
+          where: { productId: product.id },
+        });
+
+        return {
+          ...product,
+          ratingAvg: ratingAggregation._avg.rating || 0,
+          ratingCount: product._count.reviews,
+        };
+      })
+    );
+
+    return NextResponse.json(productsWithRatings);
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to load products" },

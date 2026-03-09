@@ -19,6 +19,8 @@ export type Product = {
   category?: { id: number; name: string } | null;
   brand?: { id: number; name: string } | null;
   variants?: Variant[];
+  ratingAvg?: number | null;
+  ratingCount?: number | null;
 };
 
 export type Variant = {

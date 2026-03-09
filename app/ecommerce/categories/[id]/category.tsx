@@ -28,6 +28,8 @@ interface CategoryPageProps {
     sku?: string | null;
     type?: string | null;
     shortDesc?: string | null;
+    ratingAvg?: number | null;
+    ratingCount?: number | null;
   }>;
 
   categoryCount: number | null;
@@ -442,15 +444,16 @@ export default function CategoryPage({
                                 100
                             )
                           : undefined,
-                        sku: product.sku,
-                        type: product.type,
-                        shortDesc: product.shortDesc,
+                        sku: product.sku || undefined,
+                        type: product.type || undefined,
+                        shortDesc: product.shortDesc || undefined,
+                        ratingAvg: product.ratingAvg,
+                        ratingCount: product.ratingCount,
                       }}
                       wishlisted={isInWishlist(product.id)}
                       onWishlistClick={() => toggleWishlist(product.id)}
                       onAddToCart={() => handleAddToCart(product)}
                       formatPrice={(amount) => formatMoney(amount, currencySymbol)}
-                      showMeta
                     />
                   );
                 })}

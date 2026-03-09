@@ -151,35 +151,10 @@ export default function VariantSelector({
     onChange(null);
   };
 
-  const helperText = useVariantCards
-    ? "Starting price is shown above. Pick a variant to see exact price, stock, and SKU."
-    : missingOptionLabels.length > 0
-      ? `Starting price is shown above. Choose ${missingOptionLabels.join(" and ")} to reveal the exact final price.`
-      : "Exact final price is now ready for the selected combination.";
-
   return (
-    <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold text-foreground">
-            Choose Your Variant
-          </div>
-          <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {helperText}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={resetSelection}
-          className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-primary/60 hover:text-primary"
-        >
-          Reset
-        </button>
-      </div>
-
+    <div className="space-y-4">
       {useVariantCards ? (
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {normalizedVariants.map((variant) => {
             const active = value?.id === variant.id;
             const inStock = variantInStock(variant);
@@ -193,33 +168,26 @@ export default function VariantSelector({
                   onChange(variant);
                 }}
                 className={cn(
-                  "rounded-2xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                  "rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                   active
-                    ? "border-primary bg-primary/5 shadow-sm shadow-primary/10"
+                    ? "border-primary bg-primary/5"
                     : "border-border bg-background hover:border-primary/50",
-                  !inStock && "opacity-70",
+                  !inStock && "opacity-50",
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">
-                      {variant.label}
-                    </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      SKU: {variant.sku ?? "—"}
-                    </div>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium text-foreground">
+                    {variant.label}
                   </div>
                   <span
                     className={cn(
-                      "rounded-full px-2 py-1 text-[11px] font-medium",
+                      "text-xs px-2 py-1 rounded-full",
                       inStock
-                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                        : "bg-destructive/10 text-destructive",
+                        ? "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+                        : "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400",
                     )}
                   >
-                    {inStock
-                      ? `${toStockNumber(variant.stock)} in stock`
-                      : "Out of stock"}
+                    {inStock ? "In Stock" : "Out of Stock"}
                   </span>
                 </div>
               </button>
@@ -227,20 +195,12 @@ export default function VariantSelector({
           })}
         </div>
       ) : (
-        <div className="mt-4 space-y-4">
+        <div className="space-y-4">
           {optionKeys.map((optionKey) => (
             <div key={optionKey}>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-foreground">
-                  {optionMeta.labelByKey.get(optionKey) ?? optionKey}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {selectedOptions[optionKey]
-                    ? `Selected: ${selectedOptions[optionKey]}`
-                    : "Select one"}
-                </div>
+              <div className="text-sm font-medium text-foreground mb-2">
+                {optionMeta.labelByKey.get(optionKey) ?? optionKey}
               </div>
-
               <div className="flex flex-wrap gap-2">
                 {(optionMeta.valuesByKey.get(optionKey) ?? []).map(
                   (optionValue) => {
@@ -265,14 +225,14 @@ export default function VariantSelector({
                         disabled={!matchesAny}
                         onClick={() => handleChipSelect(optionKey, optionValue)}
                         className={cn(
-                          "rounded-xl border px-3.5 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                          "rounded-md border px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                           active &&
-                            "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20",
+                            "border-primary bg-primary text-primary-foreground",
                           !active &&
                             matchesAny &&
-                            "border-border bg-background text-foreground hover:border-primary/60 hover:bg-primary/5",
+                            "border-border bg-background text-foreground hover:border-primary/60",
                           !matchesAny &&
-                            "cursor-not-allowed border-border/60 bg-muted/40 text-muted-foreground opacity-60 line-through",
+                            "cursor-not-allowed border-border/40 bg-muted/30 text-muted-foreground opacity-50",
                         )}
                       >
                         {optionValue}
