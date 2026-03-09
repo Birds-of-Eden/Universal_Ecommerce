@@ -410,8 +410,8 @@ export default function Sidebar({
       {/* Footer */}
       <div className="p-4 border-t border-border flex-shrink-0">
         <div className="text-center text-xs text-muted-foreground">
-          <p>BOED Publishing</p>
-          <p className="mt-1">v1.0.0</p>
+          <p>BOED Soft.</p>
+          <p className="mt-1">V1.1.0</p>
         </div>
       </div>
     </aside>

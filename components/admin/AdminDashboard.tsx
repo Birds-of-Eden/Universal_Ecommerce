@@ -1129,7 +1129,7 @@ function AdminDashboard({
             <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">
-                  Today�s operational alerts
+                  Todays operational alerts
                 </h3>
                 <BellRing className="h-4 w-4 text-muted-foreground" />
               </div>
@@ -1550,7 +1550,7 @@ function AdminDashboard({
                   items={stats.topProducts.map((product) => ({
                     id: product.id,
                     title: product.name,
-                    subtitle: `${formatNumber(product.soldCount)} sold � ${product.ratingAvg.toFixed(1)} rating`,
+                    subtitle: `${formatNumber(product.soldCount)} sold ${product.ratingAvg.toFixed(1)} rating`,
                     value: formatCurrency(product.price),
                   }))}
                   emptyLabel="No product performance data yet."
