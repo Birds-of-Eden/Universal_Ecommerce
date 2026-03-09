@@ -391,8 +391,8 @@ export default function CartPage() {
     0
   );
 
-  const shippingCost = subtotal > 500 ? 0 : 60;
-  const total = subtotal - discountAmount + shippingCost;
+  // const shippingCost = subtotal > 500 ? 0 : 60;
+  const total = subtotal - discountAmount;
   const isCartEmpty = itemsToRender.length === 0;
 
   const handleCheckout = async () => {
@@ -859,12 +859,12 @@ export default function CartPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-sm">
+                  {/* <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Shipping:</span>
                     <span className="font-semibold">
                       {shippingCost === 0 ? "Free" : `৳${shippingCost}`}
                     </span>
-                  </div>
+                  </div> */}
 
                   <div className="border-t border-border pt-4 flex items-center justify-between">
                     <span className="text-sm font-semibold">Total:</span>

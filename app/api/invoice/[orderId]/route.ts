@@ -8,13 +8,43 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // ---------- SITE INFO ----------
-const SITE_NAME = process.env.SITE_NAME || "ECOMMERCE";
-const SITE_WEBSITE = process.env.SITE_WEBSITE || "www.example.com";
-const SITE_EMAIL = process.env.SITE_EMAIL || "support@example.com";
-const SITE_PHONE = process.env.SITE_PHONE || "+880-XXXXXXXXXX";
-const SITE_ADDRESS =
-  process.env.SITE_ADDRESS ||
-  "Level 2, House 1A, Road 16/A, Gulshan-1, Dhaka 1212.";
+let SITE_NAME = "ECOMMERCE";
+let SITE_WEBSITE = "www.example.com";
+let SITE_EMAIL = "support@example.com";
+let SITE_PHONE = "+880-XXXXXXXXXX";
+let SITE_ADDRESS = "Level 2, House 1A, Road 16/A, Gulshan-1, Dhaka 1212.";
+
+// Fetch site settings from database
+async function getSiteSettings() {
+  try {
+    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/site`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    });
+    
+    if (response.ok) {
+      const settings = await response.json();
+      return {
+        SITE_NAME: settings.siteTitle || SITE_NAME,
+        SITE_WEBSITE: settings.siteTitle ? settings.siteTitle.toLowerCase().replace(/\s+/g, '') + '.com' : SITE_WEBSITE,
+        SITE_EMAIL: settings.contactEmail || SITE_EMAIL,
+        SITE_PHONE: settings.contactNumber || SITE_PHONE,
+        SITE_ADDRESS: settings.address || SITE_ADDRESS,
+      };
+    }
+  } catch (error) {
+    console.error('Failed to fetch site settings:', error);
+  }
+  
+  return {
+    SITE_NAME,
+    SITE_WEBSITE,
+    SITE_EMAIL,
+    SITE_PHONE,
+    SITE_ADDRESS,
+  };
+}
 
 // ---------- COLORS ----------
 const WHITE = rgb(1, 1, 1);
@@ -111,6 +141,14 @@ export async function GET(
     );
     const grand = Number(order.grand_total ?? order.total ?? subTotal);
     const delivery = Math.max(grand - subTotal, 0);
+
+    // ✅ Get site settings from database
+    const siteSettings = await getSiteSettings();
+    SITE_NAME = siteSettings.SITE_NAME;
+    SITE_WEBSITE = siteSettings.SITE_WEBSITE;
+    SITE_EMAIL = siteSettings.SITE_EMAIL;
+    SITE_PHONE = siteSettings.SITE_PHONE;
+    SITE_ADDRESS = siteSettings.SITE_ADDRESS;
 
     // ---------- PDF ----------
     const pdf = await PDFDocument.create();
