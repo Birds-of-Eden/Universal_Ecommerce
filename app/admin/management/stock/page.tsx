@@ -490,7 +490,7 @@ const StockManagementPage = memo(function StockManagementPage() {
                   Update quantity by selected variant.
                 </p>
               </div>
-              <div className="w-64">
+              <div className="flex gap-2 items-center justify-between">
                 <Label>Attribute</Label>
                 <select
                   className="w-full border rounded-md px-3 py-2 bg-background mb-2"

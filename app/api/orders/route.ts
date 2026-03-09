@@ -244,6 +244,10 @@ export async function POST(request: NextRequest) {
         throw new Error(`Inventory not configured for: ${product.name}`);
       }
 
+      if (!targetVariant.active) {
+        throw new Error(`Variant inactive for: ${product.name}`);
+      }
+
       if (item.variantId !== null && targetVariant.productId !== product.id) {
         throw new Error(`Variant mismatch for: ${product.name}`);
       }
@@ -343,6 +347,7 @@ export async function POST(request: NextRequest) {
         error.message.startsWith("Insufficient stock") ||
         error.message.startsWith("Inventory") ||
         error.message.startsWith("Variant") ||
+        error.message.startsWith("Variant inactive") ||
         error.message.startsWith("Stock changed") ||
         error.message.startsWith("Unable to allocate"))
     ) {

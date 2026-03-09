@@ -97,6 +97,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!targetVariant.active) {
+      return NextResponse.json(
+        { error: 'Selected variant is inactive' },
+        { status: 400 }
+      );
+    }
+
     if (targetVariant.productId !== productId) {
       return NextResponse.json(
         { error: 'Variant does not belong to the selected product' },

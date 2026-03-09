@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
+import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variants";
 import { NextResponse } from "next/server";
 import type { Prisma, ProductType } from "@prisma/client";
 import slugify from "slugify";
@@ -9,6 +10,14 @@ const productInclude = {
   brand: true,
   writer: true,
   publisher: true,
+  variantOptions: {
+    orderBy: { position: "asc" },
+    include: {
+      values: {
+        orderBy: { position: "asc" },
+      },
+    },
+  },
   variants: {
     orderBy: { id: "asc" },
   },
@@ -27,6 +36,7 @@ type VariantPayload = {
   currency: string;
   digitalAssetId: number | null;
   options: Record<string, unknown>;
+  active: boolean;
 };
 
 /* =========================
@@ -167,7 +177,9 @@ export async function PUT(
           )
       : null;
 
+    const nextVariantOptions = normalizeVariantOptions(body.variantOptions);
     const variantsInput = Array.isArray(body.variants) ? body.variants : null;
+    const orderedOptionNames = nextVariantOptions.map((option) => option.name);
     const nextVariants: VariantPayload[] | null =
       variantsInput?.map((item: any, index: number) => {
         const price =
@@ -191,9 +203,12 @@ export async function PUT(
           price,
           stock,
           currency,
+          active: item?.active !== undefined ? Boolean(item.active) : true,
           digitalAssetId: item?.digitalAssetId ? Number(item.digitalAssetId) : null,
           options:
-            item?.options && typeof item.options === "object" ? item.options : {},
+            item?.options && typeof item.options === "object"
+              ? sortOptionObject(item.options, orderedOptionNames)
+              : {},
         };
       }) ?? null;
 
@@ -303,6 +318,36 @@ export async function PUT(
         }
       }
 
+      await tx.productVariantOptionValue.deleteMany({
+        where: {
+          option: {
+            productId: id,
+          },
+        },
+      });
+      await tx.productVariantOption.deleteMany({
+        where: { productId: id },
+      });
+
+      if (nextVariantOptions.length > 0) {
+        for (let optionIndex = 0; optionIndex < nextVariantOptions.length; optionIndex += 1) {
+          const option = nextVariantOptions[optionIndex];
+          await tx.productVariantOption.create({
+            data: {
+              productId: id,
+              name: option.name,
+              position: optionIndex,
+              values: {
+                create: option.values.map((value, valueIndex) => ({
+                  value,
+                  position: valueIndex,
+                })),
+              },
+            },
+          });
+        }
+      }
+
       const existingVariants = await tx.productVariant.findMany({
         where: { productId: id },
         include: {
@@ -359,6 +404,7 @@ export async function PUT(
                   currency: variant.currency,
                   stock: 0,
                   isDefault: false,
+                  active: variant.active,
                   digitalAssetId: variant.digitalAssetId,
                   options: variant.options as Prisma.InputJsonValue,
                 },
@@ -371,6 +417,7 @@ export async function PUT(
                   currency: variant.currency,
                   stock: 0,
                   isDefault: false,
+                  active: variant.active,
                   digitalAssetId: variant.digitalAssetId,
                   options: variant.options as Prisma.InputJsonValue,
                 },
@@ -400,6 +447,7 @@ export async function PUT(
                 currency,
                 stock: 0,
                 isDefault: true,
+                active: true,
                 digitalAssetId:
                   body.digitalAssetId !== undefined
                     ? body.digitalAssetId
@@ -420,6 +468,7 @@ export async function PUT(
                 currency,
                 stock: 0,
                 isDefault: true,
+                active: true,
                 digitalAssetId: body.digitalAssetId ? Number(body.digitalAssetId) : null,
                 options: {},
               },

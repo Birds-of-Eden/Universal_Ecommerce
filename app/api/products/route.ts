@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
+import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variants";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
 
@@ -13,6 +14,14 @@ const productInclude = {
   brand: true,
   writer: true,
   publisher: true,
+  variantOptions: {
+    orderBy: { position: "asc" },
+    include: {
+      values: {
+        orderBy: { position: "asc" },
+      },
+    },
+  },
   variants: {
     orderBy: { id: "asc" },
   },
@@ -103,6 +112,7 @@ export async function POST(req: Request) {
     }
 
     const type = body.type || "PHYSICAL";
+    const variantOptions = normalizeVariantOptions(body.variantOptions);
     const productAttributesInput = Array.isArray(body.productAttributes)
       ? body.productAttributes
       : [];
@@ -117,6 +127,7 @@ export async function POST(req: Request) {
       );
 
     const variantsInput = Array.isArray(body.variants) ? body.variants : [];
+    const orderedOptionNames = variantOptions.map((option) => option.name);
     const parsedVariants = variantsInput
       .map((item: any, index: number) => {
         const price =
@@ -147,8 +158,11 @@ export async function POST(req: Request) {
           stock,
           currency: variantCurrency,
           isDefault: false,
+          active: item?.active !== undefined ? Boolean(item.active) : true,
           options:
-            item?.options && typeof item.options === "object" ? item.options : {},
+            item?.options && typeof item.options === "object"
+              ? sortOptionObject(item.options, orderedOptionNames)
+              : {},
           digitalAssetId: item?.digitalAssetId ? Number(item.digitalAssetId) : null,
         };
       })
@@ -228,6 +242,25 @@ export async function POST(req: Request) {
         });
       }
 
+      if (variantOptions.length > 0) {
+        for (let optionIndex = 0; optionIndex < variantOptions.length; optionIndex += 1) {
+          const option = variantOptions[optionIndex];
+          await tx.productVariantOption.create({
+            data: {
+              productId: created.id,
+              name: option.name,
+              position: optionIndex,
+              values: {
+                create: option.values.map((value, valueIndex) => ({
+                  value,
+                  position: valueIndex,
+                })),
+              },
+            },
+          });
+        }
+      }
+
       if (parsedVariants.length > 0) {
         for (const variant of parsedVariants) {
           const createdVariant = await tx.productVariant.create({
@@ -238,6 +271,7 @@ export async function POST(req: Request) {
               currency: variant.currency,
               stock: 0,
               isDefault: false,
+              active: variant.active,
               digitalAssetId: variant.digitalAssetId,
               options: variant.options,
             },
@@ -260,6 +294,7 @@ export async function POST(req: Request) {
             currency,
             stock: 0,
             isDefault: true,
+            active: true,
             options: {},
           },
         });
