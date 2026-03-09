@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { refreshVariantStock } from "@/lib/inventory";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -34,21 +35,7 @@ export async function DELETE(
 
     await prisma.stockLevel.delete({ where: { id } });
 
-    const levels = await prisma.stockLevel.findMany({
-      where: { productVariantId: existing.productVariantId },
-      select: { quantity: true, reserved: true },
-    });
-    const availableSum = Math.max(
-      0,
-      levels.reduce(
-        (acc, l) => acc + (Number(l.quantity) - Number(l.reserved)),
-        0,
-      ),
-    );
-    await prisma.productVariant.update({
-      where: { id: existing.productVariantId },
-      data: { stock: availableSum },
-    });
+    await refreshVariantStock(prisma, existing.productVariantId);
 
     const change = -Number(existing.quantity);
     if (change !== 0 && existing.variant.product.type === "PHYSICAL") {
@@ -72,4 +59,3 @@ export async function DELETE(
     );
   }
 }
-

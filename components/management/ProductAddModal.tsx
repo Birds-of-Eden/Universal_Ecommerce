@@ -51,6 +51,7 @@ interface Attribute {
 }
 
 interface ProductAttributeEntry {
+  variantId?: string;
   attributeId: string;
   value: string;
   stock: string;
@@ -147,6 +148,7 @@ export default function ProductAddModal({
   digitalAssets = [],
 }: Props) {
   const emptyAttributeEntry = (): ProductAttributeEntry => ({
+    variantId: "",
     attributeId: "",
     value: "",
     stock: "0",
@@ -232,6 +234,7 @@ export default function ProductAddModal({
         });
 
         return {
+          variantId: variantForAttr?.id ? String(variantForAttr.id) : "",
           attributeId: item?.attributeId ? String(item.attributeId) : "",
           value: item?.value ? String(item.value) : "",
           stock: variantForAttr ? String(Number(variantForAttr.stock) || 0) : "0",
@@ -390,6 +393,7 @@ export default function ProductAddModal({
 
     const normalizedEntries = attributeEntries
       .map((entry) => ({
+        id: entry.variantId ? Number(entry.variantId) : undefined,
         attributeId: Number(entry.attributeId),
         value: entry.value.trim(),
         stock: entry.stock.trim() ? Number(entry.stock) : 0,
@@ -473,11 +477,12 @@ export default function ProductAddModal({
         })),
       };
       if (stock !== undefined) payload.stock = stock;
-      if (!editing && normalizedEntries.length > 0) {
+      if (normalizedEntries.length > 0) {
         payload.variants = normalizedEntries.map((entry) => {
           const attribute = attributes.find((item) => item.id === entry.attributeId);
           const optionKey = attribute?.name || `Attr-${entry.attributeId}`;
           return {
+            id: entry.id,
             sku: entry.sku || "",
             price: entry.price,
             currency: form.currency || "USD",

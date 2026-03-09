@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { NextResponse } from "next/server";
+import type { Prisma, ProductType } from "@prisma/client";
 import slugify from "slugify";
 
 const productInclude = {
@@ -7,13 +9,25 @@ const productInclude = {
   brand: true,
   writer: true,
   publisher: true,
-  variants: true,
+  variants: {
+    orderBy: { id: "asc" },
+  },
   attributes: {
     include: {
       attribute: true,
     },
   },
 } as const;
+
+type VariantPayload = {
+  id: number | null;
+  sku: string;
+  price: number;
+  stock: number;
+  currency: string;
+  digitalAssetId: number | null;
+  options: Record<string, unknown>;
+};
 
 /* =========================
    GET SINGLE PRODUCT
@@ -108,108 +122,7 @@ export async function PUT(
       }
     }
 
-    const updated = await prisma.product.update({
-      where: { id },
-      data: {
-        name: body.name ?? existing.name,
-        slug,
-
-        type: body.type ?? existing.type,
-        sku: body.sku ?? existing.sku,
-
-        categoryId: body.categoryId
-          ? Number(body.categoryId)
-          : existing.categoryId,
-
-        brandId:
-          body.brandId !== undefined
-            ? body.brandId
-              ? Number(body.brandId)
-              : null
-            : existing.brandId,
-
-        writerId:
-          body.writerId !== undefined
-            ? body.writerId
-              ? Number(body.writerId)
-              : null
-            : existing.writerId,
-
-        publisherId:
-          body.publisherId !== undefined
-            ? body.publisherId
-              ? Number(body.publisherId)
-              : null
-            : existing.publisherId,
-
-        description: body.description ?? existing.description,
-        shortDesc: body.shortDesc ?? existing.shortDesc,
-
-        basePrice: body.basePrice
-          ? Number(body.basePrice)
-          : existing.basePrice,
-
-        originalPrice:
-          body.originalPrice !== undefined
-            ? body.originalPrice
-              ? Number(body.originalPrice)
-              : null
-            : existing.originalPrice,
-
-        currency: body.currency ?? existing.currency,
-
-        weight:
-          body.weight !== undefined
-            ? body.weight
-              ? Number(body.weight)
-              : null
-            : existing.weight,
-
-        dimensions: body.dimensions ?? existing.dimensions,
-        VatClassId:
-          body.VatClassId !== undefined
-            ? body.VatClassId
-              ? Number(body.VatClassId)
-              : null
-            : existing.VatClassId,
-
-        digitalAssetId:
-          body.digitalAssetId !== undefined
-            ? body.digitalAssetId
-              ? Number(body.digitalAssetId)
-              : null
-            : existing.digitalAssetId,
-
-        serviceDurationMinutes:
-          body.serviceDurationMinutes !== undefined
-            ? body.serviceDurationMinutes
-              ? Number(body.serviceDurationMinutes)
-              : null
-            : existing.serviceDurationMinutes,
-
-        serviceLocation:
-          body.serviceLocation ?? existing.serviceLocation,
-
-        serviceOnlineLink:
-          body.serviceOnlineLink ?? existing.serviceOnlineLink,
-
-        available:
-          body.available !== undefined
-            ? body.available
-            : existing.available,
-
-        featured:
-          body.featured !== undefined
-            ? body.featured
-            : existing.featured,
-
-        image: body.image ?? existing.image,
-        gallery: body.gallery ?? existing.gallery,
-        videoUrl: body.videoUrl ?? existing.videoUrl,
-      },
-    });
-
-    const effectiveType = (body.type ?? existing.type) as string;
+    const effectiveType = (body.type ?? existing.type) as ProductType;
     if (body.stock !== undefined && effectiveType !== "PHYSICAL") {
       return NextResponse.json(
         { error: "Stock is only available for PHYSICAL products" },
@@ -217,81 +130,341 @@ export async function PUT(
       );
     }
 
-    if (body.stock !== undefined && effectiveType === "PHYSICAL") {
-      const newStock = Number(body.stock);
-      if (!Number.isFinite(newStock) || newStock < 0) {
-        return NextResponse.json(
-          { error: "Stock must be a number (0 or more)" },
-          { status: 400 }
-        );
-      }
-
-      const variant = await prisma.productVariant.findFirst({
-        where: { productId: id },
-        orderBy: { id: "asc" },
-      });
-
-      if (variant) {
-        const change = newStock - Number(variant.stock);
-        await prisma.productVariant.update({
-          where: { id: variant.id },
-          data: { stock: newStock },
-        });
-
-        if (change !== 0) {
-          await prisma.inventoryLog.create({
-            data: {
-              productId: id,
-              variantId: variant.id,
-              change,
-              reason: "Admin stock adjustment",
-            },
-          });
-        }
-      }
+    const currency = String(body.currency ?? existing.currency ?? "USD")
+      .trim()
+      .toUpperCase()
+      .slice(0, 3);
+    const nextBasePrice =
+      body.basePrice !== undefined ? Number(body.basePrice) : Number(existing.basePrice);
+    if (!Number.isFinite(nextBasePrice) || nextBasePrice < 0) {
+      return NextResponse.json(
+        { error: "Base price must be a number (0 or more)" },
+        { status: 400 },
+      );
     }
 
-    if (body.productAttributes !== undefined) {
-      const entries = Array.isArray(body.productAttributes)
-        ? body.productAttributes
-            .map((item: any) => ({
-              attributeId: Number(item?.attributeId),
-              value: String(item?.value || "").trim(),
-            }))
-            .filter(
-              (item: { attributeId: number; value: string }) =>
-                item.attributeId && !Number.isNaN(item.attributeId) && item.value
-            )
-        : [];
+    const nextSimpleStock =
+      body.stock !== undefined && body.stock !== null ? Number(body.stock) : null;
+    if (
+      nextSimpleStock !== null &&
+      (!Number.isFinite(nextSimpleStock) || nextSimpleStock < 0)
+    ) {
+      return NextResponse.json(
+        { error: "Stock must be a number (0 or more)" },
+        { status: 400 },
+      );
+    }
 
-      await prisma.$transaction(async (tx) => {
-        await tx.productAttribute.deleteMany({
-          where: { productId: id },
-        });
+    const nextAttributes = Array.isArray(body.productAttributes)
+      ? body.productAttributes
+          .map((item: any) => ({
+            attributeId: Number(item?.attributeId),
+            value: String(item?.value || "").trim(),
+          }))
+          .filter(
+            (item: { attributeId: number; value: string }) =>
+              item.attributeId && !Number.isNaN(item.attributeId) && item.value,
+          )
+      : null;
 
-        if (entries.length > 0) {
+    const variantsInput = Array.isArray(body.variants) ? body.variants : null;
+    const nextVariants: VariantPayload[] | null =
+      variantsInput?.map((item: any, index: number) => {
+        const price =
+          item?.price !== undefined && item?.price !== null
+            ? Number(item.price)
+            : nextBasePrice;
+        const stock =
+          effectiveType === "PHYSICAL"
+            ? item?.stock !== undefined && item?.stock !== null
+              ? Number(item.stock)
+              : 0
+            : 0;
+        const skuRaw =
+          typeof item?.sku === "string" && item.sku.trim()
+            ? item.sku.trim().toUpperCase()
+            : `${slug.substring(0, 20)}-V${index + 1}`.slice(0, 64);
+
+        return {
+          id: item?.id ? Number(item.id) : null,
+          sku: skuRaw.slice(0, 64),
+          price,
+          stock,
+          currency,
+          digitalAssetId: item?.digitalAssetId ? Number(item.digitalAssetId) : null,
+          options:
+            item?.options && typeof item.options === "object" ? item.options : {},
+        };
+      }) ?? null;
+
+    if (
+      nextVariants?.some(
+        (variant) =>
+          !Number.isFinite(variant.price) ||
+          variant.price < 0 ||
+          !Number.isFinite(variant.stock) ||
+          variant.stock < 0,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Variant price/stock must be valid numbers" },
+        { status: 400 },
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id },
+        data: {
+          name: body.name ?? existing.name,
+          slug,
+          type: effectiveType,
+          sku:
+            body.sku !== undefined
+              ? body.sku
+                ? String(body.sku).trim().toUpperCase().slice(0, 64)
+                : null
+              : existing.sku,
+          categoryId: body.categoryId ? Number(body.categoryId) : existing.categoryId,
+          brandId:
+            body.brandId !== undefined
+              ? body.brandId
+                ? Number(body.brandId)
+                : null
+              : existing.brandId,
+          writerId:
+            body.writerId !== undefined
+              ? body.writerId
+                ? Number(body.writerId)
+                : null
+              : existing.writerId,
+          publisherId:
+            body.publisherId !== undefined
+              ? body.publisherId
+                ? Number(body.publisherId)
+                : null
+              : existing.publisherId,
+          description: body.description ?? existing.description,
+          shortDesc: body.shortDesc ?? existing.shortDesc,
+          basePrice: nextBasePrice,
+          originalPrice:
+            body.originalPrice !== undefined
+              ? body.originalPrice
+                ? Number(body.originalPrice)
+                : null
+              : existing.originalPrice,
+          currency,
+          weight:
+            body.weight !== undefined
+              ? body.weight
+                ? Number(body.weight)
+                : null
+              : existing.weight,
+          dimensions: body.dimensions ?? existing.dimensions,
+          VatClassId:
+            body.VatClassId !== undefined
+              ? body.VatClassId
+                ? Number(body.VatClassId)
+                : null
+              : existing.VatClassId,
+          digitalAssetId:
+            body.digitalAssetId !== undefined
+              ? body.digitalAssetId
+                ? Number(body.digitalAssetId)
+                : null
+              : existing.digitalAssetId,
+          serviceDurationMinutes:
+            body.serviceDurationMinutes !== undefined
+              ? body.serviceDurationMinutes
+                ? Number(body.serviceDurationMinutes)
+                : null
+              : existing.serviceDurationMinutes,
+          serviceLocation: body.serviceLocation ?? existing.serviceLocation,
+          serviceOnlineLink: body.serviceOnlineLink ?? existing.serviceOnlineLink,
+          available:
+            body.available !== undefined ? body.available : existing.available,
+          featured: body.featured !== undefined ? body.featured : existing.featured,
+          image: body.image ?? existing.image,
+          gallery: body.gallery ?? existing.gallery,
+          videoUrl: body.videoUrl ?? existing.videoUrl,
+        },
+      });
+
+      if (nextAttributes !== null) {
+        await tx.productAttribute.deleteMany({ where: { productId: id } });
+        if (nextAttributes.length > 0) {
           await tx.productAttribute.createMany({
-            data: entries.map((item: { attributeId: number; value: string }) => ({
+            data: nextAttributes.map((item: (typeof nextAttributes)[number]) => ({
               productId: id,
               attributeId: item.attributeId,
               value: item.value,
             })),
           });
         }
+      }
+
+      const existingVariants = await tx.productVariant.findMany({
+        where: { productId: id },
+        include: {
+          stockLevels: {
+            select: { id: true, quantity: true, reserved: true },
+          },
+          orderItems: {
+            select: { id: true },
+            take: 1,
+          },
+        },
+        orderBy: { id: "asc" },
       });
-    }
+
+      if (nextVariants && nextVariants.length > 0) {
+        const incomingIds = new Set(
+          nextVariants
+            .map((variant) => variant.id)
+            .filter((variantId): variantId is number => !!variantId),
+        );
+
+        for (const staleVariant of existingVariants.filter(
+          (variant) => !incomingIds.has(variant.id),
+        )) {
+          const hasInventory = staleVariant.stockLevels.some(
+            (level) => Number(level.quantity) > 0 || Number(level.reserved) > 0,
+          );
+          const hasOrders = staleVariant.orderItems.length > 0;
+
+          if (hasInventory || hasOrders) {
+            throw new Error(
+              `Cannot remove variant ${staleVariant.sku} because it already has stock or order history`,
+            );
+          }
+
+          await tx.productVariant.delete({ where: { id: staleVariant.id } });
+        }
+
+        for (let index = 0; index < nextVariants.length; index += 1) {
+          const variant = nextVariants[index];
+          const existingVariant =
+            variant.id != null
+              ? existingVariants.find(
+                  (item: (typeof existingVariants)[number]) => item.id === variant.id,
+                )
+              : null;
+
+          const savedVariant = existingVariant
+            ? await tx.productVariant.update({
+                where: { id: existingVariant.id },
+                data: {
+                  sku: variant.sku,
+                  price: variant.price,
+                  currency: variant.currency,
+                  stock: 0,
+                  isDefault: false,
+                  digitalAssetId: variant.digitalAssetId,
+                  options: variant.options as Prisma.InputJsonValue,
+                },
+              })
+            : await tx.productVariant.create({
+                data: {
+                  productId: id,
+                  sku: variant.sku,
+                  price: variant.price,
+                  currency: variant.currency,
+                  stock: 0,
+                  isDefault: false,
+                  digitalAssetId: variant.digitalAssetId,
+                  options: variant.options as Prisma.InputJsonValue,
+                },
+              });
+
+          await syncVariantWarehouseStock({
+            tx,
+            productId: id,
+            productVariantId: savedVariant.id,
+            quantity: effectiveType === "PHYSICAL" ? variant.stock : 0,
+            reason: "Admin variant stock sync",
+          });
+        }
+      } else if (effectiveType === "PHYSICAL" || effectiveType === "DIGITAL" || effectiveType === "SERVICE") {
+        const defaultVariant =
+          existingVariants.find((variant) => variant.isDefault) ?? existingVariants[0];
+
+        const savedVariant = defaultVariant
+          ? await tx.productVariant.update({
+              where: { id: defaultVariant.id },
+              data: {
+                sku:
+                  body.sku && String(body.sku).trim()
+                    ? String(body.sku).trim().toUpperCase().slice(0, 64)
+                    : defaultVariant.sku,
+                price: nextBasePrice,
+                currency,
+                stock: 0,
+                isDefault: true,
+                digitalAssetId:
+                  body.digitalAssetId !== undefined
+                    ? body.digitalAssetId
+                      ? Number(body.digitalAssetId)
+                      : null
+                    : defaultVariant.digitalAssetId,
+                options: {},
+              },
+            })
+          : await tx.productVariant.create({
+              data: {
+                productId: id,
+                sku:
+                  body.sku && String(body.sku).trim()
+                    ? String(body.sku).trim().toUpperCase().slice(0, 64)
+                    : `${slug.substring(0, 20)}-V1`.toUpperCase(),
+                price: nextBasePrice,
+                currency,
+                stock: 0,
+                isDefault: true,
+                digitalAssetId: body.digitalAssetId ? Number(body.digitalAssetId) : null,
+                options: {},
+              },
+            });
+
+        await tx.productVariant.updateMany({
+          where: {
+            productId: id,
+            NOT: { id: savedVariant.id },
+          },
+          data: { isDefault: false },
+        });
+
+        if (effectiveType === "PHYSICAL") {
+          await syncVariantWarehouseStock({
+            tx,
+            productId: id,
+            productVariantId: savedVariant.id,
+            quantity: nextSimpleStock ?? 0,
+            reason: "Admin stock sync",
+          });
+        }
+      }
+    });
 
     const withRelations = await prisma.product.findFirst({
       where: { id, deleted: false },
       include: productInclude,
     });
 
-    return NextResponse.json(withRelations ?? updated);
+    return NextResponse.json(withRelations);
   } catch (err) {
     console.error(err);
+    const message =
+      err instanceof Error ? err.message : "Failed to update product";
+    const status =
+      typeof message === "string" &&
+      (message.startsWith("Cannot remove variant") ||
+        message.startsWith("A warehouse is required") ||
+        message.startsWith("Stock quantity"))
+        ? 400
+        : 500;
     return NextResponse.json(
-      { error: "Failed to update product" },
-      { status: 500 }
+      { error: message },
+      { status }
     );
   }
 }

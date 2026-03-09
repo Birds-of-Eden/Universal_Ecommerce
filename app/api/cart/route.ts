@@ -18,7 +18,14 @@ export async function GET() {
     const items = await prisma.cartItem.findMany({
       where: { userId },
       include: {
-        product: true,
+        product: {
+          include: {
+            variants: {
+              orderBy: { id: 'asc' },
+            },
+          },
+        },
+        variant: true,
       },
       orderBy: { id: 'asc' },
     });
@@ -34,7 +41,7 @@ export async function GET() {
 }
 
 // ADD to cart - Logged in user only
-// Body: { productId: number, quantity?: number }
+// Body: { productId: number, variantId?: number, quantity?: number }
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -47,6 +54,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const productId = Number(body.productId);
+    const variantId =
+      body.variantId !== undefined && body.variantId !== null
+        ? Number(body.variantId)
+        : null;
     const quantity = Number(body.quantity ?? 1);
 
     if (!productId || Number.isNaN(productId) || quantity <= 0) {
@@ -58,12 +69,45 @@ export async function POST(request: NextRequest) {
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
+      include: {
+        variants: {
+          orderBy: { isDefault: 'desc' },
+        },
+      },
     });
 
-    if (!product || !product.available || product.stock <= 0) {
+    if (!product || !product.available) {
       return NextResponse.json(
         { error: 'Product not available' },
         { status: 404 }
+      );
+    }
+
+    const targetVariant =
+      variantId !== null
+        ? product.variants.find((variant) => variant.id === variantId) ?? null
+        : product.variants.find((variant) => variant.isDefault) ??
+          product.variants[0] ??
+          null;
+
+    if (!targetVariant) {
+      return NextResponse.json(
+        { error: 'Product inventory is not configured' },
+        { status: 400 }
+      );
+    }
+
+    if (targetVariant.productId !== productId) {
+      return NextResponse.json(
+        { error: 'Variant does not belong to the selected product' },
+        { status: 400 }
+      );
+    }
+
+    if (product.type === 'PHYSICAL' && Number(targetVariant.stock) < quantity) {
+      return NextResponse.json(
+        { error: 'Requested quantity exceeds available stock' },
+        { status: 400 }
       );
     }
 
@@ -71,16 +115,25 @@ export async function POST(request: NextRequest) {
       where: {
         userId,
         productId,
+        variantId: targetVariant.id,
       },
     });
 
     let cartItem;
 
     if (existing) {
+      const nextQuantity = existing.quantity + quantity;
+      if (product.type === 'PHYSICAL' && Number(targetVariant.stock) < nextQuantity) {
+        return NextResponse.json(
+          { error: 'Requested quantity exceeds available stock' },
+          { status: 400 }
+        );
+      }
+
       cartItem = await prisma.cartItem.update({
         where: { id: existing.id },
         data: {
-          quantity: existing.quantity + quantity,
+          quantity: nextQuantity,
         },
       });
     } else {
@@ -88,6 +141,7 @@ export async function POST(request: NextRequest) {
         data: {
           userId,
           productId,
+          variantId: targetVariant.id,
           quantity,
         },
       });

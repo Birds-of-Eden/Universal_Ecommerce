@@ -5,6 +5,7 @@ import { useCart } from "@/components/ecommarce/CartContext";
 
 export default function AddToCartButton({
   productId,
+  variantId,
   quantity = 1,
   className = "",
   children = "Add to Cart",
@@ -12,6 +13,7 @@ export default function AddToCartButton({
   disabledText = "Out of Stock",
 }: {
   productId: string | number;
+  variantId?: string | number | null;
   quantity?: number;
   className?: string;
   children?: React.ReactNode;
@@ -32,7 +34,7 @@ export default function AddToCartButton({
       setLoading(true);
 
       // ✅ Your existing CartContext function (localStorage cart)
-      addToCart(productId, quantity);
+      addToCart(productId, quantity, variantId);
     } catch (e) {
       console.error(e);
       alert("Failed to add to cart");

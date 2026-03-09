@@ -26,10 +26,12 @@ import { useSession, signIn } from "@/lib/auth-client";
 interface LocalCartItem {
   id: number | string; // server cart item id
   productId: number;
+  variantId?: number | null;
   name: string;
   price: number;
   image: string;
   quantity: number;
+  variantLabel?: string | null;
 }
 
 // ✅ Simple skeleton block component
@@ -187,10 +189,12 @@ export default function CartPage() {
     return serverCartItems.map((i) => ({
       id: i.id,
       productId: i.productId,
+      variantId: i.variantId ?? null,
       name: i.name,
       price: i.price,
       quantity: i.quantity,
       image: i.image || "/placeholder.svg",
+      variantLabel: i.variantLabel ?? null,
     }));
   }, [serverCartItems]);
 
@@ -225,10 +229,17 @@ export default function CartPage() {
       const mapped: LocalCartItem[] = items.map((item: any) => ({
         id: item.id,
         productId: item.productId,
+        variantId: item.variantId ?? item.variant?.id ?? null,
         name: item.product?.name ?? "Unknown Product",
-        price: Number(item.product?.basePrice ?? 0),
+        price: Number(item.variant?.price ?? item.product?.basePrice ?? 0),
         image: item.product?.image ?? "/placeholder.svg",
         quantity: Number(item.quantity ?? 1),
+        variantLabel:
+          item.variant?.options && typeof item.variant.options === "object"
+            ? Object.entries(item.variant.options)
+                .map(([key, value]) => `${key}: ${String(value)}`)
+                .join(", ")
+            : item.variant?.sku ?? null,
       }));
 
       setServerCartItems(mapped);
@@ -270,7 +281,8 @@ export default function CartPage() {
         (localItem) =>
           !existingItems.some(
             (serverItem: any) =>
-              String(serverItem.productId) === String(localItem.productId)
+              String(serverItem.productId) === String(localItem.productId) &&
+              String(serverItem.variantId ?? "") === String(localItem.variantId ?? "")
           )
       );
 
@@ -281,6 +293,7 @@ export default function CartPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             productId: item.productId,
+            variantId: item.variantId ?? null,
             quantity: item.quantity,
           }),
         });

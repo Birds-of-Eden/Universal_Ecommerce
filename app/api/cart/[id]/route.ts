@@ -34,6 +34,10 @@ export async function PATCH(
 
     const cartItem = await prisma.cartItem.findUnique({
       where: { id: cartItemId },
+      include: {
+        variant: true,
+        product: true,
+      },
     });
 
     if (!cartItem || cartItem.userId !== userId) {
@@ -48,6 +52,16 @@ export async function PATCH(
         where: { id: cartItemId },
       });
       return NextResponse.json({ message: 'Cart item removed' });
+    }
+
+    if (
+      cartItem.product.type === 'PHYSICAL' &&
+      Number(cartItem.variant?.stock ?? 0) < quantity
+    ) {
+      return NextResponse.json(
+        { error: 'Requested quantity exceeds available stock' },
+        { status: 400 }
+      );
     }
 
     const updated = await prisma.cartItem.update({

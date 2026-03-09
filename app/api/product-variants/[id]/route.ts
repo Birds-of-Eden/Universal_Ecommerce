@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -56,36 +57,36 @@ export async function PUT(
     }
 
     const stock = existing.product.type === "PHYSICAL" ? newStock : 0;
-    const change = stock - Number(existing.stock);
 
-    const updated = await prisma.productVariant.update({
-      where: { id },
-      data: {
-        sku,
-        price,
-        currency,
-        stock,
-        digitalAssetId:
-          body.digitalAssetId !== undefined
-            ? body.digitalAssetId
-              ? Number(body.digitalAssetId)
-              : null
-            : existing.digitalAssetId,
-        options:
-          body.options !== undefined ? body.options ?? {} : existing.options,
-      },
-    });
-
-    if (change !== 0) {
-      await prisma.inventoryLog.create({
+    const updated = await prisma.$transaction(async (tx) => {
+      const saved = await tx.productVariant.update({
+        where: { id },
         data: {
-          productId: existing.product.id,
-          variantId: id,
-          change,
-          reason: "Admin variant stock adjustment",
+          sku,
+          price,
+          currency,
+          stock: 0,
+          digitalAssetId:
+            body.digitalAssetId !== undefined
+              ? body.digitalAssetId
+                ? Number(body.digitalAssetId)
+                : null
+              : existing.digitalAssetId,
+          options:
+            body.options !== undefined ? body.options ?? {} : existing.options,
         },
       });
-    }
+
+      await syncVariantWarehouseStock({
+        tx,
+        productId: existing.product.id,
+        productVariantId: id,
+        quantity: stock,
+        reason: "Admin variant stock adjustment",
+      });
+
+      return tx.productVariant.findUnique({ where: { id: saved.id } });
+    });
 
     return NextResponse.json(updated);
   } catch (error: any) {
@@ -129,4 +130,3 @@ export async function DELETE(
     );
   }
 }
-

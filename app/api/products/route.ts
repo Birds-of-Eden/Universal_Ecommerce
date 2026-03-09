@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
 
@@ -12,7 +13,9 @@ const productInclude = {
   brand: true,
   writer: true,
   publisher: true,
-  variants: true,
+  variants: {
+    orderBy: { id: "asc" },
+  },
   attributes: {
     include: {
       attribute: true,
@@ -143,6 +146,7 @@ export async function POST(req: Request) {
           price,
           stock,
           currency: variantCurrency,
+          isDefault: false,
           options:
             item?.options && typeof item.options === "object" ? item.options : {},
           digitalAssetId: item?.digitalAssetId ? Number(item.digitalAssetId) : null,
@@ -232,22 +236,20 @@ export async function POST(req: Request) {
               sku: variant.sku,
               price: variant.price,
               currency: variant.currency,
-              stock: variant.stock,
+              stock: 0,
+              isDefault: false,
               digitalAssetId: variant.digitalAssetId,
               options: variant.options,
             },
           });
 
-          if (variant.stock !== 0) {
-            await tx.inventoryLog.create({
-              data: {
-                productId: created.id,
-                variantId: createdVariant.id,
-                change: variant.stock,
-                reason: "Admin variant initial stock",
-              },
-            });
-          }
+          await syncVariantWarehouseStock({
+            tx,
+            productId: created.id,
+            productVariantId: createdVariant.id,
+            quantity: variant.stock,
+            reason: "Admin variant initial stock",
+          });
         }
       } else {
         const fallbackVariant = await tx.productVariant.create({
@@ -256,19 +258,19 @@ export async function POST(req: Request) {
             sku: createVariantSku(truncatedSlug, 0).slice(0, 64),
             price: basePrice,
             currency,
-            stock: type === "PHYSICAL" ? initialStock : 0,
+            stock: 0,
+            isDefault: true,
             options: {},
           },
         });
 
-        if (type === "PHYSICAL" && initialStock !== 0) {
-          await tx.inventoryLog.create({
-            data: {
-              productId: created.id,
-              variantId: fallbackVariant.id,
-              change: initialStock,
-              reason: "Admin variant initial stock",
-            },
+        if (type === "PHYSICAL") {
+          await syncVariantWarehouseStock({
+            tx,
+            productId: created.id,
+            productVariantId: fallbackVariant.id,
+            quantity: initialStock,
+            reason: "Admin variant initial stock",
           });
         }
       }

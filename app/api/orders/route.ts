@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { deductVariantInventory } from "@/lib/inventory";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { calculateShippingQuote } from "@/lib/shipping";
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
 //   name, email, phone_number, alt_phone_number,
 //   country, district, area, address_details,
 //   payment_method,
-//   items: [{ productId: number, quantity: number }],
+//   items: [{ productId: number, variantId?: number, quantity: number }],
 //   transactionId?: string,
 //   image?: string  // payment screenshot url
 // }
@@ -181,11 +182,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const productIds = items.map((i: any) => Number(i.productId));
+    const normalizedItems = items.map((item: any) => ({
+      productId: Number(item.productId),
+      variantId:
+        item.variantId !== undefined && item.variantId !== null
+          ? Number(item.variantId)
+          : null,
+      quantity: Number(item.quantity),
+    }));
+
+    const productIds = normalizedItems.map((i) => i.productId);
 
     const products = await prisma.product.findMany({
       where: {
         id: { in: productIds },
+      },
+      include: {
+        variants: {
+          include: {
+            stockLevels: {
+              include: {
+                warehouse: {
+                  select: { id: true, code: true, isDefault: true },
+                },
+              },
+            },
+          },
+          orderBy: [{ isDefault: "desc" }, { id: "asc" }],
+        },
       },
     });
 
@@ -199,7 +223,7 @@ export async function POST(request: NextRequest) {
     // calculate subtotal and check availability
     let subtotal = 0;
 
-    const orderItemsData = items.map((item: any) => {
+    const orderItemsData = normalizedItems.map((item) => {
       const product = products.find((p: any) => p.id === item.productId);
       if (!product) {
         throw new Error(`Product not found: ${item.productId}`);
@@ -209,15 +233,38 @@ export async function POST(request: NextRequest) {
         throw new Error(`Product not available: ${product.name}`);
       }
 
-      const priceNumber = Number(product.basePrice);
+      const targetVariant =
+        item.variantId !== null
+          ? product.variants.find((variant) => variant.id === item.variantId) ?? null
+          : product.variants.find((variant) => variant.isDefault) ??
+            product.variants[0] ??
+            null;
+
+      if (!targetVariant) {
+        throw new Error(`Inventory not configured for: ${product.name}`);
+      }
+
+      if (item.variantId !== null && targetVariant.productId !== product.id) {
+        throw new Error(`Variant mismatch for: ${product.name}`);
+      }
+
+      if (product.type === "PHYSICAL" && Number(targetVariant.stock) < item.quantity) {
+        throw new Error(`Insufficient stock for: ${product.name}`);
+      }
+
+      const priceNumber = Number(targetVariant.price ?? product.basePrice);
       const lineTotal = priceNumber * item.quantity;
 
       subtotal += lineTotal;
 
       return {
         productId: product.id,
+        variantId: targetVariant.id,
         quantity: item.quantity,
         price: priceNumber,
+        currency: String(targetVariant.currency || product.currency || "BDT"),
+        product,
+        variant: targetVariant,
       };
     });
 
@@ -257,13 +304,31 @@ export async function POST(request: NextRequest) {
           transactionId: transactionId ?? null,
           image: isManualPayment ? (image ?? null) : null,
           orderItems: {
-            create: orderItemsData,
+            create: orderItemsData.map((item) => ({
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              price: item.price,
+              currency: item.currency,
+            })),
           },
         },
         include: {
-          orderItems: { include: { product: true } },
+          orderItems: { include: { product: true, variant: true } },
         },
       });
+
+      for (const item of orderItemsData) {
+        if (item.product.type === "PHYSICAL") {
+          await deductVariantInventory({
+            tx,
+            productId: item.product.id,
+            productVariantId: item.variant.id,
+            quantity: item.quantity,
+            reason: `Order #${o.id} checkout deduction`,
+          });
+        }
+      }
 
       return o;
     });
@@ -272,7 +337,15 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Error creating order:", error);
 
-    if (typeof error?.message === "string" && error.message.startsWith("Product")) {
+    if (
+      typeof error?.message === "string" &&
+      (error.message.startsWith("Product") ||
+        error.message.startsWith("Insufficient stock") ||
+        error.message.startsWith("Inventory") ||
+        error.message.startsWith("Variant") ||
+        error.message.startsWith("Stock changed") ||
+        error.message.startsWith("Unable to allocate"))
+    ) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }

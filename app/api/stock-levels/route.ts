@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { refreshVariantStock } from "@/lib/inventory";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -121,22 +122,7 @@ export async function POST(req: Request) {
     const oldQty = existing ? Number(existing.quantity) : 0;
     const change = quantity - oldQty;
 
-    const levels = await prisma.stockLevel.findMany({
-      where: { productVariantId },
-      select: { quantity: true, reserved: true },
-    });
-    const availableSum = Math.max(
-      0,
-      levels.reduce(
-        (acc, l) => acc + (Number(l.quantity) - Number(l.reserved)),
-        0,
-      ),
-    );
-
-    await prisma.productVariant.update({
-      where: { id: productVariantId },
-      data: { stock: availableSum },
-    });
+    await refreshVariantStock(prisma, productVariantId);
 
     if (change !== 0) {
       await prisma.inventoryLog.create({
@@ -159,4 +145,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

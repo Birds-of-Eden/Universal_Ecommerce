@@ -301,8 +301,7 @@ export default function BookDetail() {
     : stock > 0
       ? "text-green-600 dark:text-green-400"
       : "text-destructive";
-  const cartId = selectedVariant?.id || product.id;
-  const cartQty = getQuantityByProductId(cartId);
+  const cartQty = getQuantityByProductId(product.id, selectedVariant?.id ?? null);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -507,7 +506,8 @@ export default function BookDetail() {
                     <button
                       type="button"
                       className="h-9 w-9 rounded-md transition hover:bg-accent"
-                      onClick={() => decProductQty(cartId, 1)}
+                      onClick={() => decProductQty(product.id, 1, selectedVariant?.id ?? null)}
+                      
                       disabled={purchaseDisabled || cartQty <= 0}
                     >
                       −
@@ -518,7 +518,7 @@ export default function BookDetail() {
                     <button
                       type="button"
                       className="h-9 w-9 rounded-md transition hover:bg-accent"
-                      onClick={() => incProductQty(cartId, 1)}
+                      onClick={() => incProductQty(product.id, 1, selectedVariant?.id ?? null)}
                       disabled={purchaseDisabled}
                     >
                       +
@@ -535,7 +535,8 @@ export default function BookDetail() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <AddToCartButton
-                      productId={cartId}
+                      productId={product.id}
+                      variantId={selectedVariant?.id ?? null}
                       disabled={purchaseDisabled}
                     />
 
@@ -544,8 +545,8 @@ export default function BookDetail() {
                       className="btn-primary h-11 rounded-lg font-semibold transition hover:opacity-95 disabled:opacity-50"
                       disabled={purchaseDisabled}
                       onClick={() => {
-                        if (getQuantityByProductId(cartId) <= 0) {
-                          addToCart(cartId, 1);
+                        if (getQuantityByProductId(product.id, selectedVariant?.id ?? null) <= 0) {
+                          addToCart(product.id, 1, selectedVariant?.id ?? null);
                         }
                         router.push("/ecommerce/checkout");
                       }}

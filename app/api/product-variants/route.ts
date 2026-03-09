@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -79,28 +80,30 @@ export async function POST(req: Request) {
 
     const initialStock = product.type === "PHYSICAL" ? stock : 0;
 
-    const created = await prisma.productVariant.create({
-      data: {
-        productId,
-        sku,
-        price,
-        currency,
-        stock: initialStock,
-        digitalAssetId: body.digitalAssetId ? Number(body.digitalAssetId) : null,
-        options: body.options ?? {},
-      },
-    });
-
-    if (initialStock !== 0) {
-      await prisma.inventoryLog.create({
+    const created = await prisma.$transaction(async (tx) => {
+      const variant = await tx.productVariant.create({
         data: {
           productId,
-          variantId: created.id,
-          change: initialStock,
-          reason: "Admin variant initial stock",
+          sku,
+          price,
+          currency,
+          stock: 0,
+          isDefault: false,
+          digitalAssetId: body.digitalAssetId ? Number(body.digitalAssetId) : null,
+          options: body.options ?? {},
         },
       });
-    }
+
+      await syncVariantWarehouseStock({
+        tx,
+        productId,
+        productVariantId: variant.id,
+        quantity: initialStock,
+        reason: "Admin variant initial stock",
+      });
+
+      return tx.productVariant.findUnique({ where: { id: variant.id } });
+    });
 
     return NextResponse.json(created, { status: 201 });
   } catch (error: any) {
@@ -114,4 +117,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

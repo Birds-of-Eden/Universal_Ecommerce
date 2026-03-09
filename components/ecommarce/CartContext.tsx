@@ -16,31 +16,58 @@ interface ProductApiItem {
   name: string;
   price: number;
   image?: string | null;
+  variants?: Array<{
+    id: number | string;
+    price?: number;
+    sku?: string | null;
+    options?: Record<string, string> | null;
+  }>;
 }
 
 export interface CartItem {
   id: string | number; // local row id
   productId: string | number; // product id
+  variantId?: string | number | null;
   name: string;
   price: number;
   quantity: number;
   image: string;
+  variantLabel?: string | null;
 }
 
 interface CartContextType {
   cartItems: CartItem[];
 
-  addToCart: (productId: string | number, quantity?: number) => void;
+  addToCart: (
+    productId: string | number,
+    quantity?: number,
+    variantId?: string | number | null
+  ) => void;
 
   // row-id based
   removeFromCart: (id: string | number) => void;
   updateQuantity: (id: string | number, quantity: number) => void;
 
   // product-id based helpers ✅ (for +/- in details page)
-  getQuantityByProductId: (productId: string | number) => number;
-  setProductQty: (productId: string | number, quantity: number) => void;
-  incProductQty: (productId: string | number, step?: number) => void;
-  decProductQty: (productId: string | number, step?: number) => void;
+  getQuantityByProductId: (
+    productId: string | number,
+    variantId?: string | number | null
+  ) => number;
+  setProductQty: (
+    productId: string | number,
+    quantity: number,
+    variantId?: string | number | null
+  ) => void;
+  incProductQty: (
+    productId: string | number,
+    step?: number,
+    variantId?: string | number | null
+  ) => void;
+  decProductQty: (
+    productId: string | number,
+    step?: number,
+    variantId?: string | number | null
+  ) => void;
 
   clearCart: () => void;
   cartCount: number;
@@ -52,6 +79,8 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const norm = (v: string | number) => String(v);
+const normVariant = (v: string | number | null | undefined) =>
+  v === null || v === undefined || v === "" ? "" : String(v);
 const clamp = (n: number) => Math.max(0, Math.min(99, n));
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -80,6 +109,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           .map((x) => ({
             ...x,
             productId: x.productId,
+            variantId: x.variantId ?? null,
             quantity: clamp(Number(x.quantity ?? 1)),
             image: x.image || "/placeholder.svg",
           }))
@@ -140,6 +170,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
           name: p.name,
           price: Number(p.basePrice ?? 0), // ✅ use basePrice instead of price
           image: p.image ?? "/placeholder.svg",
+          variants: Array.isArray(p.variants)
+            ? p.variants.map((variant: any) => ({
+                id: variant.id,
+                price: Number(variant.price ?? p.basePrice ?? 0),
+                sku: variant.sku ?? null,
+                options:
+                  variant.options && typeof variant.options === "object"
+                    ? variant.options
+                    : null,
+              }))
+            : [],
         }));
 
         setProducts(mapped);
@@ -158,21 +199,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // ✅ productId দিয়ে qty read
   const getQuantityByProductId = useCallback(
-    (productId: string | number) => {
+    (productId: string | number, variantId?: string | number | null) => {
       const pid = norm(productId);
-      return cartItems.find((x) => norm(x.productId) === pid)?.quantity ?? 0;
+      const vid = normVariant(variantId);
+      return (
+        cartItems.find(
+          (x) =>
+            norm(x.productId) === pid && normVariant(x.variantId) === vid
+        )?.quantity ?? 0
+      );
     },
     [cartItems]
   );
 
   // ✅ productId দিয়ে qty set (0 => remove)
   const setProductQty = useCallback(
-    (productId: string | number, quantity: number) => {
+    (productId: string | number, quantity: number, variantId?: string | number | null) => {
       const pid = norm(productId);
+      const vid = normVariant(variantId);
       const nextQty = clamp(Number(quantity) || 0);
 
       setCartItems((prev) => {
-        const idx = prev.findIndex((x) => norm(x.productId) === pid);
+        const idx = prev.findIndex(
+          (x) => norm(x.productId) === pid && normVariant(x.variantId) === vid
+        );
 
         // remove if 0
         if (nextQty === 0) {
@@ -184,16 +234,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (idx === -1) {
           const product = products.find((p) => norm(p.id) === pid);
           if (!product) return prev;
+          const variant =
+            vid !== ""
+              ? product.variants?.find((item) => norm(item.id) === vid) ?? null
+              : null;
+          const variantLabel =
+            variant?.options && Object.keys(variant.options).length > 0
+              ? Object.entries(variant.options)
+                  .map(([key, value]) => `${key}: ${String(value)}`)
+                  .join(", ")
+              : variant?.sku ?? null;
 
           return [
             ...prev,
             {
               id: Date.now(),
               productId: product.id,
+              variantId: variant?.id ?? null,
               name: product.name,
-              price: product.price,
+              price: Number(variant?.price ?? product.price),
               quantity: nextQty,
               image: product.image || "/placeholder.svg",
+              variantLabel,
             },
           ];
         }
@@ -206,25 +268,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const incProductQty = useCallback(
-    (productId: string | number, step: number = 1) => {
-      const cur = getQuantityByProductId(productId);
-      setProductQty(productId, cur + (Number(step) || 1));
+    (productId: string | number, step: number = 1, variantId?: string | number | null) => {
+      const cur = getQuantityByProductId(productId, variantId);
+      setProductQty(productId, cur + (Number(step) || 1), variantId);
     },
     [getQuantityByProductId, setProductQty]
   );
 
   const decProductQty = useCallback(
-    (productId: string | number, step: number = 1) => {
-      const cur = getQuantityByProductId(productId);
-      setProductQty(productId, cur - (Number(step) || 1));
+    (productId: string | number, step: number = 1, variantId?: string | number | null) => {
+      const cur = getQuantityByProductId(productId, variantId);
+      setProductQty(productId, cur - (Number(step) || 1), variantId);
     },
     [getQuantityByProductId, setProductQty]
   );
 
   // ✅ FIXED: addToCart always INCREMENT, normalize ids
   const addToCart = useCallback(
-    (productId: string | number, quantity: number = 1) => {
+    (productId: string | number, quantity: number = 1, variantId?: string | number | null) => {
       const pid = norm(productId);
+      const vid = normVariant(variantId);
       const add = clamp(Number(quantity) || 1);
       if (add <= 0) return;
 
@@ -239,8 +302,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const variant =
+        vid !== ""
+          ? product.variants?.find((item) => norm(item.id) === vid) ?? null
+          : null;
+      const variantLabel =
+        variant?.options && Object.keys(variant.options).length > 0
+          ? Object.entries(variant.options)
+              .map(([key, value]) => `${key}: ${String(value)}`)
+              .join(", ")
+          : variant?.sku ?? null;
+
       setCartItems((prevItems) => {
-        const idx = prevItems.findIndex((item) => norm(item.productId) === pid);
+        const idx = prevItems.findIndex(
+          (item) =>
+            norm(item.productId) === pid && normVariant(item.variantId) === vid
+        );
 
         if (idx !== -1) {
           const nextQty = clamp(prevItems[idx].quantity + add);
@@ -252,10 +329,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
           {
             id: Date.now(), // unique row id
             productId: product.id,
+            variantId: variant?.id ?? null,
             name: product.name,
-            price: product.price,
+            price: Number(variant?.price ?? product.price),
             quantity: add,
             image: product.image || "/placeholder.svg",
+            variantLabel,
           },
         ];
       });

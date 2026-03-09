@@ -77,19 +77,10 @@ const menuItems: MenuItem[] = [
     icon: ClipboardList,
     requiredPermissions: ["products.manage", "inventory.manage"],
     subItems: [
-      {
-        name: "Writers",
-        href: "/admin/management/writers",
-        requiredPermissions: ["products.manage"],
-      },
+      
       {
         name: "Categories",
         href: "/admin/management/categories",
-        requiredPermissions: ["products.manage"],
-      },
-      {
-        name: "Publishers",
-        href: "/admin/management/publishers",
         requiredPermissions: ["products.manage"],
       },
       {

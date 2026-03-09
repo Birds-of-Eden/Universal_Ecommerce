@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SpotlightCard from "../SpotlightCard";
-import ClickSpark from "../ClickSpark";
 
 export type ProductCardData = {
   id: number | string;

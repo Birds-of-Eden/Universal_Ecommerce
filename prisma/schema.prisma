@@ -324,7 +324,8 @@ model ProductVariant {
   sku            String  @unique
   price          Decimal @db.Decimal(10, 2)
   currency       String  @default("USD") @db.VarChar(3)
-  stock          Int     @default(0)
+  stock          Int     @default(0) // derived available stock across warehouses
+  isDefault      Boolean @default(false)
   digitalAssetId Int?
 
   options Json // { size: "XL", color: "Red" }
@@ -334,6 +335,7 @@ model ProductVariant {
   stockLevels   StockLevel[]
   orderItems    OrderItem[]
   inventoryLogs InventoryLog[]
+  cartItems     CartItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -570,10 +572,15 @@ model CartItem {
   id        Int    @id @default(autoincrement())
   userId    String
   productId Int
+  variantId Int?
   quantity  Int    @default(1)
 
-  user    User    @relation(fields: [userId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  user    User            @relation(fields: [userId], references: [id])
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([userId, productId, variantId])
+  @@index([variantId])
 }
 
 model Wishlist {

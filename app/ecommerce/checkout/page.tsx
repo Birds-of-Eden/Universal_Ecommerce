@@ -154,10 +154,17 @@ export default function CheckoutPage() {
         const mapped = items.map((item: any) => ({
           id: item.id,
           productId: item.productId,
+          variantId: item.variantId ?? item.variant?.id ?? null,
           name: item.product?.name ?? "Unknown product",
-          price: Number(item.product?.basePrice ?? item.product?.variants?.[0]?.price ?? 0),
+          price: Number(item.variant?.price ?? item.product?.basePrice ?? item.product?.variants?.[0]?.price ?? 0),
           image: item.product?.image ?? "/placeholder.svg",
           quantity: Number(item.quantity ?? 1),
+          variantLabel:
+            item.variant?.options && typeof item.variant.options === "object"
+              ? Object.entries(item.variant.options)
+                  .map(([key, value]) => `${key}: ${String(value)}`)
+                  .join(", ")
+              : item.variant?.sku ?? null,
         }));
 
         setServerCartItems(mapped);
@@ -183,15 +190,25 @@ export default function CheckoutPage() {
           const serverData = await serverRes.json();
           const existingItems = Array.isArray(serverData.items) ? serverData.items : [];
 
-          const existingProductIds = new Set(existingItems.map((item: any) => item.productId));
+          const existingKeys = new Set(
+            existingItems.map(
+              (item: any) => `${item.productId}:${item.variantId ?? ""}`,
+            ),
+          );
 
-          const itemsToSync = cartItems.filter((item) => !existingProductIds.has(item.productId));
+          const itemsToSync = cartItems.filter(
+            (item) => !existingKeys.has(`${item.productId}:${item.variantId ?? ""}`),
+          );
 
           for (const item of itemsToSync) {
             const res = await fetch("/api/cart", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ productId: item.productId, quantity: item.quantity }),
+              body: JSON.stringify({
+                productId: item.productId,
+                variantId: item.variantId ?? null,
+                quantity: item.quantity,
+              }),
             });
 
             if (!res.ok) console.error("Failed to sync cart item:", item.productId);
@@ -563,6 +580,7 @@ export default function CheckoutPage() {
 
     const items = itemsToRender.map((item) => ({
       productId: item.productId ?? item.id,
+      variantId: item.variantId ?? null,
       quantity: item.quantity,
     }));
 
