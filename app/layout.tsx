@@ -21,10 +21,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata(): Promise<Metadata> {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/site`, {
-      cache: 'no-store'
+      cache: 'no-cache',
+      next: { revalidate: 0 }
     });
     
     if (response.ok) {
