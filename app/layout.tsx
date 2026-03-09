@@ -21,14 +21,44 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "BOED Ecommerce",
-    template: "%s | BOED Admin"
-  },
-  description: "Admin dashboard for BOED Ecommerce",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://boed.com'),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/site`, {
+      cache: 'no-store'
+    });
+    
+    if (response.ok) {
+      const siteSettings = await response.json();
+      
+      return {
+        title: {
+          default: siteSettings.siteTitle || "BOED Ecommerce",
+          template: `%s | ${siteSettings.siteTitle || "BOED Admin"}`
+        },
+        description: "Admin dashboard for BOED Ecommerce",
+        icons: {
+          icon: siteSettings.logo || "/assets/favicon.png",
+        },
+        metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://boed.com'),
+      };
+    }
+  } catch (error) {
+    console.error('Failed to fetch site settings for metadata:', error);
+  }
+
+  // Fallback metadata
+  return {
+    title: {
+      default: "BOED Ecommerce",
+      template: "%s | BOED Admin"
+    },
+    description: "Admin dashboard for BOED Ecommerce",
+    icons: {
+      icon: "/assets/favicon.png",
+    },
+    metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://boed.com'),
+  };
+}
 
 export default function RootLayout({
   children,
