@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, memo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, RefreshCw, Warehouse as WarehouseIcon } from "lucide-react";
 
@@ -77,6 +77,7 @@ interface AttributeValue {
 }
 
 const StockManagementPage = memo(function StockManagementPage() {
+  const detailRequestIdRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<number, boolean>>({});
   const [search, setSearch] = useState("");
@@ -188,6 +189,11 @@ const StockManagementPage = memo(function StockManagementPage() {
     return filteredVariants.reduce((acc, item) => acc + (Number(item.stock) || 0), 0);
   }, [filteredVariants]);
 
+  const visibleLogs = useMemo(() => {
+    if (!selectedVariantId) return logs;
+    return logs.filter((log) => log.variant?.id === selectedVariantId);
+  }, [logs, selectedVariantId]);
+
   const formatVariantOptions = (variant: Variant) => {
     if (!variant.options || typeof variant.options !== "object") return "";
     const entries = Object.entries(variant.options).filter(
@@ -221,6 +227,7 @@ const StockManagementPage = memo(function StockManagementPage() {
   }, []);
 
   const loadProductDetails = useCallback(async (productId: number) => {
+    const requestId = ++detailRequestIdRef.current;
     try {
       setLoading(true);
       const [vRes, lRes] = await Promise.all([
@@ -232,8 +239,21 @@ const StockManagementPage = memo(function StockManagementPage() {
       const lData = await lRes.json();
 
       const nextVariants = Array.isArray(vData) ? vData : [];
+      let nextLogs = Array.isArray(lData) ? lData : [];
+
+      if (nextLogs.length === 0 && nextVariants.length > 0) {
+        const variantIds = nextVariants.map((variant: Variant) => variant.id).join(",");
+        const fallbackRes = await fetch(`/api/inventory-logs?variantIds=${variantIds}`, {
+          cache: "no-store",
+        });
+        const fallbackData = await fallbackRes.json().catch(() => []);
+        nextLogs = Array.isArray(fallbackData) ? fallbackData : [];
+      }
+
+      if (requestId !== detailRequestIdRef.current) return;
+
       setVariants(nextVariants);
-      setLogs(Array.isArray(lData) ? lData : []);
+      setLogs(nextLogs);
 
       const firstVariantId = nextVariants[0]?.id || null;
       setSelectedVariantId((prev) =>
@@ -756,8 +776,12 @@ const StockManagementPage = memo(function StockManagementPage() {
                 </TableBody>
               </Table>
             </div>
-          ) : logs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No inventory logs found.</p>
+          ) : visibleLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {selectedVariantId
+                ? "No inventory logs found for the selected variant."
+                : "No inventory logs found for the selected product."}
+            </p>
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <Table>
@@ -771,7 +795,7 @@ const StockManagementPage = memo(function StockManagementPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {logs.map((log) => (
+                  {visibleLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="whitespace-nowrap">
                         {String(log.createdAt).replace("T", " ").slice(0, 19)}

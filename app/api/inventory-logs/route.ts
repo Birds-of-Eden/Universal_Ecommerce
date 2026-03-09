@@ -10,14 +10,23 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const productIdParam = url.searchParams.get("productId");
     const variantIdParam = url.searchParams.get("variantId");
+    const variantIdsParam = url.searchParams.get("variantIds");
 
     const productId = productIdParam ? Number(productIdParam) : null;
     const variantId = variantIdParam ? Number(variantIdParam) : null;
+    const variantIds = (variantIdsParam || "")
+      .split(",")
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isInteger(value) && value > 0);
 
     const logs = await prisma.inventoryLog.findMany({
       where: {
         ...(productId && !Number.isNaN(productId) ? { productId } : {}),
-        ...(variantId && !Number.isNaN(variantId) ? { variantId } : {}),
+        ...(variantId && !Number.isNaN(variantId)
+          ? { variantId }
+          : variantIds.length
+            ? { variantId: { in: variantIds } }
+            : {}),
       },
       orderBy: { createdAt: "desc" },
       include: {
@@ -36,4 +45,3 @@ export async function GET(req: Request) {
     );
   }
 }
-
