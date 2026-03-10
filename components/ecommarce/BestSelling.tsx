@@ -314,13 +314,15 @@ export default function BestSelling({
 
         {/* ✅ Carousel row (same as NewArrivals) */}
         <div className="relative mt-5 sm:mt-6">
-          <button
-            onClick={() => scrollByCards("left")}
-            className="hidden md:flex absolute -left-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:bg-muted"
-            aria-label="Scroll left"
-          >
-            ←
-          </button>
+          {visible.length > 6 && (
+            <button
+              onClick={() => scrollByCards("left")}
+              className="hidden md:flex absolute -left-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:bg-muted"
+              aria-label="Scroll left"
+            >
+              ←
+            </button>
+          )}
 
           <div
             ref={scrollerRef}
@@ -380,13 +382,15 @@ export default function BestSelling({
                 })}
           </div>
 
-          <button
-            onClick={() => scrollByCards("right")}
-            className="hidden md:flex absolute -right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:bg-muted"
-            aria-label="Scroll right"
-          >
-            →
-          </button>
+          {visible.length > 6 && (
+            <button
+              onClick={() => scrollByCards("right")}
+              className="hidden md:flex absolute -right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:bg-muted"
+              aria-label="Scroll right"
+            >
+              →
+            </button>
+          )}
         </div>
 
         <div className="mt-4 h-px w-full bg-border" />

@@ -40,22 +40,54 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("wishlist", JSON.stringify(wishlistItems));
   }, [wishlistItems]);
 
-  const addToWishlist = (productId: number | string) => {
+  const addToWishlist = async (productId: number | string) => {
     const numericId =
       typeof productId === "string"
         ? Number.parseInt(productId as string, 10)
         : productId;
     if (!wishlistItems.includes(numericId)) {
       setWishlistItems([...wishlistItems, numericId]);
+      
+      // Also sync with API if user is authenticated
+      try {
+        const response = await fetch("/api/wishlist", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ productId: numericId }),
+        });
+        
+        // If API call fails, don't remove from localStorage (keep local state)
+        if (!response.ok && response.status !== 401) {
+          console.warn("Failed to sync with wishlist API");
+        }
+      } catch (error) {
+        console.warn("Failed to sync with wishlist API:", error);
+      }
     }
   };
 
-  const removeFromWishlist = (productId: number | string) => {
+  const removeFromWishlist = async (productId: number | string) => {
     const numericId =
       typeof productId === "string"
         ? Number.parseInt(productId as string, 10)
         : productId;
     setWishlistItems(wishlistItems.filter((id) => id !== numericId));
+    
+    // Also sync with API if user is authenticated
+    try {
+      const response = await fetch(`/api/wishlist?productId=${numericId}`, {
+        method: "DELETE",
+      });
+      
+      // If API call fails, don't add back to localStorage (keep local state)
+      if (!response.ok && response.status !== 401) {
+        console.warn("Failed to sync with wishlist API");
+      }
+    } catch (error) {
+      console.warn("Failed to sync with wishlist API:", error);
+    }
   };
 
   const isInWishlist = (productId: number | string) => {
