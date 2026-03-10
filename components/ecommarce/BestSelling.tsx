@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 
 import ProductCardCompact from "./ProductCard";
+import GradientBorder from "@/components/ui/GradientBorder";
+import { FaRobot } from "react-icons/fa";
 
 type ApiVariant = {
   stock?: number | string | null;
@@ -272,6 +274,36 @@ export default function BestSelling({
               {subtitle}
             </p>
           </div>
+
+          {/* Ask AI Button - Professional Minimal with Gradient Border */}
+          <GradientBorder 
+            borderRadius="rounded-full" 
+            className="flex-shrink-0"
+          >
+            <button
+              onClick={() => {
+                // TODO: Implement AI chat functionality
+                console.log("Ask AI clicked");
+              }}
+              className="group relative flex items-center gap-2 px-4 py-2 rounded-full 
+                  bg-secondary hover:bg-secondary/90 
+                  transition-all duration-200 
+                  w-full"
+            >
+              {/* Status indicator */}
+              <div className="relative">
+                <FaRobot className="h-4 w-4 text-foreground group-hover:scale-110 transition-transform" />
+                <div
+                  className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full 
+                    border border-background animate-pulse"
+                />
+              </div>
+
+              <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
+                Ask AI
+              </span>
+            </button>
+          </GradientBorder>
         </div>
 
         {error ? (

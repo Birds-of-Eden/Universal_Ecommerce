@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import GradientBorder from "@/components/ui/GradientBorder";
 
 interface Banner {
   id: number;
@@ -41,8 +42,8 @@ export default function PopupBanner({ banners }: PopupBannerProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/80">
-      <div className="relative card-theme rounded-lg shadow-xl max-w-[35vw] w-full p-6 border border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <GradientBorder className="relative card-theme bg-secondary  rounded-2xl shadow-xl md:w-[35vw] w-[90vh] p-6 border border-border">
         {/* Close Button */}
         <button
           onClick={() => setShowPopup(false)}
@@ -72,7 +73,7 @@ export default function PopupBanner({ banners }: PopupBannerProps) {
             </a>
           </div>
         )}
-      </div>
+      </GradientBorder>
     </div>
   );
 }
