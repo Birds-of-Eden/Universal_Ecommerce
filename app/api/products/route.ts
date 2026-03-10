@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variants";
+import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
 
@@ -135,6 +136,7 @@ export async function POST(req: Request) {
     }
 
     const type = body.type || "PHYSICAL";
+    const lowStockThreshold = normalizeLowStockThreshold(body.lowStockThreshold);
     const variantOptions = normalizeVariantOptions(body.variantOptions);
     const productAttributesInput = Array.isArray(body.productAttributes)
       ? body.productAttributes
@@ -172,6 +174,10 @@ export async function POST(req: Request) {
           typeof item?.currency === "string" && item.currency.trim()
             ? item.currency.trim().toUpperCase().slice(0, 3)
             : currency;
+        const variantLowStockThreshold = normalizeLowStockThreshold(
+          item?.lowStockThreshold,
+          lowStockThreshold,
+        );
         if (variantCurrency.length !== 3) {
           return null;
         }
@@ -180,6 +186,7 @@ export async function POST(req: Request) {
           price,
           stock,
           currency: variantCurrency,
+          lowStockThreshold: variantLowStockThreshold,
           isDefault: false,
           active: item?.active !== undefined ? Boolean(item.active) : true,
           options:
@@ -234,6 +241,7 @@ export async function POST(req: Request) {
           weight: body.weight ? Number(body.weight) : null,
           dimensions: body.dimensions || null,
           VatClassId: body.VatClassId ? Number(body.VatClassId) : null,
+          lowStockThreshold,
 
           digitalAssetId: body.digitalAssetId
             ? Number(body.digitalAssetId)
@@ -293,6 +301,7 @@ export async function POST(req: Request) {
               price: variant.price,
               currency: variant.currency,
               stock: 0,
+              lowStockThreshold: variant.lowStockThreshold,
               isDefault: false,
               active: variant.active,
               digitalAssetId: variant.digitalAssetId,
@@ -316,6 +325,7 @@ export async function POST(req: Request) {
             price: basePrice,
             currency,
             stock: 0,
+            lowStockThreshold,
             isDefault: true,
             active: true,
             options: {},

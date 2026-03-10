@@ -292,6 +292,7 @@ model Product {
   soldCount   Int   @default(0)
   ratingAvg   Float @default(0)
   ratingCount Int   @default(0)
+  lowStockThreshold Int @default(10)
 
   deleted Boolean @default(false)
 
@@ -326,6 +327,7 @@ model ProductVariant {
   price          Decimal @db.Decimal(10, 2)
   currency       String  @default("USD") @db.VarChar(3)
   stock          Int     @default(0) // derived available stock across warehouses
+  lowStockThreshold Int  @default(10)
   isDefault      Boolean @default(false)
   active         Boolean @default(true)
   digitalAssetId Int?

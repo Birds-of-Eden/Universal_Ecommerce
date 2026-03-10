@@ -31,6 +31,7 @@ interface ProductForm {
   currency: string;
   weight: string;
   stockQty: string;
+  lowStockThreshold: string;
   dimLength: string;
   dimWidth: string;
   dimHeight: string;
@@ -66,6 +67,7 @@ interface VariantRowForm {
   sku: string;
   price: string;
   stock: string;
+  lowStockThreshold: string;
   active: boolean;
 }
 
@@ -93,6 +95,7 @@ const emptyForm: ProductForm = {
   currency: "BDT",
   weight: "",
   stockQty: "0",
+  lowStockThreshold: "10",
   dimLength: "",
   dimWidth: "",
   dimHeight: "",
@@ -286,6 +289,7 @@ export default function ProductAddModal({
           sku: String(variant?.sku || ""),
           price: String(variant?.price ?? ""),
           stock: String(Number(variant?.stock) || 0),
+          lowStockThreshold: String(Number(variant?.lowStockThreshold) || 10),
           active: variant?.active !== undefined ? Boolean(variant.active) : true,
         };
       });
@@ -302,6 +306,7 @@ export default function ProductAddModal({
       currency: editing.currency ?? "BDT",
       weight: editing.weight?.toString?.() ?? "",
       stockQty: String(mappedRows.reduce((sum: number, row: VariantRowForm) => sum + (Number(row.stock) || 0), 0)),
+      lowStockThreshold: editing.lowStockThreshold?.toString?.() ?? "10",
       dimLength: dimensions?.length != null ? String(dimensions.length) : "",
       dimWidth: dimensions?.width != null ? String(dimensions.width) : "",
       dimHeight: dimensions?.height != null ? String(dimensions.height) : "",
@@ -372,11 +377,12 @@ export default function ProductAddModal({
           sku: previous?.sku ?? "",
           price: previous?.price ?? "",
           stock: previous?.stock ?? "0",
+          lowStockThreshold: previous?.lowStockThreshold ?? form.lowStockThreshold ?? "10",
           active: previous?.active ?? true,
         };
       });
     });
-  }, [generatedCombinations, hasVariants, optionNames]);
+  }, [form.lowStockThreshold, generatedCombinations, hasVariants, optionNames]);
 
   if (!open) return null;
 
@@ -485,6 +491,9 @@ export default function ProductAddModal({
       sku: row.sku.trim().toUpperCase(),
       price: row.price.trim() ? Number(row.price) : basePrice,
       stock: row.stock.trim() ? Number(row.stock) : 0,
+      lowStockThreshold: row.lowStockThreshold.trim()
+        ? Number(row.lowStockThreshold)
+        : Number(form.lowStockThreshold || "10"),
       active: row.active,
       options: row.options,
     }));
@@ -495,7 +504,9 @@ export default function ProductAddModal({
         !Number.isFinite(variant.price) ||
         variant.price < 0 ||
         !Number.isFinite(variant.stock) ||
-        variant.stock < 0,
+        variant.stock < 0 ||
+        !Number.isFinite(variant.lowStockThreshold) ||
+        variant.lowStockThreshold < 0,
     );
 
     if (hasVariants && normalizedVariantOptions.length === 0) {
@@ -507,7 +518,7 @@ export default function ProductAddModal({
       return;
     }
     if (hasVariants && invalidVariant) {
-      toast.error("Each variant needs a SKU, valid price, and valid stock");
+      toast.error("Each variant needs a SKU, valid price, valid stock, and valid emergency threshold");
       return;
     }
 
@@ -522,6 +533,12 @@ export default function ProductAddModal({
 
     if (stock !== undefined && (!Number.isFinite(stock) || stock < 0)) {
       toast.error("Stock must be a number (0 or more)");
+      return;
+    }
+
+    const lowStockThreshold = form.lowStockThreshold.trim() ? Number(form.lowStockThreshold) : 10;
+    if (!Number.isFinite(lowStockThreshold) || lowStockThreshold < 0) {
+      toast.error("Emergency stock threshold must be 0 or more");
       return;
     }
 
@@ -541,6 +558,7 @@ export default function ProductAddModal({
         originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
         currency: form.currency || "USD",
         weight: form.weight ? Number(form.weight) : null,
+        lowStockThreshold,
         dimensions,
         VatClassId: form.VatClassId ? Number(form.VatClassId) : null,
         digitalAssetId: form.digitalAssetId ? Number(form.digitalAssetId) : null,
@@ -563,6 +581,7 @@ export default function ProductAddModal({
           price: variant.price,
           currency: form.currency || "USD",
           stock: form.type === "PHYSICAL" ? variant.stock : 0,
+          lowStockThreshold: variant.lowStockThreshold,
           active: variant.active,
           options: variant.options,
         }));
@@ -677,9 +696,15 @@ export default function ProductAddModal({
               <div className="rounded-lg border border-dashed p-4">
                 <p className="text-sm text-muted-foreground">This product will be stored as a simple product with one default variant.</p>
                 {form.type === "PHYSICAL" && (
-                  <div className="mt-4 max-w-xs">
-                    <Label>Simple Product Stock</Label>
-                    <Input type="number" value={form.stockQty} onChange={(e) => setForm((prev) => ({ ...prev, stockQty: e.target.value }))} />
+                  <div className="mt-4 grid max-w-2xl grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                      <Label>Simple Product Stock</Label>
+                      <Input type="number" value={form.stockQty} onChange={(e) => setForm((prev) => ({ ...prev, stockQty: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label>Emergency Stock Threshold</Label>
+                      <Input type="number" min="0" value={form.lowStockThreshold} onChange={(e) => setForm((prev) => ({ ...prev, lowStockThreshold: e.target.value }))} />
+                    </div>
                   </div>
                 )}
               </div>
@@ -803,13 +828,14 @@ export default function ProductAddModal({
                     <p className="mt-4 text-sm text-muted-foreground">Add option names and values to generate combinations.</p>
                   ) : (
                     <div className="mt-4 overflow-x-auto">
-                      <table className="w-full min-w-[760px] border-collapse text-sm">
+                      <table className="w-full min-w-[920px] border-collapse text-sm">
                         <thead>
                           <tr className="border-b text-left">
                             <th className="px-2 py-2 font-medium">Combination</th>
                             <th className="px-2 py-2 font-medium">SKU</th>
                             <th className="px-2 py-2 font-medium">Price</th>
                             {form.type === "PHYSICAL" && <th className="px-2 py-2 font-medium">Stock</th>}
+                            {form.type === "PHYSICAL" && <th className="px-2 py-2 font-medium">Emergency Stock</th>}
                             <th className="px-2 py-2 font-medium">Status</th>
                           </tr>
                         </thead>
@@ -829,6 +855,11 @@ export default function ProductAddModal({
                               {form.type === "PHYSICAL" && (
                                 <td className="px-2 py-3">
                                   <Input type="number" value={row.stock} onChange={(e) => updateVariantRow(index, { stock: e.target.value })} />
+                                </td>
+                              )}
+                              {form.type === "PHYSICAL" && (
+                                <td className="px-2 py-3">
+                                  <Input type="number" min="0" value={row.lowStockThreshold} onChange={(e) => updateVariantRow(index, { lowStockThreshold: e.target.value })} />
                                 </td>
                               )}
                               <td className="px-2 py-3">

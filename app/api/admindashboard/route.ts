@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { getAccessContext } from '@/lib/rbac';
+import { getInventoryStatus } from '@/lib/stock-status';
 
 const prisma = new PrismaClient();
 
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest) {
           id: true,
           type: true,
           variants: {
-            select: { stock: true },
+            select: { stock: true, lowStockThreshold: true },
           },
         },
       }),
@@ -207,15 +208,13 @@ export async function GET(request: NextRequest) {
       ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
       : currentRevenue > 0 ? 100 : 0;
 
-    const lowStockThreshold = 10;
     const lowStockProductsCount = Array.isArray(lowStockProducts)
       ? lowStockProducts.filter((p: any) => {
           if (p?.type !== "PHYSICAL") return false;
-          const totalStock = (p?.variants || []).reduce(
-            (acc: number, v: any) => acc + (Number(v?.stock) || 0),
-            0,
-          );
-          return totalStock < lowStockThreshold;
+          return (p?.variants || []).some((variant: any) => {
+            const status = getInventoryStatus(variant?.stock, variant?.lowStockThreshold);
+            return status === "LOW_STOCK" || status === "OUT_OF_STOCK";
+          });
         }).length
       : 0;
 

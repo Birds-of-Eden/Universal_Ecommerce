@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getInventoryStatus } from "@/lib/stock-status";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ import ProductRelationsModal from "./ProductRelationsModal";
 import AttributesManagerModal from "./AttributesManagerModal";
 import DigitalAssetManagerModal from "./DigitalAssetManagerModal";
 import SpotlightCard from "../SpotlightCard";
+import type { InventoryStatus } from "@/lib/stock-status";
 
 export default function ProductManager({
   products,
@@ -104,6 +106,42 @@ export default function ProductManager({
       (acc: number, v: any) => acc + (v.stock || 0),
       0,
     );
+  };
+
+  const getProductInventorySummary = (product: any) => {
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    if (product?.type !== "PHYSICAL" || variants.length === 0) {
+      return { totalStock: 0, status: "IN_STOCK" as const, lowCount: 0, outCount: 0 };
+    }
+
+    const totalStock = calculateStock(product);
+    const statuses = variants.map((variant: any) =>
+      getInventoryStatus(variant?.stock, variant?.lowStockThreshold ?? product?.lowStockThreshold),
+    );
+    const lowCount = statuses.filter((status: InventoryStatus) => status === "LOW_STOCK").length;
+    const outCount = statuses.filter((status: InventoryStatus) => status === "OUT_OF_STOCK").length;
+
+    const status: InventoryStatus =
+      totalStock <= 0 ? "OUT_OF_STOCK" : lowCount > 0 || outCount > 0 ? "LOW_STOCK" : "IN_STOCK";
+
+    return {
+      totalStock,
+      status,
+      lowCount,
+      outCount,
+    };
+  };
+
+  const getStatusBadgeClasses = (status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK") => {
+    if (status === "OUT_OF_STOCK") return "border-destructive/20 bg-destructive/10 text-destructive";
+    if (status === "LOW_STOCK") return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400";
+    return "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
+  };
+
+  const getStatusLabel = (status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK") => {
+    if (status === "OUT_OF_STOCK") return "Out of Stock";
+    if (status === "LOW_STOCK") return "Low Stock";
+    return "In Stock";
   };
 
   return (
@@ -255,10 +293,29 @@ export default function ProductManager({
                     <p>SKU: {p.sku || "-"}</p>
                     <p>Available: {p.available ? "Yes" : "No"}</p>
                     <p>Featured: {p.featured ? "Yes" : "No"}</p>
-                    {p.type === "PHYSICAL" && <p>Stock: {calculateStock(p)}</p>}
+                    {p.type === "PHYSICAL" && <p>Stock: {getProductInventorySummary(p).totalStock}</p>}
+                    {p.type === "PHYSICAL" && <p>Threshold: {p.lowStockThreshold ?? 10}</p>}
                   </div>
 
                   <p className="font-semibold text-lg mb-4">৳{p.basePrice}</p>
+
+                  {p.type === "PHYSICAL" && (
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusBadgeClasses(getProductInventorySummary(p).status)}`}>
+                        {getStatusLabel(getProductInventorySummary(p).status)}
+                      </span>
+                      {getProductInventorySummary(p).lowCount > 0 && (
+                        <span className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                          {getProductInventorySummary(p).lowCount} low variant{getProductInventorySummary(p).lowCount > 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {getProductInventorySummary(p).outCount > 0 && (
+                        <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                          {getProductInventorySummary(p).outCount} out
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex gap-2">
                     <Button
