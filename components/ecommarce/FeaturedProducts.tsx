@@ -600,7 +600,7 @@ export default function FeaturedProducts({
             className="hidden md:flex absolute -right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:bg-muted"
             aria-label="Scroll right"
           >
-            â†’
+            →
           </button>
         </div>
 
