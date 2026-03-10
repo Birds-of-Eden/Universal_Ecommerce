@@ -13,6 +13,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import GradientBorder from "../ui/GradientBorder";
 
 type ChatStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
 type SenderRole = "admin" | "user" | "guest" | string;
@@ -384,43 +385,49 @@ export default function SupportChatWidget() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <button
-          type="button"
-          className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full btn-primary px-4 py-3 text-sm font-semibold shadow-xl"
-        >
-          <MessageCircle className="h-4 w-4" />
-          Live Support
-        </button>
+        <div className="fixed bottom-6 right-6 z-40">
+          <GradientBorder className="rounded-full">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full btn-primary px-4 py-3 text-sm font-semibold shadow-xl bg-transparent"
+            >
+              <MessageCircle className="h-5 w-5" />
+              Live Support
+            </button>
+          </GradientBorder>
+        </div>
       </SheetTrigger>
 
       <SheetContent
         side="right"
         className="!top-auto !bottom-6 !right-6 h-[60vh] sm:w-[380px] rounded-xl shadow-2xl flex flex-col p-0"
       >
-        {/* HEADER */}
-        <SheetHeader className="flex items-center justify-between bg-gradient-to-r from-primary to-primary/90 px-4 py-3 text-primary-foreground rounded-xl">
-          <div>
-            <SheetTitle className="text-sm text-primary-foreground font-semibold">
-              Customer Support
-            </SheetTitle>
-            <SheetDescription className="text-[11px] text-primary-foreground/80">
-              Average response under 15 minutes
-            </SheetDescription>
-          </div>
+        <GradientBorder className="rounded-xl">
+          {/* HEADER */}
+          <SheetHeader className="flex items-center justify-between bg-gradient-to-r from-primary to-primary/90 px-4 py-3 text-primary-foreground rounded-xl">
+            <div>
+              <SheetTitle className="text-sm text-primary-foreground font-semibold">
+                Customer Support
+              </SheetTitle>
+              <SheetDescription className="text-[11px] text-primary-foreground/80">
+                Average response under 15 minutes
+              </SheetDescription>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-accent/20 px-2 py-1 text-[10px] text-primary-foreground">
-              Online
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-accent/20 px-2 py-1 text-[10px] text-primary-foreground">
+                Online
+              </span>
 
-            <button
-              onClick={() => setOpen(false)}
-              className="rounded-md p-1 hover:bg-white/10"
-            >
-              <XCircle className="h-4 w-4" />
-            </button>
-          </div>
-        </SheetHeader>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-md p-1 hover:bg-white/10"
+              >
+                <XCircle className="h-4 w-4" />
+              </button>
+            </div>
+          </SheetHeader>
+        </GradientBorder>
 
         {/* CHAT MESSAGES */}
         <div className="flex-1 overflow-y-auto bg-muted/30 p-4">
