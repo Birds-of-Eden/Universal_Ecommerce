@@ -24,13 +24,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import AttributeFilter from "@/components/ecommarce/AttributeFilter";
+import BrandFilter from "@/components/ecommarce/BrandFilter";
 
 /* =========================
   Types
 ========================= */
 type ApiVariant = {
+  id?: number;
   stock?: number | string | null;
   price?: number | string | null;
+  active?: boolean | null;
+  options?: Record<string, string> | null;
+};
+
+type ApiVariantOptionValue = {
+  id: number;
+  value: string;
+  optionId?: number;
+  position?: number;
+};
+
+type ApiVariantOption = {
+  id: number;
+  name: string;
+  position?: number;
+  values?: ApiVariantOptionValue[] | null;
 };
 
 type ApiProduct = {
@@ -46,9 +65,11 @@ type ApiProduct = {
   currency?: string | null;
   available?: boolean | null;
   image?: string | null;
+  brandId?: number | null;
+  brand?: { id: number; name: string; slug: string } | null;
 
-  // ✅ important
   variants?: ApiVariant[] | null;
+  variantOptions?: ApiVariantOption[] | null;
 
   categoryId?: number | null;
   category?: { id: number; name: string } | null;
@@ -62,12 +83,8 @@ type ProductUI = {
   type: string;
   shortDesc: string;
 
-  // ✅ keep available (for API compatibility)
   available: boolean;
-
-  // ✅ stock is the real source of truth for e-commerce
   stock: number;
-
   image: string;
 
   price: number;
@@ -77,6 +94,10 @@ type ProductUI = {
   ratingCount: number;
 
   categoryId: number | null;
+  brandId: number | null;
+
+  variants: ApiVariant[];
+  variantOptions: ApiVariantOption[];
 };
 
 type ReviewDTO = {
@@ -96,6 +117,37 @@ type CategoryNode = {
   name: string;
   parentId: number | null;
   children: CategoryNode[];
+};
+
+type Attribute = {
+  id: number;
+  name: string;
+  values: { id: number; value: string; attributeId: number }[];
+};
+
+type ProductAttribute = {
+  id: number;
+  productId: number;
+  attributeId: number;
+  value: string;
+  attribute: {
+    id: number;
+    name: string;
+  };
+};
+
+type Brand = {
+  id: number;
+  name: string;
+  slug: string;
+  logo?: string | null;
+  productCount: number;
+};
+
+type UnifiedAttribute = {
+  id: number;
+  name: string;
+  values: { id: number; value: string; attributeId: number }[];
 };
 
 /* =========================
@@ -173,7 +225,7 @@ function normalizeReviewsPayload(data: any): any[] {
 }
 
 /* =========================
-  ✅ Single-track Dual Range
+  Single-track Dual Range
 ========================= */
 function PriceRange({
   min,
@@ -192,68 +244,90 @@ function PriceRange({
   onChangeMax: (v: number) => void;
   onReset: () => void;
 }) {
+  const [expanded, setExpanded] = useState<boolean>(true);
   const range = Math.max(1, max - min);
   const leftPct = ((valueMin - min) / range) * 100;
   const rightPct = 100 - ((valueMax - min) / range) * 100;
+
+  const toggleExpand = () => {
+    setExpanded((prev) => !prev);
+  };
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Price Range</h3>
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-        >
-          Reset
-        </button>
-      </div>
-
-      <div className="relative mt-4 h-6">
-        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-border" />
-        <div
-          className="absolute top-1/2 -translate-y-1/2 h-1 rounded-full bg-primary"
-          style={{ left: `${leftPct}%`, right: `${rightPct}%` }}
-        />
-
-        <input
-          type="range"
-          min={min}
-          max={max}
-          value={valueMin}
-          onChange={(e) => onChangeMin(Number(e.target.value))}
-          className="range-input"
-          style={{ zIndex: 6 }}
-        />
-        <input
-          type="range"
-          min={min}
-          max={max}
-          value={valueMax}
-          onChange={(e) => onChangeMax(Number(e.target.value))}
-          className="range-input"
-          style={{ zIndex: 7 }}
-        />
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-lg border border-border bg-background px-3 py-2">
-          <div className="text-[11px] text-muted-foreground">Min</div>
-          <div className="text-sm font-semibold text-foreground">
-            {formatBDT(valueMin)}
-          </div>
-        </div>
-        <div className="rounded-lg border border-border bg-background px-3 py-2">
-          <div className="text-[11px] text-muted-foreground">Max</div>
-          <div className="text-sm font-semibold text-foreground">
-            {formatBDT(valueMax)}
-          </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onReset}
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={toggleExpand}
+            className="w-5 h-5 flex items-center justify-center"
+          >
+            {expanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
         </div>
       </div>
 
-      <div className="mt-3 text-xs text-muted-foreground">
-        Range: {formatBDT(valueMin)} - {formatBDT(valueMax)}
-      </div>
+      {expanded && (
+        <>
+          <div className="relative mt-4 h-6">
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-border" />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 h-1 rounded-full bg-primary"
+              style={{ left: `${leftPct}%`, right: `${rightPct}%` }}
+            />
+
+            <input
+              type="range"
+              min={min}
+              max={max}
+              value={valueMin}
+              onChange={(e) => onChangeMin(Number(e.target.value))}
+              className="range-input"
+              style={{ zIndex: 6 }}
+            />
+            <input
+              type="range"
+              min={min}
+              max={max}
+              value={valueMax}
+              onChange={(e) => onChangeMax(Number(e.target.value))}
+              className="range-input"
+              style={{ zIndex: 7 }}
+            />
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-border bg-background px-3 py-2">
+              <div className="text-[11px] text-muted-foreground">Min</div>
+              <div className="text-sm font-semibold text-foreground">
+                {formatBDT(valueMin)}
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-background px-3 py-2">
+              <div className="text-[11px] text-muted-foreground">Max</div>
+              <div className="text-sm font-semibold text-foreground">
+                {formatBDT(valueMax)}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 text-xs text-muted-foreground">
+            Range: {formatBDT(valueMin)} - {formatBDT(valueMax)}
+          </div>
+        </>
+      )}
 
       <style jsx global>{`
         .range-input {
@@ -323,6 +397,7 @@ function CategoryTreeFilter({
   setSelectedIds: Dispatch<SetStateAction<Set<number>>>;
 }) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set<number>());
+  const [isExpanded, setIsExpanded] = useState<boolean>(true);
 
   const toggleExpand = (id: number) => {
     setExpanded((prev) => {
@@ -331,6 +406,24 @@ function CategoryTreeFilter({
       else next.add(id);
       return next;
     });
+  };
+
+  const toggleAllExpand = () => {
+    if (isExpanded) {
+      setExpanded(new Set<number>());
+      setIsExpanded(false);
+    } else {
+      const allIds = new Set<number>();
+      const collectIds = (nodes: CategoryNode[]) => {
+        nodes.forEach((node) => {
+          allIds.add(node.id);
+          if (node.children?.length) collectIds(node.children);
+        });
+      };
+      collectIds(tree);
+      setExpanded(allIds);
+      setIsExpanded(true);
+    }
   };
 
   const toggleSelect = (id: number) => {
@@ -400,30 +493,45 @@ function CategoryTreeFilter({
         <h3 className="text-sm font-semibold text-foreground">
           Filter By Categories
         </h3>
-        <button
-          type="button"
-          onClick={reset}
-          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
-        >
-          Reset
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={reset}
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={toggleAllExpand}
+            className="w-5 h-5 flex items-center justify-center"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+        </div>
       </div>
 
-      <div className="mt-3 max-h-[320px] overflow-auto pr-1">
-        {loading ? (
-          <div className="text-sm text-muted-foreground py-2">Loading...</div>
-        ) : tree.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-2">
-            No categories found.
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {tree.map((node) => (
-              <Row key={node.id} node={node} level={0} />
-            ))}
-          </div>
-        )}
-      </div>
+      {isExpanded && (
+        <div className="mt-3 max-h-[320px] overflow-auto pr-1">
+          {loading ? (
+            <div className="text-sm text-muted-foreground py-2">Loading...</div>
+          ) : tree.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-2">
+              No categories found.
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {tree.map((node) => (
+                <Row key={node.id} node={node} level={0} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 text-xs text-muted-foreground">
         {selectedIds.size === 0
@@ -470,6 +578,23 @@ export default function ProductsPage() {
     new Set<number>()
   );
 
+  // Attributes
+  const [apiAttributes, setApiAttributes] = useState<Attribute[]>([]);
+  const [attributesLoading, setAttributesLoading] = useState(false);
+  const [productAttributes, setProductAttributes] = useState<ProductAttribute[]>(
+    []
+  );
+  const [selectedAttributeValues, _setSelectedAttributeValues] = useState<
+    Set<string>
+  >(new Set<string>());
+
+  // Brands
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [brandsLoading, setBrandsLoading] = useState(false);
+  const [selectedBrandIds, _setSelectedBrandIds] = useState<Set<number>>(
+    new Set<number>()
+  );
+
   const setSelectedCategoryIds = useCallback(
     (nextOrFn: SetStateAction<Set<number>>) => {
       _setSelectedCategoryIds((prev) => {
@@ -477,7 +602,27 @@ export default function ProductsPage() {
         return nextOrFn;
       });
     },
-    [_setSelectedCategoryIds]
+    []
+  );
+
+  const setSelectedAttributeValues = useCallback(
+    (nextOrFn: SetStateAction<Set<string>>) => {
+      _setSelectedAttributeValues((prev) => {
+        if (typeof nextOrFn === "function") return nextOrFn(prev);
+        return nextOrFn;
+      });
+    },
+    []
+  );
+
+  const setSelectedBrandIds = useCallback(
+    (nextOrFn: SetStateAction<Set<number>>) => {
+      _setSelectedBrandIds((prev) => {
+        if (typeof nextOrFn === "function") return nextOrFn(prev);
+        return nextOrFn;
+      });
+    },
+    []
   );
 
   /* =========================
@@ -493,12 +638,14 @@ export default function ProductsPage() {
           fetch("/api/products", { cache: "no-store" }),
           fetch("/api/reviews", { cache: "no-store" }),
         ]);
+
         if (!productsRes.ok) throw new Error("Failed to load products");
         if (!reviewsRes.ok) throw new Error("Failed to load reviews");
 
         const data = (await productsRes.json()) as ApiProduct[];
         const reviewsData = await reviewsRes.json();
         const reviewList = normalizeReviewsPayload(reviewsData) as ReviewDTO[];
+
         const reviewStats = reviewList.reduce<
           Record<string, { sum: number; count: number }>
         >((acc, review) => {
@@ -525,15 +672,12 @@ export default function ProductsPage() {
             const cId =
               typeof p.categoryId === "number"
                 ? p.categoryId
-                : (p.category?.id ?? null);
+                : p.category?.id ?? null;
 
-            // ✅ compute stock from variants
+            const bId =
+              typeof p.brandId === "number" ? p.brandId : p.brand?.id ?? null;
+
             const stock = computeStockFromVariants(p.variants);
-
-            // ✅ base e-commerce availability:
-            // stock > 0 => in stock
-            // stock === 0 => out of stock
-            // (do not trust p.available for stock UI)
             const rating = reviewStats[String(p.id)] ?? { sum: 0, count: 0 };
 
             return {
@@ -543,12 +687,8 @@ export default function ProductsPage() {
               sku: String(p.sku ?? ""),
               type: String(p.type ?? ""),
               shortDesc: String(p.shortDesc ?? p.description ?? ""),
-
-              // keep for compatibility (but not used for stock UI)
               available: Boolean(p.available ?? true),
-
-              stock, // ✅ important
-
+              stock,
               image: p.image ?? "/placeholder.svg",
               price,
               originalPrice: original,
@@ -556,6 +696,11 @@ export default function ProductsPage() {
               ratingAvg: rating.count ? rating.sum / rating.count : 0,
               ratingCount: rating.count,
               categoryId: cId,
+              brandId: bId,
+              variants: Array.isArray(p.variants) ? p.variants : [],
+              variantOptions: Array.isArray(p.variantOptions)
+                ? p.variantOptions
+                : [],
             };
           }
         );
@@ -611,6 +756,160 @@ export default function ProductsPage() {
   }, []);
 
   /* =========================
+    Load attributes and product attributes
+  ========================= */
+  useEffect(() => {
+    const loadAttributes = async () => {
+      try {
+        setAttributesLoading(true);
+
+        const [attrRes, prodAttrRes] = await Promise.all([
+          fetch("/api/attributes", { cache: "no-store" }),
+          fetch("/api/products/attributes", { cache: "no-store" }),
+        ]);
+
+        if (attrRes.ok) {
+          const attrData = await attrRes.json();
+          setApiAttributes(Array.isArray(attrData) ? attrData : []);
+        } else {
+          setApiAttributes([]);
+        }
+
+        if (prodAttrRes.ok) {
+          const prodAttrData = await prodAttrRes.json();
+          setProductAttributes(Array.isArray(prodAttrData) ? prodAttrData : []);
+        } else {
+          setProductAttributes([]);
+        }
+      } catch (e) {
+        console.error(e);
+        setApiAttributes([]);
+        setProductAttributes([]);
+      } finally {
+        setAttributesLoading(false);
+      }
+    };
+
+    loadAttributes();
+  }, []);
+
+  /* =========================
+    Load brands
+  ========================= */
+  useEffect(() => {
+    const loadBrands = async () => {
+      try {
+        setBrandsLoading(true);
+        const res = await fetch("/api/brands", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setBrands(Array.isArray(data) ? data : []);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setBrandsLoading(false);
+      }
+    };
+
+    loadBrands();
+  }, []);
+
+  /* =========================
+    Unified attributes
+    - from /api/attributes
+    - from variantOptions
+  ========================= */
+  const attributes = useMemo<UnifiedAttribute[]>(() => {
+    const nameMap = new Map<
+      string,
+      {
+        id: number;
+        name: string;
+        valuesMap: Map<string, { id: number; value: string; attributeId: number }>;
+      }
+    >();
+
+    // 1) Add from /api/attributes
+    for (const attr of apiAttributes) {
+      const attrName = String(attr.name ?? "").trim();
+      if (!attrName) continue;
+
+      if (!nameMap.has(attrName)) {
+        nameMap.set(attrName, {
+          id: Number(attr.id),
+          name: attrName,
+          valuesMap: new Map(),
+        });
+      }
+
+      const bucket = nameMap.get(attrName)!;
+
+      for (const val of attr.values ?? []) {
+        const cleanVal = String(val.value ?? "").trim();
+        if (!cleanVal) continue;
+
+        if (!bucket.valuesMap.has(cleanVal)) {
+          bucket.valuesMap.set(cleanVal, {
+            id: Number(val.id),
+            value: cleanVal,
+            attributeId: bucket.id,
+          });
+        }
+      }
+    }
+
+    // 2) Add from product variantOptions
+    for (const product of products) {
+      for (const option of product.variantOptions ?? []) {
+        const optionName = String(option.name ?? "").trim();
+        if (!optionName) continue;
+
+        if (!nameMap.has(optionName)) {
+          nameMap.set(optionName, {
+            id: Number(option.id),
+            name: optionName,
+            valuesMap: new Map(),
+          });
+        }
+
+        const bucket = nameMap.get(optionName)!;
+
+        for (const val of option.values ?? []) {
+          const cleanVal = String(val.value ?? "").trim();
+          if (!cleanVal) continue;
+
+          if (!bucket.valuesMap.has(cleanVal)) {
+            bucket.valuesMap.set(cleanVal, {
+              id: Number(val.id),
+              value: cleanVal,
+              attributeId: bucket.id,
+            });
+          }
+        }
+      }
+    }
+
+    return Array.from(nameMap.values())
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        values: Array.from(item.valuesMap.values()).sort((a, b) =>
+          a.value.localeCompare(b.value)
+        ),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [apiAttributes, products]);
+
+  const attributeIdToName = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const attr of attributes) {
+      map.set(attr.id, attr.name);
+    }
+    return map;
+  }, [attributes]);
+
+  /* =========================
     Price range handlers
   ========================= */
   const handleMin = useCallback(
@@ -640,7 +939,7 @@ export default function ProductsPage() {
 
   /* =========================
     Effective category ids
-========================= */
+  ========================= */
   const effectiveCategoryIds = useMemo(() => {
     if (selectedCategoryIds.size === 0) return null;
 
@@ -676,8 +975,96 @@ export default function ProductsPage() {
       );
     }
 
-    // ✅ stock filter (basic e-commerce)
-    if (inStockOnly) list = list.filter((p) => p.stock > 0);
+    if (selectedBrandIds.size > 0) {
+      list = list.filter(
+        (p) => p.brandId !== null && selectedBrandIds.has(p.brandId)
+      );
+    }
+
+    if (inStockOnly) {
+      list = list.filter((p) => p.stock > 0);
+    }
+
+    if (selectedAttributeValues.size > 0) {
+      const selectedGroups = new Map<string, Set<string>>();
+
+      for (const selectedValue of selectedAttributeValues) {
+        const splitIndex = selectedValue.indexOf(":");
+        if (splitIndex === -1) continue;
+
+        const attributeId = Number(selectedValue.slice(0, splitIndex));
+        const value = selectedValue.slice(splitIndex + 1).trim();
+        const attributeName = attributeIdToName.get(attributeId);
+
+        if (!attributeName || !value) continue;
+
+        if (!selectedGroups.has(attributeName)) {
+          selectedGroups.set(attributeName, new Set<string>());
+        }
+
+        selectedGroups.get(attributeName)!.add(value);
+      }
+
+      list = list.filter((product) => {
+        // match against normal product attributes
+        const normalAttrs = productAttributes.filter(
+          (pa) => pa.productId === product.id
+        );
+
+        const normalAttrMatch = (() => {
+          if (normalAttrs.length === 0) return false;
+
+          for (const [attributeName, allowedValues] of selectedGroups.entries()) {
+            const relevantAttrs = normalAttrs.filter(
+              (pa) =>
+                String(pa.attribute?.name ?? "").trim() === attributeName
+            );
+
+            if (relevantAttrs.length === 0) {
+              return false;
+            }
+
+            const hasValueMatch = relevantAttrs.some((pa) =>
+              allowedValues.has(String(pa.value ?? "").trim())
+            );
+
+            if (!hasValueMatch) {
+              return false;
+            }
+          }
+
+          return true;
+        })();
+
+        // match against variants
+        const variantMatch = (() => {
+          const activeVariants = (product.variants ?? []).filter(
+            (variant) => variant.active !== false
+          );
+
+          if (activeVariants.length === 0) return false;
+
+          return activeVariants.some((variant) => {
+            const variantOptions = variant.options ?? {};
+
+            for (const [attributeName, allowedValues] of selectedGroups.entries()) {
+              const variantValue = String(
+                variantOptions[attributeName] ?? ""
+              ).trim();
+
+              if (!allowedValues.has(variantValue)) {
+                return false;
+              }
+            }
+
+            return true;
+          });
+        })();
+
+        // product will pass if either normal attribute OR variant attribute matches
+        return normalAttrMatch || variantMatch;
+      });
+    }
 
     list = list.filter((p) => p.price >= priceMin && p.price <= priceMax);
 
@@ -686,9 +1073,23 @@ export default function ProductsPage() {
     if (sortBy === "name_az") list.sort((a, b) => a.name.localeCompare(b.name));
 
     return list;
-  }, [products, effectiveCategoryIds, inStockOnly, priceMin, priceMax, sortBy]);
+  }, [
+    products,
+    effectiveCategoryIds,
+    selectedBrandIds,
+    inStockOnly,
+    priceMin,
+    priceMax,
+    sortBy,
+    selectedAttributeValues,
+    productAttributes,
+    attributeIdToName,
+  ]);
 
-  const visible = useMemo(() => filtered.slice(0, showCount), [filtered, showCount]);
+  const visible = useMemo(
+    () => filtered.slice(0, showCount),
+    [filtered, showCount]
+  );
 
   /* =========================
     Actions
@@ -733,7 +1134,6 @@ export default function ProductsPage() {
   const handleAddToCart = useCallback(
     (p: ProductUI) => {
       try {
-        // ✅ block out of stock
         if (p.stock === 0) {
           toast.error("This product is out of stock.");
           return;
@@ -814,7 +1214,20 @@ export default function ProductsPage() {
               setSelectedIds={setSelectedCategoryIds}
             />
 
-            {/* Availability */}
+            <BrandFilter
+              brands={brands}
+              loading={brandsLoading}
+              selectedIds={selectedBrandIds}
+              setSelectedIds={setSelectedBrandIds}
+            />
+
+            <AttributeFilter
+              attributes={attributes}
+              loading={attributesLoading}
+              selectedValues={selectedAttributeValues}
+              setSelectedValues={setSelectedAttributeValues}
+            />
+
             <div className="rounded-xl border border-border bg-card p-4">
               <h3 className="text-sm font-semibold text-foreground">
                 Availability
@@ -867,13 +1280,9 @@ export default function ProductsPage() {
                       sku: p.sku,
                       type: p.type,
                       shortDesc: p.shortDesc,
-
-                      // ✅ IMPORTANT: pass stock
                       stock: p.stock,
                       ratingAvg: p.ratingAvg,
                       ratingCount: p.ratingCount,
-
-                      // ✅ optional (ProductCard will use stock anyway)
                       available: p.stock > 0,
                     }}
                     wishlisted={isInWishlist(p.id)}
