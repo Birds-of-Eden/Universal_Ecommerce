@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variants";
+import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { NextResponse } from "next/server";
 import type { Prisma, ProductType } from "@prisma/client";
 import slugify from "slugify";
@@ -33,6 +34,7 @@ type VariantPayload = {
   sku: string;
   price: number;
   stock: number;
+  lowStockThreshold: number;
   currency: string;
   digitalAssetId: number | null;
   options: Record<string, unknown>;
@@ -133,6 +135,10 @@ export async function PUT(
     }
 
     const effectiveType = (body.type ?? existing.type) as ProductType;
+    const nextLowStockThreshold =
+      body.lowStockThreshold !== undefined
+        ? normalizeLowStockThreshold(body.lowStockThreshold)
+        : existing.lowStockThreshold;
     if (body.stock !== undefined && effectiveType !== "PHYSICAL") {
       return NextResponse.json(
         { error: "Stock is only available for PHYSICAL products" },
@@ -177,9 +183,13 @@ export async function PUT(
           )
       : null;
 
-    const nextVariantOptions = normalizeVariantOptions(body.variantOptions);
+    const hasVariantOptionsPayload = body.variantOptions !== undefined;
+    const nextVariantOptions = hasVariantOptionsPayload
+      ? normalizeVariantOptions(body.variantOptions)
+      : null;
     const variantsInput = Array.isArray(body.variants) ? body.variants : null;
-    const orderedOptionNames = nextVariantOptions.map((option) => option.name);
+    const hasVariantsPayload = body.variants !== undefined;
+    const orderedOptionNames = (nextVariantOptions ?? []).map((option) => option.name);
     const nextVariants: VariantPayload[] | null =
       variantsInput?.map((item: any, index: number) => {
         const price =
@@ -202,6 +212,10 @@ export async function PUT(
           sku: skuRaw.slice(0, 64),
           price,
           stock,
+          lowStockThreshold: normalizeLowStockThreshold(
+            item?.lowStockThreshold,
+            nextLowStockThreshold,
+          ),
           currency,
           active: item?.active !== undefined ? Boolean(item.active) : true,
           digitalAssetId: item?.digitalAssetId ? Number(item.digitalAssetId) : null,
@@ -275,6 +289,7 @@ export async function PUT(
                 ? Number(body.weight)
                 : null
               : existing.weight,
+          lowStockThreshold: nextLowStockThreshold,
           dimensions: body.dimensions ?? existing.dimensions,
           VatClassId:
             body.VatClassId !== undefined
@@ -318,33 +333,35 @@ export async function PUT(
         }
       }
 
-      await tx.productVariantOptionValue.deleteMany({
-        where: {
-          option: {
-            productId: id,
-          },
-        },
-      });
-      await tx.productVariantOption.deleteMany({
-        where: { productId: id },
-      });
-
-      if (nextVariantOptions.length > 0) {
-        for (let optionIndex = 0; optionIndex < nextVariantOptions.length; optionIndex += 1) {
-          const option = nextVariantOptions[optionIndex];
-          await tx.productVariantOption.create({
-            data: {
+      if (nextVariantOptions !== null) {
+        await tx.productVariantOptionValue.deleteMany({
+          where: {
+            option: {
               productId: id,
-              name: option.name,
-              position: optionIndex,
-              values: {
-                create: option.values.map((value, valueIndex) => ({
-                  value,
-                  position: valueIndex,
-                })),
-              },
             },
-          });
+          },
+        });
+        await tx.productVariantOption.deleteMany({
+          where: { productId: id },
+        });
+
+        if (nextVariantOptions.length > 0) {
+          for (let optionIndex = 0; optionIndex < nextVariantOptions.length; optionIndex += 1) {
+            const option = nextVariantOptions[optionIndex];
+            await tx.productVariantOption.create({
+              data: {
+                productId: id,
+                name: option.name,
+                position: optionIndex,
+                values: {
+                  create: option.values.map((value, valueIndex) => ({
+                    value,
+                    position: valueIndex,
+                  })),
+                },
+              },
+            });
+          }
         }
       }
 
@@ -362,7 +379,22 @@ export async function PUT(
         orderBy: { id: "asc" },
       });
 
-      if (nextVariants && nextVariants.length > 0) {
+      if (body.lowStockThreshold !== undefined && !hasVariantsPayload) {
+        const simpleVariant = existingVariants.find(
+          (variant) =>
+            variant.isDefault &&
+            Object.keys((variant.options as Record<string, unknown>) ?? {}).length === 0,
+        );
+
+        if (simpleVariant && existingVariants.length === 1) {
+          await tx.productVariant.update({
+            where: { id: simpleVariant.id },
+            data: { lowStockThreshold: nextLowStockThreshold },
+          });
+        }
+      }
+
+      if (hasVariantsPayload && nextVariants && nextVariants.length > 0) {
         const incomingIds = new Set(
           nextVariants
             .map((variant) => variant.id)
@@ -403,6 +435,7 @@ export async function PUT(
                   price: variant.price,
                   currency: variant.currency,
                   stock: 0,
+                  lowStockThreshold: variant.lowStockThreshold,
                   isDefault: false,
                   active: variant.active,
                   digitalAssetId: variant.digitalAssetId,
@@ -416,6 +449,7 @@ export async function PUT(
                   price: variant.price,
                   currency: variant.currency,
                   stock: 0,
+                  lowStockThreshold: variant.lowStockThreshold,
                   isDefault: false,
                   active: variant.active,
                   digitalAssetId: variant.digitalAssetId,
@@ -431,7 +465,10 @@ export async function PUT(
             reason: "Admin variant stock sync",
           });
         }
-      } else if (effectiveType === "PHYSICAL" || effectiveType === "DIGITAL" || effectiveType === "SERVICE") {
+      } else if (
+        hasVariantsPayload &&
+        (effectiveType === "PHYSICAL" || effectiveType === "DIGITAL" || effectiveType === "SERVICE")
+      ) {
         const defaultVariant =
           existingVariants.find((variant) => variant.isDefault) ?? existingVariants[0];
 
@@ -446,6 +483,7 @@ export async function PUT(
                 price: nextBasePrice,
                 currency,
                 stock: 0,
+                lowStockThreshold: nextLowStockThreshold,
                 isDefault: true,
                 active: true,
                 digitalAssetId:
@@ -467,6 +505,7 @@ export async function PUT(
                 price: nextBasePrice,
                 currency,
                 stock: 0,
+                lowStockThreshold: nextLowStockThreshold,
                 isDefault: true,
                 active: true,
                 digitalAssetId: body.digitalAssetId ? Number(body.digitalAssetId) : null,

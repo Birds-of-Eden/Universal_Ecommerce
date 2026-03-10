@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, RefreshCw, Warehouse as WarehouseIcon } from "lucide-react";
+import { getInventoryStatus } from "@/lib/stock-status";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +23,7 @@ interface Product {
   id: number;
   name: string;
   type: "PHYSICAL" | "DIGITAL" | "SERVICE";
+  lowStockThreshold: number;
   category?: { name?: string | null } | null;
   attributes?: Array<{
     id: number;
@@ -52,6 +54,7 @@ interface Variant {
   price: number | string;
   currency: string;
   stock: number;
+  lowStockThreshold: number;
   options?: Record<string, string>;
   stockLevels?: StockLevel[];
 }
@@ -80,8 +83,8 @@ const StockManagementPage = memo(function StockManagementPage() {
   const detailRequestIdRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Record<number, boolean>>({});
+  const [savingVariantThreshold, setSavingVariantThreshold] = useState(false);
   const [search, setSearch] = useState("");
-  const [threshold, setThreshold] = useState("10");
 
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -95,6 +98,8 @@ const StockManagementPage = memo(function StockManagementPage() {
   const [selectedAttributeId, setSelectedAttributeId] = useState("");
   const [selectedAttributeValue, setSelectedAttributeValue] = useState("");
   const [stockDraft, setStockDraft] = useState<Record<number, string>>({});
+  const [variantThresholdDraft, setVariantThresholdDraft] = useState("");
+  const [productThresholdDraft, setProductThresholdDraft] = useState("");
 
   const [warehouseModalOpen, setWarehouseModalOpen] = useState(false);
 
@@ -176,14 +181,17 @@ const StockManagementPage = memo(function StockManagementPage() {
     return filteredVariants.find((v) => v.id === selectedVariantId) || null;
   }, [selectedVariantId, filteredVariants]);
 
-  const thresholdNum = useMemo(() => {
-    const n = Number(threshold);
-    return Number.isFinite(n) && n >= 0 ? n : 10;
-  }, [threshold]);
-
   const lowStockVariants = useMemo(() => {
-    return filteredVariants.filter((v) => Number(v.stock || 0) < thresholdNum);
-  }, [filteredVariants, thresholdNum]);
+    return filteredVariants.filter(
+      (variant) => getInventoryStatus(variant.stock, variant.lowStockThreshold) === "LOW_STOCK",
+    );
+  }, [filteredVariants]);
+
+  const outOfStockVariants = useMemo(() => {
+    return filteredVariants.filter(
+      (variant) => getInventoryStatus(variant.stock, variant.lowStockThreshold) === "OUT_OF_STOCK",
+    );
+  }, [filteredVariants]);
 
   const totalVariantStock = useMemo(() => {
     return filteredVariants.reduce((acc, item) => acc + (Number(item.stock) || 0), 0);
@@ -337,6 +345,7 @@ const StockManagementPage = memo(function StockManagementPage() {
   useEffect(() => {
     if (!selectedVariant) {
       setStockDraft({});
+      setVariantThresholdDraft("");
       return;
     }
 
@@ -348,7 +357,14 @@ const StockManagementPage = memo(function StockManagementPage() {
       nextDraft[warehouse.id] = String(level?.quantity ?? 0);
     }
     setStockDraft(nextDraft);
+    setVariantThresholdDraft(String(selectedVariant.lowStockThreshold ?? 10));
   }, [selectedVariant, sortedWarehouses]);
+
+  useEffect(() => {
+    setProductThresholdDraft(
+      selectedProduct ? String(selectedProduct.lowStockThreshold ?? 10) : "",
+    );
+  }, [selectedProduct]);
 
   const refreshAll = async () => {
     await loadBaseData();
@@ -387,6 +403,64 @@ const StockManagementPage = memo(function StockManagementPage() {
       toast.error(err?.message || "Failed to save stock");
     } finally {
       setSaving((prev) => ({ ...prev, [warehouseId]: false }));
+    }
+  };
+
+  const saveProductThreshold = async () => {
+    if (!selectedProductId) return;
+
+    const lowStockThreshold = Number(productThresholdDraft);
+    if (!Number.isFinite(lowStockThreshold) || lowStockThreshold < 0) {
+      toast.error("Threshold must be 0 or more");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/products/${selectedProductId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lowStockThreshold }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Save failed");
+
+      toast.success("Product threshold saved");
+      await refreshAll();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save product threshold");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveVariantThreshold = async () => {
+    if (!selectedVariant || !selectedProductId) return;
+
+    const lowStockThreshold = Number(variantThresholdDraft);
+    if (!Number.isFinite(lowStockThreshold) || lowStockThreshold < 0) {
+      toast.error("Threshold must be 0 or more");
+      return;
+    }
+
+    try {
+      setSavingVariantThreshold(true);
+      const res = await fetch(`/api/product-variants/${selectedVariant.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lowStockThreshold }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Save failed");
+
+      toast.success("Variant threshold saved");
+      await loadProductDetails(selectedProductId);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save variant threshold");
+    } finally {
+      setSavingVariantThreshold(false);
     }
   };
 
@@ -430,7 +504,7 @@ const StockManagementPage = memo(function StockManagementPage() {
       </div>
 
       <Card>
-        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <CardContent className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
             <Label>Search Physical Products</Label>
             <Input
@@ -461,15 +535,6 @@ const StockManagementPage = memo(function StockManagementPage() {
               ))}
             </select>
           </div>
-
-          <div>
-            <Label>Low Stock Threshold</Label>
-            <Input
-              type="number"
-              value={threshold}
-              onChange={(e) => setThreshold(e.target.value)}
-            />
-          </div>
         </CardContent>
       </Card>
 
@@ -496,6 +561,12 @@ const StockManagementPage = memo(function StockManagementPage() {
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Low Stock Variants</p>
             <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : lowStockVariants.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Out of Stock Variants</p>
+            <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : outOfStockVariants.length}</p>
           </CardContent>
         </Card>
       </div>
@@ -580,7 +651,45 @@ const StockManagementPage = memo(function StockManagementPage() {
               <p className="text-sm text-muted-foreground">
                 Select a product and variant to manage stock levels.
               </p>
-            ) : loading ? (
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg border p-4">
+                  <p className="font-medium">Product Threshold</p>
+                  <p className="text-xs text-muted-foreground">
+                    Used as the simple-product emergency stock level and as the default threshold for new variants.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={productThresholdDraft}
+                      onChange={(e) => setProductThresholdDraft(e.target.value)}
+                    />
+                    <Button variant="outline" onClick={saveProductThreshold} disabled={loading || !selectedProduct}>
+                      Save
+                    </Button>
+                  </div>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="font-medium">Variant Threshold</p>
+                  <p className="text-xs text-muted-foreground">
+                    Low-stock alerts for this variant use its own configured emergency stock.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={variantThresholdDraft}
+                      onChange={(e) => setVariantThresholdDraft(e.target.value)}
+                    />
+                    <Button variant="outline" onClick={saveVariantThreshold} disabled={loading || savingVariantThreshold}>
+                      {savingVariantThreshold ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {selectedVariant && loading ? (
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -629,7 +738,7 @@ const StockManagementPage = memo(function StockManagementPage() {
                   <TableBody>
                     {sortedWarehouses.map((warehouse) => {
                       const level =
-                        selectedVariant.stockLevels?.find(
+                        selectedVariant?.stockLevels?.find(
                           (entry) => entry.warehouseId === warehouse.id,
                         ) || null;
                       const reserved = Number(level?.reserved || 0);
@@ -712,7 +821,9 @@ const StockManagementPage = memo(function StockManagementPage() {
             ) : (
               <div className="space-y-2">
                 {filteredVariants.map((variant) => {
-                  const isLow = Number(variant.stock) < thresholdNum;
+                  const status = getInventoryStatus(variant.stock, variant.lowStockThreshold);
+                  const isLow = status === "LOW_STOCK";
+                  const isOut = status === "OUT_OF_STOCK";
                   return (
                     <button
                       key={variant.id}
@@ -733,10 +844,19 @@ const StockManagementPage = memo(function StockManagementPage() {
                       <p className="text-xs text-muted-foreground">
                         Stock: {variant.stock}
                       </p>
+                      <p className="text-xs text-muted-foreground">
+                        Emergency stock: {variant.lowStockThreshold}
+                      </p>
                       {isLow && (
                         <p className="text-xs text-amber-500 dark:text-amber-400 flex items-center gap-1 mt-1">
                           <AlertTriangle className="h-3 w-3" />
                           Low stock
+                        </p>
+                      )}
+                      {isOut && (
+                        <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Out of stock
                         </p>
                       )}
                     </button>

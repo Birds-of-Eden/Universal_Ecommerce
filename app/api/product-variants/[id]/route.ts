@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
+import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -47,16 +48,23 @@ export async function PUT(
         ? String(body.currency || "USD").trim().toUpperCase()
         : existing.currency;
 
-    const newStock =
-      body.stock !== undefined ? Number(body.stock) : Number(existing.stock);
-    if (!Number.isFinite(newStock) || newStock < 0) {
+    const hasStockUpdate = body.stock !== undefined;
+    const newStockValue = Number(body.stock ?? 0);
+    if (hasStockUpdate && (!Number.isFinite(newStockValue) || newStockValue < 0)) {
       return NextResponse.json(
         { error: "Stock must be a number (0 or more)" },
         { status: 400 },
       );
     }
 
-    const stock = existing.product.type === "PHYSICAL" ? newStock : 0;
+    const stock =
+      hasStockUpdate && existing.product.type === "PHYSICAL"
+        ? newStockValue
+        : 0;
+    const lowStockThreshold =
+      body.lowStockThreshold !== undefined
+        ? normalizeLowStockThreshold(body.lowStockThreshold)
+        : existing.lowStockThreshold;
 
     const updated = await prisma.$transaction(async (tx) => {
       const saved = await tx.productVariant.update({
@@ -65,7 +73,8 @@ export async function PUT(
           sku,
           price,
           currency,
-          stock: 0,
+          ...(hasStockUpdate ? { stock: 0 } : {}),
+          lowStockThreshold,
           digitalAssetId:
             body.digitalAssetId !== undefined
               ? body.digitalAssetId
@@ -77,13 +86,15 @@ export async function PUT(
         },
       });
 
-      await syncVariantWarehouseStock({
-        tx,
-        productId: existing.product.id,
-        productVariantId: id,
-        quantity: stock,
-        reason: "Admin variant stock adjustment",
-      });
+      if (hasStockUpdate) {
+        await syncVariantWarehouseStock({
+          tx,
+          productId: existing.product.id,
+          productVariantId: id,
+          quantity: stock,
+          reason: "Admin variant stock adjustment",
+        });
+      }
 
       return tx.productVariant.findUnique({ where: { id: saved.id } });
     });

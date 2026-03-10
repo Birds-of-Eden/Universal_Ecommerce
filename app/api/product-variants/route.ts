@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
+import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -62,6 +63,7 @@ export async function POST(req: Request) {
 
     const currency = String(body.currency || "USD").trim().toUpperCase();
     const stock = body.stock !== undefined ? Number(body.stock) : 0;
+    const lowStockThreshold = normalizeLowStockThreshold(body.lowStockThreshold);
     if (!Number.isFinite(stock) || stock < 0) {
       return NextResponse.json(
         { error: "Stock must be a number (0 or more)" },
@@ -88,6 +90,7 @@ export async function POST(req: Request) {
           price,
           currency,
           stock: 0,
+          lowStockThreshold,
           isDefault: false,
           digitalAssetId: body.digitalAssetId ? Number(body.digitalAssetId) : null,
           options: body.options ?? {},
