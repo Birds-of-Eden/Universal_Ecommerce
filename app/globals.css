@@ -408,3 +408,126 @@ body {
     scrollbar-color: hsl(var(--scrollbar-thumb)) hsl(var(--scrollbar-track));
   }
 }
+
+/* ========================
+   RUBIK FONT UTILITIES
+======================== */
+
+@layer utilities {
+  /* Rubik font family with different weights */
+  .rubik-light {
+    font-family: var(--font-rubik);
+    font-weight: 300;
+    font-style: normal;
+  }
+
+  .rubik-regular {
+    font-family: var(--font-rubik);
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  .rubik-medium {
+    font-family: var(--font-rubik);
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  .rubik-semibold {
+    font-family: var(--font-rubik);
+    font-weight: 600;
+    font-style: normal;
+  }
+
+  .rubik-bold {
+    font-family: var(--font-rubik);
+    font-weight: 700;
+    font-style: normal;
+  }
+
+  .rubik-extrabold {
+    font-family: var(--font-rubik);
+    font-weight: 800;
+    font-style: normal;
+  }
+
+  .rubik-black {
+    font-family: var(--font-rubik);
+    font-weight: 900;
+    font-style: normal;
+  }
+
+  /* Rubik italic variants */
+  .rubik-light-italic {
+    font-family: var(--font-rubik);
+    font-weight: 300;
+    font-style: italic;
+  }
+
+  .rubik-italic {
+    font-family: var(--font-rubik);
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  .rubik-medium-italic {
+    font-family: var(--font-rubik);
+    font-weight: 500;
+    font-style: italic;
+  }
+
+  .rubik-semibold-italic {
+    font-family: var(--font-rubik);
+    font-weight: 600;
+    font-style: italic;
+  }
+
+  .rubik-bold-italic {
+    font-family: var(--font-rubik);
+    font-weight: 700;
+    font-style: italic;
+  }
+
+  .rubik-extrabold-italic {
+    font-family: var(--font-rubik);
+    font-weight: 800;
+    font-style: italic;
+  }
+
+  .rubik-black-italic {
+    font-family: var(--font-rubik);
+    font-weight: 900;
+    font-style: italic;
+  }
+
+  /* Generic rubik class (defaults to regular weight) */
+  .rubik {
+    font-family: var(--font-rubik);
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  /* Hide scrollbar utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Safari and Chrome */
+  }
+}
+
+/* ========================
+   GRADIENT BORDER ANIMATIONS
+======================== */
+
+/* CSS property for border angle animation - kept for future use */
+@supports (property(--border-angle)) {
+  @property --border-angle {
+    inherits: false;
+    initial-value: 0deg;
+    syntax: '<angle>';
+  }
+}

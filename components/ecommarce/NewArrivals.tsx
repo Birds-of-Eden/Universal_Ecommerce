@@ -1,8 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type WheelEvent,
+} from "react";
+import { FaRobot } from "react-icons/fa";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
@@ -16,7 +23,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import ProductCardCompact from "./ProductCard"
+import ProductCardCompact from "./ProductCard";
+import GradientBorder from "@/components/ui/GradientBorder";
 
 type Category = {
   id: number | string;
@@ -104,8 +112,16 @@ export default function NewArrivals({
 
   const [active, setActive] = useState<"ALL" | string>("ALL");
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = useState(false);
+  const [canScrollCategoriesRight, setCanScrollCategoriesRight] =
+    useState(false);
+  const [showCategoryScrollbar, setShowCategoryScrollbar] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const categoryScrollerRef = useRef<HTMLDivElement | null>(null);
+  const categoryScrollbarTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -139,7 +155,7 @@ export default function NewArrivals({
         console.error(err);
       }
     },
-    [isAuthenticated, isInWishlist, addToWishlist, removeFromWishlist]
+    [isAuthenticated, isInWishlist, addToWishlist, removeFromWishlist],
   );
 
   const handleAddToCart = useCallback(
@@ -150,7 +166,7 @@ export default function NewArrivals({
         console.error(err);
       }
     },
-    [addToCart]
+    [addToCart],
   );
 
   useEffect(() => {
@@ -163,18 +179,22 @@ export default function NewArrivals({
 
         const pData =
           productsData ??
-          (await cachedFetchJson<any>("/api/products", { ttlMs: 2 * 60 * 1000 }));
+          (await cachedFetchJson<any>("/api/products", {
+            ttlMs: 2 * 60 * 1000,
+          }));
         const cData =
           categoriesData ??
-          (await cachedFetchJson<any>("/api/categories", { ttlMs: 5 * 60 * 1000 }));
+          (await cachedFetchJson<any>("/api/categories", {
+            ttlMs: 5 * 60 * 1000,
+          }));
         const rData =
           reviewsData ??
           (await cachedFetchJson<any>("/api/reviews", { ttlMs: 60 * 1000 }));
 
         if (!mounted) return;
 
-        const pList: any[] = Array.isArray(pData) ? pData : pData?.data ?? [];
-        const cList: any[] = Array.isArray(cData) ? cData : cData?.data ?? [];
+        const pList: any[] = Array.isArray(pData) ? pData : (pData?.data ?? []);
+        const cList: any[] = Array.isArray(cData) ? cData : (cData?.data ?? []);
         const rList = normalizeReviewsPayload(rData);
 
         const mappedCats: Category[] = cList.map((c) => ({
@@ -251,20 +271,25 @@ export default function NewArrivals({
     return map;
   }, [reviews]);
 
-  const topTabs = useMemo(() => {
-    const categoryIdsWithProducts = new Set(items.map((item) => item.categoryId));
+  const allTabs = useMemo(() => {
+    const categoryIdsWithProducts = new Set(
+      items.map((item) => item.categoryId),
+    );
     const sorted = categories
       .filter((category) => categoryIdsWithProducts.has(String(category.id)))
       .sort((a, b) =>
-        String(a.name).localeCompare(String(b.name), "en", { sensitivity: "base" })
+        String(a.name).localeCompare(String(b.name), "en", {
+          sensitivity: "base",
+        }),
       );
-    return sorted.slice(0, 4);
+    return sorted;
   }, [categories, items]);
 
   const latestSorted = useMemo(() => {
     const list = [...items];
     list.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
     return list;
   }, [items]);
@@ -275,6 +300,56 @@ export default function NewArrivals({
   }, [latestSorted, active]);
 
   const visible = useMemo(() => filtered.slice(0, limit), [filtered, limit]);
+
+  const syncCategoryScrollState = useCallback(() => {
+    const el = categoryScrollerRef.current;
+    if (!el) {
+      setCanScrollCategoriesLeft(false);
+      setCanScrollCategoriesRight(false);
+      return;
+    }
+
+    const maxScrollLeft = el.scrollWidth - el.clientWidth;
+    setCanScrollCategoriesLeft(el.scrollLeft > 8);
+    setCanScrollCategoriesRight(maxScrollLeft - el.scrollLeft > 8);
+  }, []);
+
+  const revealCategoryScrollbar = useCallback(() => {
+    setShowCategoryScrollbar(true);
+
+    if (categoryScrollbarTimeoutRef.current) {
+      clearTimeout(categoryScrollbarTimeoutRef.current);
+    }
+
+    categoryScrollbarTimeoutRef.current = setTimeout(() => {
+      setShowCategoryScrollbar(false);
+    }, 900);
+  }, []);
+
+  const handleCategoryWheel = useCallback(
+    (event: WheelEvent<HTMLDivElement>) => {
+      const el = categoryScrollerRef.current;
+      if (!el) return;
+
+      const hasHorizontalOverflow = el.scrollWidth > el.clientWidth;
+      if (!hasHorizontalOverflow) return;
+
+      const delta =
+        Math.abs(event.deltaY) > Math.abs(event.deltaX)
+          ? event.deltaY
+          : event.deltaX;
+
+      if (delta === 0) return;
+
+      event.preventDefault();
+      revealCategoryScrollbar();
+      el.scrollBy({
+        left: delta,
+        behavior: "smooth",
+      });
+    },
+    [revealCategoryScrollbar],
+  );
 
   const scrollByCards = (dir: "left" | "right") => {
     const el = scrollerRef.current;
@@ -295,18 +370,61 @@ export default function NewArrivals({
 
   useEffect(() => {
     if (active === "ALL") return;
-    const hasActiveTab = topTabs.some((category) => String(category.id) === active);
+    const hasActiveTab = allTabs.some(
+      (category) => String(category.id) === active,
+    );
     if (!hasActiveTab) {
       setActive("ALL");
     }
-  }, [active, topTabs]);
+  }, [active, allTabs]);
+
+  useEffect(() => {
+    syncCategoryScrollState();
+
+    const el = categoryScrollerRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      syncCategoryScrollState();
+      revealCategoryScrollbar();
+    };
+    const handleResize = () => syncCategoryScrollState();
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [allTabs, revealCategoryScrollbar, syncCategoryScrollState]);
+
+  useEffect(() => {
+    return () => {
+      if (categoryScrollbarTimeoutRef.current) {
+        clearTimeout(categoryScrollbarTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const activeTab = categoryScrollerRef.current?.querySelector<HTMLElement>(
+      `[data-category-tab="${active}"]`,
+    );
+
+    activeTab?.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  }, [active]);
 
   return (
     <section className="w-full bg-background">
       {/* ✅ responsive padding */}
       <div className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         {/* ✅ responsive header: wrap */}
-       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-foreground">
               {title}
@@ -316,32 +434,93 @@ export default function NewArrivals({
             </p>
           </div>
 
-          {/* ✅ Tabs (ALL + 4 categories) */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          {/* ✅ Tabs (ALL + All categories with scroll) */}
+          <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center xl:w-auto xl:max-w-[min(62vw,920px)] xl:self-end">
             <button
+              type="button"
               onClick={() => setActive("ALL")}
-              className={`uppercase tracking-wide ${
+              className={`whitespace-nowrap rounded-full border mb-4 px-3 py-1.5 text-xs uppercase tracking-wide transition-colors flex-shrink-0 sm:px-3.5 sm:text-sm ${
                 active === "ALL"
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground"
+                  ? "border-primary bg-primary/10 text-primary font-semibold"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted"
               }`}
             >
               ALL
             </button>
-
-            {topTabs.map((c) => (
-              <button
-                key={String(c.id)}
-                onClick={() => setActive(String(c.id))}
-                className={`capitalize ${
-                  active === String(c.id)
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground"
+            <div className="relative min-w-0 flex-1 xl:max-w-[720px] 2xl:max-w-[860px]">
+              <div
+                ref={categoryScrollerRef}
+                onWheel={handleCategoryWheel}
+                onMouseEnter={revealCategoryScrollbar}
+                className={`flex items-center gap-1.5 overflow-x-auto scroll-smooth pb-2 pr-6 snap-x snap-proximity [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:transition-colors [&::-webkit-scrollbar-thumb]:duration-200 ${
+                  showCategoryScrollbar
+                    ? "[&::-webkit-scrollbar-thumb]:bg-border/70"
+                    : "[&::-webkit-scrollbar-thumb]:bg-transparent"
                 }`}
+                style={{
+                  scrollbarColor: showCategoryScrollbar
+                    ? "hsl(var(--border)) transparent"
+                    : "transparent transparent",
+                }}
               >
-                {String(c.name).toLowerCase()}
+                {allTabs.map((c) => (
+                  <button
+                    key={String(c.id)}
+                    type="button"
+                    data-category-tab={String(c.id)}
+                    onClick={() => setActive(String(c.id))}
+                    className={`snap-start whitespace-nowrap rounded-full border px-3 py-1.5 text-xs capitalize transition-colors flex-shrink-0 sm:px-3.5 sm:text-sm ${
+                      active === String(c.id)
+                        ? "border-primary bg-primary/10 text-primary font-semibold"
+                        : "border-border bg-card text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {String(c.name).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                className={`pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background via-background/90 to-transparent transition-opacity duration-200 ${
+                  canScrollCategoriesLeft ? "opacity-100" : "opacity-0"
+                }`}
+              />
+              <div
+                className={`pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background via-background/90 to-transparent transition-opacity duration-200 ${
+                  canScrollCategoriesRight ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            </div>
+
+            {/* Ask AI Button - Professional Minimal with Gradient Border */}
+            <GradientBorder 
+              borderRadius="rounded-full" 
+              className="mb-4 flex-shrink-0"
+            >
+              <button
+                onClick={() => {
+                  // TODO: Implement AI chat functionality
+                  console.log("Ask AI clicked");
+                }}
+                className="group relative flex items-center gap-2 px-4 py-2 rounded-full 
+                    bg-secondary hover:bg-secondary/90 
+                    transition-all duration-200 
+                    w-full"
+              >
+                {/* Status indicator */}
+                <div className="relative">
+                  <FaRobot className="h-4 w-4 text-foreground group-hover:scale-110 transition-transform" />
+                  <div
+                    className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full 
+                      border border-background animate-pulse"
+                  />
+                </div>
+
+                <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
+                  Ask AI
+                </span>
               </button>
-            ))}
+            </GradientBorder>
           </div>
         </div>
 
@@ -389,7 +568,7 @@ export default function NewArrivals({
               : visible.map((p) => {
                   const discountPct = calcDiscountPercent(
                     p.basePrice,
-                    p.originalPrice
+                    p.originalPrice,
                   );
 
                   const stats = reviewStats[String(p.id)] ?? {
@@ -400,7 +579,11 @@ export default function NewArrivals({
                   const isWishlisted = isInWishlist(p.id);
 
                   return (
-                    <div key={String(p.id)} className="snap-start" data-card="1">
+                    <div
+                      key={String(p.id)}
+                      className="snap-start"
+                      data-card="1"
+                    >
                       <ProductCardCompact
                         product={{
                           id: p.id,
