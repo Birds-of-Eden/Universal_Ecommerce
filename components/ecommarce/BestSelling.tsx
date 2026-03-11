@@ -371,6 +371,8 @@ export default function BestSelling({
                           ratingAvg: stats.avg,
                           ratingCount: stats.count,
                           discountPct: discountPct ?? undefined,
+                          totalSold: p.totalSold,
+                          rank: p.rank,
                         }}
                         wishlisted={isWishlisted}
                         onWishlistClick={() => toggleWishlist(p)}
