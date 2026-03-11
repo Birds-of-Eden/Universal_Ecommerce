@@ -101,7 +101,7 @@ export default function ProductCardCompact({
   };
 
   return (
-    <SpotlightCard
+    <div
       className="group !p-0 !border-border !bg-card !rounded-2xl min-w-[220px] max-w-[220px] sm:min-w-[240px] sm:max-w-[240px] overflow-hidden shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl"
     >
       <Link href={product.href} className="block h-full">
@@ -142,7 +142,7 @@ export default function ProductCardCompact({
               src={product.image || "/placeholder.svg"}
               alt={product.name}
               fill
-              className="object-contain p-5 transition-transform duration-500 ease-out group-hover:scale-110"
+              className="object-cover p-5 transition-transform duration-500 ease-out group-hover:scale-110"
               sizes="(max-width: 640px) 220px, 240px"
             />
           </div>
@@ -226,6 +226,6 @@ export default function ProductCardCompact({
           </div>
         </div>
       </Link>
-    </SpotlightCard>
+    </div>
   );
 }
