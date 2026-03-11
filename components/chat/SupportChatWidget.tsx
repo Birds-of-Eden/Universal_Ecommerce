@@ -402,7 +402,7 @@ export default function SupportChatWidget() {
         side="right"
         className="!top-auto !bottom-6 !right-6 h-[60vh] sm:w-[380px] rounded-xl shadow-2xl flex flex-col p-0"
       >
-        <GradientBorder className="rounded-xl">
+        <div className="rounded-xl">
           {/* HEADER */}
           <SheetHeader className="flex items-center justify-between bg-gradient-to-r from-primary to-primary/90 px-4 py-3 text-primary-foreground rounded-xl">
             <div>
@@ -427,7 +427,7 @@ export default function SupportChatWidget() {
               </button>
             </div>
           </SheetHeader>
-        </GradientBorder>
+        </div>
 
         {/* CHAT MESSAGES */}
         <div className="flex-1 overflow-y-auto bg-muted/30 p-4">
