@@ -386,7 +386,7 @@ export default function SupportChatWidget() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <div className="fixed bottom-6 right-6 z-40">
-          <GradientBorder className="rounded-full">
+          <div className="rounded-full">
             <button
               type="button"
               className="inline-flex items-center gap-2 rounded-full btn-primary px-4 py-3 text-sm font-semibold shadow-xl bg-transparent"
@@ -394,7 +394,7 @@ export default function SupportChatWidget() {
               <MessageCircle className="h-5 w-5" />
               Live Support
             </button>
-          </GradientBorder>
+          </div>
         </div>
       </SheetTrigger>
 
