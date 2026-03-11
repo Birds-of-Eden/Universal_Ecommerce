@@ -261,7 +261,7 @@ export default function BestSelling({
             </p>
           </div>
 
-          <GradientBorder borderRadius="rounded-full" className="flex-shrink-0">
+          <div className="flex-shrink-0">
             <button
               onClick={() => {
                 console.log("Ask AI clicked");
@@ -277,7 +277,7 @@ export default function BestSelling({
                 Ask AI
               </span>
             </button>
-          </GradientBorder>
+          </div>
         </div>
 
         {error ? (

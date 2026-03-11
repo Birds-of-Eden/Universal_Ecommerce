@@ -489,8 +489,8 @@ export default function FeaturedProducts({
               />
             </div>
 
-            <GradientBorder
-              borderRadius="rounded-full"
+            <div
+              
               className="mb-4 flex-shrink-0"
             >
               <button
@@ -508,7 +508,7 @@ export default function FeaturedProducts({
                   Ask AI
                 </span>
               </button>
-            </GradientBorder>
+            </div>
           </div>
         </div>
 
