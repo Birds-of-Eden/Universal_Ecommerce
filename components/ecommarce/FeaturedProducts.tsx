@@ -25,6 +25,7 @@ import {
 
 import ProductCardCompact from "./ProductCard";
 import GradientBorder from "@/components/ui/GradientBorder";
+import SliderNavButton from "./SliderNavButton";
 import { FaRobot } from "react-icons/fa";
 
 type CategoryDTO = {
@@ -193,8 +194,8 @@ export default function FeaturedProducts({
 
         if (!mounted) return;
 
-        const pList: any[] = Array.isArray(pData) ? pData : (pData?.data ?? []);
-        const cList: any[] = Array.isArray(cData) ? cData : (cData?.data ?? []);
+        const pList: any[] = Array.isArray(pData) ? pData : pData?.data ?? [];
+        const cList: any[] = Array.isArray(cData) ? cData : cData?.data ?? [];
         const rList = normalizeReviewsPayload(rData);
 
         const mappedCats: CategoryDTO[] = cList.map((c) => ({
@@ -297,7 +298,7 @@ export default function FeaturedProducts({
     return base.filter((p) => p.categoryId === active);
   }, [featuredLatest, active]);
 
-  const visible = filtered;
+  const visible = filtered.slice(0, limit);
 
   const syncCategoryScrollState = useCallback(() => {
     const el = categoryScrollerRef.current;
@@ -419,13 +420,13 @@ export default function FeaturedProducts({
 
   return (
     <section className="w-full bg-background">
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <div className="w-full px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground">
+            <h2 className="text-xl font-bold text-foreground sm:text-2xl">
               {title}
             </h2>
-            <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
               {subtitle}
             </p>
           </div>
@@ -434,9 +435,9 @@ export default function FeaturedProducts({
             <button
               type="button"
               onClick={() => setActive("ALL")}
-              className={`whitespace-nowrap rounded-full border mb-4 px-3 py-1.5 text-xs uppercase tracking-wide transition-colors flex-shrink-0 sm:px-3.5 sm:text-sm ${
+              className={`mb-4 flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs uppercase tracking-wide transition-colors sm:px-3.5 sm:text-sm ${
                 active === "ALL"
-                  ? "border-primary bg-primary/10 text-primary font-semibold"
+                  ? "border-primary bg-primary/10 font-semibold text-primary"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
               }`}
             >
@@ -465,9 +466,9 @@ export default function FeaturedProducts({
                     type="button"
                     data-category-tab={String(c.id)}
                     onClick={() => setActive(String(c.id))}
-                    className={`snap-start whitespace-nowrap rounded-full border px-3 py-1.5 text-xs capitalize transition-colors flex-shrink-0 sm:px-3.5 sm:text-sm ${
+                    className={`snap-start flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs capitalize transition-colors sm:px-3.5 sm:text-sm ${
                       active === String(c.id)
-                        ? "border-primary bg-primary/10 text-primary font-semibold"
+                        ? "border-primary bg-primary/10 font-semibold text-primary"
                         : "border-border bg-card text-muted-foreground hover:bg-muted"
                     }`}
                   >
@@ -494,20 +495,13 @@ export default function FeaturedProducts({
             >
               <button
                 onClick={() => {
-                  // TODO: Implement AI chat functionality
                   console.log("Ask AI clicked");
                 }}
-                className="group relative flex items-center gap-2 px-4 py-2 rounded-full 
-                    bg-secondary hover:bg-secondary/90 
-                    transition-all duration-200 
-                    w-full"
+                className="group relative flex w-full items-center gap-2 rounded-full bg-secondary px-4 py-2 transition-all duration-200 hover:bg-secondary/90"
               >
                 <div className="relative">
-                  <FaRobot className="h-4 w-4 text-foreground group-hover:scale-110 transition-transform" />
-                  <div
-                    className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full 
-                      border border-background animate-pulse"
-                  />
+                  <FaRobot className="h-4 w-4 text-foreground transition-transform group-hover:scale-110" />
+                  <div className="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full border border-background bg-primary" />
                 </div>
 
                 <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
@@ -524,34 +518,31 @@ export default function FeaturedProducts({
           </div>
         ) : null}
 
-        <div className="relative mt-5 sm:mt-6">
+        <div className="group/slider relative mt-5 overflow-visible sm:mt-6">
           {visible.length > 6 && (
-            <button
+            <SliderNavButton
+              direction="left"
               onClick={() => scrollByCards("left")}
-              className="hidden md:flex absolute -left-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:bg-muted"
-              aria-label="Scroll left"
-            >
-              ←
-            </button>
+            />
           )}
 
           <div
             ref={scrollerRef}
-            className="flex gap-4 sm:gap-6 overflow-x-auto scroll-smooth pb-4 snap-x snap-mandatory"
+            className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-4 sm:gap-6"
             style={{ scrollbarWidth: "none" }}
           >
             {loading
               ? Array.from({ length: 5 }).map((_, i) => (
                   <div
                     key={i}
-                    className="snap-start min-w-[220px] max-w-[220px] sm:min-w-[240px] sm:max-w-[240px] rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
+                    className="snap-start min-w-[220px] max-w-[220px] overflow-hidden rounded-2xl border border-border bg-card shadow-sm sm:min-w-[240px] sm:max-w-[240px]"
                   >
-                    <div className="h-[160px] sm:h-[170px] bg-muted animate-pulse" />
+                    <div className="h-[160px] animate-pulse bg-muted sm:h-[170px]" />
                     <div className="p-4">
-                      <div className="h-3 w-24 bg-muted animate-pulse rounded" />
-                      <div className="mt-3 h-4 bg-muted animate-pulse rounded" />
-                      <div className="mt-3 h-4 w-2/3 bg-muted animate-pulse rounded" />
-                      <div className="mt-5 h-8 bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                      <div className="mt-3 h-4 rounded bg-muted animate-pulse" />
+                      <div className="mt-3 h-4 w-2/3 rounded bg-muted animate-pulse" />
+                      <div className="mt-5 h-8 rounded bg-muted animate-pulse" />
                     </div>
                   </div>
                 ))
@@ -598,13 +589,10 @@ export default function FeaturedProducts({
           </div>
 
           {visible.length > 6 && (
-            <button
+            <SliderNavButton
+              direction="right"
               onClick={() => scrollByCards("right")}
-              className="hidden md:flex absolute -right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm hover:bg-muted"
-              aria-label="Scroll right"
-            >
-              →
-            </button>
+            />
           )}
         </div>
 
@@ -632,14 +620,14 @@ export default function FeaturedProducts({
             <button
               type="button"
               onClick={() => setLoginModalOpen(false)}
-              className="h-10 px-4 rounded-lg border border-border bg-background text-foreground font-semibold hover:bg-accent transition"
+              className="h-10 rounded-lg border border-border bg-background px-4 font-semibold text-foreground transition hover:bg-accent"
             >
               Cancel
             </button>
             <Link
               href="/signin"
               onClick={() => setLoginModalOpen(false)}
-              className="h-10 px-4 rounded-lg btn-primary inline-flex items-center justify-center font-semibold transition"
+              className="btn-primary inline-flex h-10 items-center justify-center rounded-lg px-4 font-semibold transition"
             >
               Login
             </Link>
