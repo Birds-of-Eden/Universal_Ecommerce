@@ -573,58 +573,62 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
   if (!product) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span className="truncate">
+    <Dialog open={open} onOpenChange={(v) => v && onClose()}>
+      <DialogContent className="max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col" showCloseButton={false}>
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span className="truncate text-lg sm:text-xl">
               Manage: {product.name} ({product.type})
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={loadAll}
                 disabled={loading}
+                className="flex-shrink-0"
               >
                 <RefreshCw className="h-4 w-4 mr-1" />
-                Refresh
+                <span className="hidden sm:inline">Refresh</span>
+                <span className="sm:hidden">↻</span>
               </Button>
-              <Button size="icon" variant="ghost" onClick={onClose}>
+              <Button size="icon" variant="ghost" onClick={onClose} className="flex-shrink-0">
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="variants" className="w-full">
-          <TabsList className="justify-start">
-            <TabsTrigger value="variants">Variants</TabsTrigger>
-            <TabsTrigger value="attributes">Attributes</TabsTrigger>
-            <TabsTrigger value="inventory">Inventory</TabsTrigger>
+        <Tabs defaultValue="variants" className="w-full flex-1 overflow-hidden flex flex-col">
+          <TabsList className="justify-start h-auto p-1 flex flex-wrap gap-1 bg-muted/50">
+            <TabsTrigger value="variants" className="text-xs sm:text-sm px-2 sm:px-3 py-2">Variants</TabsTrigger>
+            <TabsTrigger value="attributes" className="text-xs sm:text-sm px-2 sm:px-3 py-2">Attributes</TabsTrigger>
+            <TabsTrigger value="inventory" className="text-xs sm:text-sm px-2 sm:px-3 py-2">Inventory</TabsTrigger>
             {product.type === "SERVICE" && (
-              <TabsTrigger value="service">Service Slots</TabsTrigger>
+              <TabsTrigger value="service" className="text-xs sm:text-sm px-2 sm:px-3 py-2">Service Slots</TabsTrigger>
             )}
-            <TabsTrigger value="logs">Inventory Logs</TabsTrigger>
+            <TabsTrigger value="logs" className="text-xs sm:text-sm px-2 sm:px-3 py-2">Inventory Logs</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="variants">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+          <TabsContent value="variants" className="flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="flex-1 overflow-y-auto space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <p className="text-sm text-muted-foreground">
                     Variants (SKU, price, stock, options)
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => printStickers(selectedVariantIds)}
                       disabled={selectedVariantIds.length === 0}
+                      className="w-full sm:w-auto"
                     >
                       <Printer className="h-4 w-4 mr-1" />
-                      Print Selected
+                      <span className="hidden sm:inline">Print Selected</span>
+                      <span className="sm:hidden">Print</span>
                     </Button>
-                    <Button onClick={openAddVariant} size="sm">
+                    <Button onClick={openAddVariant} size="sm" className="w-full sm:w-auto">
                       <Plus className="h-4 w-4 mr-1" />
                       Add Variant
                     </Button>
@@ -632,9 +636,9 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                 </div>
 
               {variantFormOpen && (
-                <div className="border rounded-lg p-4 space-y-3">
+                <div className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card">
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold">
+                    <p className="font-semibold text-sm sm:text-base">
                       {editingVariant ? "Edit Variant" : "New Variant"}
                     </p>
                     <Button
@@ -644,23 +648,25 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                         setVariantFormOpen(false);
                         setEditingVariant(null);
                       }}
+                      className="flex-shrink-0"
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
 
-                  <div className="grid md:grid-cols-4 gap-3">
-                    <div className="md:col-span-2">
-                      <Label>SKU *</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="sm:col-span-2 lg:col-span-2">
+                      <Label className="text-xs sm:text-sm">SKU *</Label>
                       <Input
                         value={variantForm.sku}
                         onChange={(e) =>
                           setVariantForm({ ...variantForm, sku: e.target.value })
                         }
+                        className="text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Price *</Label>
+                      <Label className="text-xs sm:text-sm">Price *</Label>
                       <Input
                         type="number"
                         value={variantForm.price}
@@ -670,10 +676,11 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                             price: e.target.value,
                           })
                         }
+                        className="text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Currency</Label>
+                      <Label className="text-xs sm:text-sm">Currency</Label>
                       <Input
                         value={variantForm.currency}
                         onChange={(e) =>
@@ -682,14 +689,15 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                             currency: e.target.value.toUpperCase(),
                           })
                         }
+                        className="text-sm"
                       />
                     </div>
                   </div>
 
                   {product.type === "PHYSICAL" ? (
-                    <div className="grid md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       <div>
-                        <Label>Stock</Label>
+                        <Label className="text-xs sm:text-sm">Stock</Label>
                         <Input
                           type="number"
                           value={variantForm.stock}
@@ -699,10 +707,11 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                               stock: e.target.value,
                             })
                           }
+                          className="text-sm"
                         />
                       </div>
-                      <div className="md:col-span-3 text-xs text-muted-foreground flex items-end">
-                        Tip: for multiple warehouses, manage stock from the Inventory tab.
+                      <div className="sm:col-span-2 lg:col-span-3 text-xs text-muted-foreground flex items-end">
+                        <span className="block">Tip: for multiple warehouses, manage stock from the Inventory tab.</span>
                       </div>
                     </div>
                   ) : (
@@ -713,9 +722,9 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
 
                   {product.type === "DIGITAL" && (
                     <div>
-                      <Label>Digital Asset (optional)</Label>
+                      <Label className="text-xs sm:text-sm">Digital Asset (optional)</Label>
                       <select
-                        className="border p-2 rounded w-full"
+                        className="border border-input bg-background text-sm p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-ring"
                         value={variantForm.digitalAssetId}
                         onChange={(e) =>
                           setVariantForm({
@@ -734,9 +743,9 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                     </div>
                   )}
 
-                  <div className="grid md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
-                      <Label>Option 1 Name</Label>
+                      <Label className="text-xs sm:text-sm">Option 1 Name</Label>
                       <Input
                         value={variantForm.option1Name}
                         onChange={(e) =>
@@ -746,10 +755,11 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                           })
                         }
                         placeholder="e.g. Color"
+                        className="text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Option 1 Value</Label>
+                      <Label className="text-xs sm:text-sm">Option 1 Value</Label>
                       <Input
                         value={variantForm.option1Value}
                         onChange={(e) =>
@@ -759,10 +769,11 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                           })
                         }
                         placeholder="e.g. Red"
+                        className="text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Option 2 Name</Label>
+                      <Label className="text-xs sm:text-sm">Option 2 Name</Label>
                       <Input
                         value={variantForm.option2Name}
                         onChange={(e) =>
@@ -772,10 +783,11 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                           })
                         }
                         placeholder="e.g. Size"
+                        className="text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Option 2 Value</Label>
+                      <Label className="text-xs sm:text-sm">Option 2 Value</Label>
                       <Input
                         value={variantForm.option2Value}
                         onChange={(e) =>
@@ -785,11 +797,12 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                           })
                         }
                         placeholder="e.g. XL"
+                        className="text-sm"
                       />
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-col sm:flex-row justify-end gap-2">
                     <Button
                       variant="outline"
                       type="button"
@@ -797,10 +810,11 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                         setVariantFormOpen(false);
                         setEditingVariant(null);
                       }}
+                      className="w-full sm:w-auto"
                     >
                       Cancel
                     </Button>
-                    <Button onClick={saveVariant} disabled={loading}>
+                    <Button onClick={saveVariant} disabled={loading} className="w-full sm:w-auto">
                       {editingVariant ? "Update" : "Create"}
                     </Button>
                   </div>
@@ -811,195 +825,209 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                 <p className="text-sm text-muted-foreground">No variants found</p>
               ) : (
                 <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10">
-                          <Checkbox
-                            checked={variants.length > 0 && selectedVariantIds.length === variants.length}
-                            onCheckedChange={(checked) => toggleSelectAllVariants(Boolean(checked))}
-                            aria-label="Select all variants"
-                          />
-                        </TableHead>
-                        <TableHead>SKU</TableHead>
-                        <TableHead>Codes</TableHead>
-                        <TableHead>Price</TableHead>
-                        {product.type === "PHYSICAL" && <TableHead>Stock</TableHead>}
-                        <TableHead>Options</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {variants.map((v) => (
-                        <TableRow key={v.id}>
-                          <TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">
                             <Checkbox
-                              checked={selectedVariantIds.includes(v.id)}
-                              onCheckedChange={(checked) =>
-                                toggleVariantSelection(v.id, Boolean(checked))
-                              }
-                              aria-label={`Select variant ${v.sku}`}
+                              checked={variants.length > 0 && selectedVariantIds.length === variants.length}
+                              onCheckedChange={(checked) => toggleSelectAllVariants(Boolean(checked))}
+                              aria-label="Select all variants"
                             />
-                          </TableCell>
-                          <TableCell className="font-medium">{v.sku}</TableCell>
-                          <TableCell className="min-w-[240px]">
-                            {(() => {
-                              const barcodeCode = getPrimaryCode(v, "BARCODE");
-                              const qrCode = getPrimaryCode(v, "QRCODE");
-
-                              return (
-                                <div className="space-y-3 text-xs">
-                                  <div className="space-y-1">
-                                    <div>
-                                      <span className="font-medium">Barcode:</span>{" "}
-                                      {barcodeCode?.value || "-"}
-                                    </div>
-                                    {barcodeCode ? (
-                                      <>
-                                        <img
-                                          src={buildCodeImageUrl(barcodeCode, "svg")}
-                                          alt={`Barcode for ${v.sku}`}
-                                          className="h-16 w-full max-w-[220px] rounded border bg-white object-contain p-1"
-                                          loading="lazy"
-                                        />
-                                        <div className="flex flex-wrap gap-2">
-                                          <a
-                                            href={buildCodeImageUrl(barcodeCode, "svg")}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-primary underline underline-offset-2"
-                                          >
-                                            SVG
-                                          </a>
-                                          <a
-                                            href={buildCodeImageUrl(barcodeCode, "png")}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-primary underline underline-offset-2"
-                                          >
-                                            PNG
-                                          </a>
-                                          <a
-                                            href={buildCodeImageUrl(barcodeCode, "png", true)}
-                                            className="text-primary underline underline-offset-2"
-                                          >
-                                            Download
-                                          </a>
-                                        </div>
-                                      </>
-                                    ) : null}
-                                  </div>
-                                  <div className="space-y-1">
-                                    <div className="truncate">
-                                      <span className="font-medium">QR:</span>{" "}
-                                      {qrCode?.value || "-"}
-                                    </div>
-                                    {qrCode ? (
-                                      <>
-                                        <img
-                                          src={buildCodeImageUrl(qrCode, "svg")}
-                                          alt={`QR code for ${v.sku}`}
-                                          className="h-28 w-28 rounded border bg-white p-1"
-                                          loading="lazy"
-                                        />
-                                        <div className="flex flex-wrap gap-2">
-                                          <a
-                                            href={buildCodeImageUrl(qrCode, "svg")}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-primary underline underline-offset-2"
-                                          >
-                                            SVG
-                                          </a>
-                                          <a
-                                            href={buildCodeImageUrl(qrCode, "png")}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-primary underline underline-offset-2"
-                                          >
-                                            PNG
-                                          </a>
-                                          <a
-                                            href={buildCodeImageUrl(qrCode, "png", true)}
-                                            className="text-primary underline underline-offset-2"
-                                          >
-                                            Download
-                                          </a>
-                                        </div>
-                                      </>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                          </TableCell>
-                          <TableCell>
-                            {v.currency} {String(v.price)}
-                          </TableCell>
-                          {product.type === "PHYSICAL" && (
-                            <TableCell>{v.stock}</TableCell>
-                          )}
-                          <TableCell className="max-w-[320px] truncate">
-                            {v.options && typeof v.options === "object"
-                              ? Object.entries(v.options)
-                                  .map(([k, val]) => `${k}: ${String(val)}`)
-                                  .join(", ")
-                              : "-"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => printStickers([v.id])}
-                              >
-                                <Printer className="h-3 w-3 mr-1" />
-                                Sticker
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => regenerateVariantCodes(v)}
-                              >
-                                <RefreshCw className="h-3 w-3 mr-1" />
-                                Regenerate
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openEditVariant(v)}
-                              >
-                                <Edit3 className="h-3 w-3 mr-1" />
-                                Edit
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-destructive"
-                                onClick={() => deleteVariant(v.id)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                          </TableHead>
+                          <TableHead className="min-w-[100px]">SKU</TableHead>
+                          <TableHead className="min-w-[200px] hidden lg:table-cell">Codes</TableHead>
+                          <TableHead className="min-w-[80px]">Price</TableHead>
+                          {product.type === "PHYSICAL" && <TableHead className="min-w-[60px]">Stock</TableHead>}
+                          <TableHead className="min-w-[120px] hidden sm:table-cell">Options</TableHead>
+                          <TableHead className="text-right min-w-[200px]">Action</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {variants.map((v) => (
+                          <TableRow key={v.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedVariantIds.includes(v.id)}
+                                onCheckedChange={(checked) =>
+                                  toggleVariantSelection(v.id, Boolean(checked))
+                                }
+                                aria-label={`Select variant ${v.sku}`}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{v.sku}</TableCell>
+                            <TableCell className="min-w-[240px] hidden lg:table-cell">
+                              {(() => {
+                                const barcodeCode = getPrimaryCode(v, "BARCODE");
+                                const qrCode = getPrimaryCode(v, "QRCODE");
+
+                                return (
+                                  <div className="space-y-3 text-xs">
+                                    <div className="space-y-1">
+                                      <div>
+                                        <span className="font-medium">Barcode:</span>{" "}
+                                        {barcodeCode?.value || "-"}
+                                      </div>
+                                      {barcodeCode ? (
+                                        <>
+                                          <img
+                                            src={buildCodeImageUrl(barcodeCode, "svg")}
+                                            alt={`Barcode for ${v.sku}`}
+                                            className="h-16 w-full max-w-[220px] rounded border bg-white object-contain p-1"
+                                            loading="lazy"
+                                          />
+                                          <div className="flex flex-wrap gap-2">
+                                            <a
+                                              href={buildCodeImageUrl(barcodeCode, "svg")}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-primary underline underline-offset-2"
+                                            >
+                                              SVG
+                                            </a>
+                                            <a
+                                              href={buildCodeImageUrl(barcodeCode, "png")}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-primary underline underline-offset-2"
+                                            >
+                                              PNG
+                                            </a>
+                                            <a
+                                              href={buildCodeImageUrl(barcodeCode, "png", true)}
+                                              className="text-primary underline underline-offset-2"
+                                            >
+                                              Download
+                                            </a>
+                                          </div>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                    <div className="space-y-1">
+                                      <div className="truncate">
+                                        <span className="font-medium">QR:</span>{" "}
+                                        {qrCode?.value || "-"}
+                                      </div>
+                                      {qrCode ? (
+                                        <>
+                                          <img
+                                            src={buildCodeImageUrl(qrCode, "svg")}
+                                            alt={`QR code for ${v.sku}`}
+                                            className="h-28 w-28 rounded border bg-white p-1"
+                                            loading="lazy"
+                                          />
+                                          <div className="flex flex-wrap gap-2">
+                                            <a
+                                              href={buildCodeImageUrl(qrCode, "svg")}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-primary underline underline-offset-2"
+                                            >
+                                              SVG
+                                            </a>
+                                            <a
+                                              href={buildCodeImageUrl(qrCode, "png")}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-primary underline underline-offset-2"
+                                                    >
+                                              PNG
+                                            </a>
+                                            <a
+                                              href={buildCodeImageUrl(qrCode, "png", true)}
+                                              className="text-primary underline underline-offset-2"
+                                            >
+                                              Download
+                                            </a>
+                                          </div>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                <div>{v.currency} {String(v.price)}</div>
+                                <div className="lg:hidden text-xs text-muted-foreground mt-1">
+                                  {v.options && typeof v.options === "object"
+                                    ? Object.entries(v.options)
+                                        .map(([k, val]) => `${k}: ${String(val)}`)
+                                        .join(", ")
+                                    : "-"}
+                                </div>
+                              </div>
+                            </TableCell>
+                            {product.type === "PHYSICAL" && (
+                              <TableCell>{v.stock}</TableCell>
+                            )}
+                            <TableCell className="max-w-[320px] truncate hidden sm:table-cell">
+                              {v.options && typeof v.options === "object"
+                                ? Object.entries(v.options)
+                                    .map(([k, val]) => `${k}: ${String(val)}`)
+                                    .join(", ")
+                                : "-"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-col sm:flex-row justify-end gap-1 sm:gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => printStickers([v.id])}
+                                  className="w-full sm:w-auto"
+                                >
+                                  <Printer className="h-3 w-3 sm:mr-1" />
+                                  <span className="hidden sm:inline">Sticker</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => regenerateVariantCodes(v)}
+                                  className="w-full sm:w-auto"
+                                >
+                                  <RefreshCw className="h-3 w-3 sm:mr-1" />
+                                  <span className="hidden sm:inline">Regenerate</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openEditVariant(v)}
+                                  className="w-full sm:w-auto"
+                                >
+                                  <Edit3 className="h-3 w-3 sm:mr-1" />
+                                  <span className="hidden sm:inline">Edit</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-destructive w-full sm:w-auto"
+                                  onClick={() => deleteVariant(v.id)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="attributes">
-            <div className="space-y-4">
-              <div className="border rounded-lg p-4 space-y-3">
-                <p className="font-semibold">Add Product Attribute</p>
-                <div className="grid md:grid-cols-3 gap-3">
+          <TabsContent value="attributes" className="flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+            <div className="flex-1 overflow-y-auto space-y-4">
+              <div className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card">
+                <p className="font-semibold text-sm sm:text-base">Add Product Attribute</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div>
-                    <Label>Attribute</Label>
+                    <Label className="text-xs sm:text-sm">Attribute</Label>
                     <select
-                      className="border p-2 rounded w-full"
+                      className="border border-input bg-background text-sm p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-ring"
                       value={newAttr.attributeId}
                       onChange={(e) =>
                         setNewAttr({ ...newAttr, attributeId: e.target.value })
@@ -1013,8 +1041,8 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                       ))}
                     </select>
                   </div>
-                  <div className="md:col-span-2">
-                    <Label>Value</Label>
+                  <div className="sm:col-span-2 lg:col-span-2">
+                    <Label className="text-xs sm:text-sm">Value</Label>
                     <Input
                       value={newAttr.value}
                       onChange={(e) =>
@@ -1022,6 +1050,7 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                       }
                       list={selectedAttr ? `attr-values-${selectedAttr.id}` : undefined}
                       placeholder="Type value"
+                      className="text-sm"
                     />
                     {selectedAttr?.values?.length ? (
                       <datalist id={`attr-values-${selectedAttr.id}`}>
@@ -1033,7 +1062,7 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <Button onClick={addProductAttribute}>
+                  <Button onClick={addProductAttribute} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-1" />
                     Add
                   </Button>
@@ -1046,52 +1075,56 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                 </p>
               ) : (
                 <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Attribute</TableHead>
-                        <TableHead>Value</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {productAttributes.map((pa) => (
-                        <TableRow key={pa.id}>
-                          <TableCell className="font-medium">
-                            {pa.attribute?.name || pa.attributeId}
-                          </TableCell>
-                          <TableCell>{pa.value}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-destructive"
-                              onClick={() => deleteProductAttribute(pa.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[120px]">Attribute</TableHead>
+                          <TableHead className="min-w-[200px]">Value</TableHead>
+                          <TableHead className="text-right min-w-[80px]">Action</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {productAttributes.map((pa) => (
+                          <TableRow key={pa.id}>
+                            <TableCell className="font-medium">
+                              {pa.attribute?.name || pa.attributeId}
+                            </TableCell>
+                            <TableCell className="break-all">{pa.value}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive w-full sm:w-auto"
+                                onClick={() => deleteProductAttribute(pa.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="inventory">
+          <TabsContent value="inventory" className="flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
             {product.type !== "PHYSICAL" ? (
-              <p className="text-sm text-muted-foreground">
-                Inventory is only available for PHYSICAL products.
-              </p>
+              <div className="flex items-center justify-center h-32">
+                <p className="text-sm text-muted-foreground">
+                  Inventory is only available for PHYSICAL products.
+                </p>
+              </div>
             ) : (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div>
-                    <Label>Variant</Label>
+              <div className="flex-1 overflow-y-auto space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="w-full sm:w-auto">
+                    <Label className="text-xs sm:text-sm">Variant</Label>
                     <select
-                      className="border p-2 rounded"
+                      className="border border-input bg-background text-sm p-2 rounded-md w-full sm:w-48 focus:outline-none focus:ring-2 focus:ring-ring"
                       value={selectedVariantId ?? ""}
                       onChange={(e) =>
                         setSelectedVariantId(
@@ -1116,88 +1149,98 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                 </div>
 
                 {!selectedVariant ? (
-                  <p className="text-sm text-muted-foreground">
-                    Select a variant to manage stock levels.
-                  </p>
+                  <div className="flex items-center justify-center h-32">
+                    <p className="text-sm text-muted-foreground">
+                      Select a variant to manage stock levels.
+                    </p>
+                  </div>
                 ) : warehouses.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No warehouses yet. Create one from the Warehouses button on the products page.
-                  </p>
+                  <div className="flex items-center justify-center h-32">
+                    <p className="text-sm text-muted-foreground">
+                      No warehouses yet. Create one from the Warehouses button on the products page.
+                    </p>
+                  </div>
                 ) : (
                   <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Warehouse</TableHead>
-                          <TableHead>Quantity</TableHead>
-                          <TableHead>Reserved</TableHead>
-                          <TableHead>Available</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {warehouses.map((w) => {
-                          const level =
-                            selectedVariant.stockLevels?.find(
-                              (sl) => sl.warehouseId === w.id,
-                            ) || null;
-                          const reserved = level ? Number(level.reserved) : 0;
-                          const qty = Number(stockDraft[w.id] ?? 0);
-                          const available = Math.max(0, qty - reserved);
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="min-w-[150px]">Warehouse</TableHead>
+                            <TableHead className="min-w-[100px]">Quantity</TableHead>
+                            <TableHead className="min-w-[80px]">Reserved</TableHead>
+                            <TableHead className="min-w-[80px]">Available</TableHead>
+                            <TableHead className="text-right min-w-[120px]">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {warehouses.map((w) => {
+                            const level =
+                              selectedVariant.stockLevels?.find(
+                                (sl) => sl.warehouseId === w.id,
+                              ) || null;
+                            const reserved = level ? Number(level.reserved) : 0;
+                            const qty = Number(stockDraft[w.id] ?? 0);
+                            const available = Math.max(0, qty - reserved);
 
-                          return (
-                            <TableRow key={w.id}>
-                              <TableCell className="font-medium">
-                                {w.name} ({w.code})
-                                {w.isDefault && (
-                                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full border">
-                                    Default
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  className="w-28"
-                                  value={stockDraft[w.id] ?? "0"}
-                                  onChange={(e) =>
-                                    setStockDraft((prev) => ({
-                                      ...prev,
-                                      [w.id]: e.target.value,
-                                    }))
-                                  }
-                                />
-                              </TableCell>
-                              <TableCell>{reserved}</TableCell>
-                              <TableCell>{available}</TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => saveStockLevel(w.id)}
-                                    disabled={loading}
-                                  >
-                                    Save
-                                  </Button>
-                                  {level && (
+                            return (
+                              <TableRow key={w.id}>
+                                <TableCell className="font-medium">
+                                  <div className="flex flex-col">
+                                    <span>{w.name}</span>
+                                    <span className="text-xs text-muted-foreground">({w.code})</span>
+                                    {w.isDefault && (
+                                      <span className="mt-1 text-xs px-2 py-0.5 rounded-full border inline-block w-fit">
+                                        Default
+                                      </span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    className="w-20 sm:w-28 text-sm"
+                                    value={stockDraft[w.id] ?? "0"}
+                                    onChange={(e) =>
+                                      setStockDraft((prev) => ({
+                                        ...prev,
+                                        [w.id]: e.target.value,
+                                      }))
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>{reserved}</TableCell>
+                                <TableCell>{available}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex flex-col sm:flex-row justify-end gap-1 sm:gap-2">
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="text-destructive"
-                                      onClick={() => deleteStockLevel(level.id)}
+                                      onClick={() => saveStockLevel(w.id)}
                                       disabled={loading}
+                                      className="w-full sm:w-auto"
                                     >
-                                      <Trash2 className="h-3 w-3" />
+                                      Save
                                     </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                                    {level && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-destructive w-full sm:w-auto"
+                                        onClick={() => deleteStockLevel(level.id)}
+                                        disabled={loading}
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1205,76 +1248,82 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
           </TabsContent>
 
           {product.type === "SERVICE" && (
-            <TabsContent value="service">
-              <div className="space-y-4">
-                <div className="border rounded-lg p-4 space-y-3">
-                  <p className="font-semibold">Add Service Slot</p>
-                  <div className="grid md:grid-cols-2 gap-3">
+            <TabsContent value="service" className="flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
+              <div className="flex-1 overflow-y-auto space-y-4">
+                <div className="border rounded-lg p-3 sm:p-4 space-y-3 bg-card">
+                  <p className="font-semibold text-sm sm:text-base">Add Service Slot</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <Label>Start *</Label>
+                      <Label className="text-xs sm:text-sm">Start *</Label>
                       <Input
                         type="datetime-local"
                         value={slotForm.startsAt}
                         onChange={(e) =>
                           setSlotForm({ ...slotForm, startsAt: e.target.value })
                         }
+                        className="text-sm"
                       />
                     </div>
                     <div>
-                      <Label>End *</Label>
+                      <Label className="text-xs sm:text-sm">End *</Label>
                       <Input
                         type="datetime-local"
                         value={slotForm.endsAt}
                         onChange={(e) =>
                           setSlotForm({ ...slotForm, endsAt: e.target.value })
                         }
+                        className="text-sm"
                       />
                     </div>
                   </div>
-                  <div className="grid md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <div>
-                      <Label>Capacity</Label>
+                      <Label className="text-xs sm:text-sm">Capacity</Label>
                       <Input
                         type="number"
                         value={slotForm.capacity}
                         onChange={(e) =>
                           setSlotForm({ ...slotForm, capacity: e.target.value })
                         }
+                        className="text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Timezone</Label>
+                      <Label className="text-xs sm:text-sm">Timezone</Label>
                       <Input
                         value={slotForm.timezone}
                         onChange={(e) =>
                           setSlotForm({ ...slotForm, timezone: e.target.value })
                         }
                         placeholder="Optional"
+                        className="text-sm"
                       />
                     </div>
                     <div>
-                      <Label>Location</Label>
+                      <Label className="text-xs sm:text-sm">Location</Label>
                       <Input
                         value={slotForm.location}
                         onChange={(e) =>
                           setSlotForm({ ...slotForm, location: e.target.value })
                         }
                         placeholder="Optional"
+                        className="text-sm"
                       />
                     </div>
                   </div>
                   <div>
-                    <Label>Notes</Label>
+                    <Label className="text-xs sm:text-sm">Notes</Label>
                     <Input
                       value={slotForm.notes}
                       onChange={(e) =>
                         setSlotForm({ ...slotForm, notes: e.target.value })
                       }
                       placeholder="Optional"
+                      className="text-sm"
                     />
                   </div>
                   <div className="flex justify-end">
-                    <Button onClick={addServiceSlot}>
+                    <Button onClick={addServiceSlot} className="w-full sm:w-auto">
                       <Plus className="h-4 w-4 mr-1" />
                       Add Slot
                     </Button>
@@ -1287,78 +1336,107 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                   </p>
                 ) : (
                   <div className="border rounded-lg overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Start</TableHead>
-                          <TableHead>End</TableHead>
-                          <TableHead>Capacity</TableHead>
-                          <TableHead>Booked</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {serviceSlots.map((s) => (
-                          <TableRow key={s.id}>
-                            <TableCell>
-                              {String(s.startsAt).replace("T", " ").slice(0, 16)}
-                            </TableCell>
-                            <TableCell>
-                              {String(s.endsAt).replace("T", " ").slice(0, 16)}
-                            </TableCell>
-                            <TableCell>{s.capacity}</TableCell>
-                            <TableCell>{s.bookedCount}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-destructive"
-                                onClick={() => deleteServiceSlot(s.id)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TableCell>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="min-w-[140px]">Start</TableHead>
+                            <TableHead className="min-w-[140px]">End</TableHead>
+                            <TableHead className="min-w-[80px]">Capacity</TableHead>
+                            <TableHead className="min-w-[80px]">Booked</TableHead>
+                            <TableHead className="text-right min-w-[80px]">Action</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {serviceSlots.map((s) => (
+                            <TableRow key={s.id}>
+                              <TableCell className="text-xs sm:text-sm">
+                                <div className="hidden sm:block">
+                                  {String(s.startsAt).replace("T", " ").slice(0, 16)}
+                                </div>
+                                <div className="sm:hidden">
+                                  {String(s.startsAt).replace("T", " ").slice(0, 10)}
+                                  <br />
+                                  {String(s.startsAt).replace("T", " ").slice(11, 16)}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-xs sm:text-sm">
+                                <div className="hidden sm:block">
+                                  {String(s.endsAt).replace("T", " ").slice(0, 16)}
+                                </div>
+                                <div className="sm:hidden">
+                                  {String(s.endsAt).replace("T", " ").slice(0, 10)}
+                                  <br />
+                                  {String(s.endsAt).replace("T", " ").slice(11, 16)}
+                                </div>
+                              </TableCell>
+                              <TableCell>{s.capacity}</TableCell>
+                              <TableCell>{s.bookedCount}</TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-destructive w-full sm:w-auto"
+                                  onClick={() => deleteServiceSlot(s.id)}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 )}
               </div>
             </TabsContent>
           )}
 
-          <TabsContent value="logs">
+          <TabsContent value="logs" className="flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col">
             {logs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No inventory logs</p>
+              <div className="flex items-center justify-center h-32">
+                <p className="text-sm text-muted-foreground">No inventory logs</p>
+              </div>
             ) : (
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Change</TableHead>
-                      <TableHead>Variant</TableHead>
-                      <TableHead>Warehouse</TableHead>
-                      <TableHead>Reason</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {logs.map((l) => (
-                      <TableRow key={l.id}>
-                        <TableCell className="whitespace-nowrap">
-                          {String(l.createdAt).replace("T", " ").slice(0, 19)}
-                        </TableCell>
-                        <TableCell>{l.change}</TableCell>
-                        <TableCell>{l.variant?.sku || "-"}</TableCell>
-                        <TableCell>{l.warehouse?.code || "-"}</TableCell>
-                        <TableCell className="max-w-[420px] truncate">
-                          {l.reason}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="flex-1 overflow-y-auto">
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[140px]">Date</TableHead>
+                          <TableHead className="min-w-[80px]">Change</TableHead>
+                          <TableHead className="min-w-[100px]">Variant</TableHead>
+                          <TableHead className="min-w-[100px]">Warehouse</TableHead>
+                          <TableHead className="min-w-[200px]">Reason</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {logs.map((l) => (
+                          <TableRow key={l.id}>
+                            <TableCell className="whitespace-nowrap text-xs sm:text-sm">
+                              <div className="hidden sm:block">
+                                {String(l.createdAt).replace("T", " ").slice(0, 19)}
+                              </div>
+                              <div className="sm:hidden">
+                                {String(l.createdAt).replace("T", " ").slice(0, 10)}
+                                <br />
+                                {String(l.createdAt).replace("T", " ").slice(11, 19)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">{l.change}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">{l.variant?.sku || "-"}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">{l.warehouse?.code || "-"}</TableCell>
+                            <TableCell className="max-w-[200px] sm:max-w-[420px] truncate text-xs sm:text-sm">
+                              {l.reason}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </div>
             )}
           </TabsContent>

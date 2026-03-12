@@ -330,7 +330,7 @@ export default function ProductManager({
                       variant="outline"
                       className="flex-1"
                     >
-                      Manage
+                      Manage / View
                     </Button>
                     <Button
                       onClick={() => openDeleteModal(p)}
