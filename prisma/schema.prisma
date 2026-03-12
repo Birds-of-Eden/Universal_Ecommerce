@@ -13,6 +13,17 @@ enum ProductType {
   SERVICE
 }
 
+enum ProductCodeKind {
+  BARCODE
+  QRCODE
+}
+
+enum ProductCodeSymbology {
+  CODE128
+  EAN13
+  QR
+}
+
 enum OrderStatus {
   PENDING
   CONFIRMED
@@ -308,11 +319,12 @@ model Product {
   VatClass     VatClass?     @relation(fields: [VatClassId], references: [id])
   digitalAsset DigitalAsset? @relation("ProductDigitalAsset", fields: [digitalAssetId], references: [id])
 
-  variants       ProductVariant[]
+  variants      ProductVariant[]
+  codes         ProductCode[]
   variantOptions ProductVariantOption[]
-  attributes     ProductAttribute[]
-  serviceSlots   ServiceSlot[]
-  inventoryLogs  InventoryLog[]
+  attributes    ProductAttribute[]
+  serviceSlots  ServiceSlot[]
+  inventoryLogs InventoryLog[]
 
   orderItems OrderItem[]
   wishlist   Wishlist[]
@@ -336,6 +348,7 @@ model ProductVariant {
 
   product       Product        @relation(fields: [productId], references: [id])
   digitalAsset  DigitalAsset?  @relation("VariantDigitalAsset", fields: [digitalAssetId], references: [id])
+  codes         ProductCode[]
   stockLevels   StockLevel[]
   orderItems    OrderItem[]
   inventoryLogs InventoryLog[]
@@ -374,6 +387,31 @@ model ProductVariantOptionValue {
 
   @@unique([optionId, value])
   @@index([optionId, position])
+}
+
+model ProductCode {
+  id        Int                  @id @default(autoincrement())
+  productId Int?
+  variantId Int?
+  kind      ProductCodeKind
+  symbology ProductCodeSymbology
+  value     String
+  token     String?              @unique
+  imageUrl  String?
+  isPrimary Boolean              @default(true)
+  status    String               @default("ACTIVE")
+  metadata  Json?
+
+  product Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([symbology, value])
+  @@index([productId])
+  @@index([variantId])
+  @@index([kind, status])
 }
 
 model DigitalAsset {

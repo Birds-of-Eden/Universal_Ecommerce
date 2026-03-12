@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variants";
+import { ensureVariantCodes } from "@/lib/product-codes";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { NextResponse } from "next/server";
 import type { Prisma, ProductType } from "@prisma/client";
@@ -21,6 +22,12 @@ const productInclude = {
   },
   variants: {
     orderBy: { id: "asc" },
+    include: {
+      codes: {
+        where: { isPrimary: true, status: "ACTIVE" },
+        orderBy: { id: "asc" },
+      },
+    },
   },
   attributes: {
     include: {
@@ -464,6 +471,11 @@ export async function PUT(
             quantity: effectiveType === "PHYSICAL" ? variant.stock : 0,
             reason: "Admin variant stock sync",
           });
+
+          await ensureVariantCodes(tx, {
+            productId: id,
+            variantId: savedVariant.id,
+          });
         }
       } else if (
         hasVariantsPayload &&
@@ -530,6 +542,11 @@ export async function PUT(
             reason: "Admin stock sync",
           });
         }
+
+        await ensureVariantCodes(tx, {
+          productId: id,
+          variantId: savedVariant.id,
+        });
       }
     });
 

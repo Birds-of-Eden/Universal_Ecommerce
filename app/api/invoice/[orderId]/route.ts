@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import QRCode from "qrcode";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +73,15 @@ function safeText(v: any, fallback = "—") {
   return s ? s : fallback;
 }
 
+function getAppBaseUrl(req: Request) {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, "");
+  }
+
+  return new URL(req.url).origin.replace(/\/+$/, "");
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ orderId: string }> }
@@ -133,6 +143,7 @@ export async function GET(
     const invoiceId = `INV${String(order.id).padStart(9, "0")}`;
     const orderDate = formatDate(new Date(order.createdAt));
     const orderRef = String(order.id);
+    const invoiceQrValue = `${getAppBaseUrl(req)}/ecommerce/user/orders/${order.id}`;
 
     const items = order.orderItems ?? [];
     const subTotal = items.reduce(
@@ -154,6 +165,16 @@ export async function GET(
     const pdf = await PDFDocument.create();
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const invoiceQrPng = await QRCode.toBuffer(invoiceQrValue, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 256,
+      color: {
+        dark: "#111827",
+        light: "#FFFFFF",
+      },
+    });
+    const invoiceQrImage = await pdf.embedPng(invoiceQrPng);
 
     // A4
     const W = 595.28;
@@ -249,8 +270,20 @@ export async function GET(
     rightText(`Order Date : ${orderDate}`, metaRight, my, 10, true);
     my -= 14;
     rightText(`Payment Mode : ${safeText(order.payment_method, "Online")}`, metaRight, my, 10, true);
+    my -= 12;
 
-    let cursor = Math.min(y, my) - 18;
+    const qrSize = 64;
+    const qrX = metaRight - qrSize;
+    const qrY = my - qrSize;
+    page.drawImage(invoiceQrImage, {
+      x: qrX,
+      y: qrY,
+      width: qrSize,
+      height: qrSize,
+    });
+    rightText("Scan to open order", metaRight, qrY - 10, 8.5, false, MUTED);
+
+    let cursor = Math.min(y, qrY - 18) - 18;
 
     // helpers
     const tableW = W - marginX * 2;
@@ -295,38 +328,47 @@ export async function GET(
     text("Item Details", marginX, cursor, 11, true);
     cursor -= 14;
 
+    const itemNameX = col1;
+    const itemSkuX = marginX + 260;
+    const itemQtyX = marginX + 360;
+    const itemPriceX = marginX + 430;
+    const itemTotalX = marginX + tableW - 70;
+
     drawTableHead([
-      { label: "Item", x: col1 },
-      { label: "Details", x: col2 },
+      { label: "Item", x: itemNameX },
+      { label: "SKU", x: itemSkuX },
+      { label: "Qty", x: itemQtyX },
+      { label: `Unit (${currency})`, x: itemPriceX },
+      { label: `Total (${currency})`, x: itemTotalX },
     ]);
 
-    const itemBoxH = 70;
-    rect(marginX, cursor - itemBoxH, tableW, itemBoxH, WHITE, true);
+    const itemRowH = 20;
+    for (const item of items) {
+      rect(marginX, cursor - itemRowH, tableW, itemRowH, WHITE, true);
+      const itemName =
+        item?.product?.name
+          ? safeText(item.product.name)
+          : `Product #${safeText(item?.productId)}`;
+      const sku = safeText(item?.product?.sku);
+      const qty = Number(item.quantity ?? 1);
+      const unitPrice = Number(item.price ?? 0);
+      const lineTotal = unitPrice * qty;
 
-    const firstItem = items[0];
-    const itemName =
-      firstItem?.product?.name
-        ? safeText(firstItem.product.name)
-        : items.length > 1
-        ? `${items.length} Items`
-        : `Product #${safeText(firstItem?.productId)}`;
-
-    text(itemName, col1, cursor - 18, 9.5);
-
-    const qtyTotal = items.reduce((s, i) => s + Number(i.quantity ?? 1), 0);
-    const detLines: string[] = [
-      `Qty: ${qtyTotal}`,
-      `Order Status: ${safeText(order.status)}`,
-      `Payment Status: ${safeText(order.paymentStatus)}`,
-    ];
-
-    let dy = cursor - 18;
-    for (const l of detLines) {
-      text(l, col2, dy, 9.3, false, MUTED);
-      dy -= 12;
+      text(itemName, itemNameX, cursor - 14, 9.2);
+      text(sku, itemSkuX, cursor - 14, 9.2, false, MUTED);
+      text(String(qty), itemQtyX, cursor - 14, 9.2);
+      rightText(money(unitPrice), itemPriceX + 62, cursor - 14, 9.2, false, TEXT);
+      rightText(money(lineTotal), marginX + tableW - 10, cursor - 14, 9.2, false, TEXT);
+      cursor -= itemRowH;
     }
 
-    cursor -= itemBoxH + 18;
+    if (items.length === 0) {
+      rect(marginX, cursor - itemRowH, tableW, itemRowH, WHITE, true);
+      text("No items found", itemNameX, cursor - 14, 9.2, false, MUTED);
+      cursor -= itemRowH;
+    }
+
+    cursor -= 18;
 
     // ========= PAYMENT SUMMARY =========
     text("Payment Summary", marginX, cursor, 11, true);

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
+import { ensureVariantCodes } from "@/lib/product-codes";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -67,7 +68,7 @@ export async function PUT(
         : existing.lowStockThreshold;
 
     const updated = await prisma.$transaction(async (tx) => {
-      const saved = await tx.productVariant.update({
+      const savedVariant = await tx.productVariant.update({
         where: { id },
         data: {
           sku,
@@ -95,8 +96,25 @@ export async function PUT(
           reason: "Admin variant stock adjustment",
         });
       }
+      await ensureVariantCodes(tx, {
+        productId: existing.product.id,
+        variantId: id,
+        regenerate: Boolean(body.regenerateCodes),
+      });
 
-      return tx.productVariant.findUnique({ where: { id: saved.id } });
+      return tx.productVariant.findUnique({
+        where: { id: savedVariant.id },
+        include: {
+          codes: {
+            where: { isPrimary: true, status: "ACTIVE" },
+            orderBy: { id: "asc" },
+          },
+          stockLevels: {
+            include: { warehouse: true },
+            orderBy: { id: "desc" },
+          },
+        },
+      });
     });
 
     return NextResponse.json(updated);
@@ -127,6 +145,7 @@ export async function DELETE(
     }
 
     await prisma.$transaction(async (tx) => {
+      await tx.productCode.deleteMany({ where: { variantId: id } });
       await tx.stockLevel.deleteMany({ where: { productVariantId: id } });
       await tx.inventoryLog.deleteMany({ where: { variantId: id } });
       await tx.productVariant.delete({ where: { id } });

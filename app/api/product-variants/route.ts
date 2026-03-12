@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
+import { ensureVariantCodes } from "@/lib/product-codes";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -17,6 +18,10 @@ export async function GET(req: Request) {
       where: productId ? { productId } : undefined,
       orderBy: { id: "desc" },
       include: {
+        codes: {
+          where: { isPrimary: true, status: "ACTIVE" },
+          orderBy: { id: "asc" },
+        },
         stockLevels: {
           include: { warehouse: true },
           orderBy: { id: "desc" },
@@ -104,8 +109,24 @@ export async function POST(req: Request) {
         quantity: initialStock,
         reason: "Admin variant initial stock",
       });
+      await ensureVariantCodes(tx, {
+        productId,
+        variantId: variant.id,
+      });
 
-      return tx.productVariant.findUnique({ where: { id: variant.id } });
+      return tx.productVariant.findUnique({
+        where: { id: variant.id },
+        include: {
+          codes: {
+            where: { isPrimary: true, status: "ACTIVE" },
+            orderBy: { id: "asc" },
+          },
+          stockLevels: {
+            include: { warehouse: true },
+            orderBy: { id: "desc" },
+          },
+        },
+      });
     });
 
     return NextResponse.json(created, { status: 201 });

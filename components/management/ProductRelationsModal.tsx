@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Edit3, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { Edit3, Plus, Printer, RefreshCw, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -56,7 +57,16 @@ interface Variant {
   stock: number;
   digitalAssetId?: number | null;
   options: any;
+  codes?: ProductCode[];
   stockLevels?: StockLevel[];
+}
+
+interface ProductCode {
+  id: number;
+  kind: "BARCODE" | "QRCODE";
+  symbology: "CODE128" | "EAN13" | "QR";
+  value: string;
+  token?: string | null;
 }
 
 interface AttributeValue {
@@ -124,6 +134,7 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
 
   const [variantFormOpen, setVariantFormOpen] = useState(false);
   const [editingVariant, setEditingVariant] = useState<Variant | null>(null);
+  const [selectedVariantIds, setSelectedVariantIds] = useState<number[]>([]);
   const [variantForm, setVariantForm] = useState({
     sku: "",
     price: "",
@@ -205,6 +216,7 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
   useEffect(() => {
     if (!open) return;
     setSelectedVariantId(null);
+    setSelectedVariantIds([]);
     setVariantFormOpen(false);
     setEditingVariant(null);
     setVariantForm({
@@ -276,6 +288,46 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
       option2Value: o2?.[1] != null ? String(o2[1]) : "",
       digitalAssetId: v.digitalAssetId ? String(v.digitalAssetId) : "",
     });
+  };
+
+  const getPrimaryCode = (variant: Variant, kind: ProductCode["kind"]) =>
+    variant.codes?.find((code) => code.kind === kind) ?? null;
+
+  const buildStickerUrl = (variantIds: number[]) => {
+    const params = new URLSearchParams({
+      variantIds: variantIds.join(","),
+    });
+    return `/print/stickers?${params.toString()}`;
+  };
+
+  const toggleVariantSelection = (variantId: number, checked: boolean) => {
+    setSelectedVariantIds((prev) =>
+      checked ? Array.from(new Set([...prev, variantId])) : prev.filter((id) => id !== variantId),
+    );
+  };
+
+  const toggleSelectAllVariants = (checked: boolean) => {
+    setSelectedVariantIds(checked ? variants.map((variant) => variant.id) : []);
+  };
+
+  const printStickers = (variantIds: number[]) => {
+    if (variantIds.length === 0) {
+      toast.error("Select at least one variant");
+      return;
+    }
+
+    window.open(buildStickerUrl(variantIds), "_blank", "noopener,noreferrer");
+  };
+
+  const buildCodeImageUrl = (
+    code: ProductCode | null,
+    format: "svg" | "png" = "svg",
+    download = false,
+  ) => {
+    if (!code) return "";
+    const params = new URLSearchParams({ format });
+    if (download) params.set("download", "1");
+    return `/api/product-codes/${code.id}/image?${params.toString()}`;
   };
 
   const saveVariant = async () => {
@@ -350,6 +402,30 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
       await loadAll();
     } catch (err: any) {
       toast.error(err?.message || "Delete failed");
+    }
+  };
+
+  const regenerateVariantCodes = async (variant: Variant) => {
+    try {
+      const res = await fetch(`/api/product-variants/${variant.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sku: variant.sku,
+          price: variant.price,
+          currency: variant.currency,
+          stock: variant.stock,
+          options: variant.options ?? {},
+          digitalAssetId: variant.digitalAssetId ?? null,
+          regenerateCodes: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Regenerate failed");
+      toast.success("Variant codes regenerated");
+      await loadAll();
+    } catch (err: any) {
+      toast.error(err?.message || "Regenerate failed");
     }
   };
 
@@ -533,16 +609,27 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
           </TabsList>
 
           <TabsContent value="variants">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Variants (SKU, price, stock, options)
-                </p>
-                <Button onClick={openAddVariant} size="sm">
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Variant
-                </Button>
-              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Variants (SKU, price, stock, options)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => printStickers(selectedVariantIds)}
+                      disabled={selectedVariantIds.length === 0}
+                    >
+                      <Printer className="h-4 w-4 mr-1" />
+                      Print Selected
+                    </Button>
+                    <Button onClick={openAddVariant} size="sm">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Variant
+                    </Button>
+                  </div>
+                </div>
 
               {variantFormOpen && (
                 <div className="border rounded-lg p-4 space-y-3">
@@ -727,7 +814,15 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={variants.length > 0 && selectedVariantIds.length === variants.length}
+                            onCheckedChange={(checked) => toggleSelectAllVariants(Boolean(checked))}
+                            aria-label="Select all variants"
+                          />
+                        </TableHead>
                         <TableHead>SKU</TableHead>
+                        <TableHead>Codes</TableHead>
                         <TableHead>Price</TableHead>
                         {product.type === "PHYSICAL" && <TableHead>Stock</TableHead>}
                         <TableHead>Options</TableHead>
@@ -737,7 +832,107 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                     <TableBody>
                       {variants.map((v) => (
                         <TableRow key={v.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedVariantIds.includes(v.id)}
+                              onCheckedChange={(checked) =>
+                                toggleVariantSelection(v.id, Boolean(checked))
+                              }
+                              aria-label={`Select variant ${v.sku}`}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">{v.sku}</TableCell>
+                          <TableCell className="min-w-[240px]">
+                            {(() => {
+                              const barcodeCode = getPrimaryCode(v, "BARCODE");
+                              const qrCode = getPrimaryCode(v, "QRCODE");
+
+                              return (
+                                <div className="space-y-3 text-xs">
+                                  <div className="space-y-1">
+                                    <div>
+                                      <span className="font-medium">Barcode:</span>{" "}
+                                      {barcodeCode?.value || "-"}
+                                    </div>
+                                    {barcodeCode ? (
+                                      <>
+                                        <img
+                                          src={buildCodeImageUrl(barcodeCode, "svg")}
+                                          alt={`Barcode for ${v.sku}`}
+                                          className="h-16 w-full max-w-[220px] rounded border bg-white object-contain p-1"
+                                          loading="lazy"
+                                        />
+                                        <div className="flex flex-wrap gap-2">
+                                          <a
+                                            href={buildCodeImageUrl(barcodeCode, "svg")}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-primary underline underline-offset-2"
+                                          >
+                                            SVG
+                                          </a>
+                                          <a
+                                            href={buildCodeImageUrl(barcodeCode, "png")}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-primary underline underline-offset-2"
+                                          >
+                                            PNG
+                                          </a>
+                                          <a
+                                            href={buildCodeImageUrl(barcodeCode, "png", true)}
+                                            className="text-primary underline underline-offset-2"
+                                          >
+                                            Download
+                                          </a>
+                                        </div>
+                                      </>
+                                    ) : null}
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="truncate">
+                                      <span className="font-medium">QR:</span>{" "}
+                                      {qrCode?.value || "-"}
+                                    </div>
+                                    {qrCode ? (
+                                      <>
+                                        <img
+                                          src={buildCodeImageUrl(qrCode, "svg")}
+                                          alt={`QR code for ${v.sku}`}
+                                          className="h-28 w-28 rounded border bg-white p-1"
+                                          loading="lazy"
+                                        />
+                                        <div className="flex flex-wrap gap-2">
+                                          <a
+                                            href={buildCodeImageUrl(qrCode, "svg")}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-primary underline underline-offset-2"
+                                          >
+                                            SVG
+                                          </a>
+                                          <a
+                                            href={buildCodeImageUrl(qrCode, "png")}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-primary underline underline-offset-2"
+                                          >
+                                            PNG
+                                          </a>
+                                          <a
+                                            href={buildCodeImageUrl(qrCode, "png", true)}
+                                            className="text-primary underline underline-offset-2"
+                                          >
+                                            Download
+                                          </a>
+                                        </div>
+                                      </>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </TableCell>
                           <TableCell>
                             {v.currency} {String(v.price)}
                           </TableCell>
@@ -753,6 +948,22 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => printStickers([v.id])}
+                              >
+                                <Printer className="h-3 w-3 mr-1" />
+                                Sticker
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => regenerateVariantCodes(v)}
+                              >
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                Regenerate
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"

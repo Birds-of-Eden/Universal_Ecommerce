@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variants";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
+import { ensureVariantCodes } from "@/lib/product-codes";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
 
@@ -25,6 +26,12 @@ const productInclude = {
   },
   variants: {
     orderBy: { id: "asc" },
+    include: {
+      codes: {
+        where: { isPrimary: true, status: "ACTIVE" },
+        orderBy: { id: "asc" },
+      },
+    },
   },
   attributes: {
     include: {
@@ -316,6 +323,11 @@ export async function POST(req: Request) {
             quantity: variant.stock,
             reason: "Admin variant initial stock",
           });
+
+          await ensureVariantCodes(tx, {
+            productId: created.id,
+            variantId: createdVariant.id,
+          });
         }
       } else {
         const fallbackVariant = await tx.productVariant.create({
@@ -330,6 +342,11 @@ export async function POST(req: Request) {
             active: true,
             options: {},
           },
+        });
+
+        await ensureVariantCodes(tx, {
+          productId: created.id,
+          variantId: fallbackVariant.id,
         });
 
         if (type === "PHYSICAL") {
