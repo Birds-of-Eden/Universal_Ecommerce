@@ -4,9 +4,48 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
+import {
+  buildDeliveryConfirmationUrl,
+  ensureShipmentDeliveryConfirmation,
+} from "@/lib/delivery-proof";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+function buildShipmentInclude() {
+  return {
+    order: true,
+    courierRef: true,
+    deliveryProof: {
+      select: {
+        id: true,
+        tickReceived: true,
+        tickCorrectItems: true,
+        tickGoodCondition: true,
+        photoUrl: true,
+        note: true,
+        confirmedAt: true,
+        createdAt: true,
+        userId: true,
+      },
+    },
+  } as const;
+}
+
+function withDeliveryConfirmationMeta<T extends {
+  deliveryConfirmationToken?: string | null;
+  deliveryConfirmationPin?: string | null;
+}>(shipment: T, canReadAll: boolean) {
+  const confirmationUrl = shipment.deliveryConfirmationToken
+    ? buildDeliveryConfirmationUrl(shipment.deliveryConfirmationToken)
+    : null;
+
+  return {
+    ...shipment,
+    deliveryConfirmationUrl: confirmationUrl,
+    deliveryConfirmationPin: canReadAll ? shipment.deliveryConfirmationPin ?? null : undefined,
+  };
 }
 
 // GET /api/shipments/:id
@@ -39,10 +78,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 
     const shipment = await prisma.shipment.findUnique({
       where: { id },
-      include: {
-        order: true,
-        courierRef: true,
-      },
+      include: buildShipmentInclude(),
     });
 
     if (!shipment) {
@@ -57,7 +93,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json(shipment);
+    return NextResponse.json(withDeliveryConfirmationMeta(shipment, canReadAll));
   } catch (error) {
     console.error("Error fetching shipment:", error);
     return NextResponse.json(
@@ -106,6 +142,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         id: true,
         status: true,
         orderId: true,
+        deliveryConfirmationToken: true,
+        deliveryConfirmationPin: true,
+        deliveryConfirmationRequestedAt: true,
       },
     });
 
@@ -267,13 +306,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         }
       }
 
-      return tx.shipment.update({
+      const updatedShipment = await tx.shipment.update({
         where: { id },
         data,
       });
+
+      await ensureShipmentDeliveryConfirmation(tx, updatedShipment.id);
+
+      return tx.shipment.findUnique({
+        where: { id: updatedShipment.id },
+        include: buildShipmentInclude(),
+      });
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(withDeliveryConfirmationMeta(updated as any, true));
   } catch (error) {
     console.error("Error updating shipment:", error);
     return NextResponse.json(

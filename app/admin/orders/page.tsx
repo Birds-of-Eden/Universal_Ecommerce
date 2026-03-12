@@ -81,6 +81,19 @@ interface Shipment {
   expectedDate?: string | null;
   deliveredAt?: string | null;
   createdAt?: string;
+  deliveryConfirmationToken?: string | null;
+  deliveryConfirmationUrl?: string | null;
+  deliveryConfirmationPin?: string | null;
+  deliveryProof?: {
+    id: number;
+    tickReceived: boolean;
+    tickCorrectItems: boolean;
+    tickGoodCondition: boolean;
+    photoUrl?: string | null;
+    note?: string | null;
+    confirmedAt: string;
+    userId?: string | null;
+  } | null;
 }
 
 interface Pagination {
@@ -1609,6 +1622,89 @@ const OrderManagement = () => {
                           ) : (
                             "-"
                           )}
+                        </div>
+                      </div>
+                    )}
+
+                    {shipment && (
+                      <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                              Delivery Proof Flow
+                            </h4>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              When shipment reaches <strong>OUT_FOR_DELIVERY</strong>,
+                              customer can confirm with PIN + checklist + optional
+                              photo.
+                            </p>
+                          </div>
+                          <div className="rounded-xl bg-white px-3 py-2 text-right shadow-sm">
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                              Delivery PIN
+                            </p>
+                            <p className="mt-1 font-mono text-sm font-semibold text-foreground">
+                              {shipment.deliveryConfirmationPin || "Will generate on OFD"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                          <div className="rounded-xl bg-white px-3 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                              Confirmation Link
+                            </p>
+                            {shipment.deliveryConfirmationUrl ? (
+                              <a
+                                href={shipment.deliveryConfirmationUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-1 block break-all text-xs font-medium text-primary underline"
+                              >
+                                {shipment.deliveryConfirmationUrl}
+                              </a>
+                            ) : (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Link will appear automatically when the shipment is
+                                out for delivery.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="rounded-xl bg-white px-3 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                              Customer Proof Status
+                            </p>
+                            {shipment.deliveryProof ? (
+                              <div className="mt-1 space-y-1 text-xs text-foreground">
+                                <p className="font-medium">
+                                  Confirmed on {formatDate(shipment.deliveryProof.confirmedAt)}
+                                </p>
+                                <p>
+                                  Checks: received / correct items / good condition
+                                </p>
+                                {shipment.deliveryProof.photoUrl ? (
+                                  <a
+                                    href={shipment.deliveryProof.photoUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex text-xs font-medium text-primary underline"
+                                  >
+                                    View proof photo
+                                  </a>
+                                ) : null}
+                                {shipment.deliveryProof.note ? (
+                                  <p className="rounded-lg border border-border bg-muted/40 px-2 py-1 text-muted-foreground">
+                                    {shipment.deliveryProof.note}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                No customer delivery proof submitted yet.
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}

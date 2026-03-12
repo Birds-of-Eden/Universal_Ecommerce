@@ -5,6 +5,10 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCourierProvider } from "@/lib/couriers";
 import { getAccessContext } from "@/lib/rbac";
+import {
+  buildDeliveryConfirmationUrl,
+  ensureShipmentDeliveryConfirmation,
+} from "@/lib/delivery-proof";
 
 type CreateShipmentBody = {
   orderId: number;
@@ -13,6 +17,52 @@ type CreateShipmentBody = {
   warehouseId?: number | null;
   note?: string | null;
 };
+
+function buildShipmentInclude() {
+  return {
+    courierRef: {
+      select: { id: true, name: true, type: true, isActive: true },
+    },
+    order: {
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        phone_number: true,
+        status: true,
+        paymentStatus: true,
+      },
+    },
+    deliveryProof: {
+      select: {
+        id: true,
+        tickReceived: true,
+        tickCorrectItems: true,
+        tickGoodCondition: true,
+        photoUrl: true,
+        note: true,
+        confirmedAt: true,
+        createdAt: true,
+        userId: true,
+      },
+    },
+  } as const;
+}
+
+function withDeliveryConfirmationMeta<T extends {
+  deliveryConfirmationToken?: string | null;
+  deliveryConfirmationPin?: string | null;
+}>(shipment: T, canReadAll: boolean) {
+  const confirmationUrl = shipment.deliveryConfirmationToken
+    ? buildDeliveryConfirmationUrl(shipment.deliveryConfirmationToken)
+    : null;
+
+  return {
+    ...shipment,
+    deliveryConfirmationUrl: confirmationUrl,
+    deliveryConfirmationPin: canReadAll ? shipment.deliveryConfirmationPin ?? null : undefined,
+  };
+}
 
 // GET /api/shipments
 // - admin: all shipments (pagination + optional filters)
@@ -62,27 +112,15 @@ export async function GET(request: NextRequest) {
         skip,
         take,
         orderBy: { createdAt: "desc" },
-        include: {
-          courierRef: {
-            select: { id: true, name: true, type: true, isActive: true },
-          },
-          order: {
-            select: {
-              id: true,
-              userId: true,
-              name: true,
-              phone_number: true,
-              status: true,
-              paymentStatus: true,
-            },
-          },
-        },
+        include: buildShipmentInclude(),
       }),
       prisma.shipment.count({ where }),
     ]);
 
     return NextResponse.json({
-      shipments,
+      shipments: shipments.map((shipment) =>
+        withDeliveryConfirmationMeta(shipment, canReadAll),
+      ),
       pagination: {
         page,
         limit: take,
@@ -179,7 +217,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (courier.type === "CUSTOM") {
-      const customShipment = await prisma.shipment.update({
+      let customShipment = await prisma.shipment.update({
         where: { id: localShipment.id },
         data: {
           courierStatus: "LOCAL_CREATED",
@@ -190,7 +228,16 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return NextResponse.json(customShipment, { status: 201 });
+      customShipment =
+        (await prisma.shipment.findUnique({
+          where: { id: customShipment.id },
+          include: buildShipmentInclude(),
+        })) || customShipment;
+
+      return NextResponse.json(
+        withDeliveryConfirmationMeta(customShipment as any, true),
+        { status: 201 },
+      );
     }
 
     // 2) Hit courier API based on courier.type.
@@ -217,23 +264,32 @@ export async function POST(request: NextRequest) {
         note: body.note ?? null,
       });
 
-      const updated = await prisma.shipment.update({
-        where: { id: localShipment.id },
-        data: {
-          externalId: remote.externalId || null,
-          trackingNumber: remote.trackingNumber || null,
-          trackingUrl: remote.trackingUrl || null,
-          courierStatus: remote.courierStatus || "created",
-          status: (remote.status || "PENDING") as ShipmentStatus,
-          lastSyncedAt: new Date(),
-          shippedAt: new Date(),
-        },
-        include: {
-          courierRef: { select: { id: true, name: true, type: true } },
-        },
+      const updated = await prisma.$transaction(async (tx) => {
+        const nextShipment = await tx.shipment.update({
+          where: { id: localShipment.id },
+          data: {
+            externalId: remote.externalId || null,
+            trackingNumber: remote.trackingNumber || null,
+            trackingUrl: remote.trackingUrl || null,
+            courierStatus: remote.courierStatus || "created",
+            status: (remote.status || "PENDING") as ShipmentStatus,
+            lastSyncedAt: new Date(),
+            shippedAt: new Date(),
+          },
+        });
+
+        await ensureShipmentDeliveryConfirmation(tx, nextShipment.id);
+
+        return tx.shipment.findUnique({
+          where: { id: nextShipment.id },
+          include: buildShipmentInclude(),
+        });
       });
 
-      return NextResponse.json(updated, { status: 201 });
+      return NextResponse.json(
+        withDeliveryConfirmationMeta(updated as any, true),
+        { status: 201 },
+      );
     } catch (providerError) {
       console.error("Courier create shipment failed:", providerError);
       const failed = await prisma.shipment.update({

@@ -126,6 +126,7 @@ model User {
   inventoryReservations InventoryReservation[]
   serviceBookings       ServiceBooking[]
   refunds               Refund[]
+  deliveryProofs        DeliveryProof[]
   addresses             UserAddress[]
   analyticsEvents       AnalyticsEvent[]
   assignedChats         ChatConversation[]     @relation("AssignedChats")
@@ -300,10 +301,10 @@ model Product {
   gallery  String[]
   videoUrl String?
 
-  soldCount   Int   @default(0)
-  ratingAvg   Float @default(0)
-  ratingCount Int   @default(0)
-  lowStockThreshold Int @default(10)
+  soldCount         Int   @default(0)
+  ratingAvg         Float @default(0)
+  ratingCount       Int   @default(0)
+  lowStockThreshold Int   @default(10)
 
   deleted Boolean @default(false)
 
@@ -319,12 +320,12 @@ model Product {
   VatClass     VatClass?     @relation(fields: [VatClassId], references: [id])
   digitalAsset DigitalAsset? @relation("ProductDigitalAsset", fields: [digitalAssetId], references: [id])
 
-  variants      ProductVariant[]
-  codes         ProductCode[]
+  variants       ProductVariant[]
+  codes          ProductCode[]
   variantOptions ProductVariantOption[]
-  attributes    ProductAttribute[]
-  serviceSlots  ServiceSlot[]
-  inventoryLogs InventoryLog[]
+  attributes     ProductAttribute[]
+  serviceSlots   ServiceSlot[]
+  inventoryLogs  InventoryLog[]
 
   orderItems OrderItem[]
   wishlist   Wishlist[]
@@ -333,16 +334,16 @@ model Product {
 }
 
 model ProductVariant {
-  id             Int     @id @default(autoincrement())
-  productId      Int
-  sku            String  @unique
-  price          Decimal @db.Decimal(10, 2)
-  currency       String  @default("USD") @db.VarChar(3)
-  stock          Int     @default(0) // derived available stock across warehouses
-  lowStockThreshold Int  @default(10)
-  isDefault      Boolean @default(false)
-  active         Boolean @default(true)
-  digitalAssetId Int?
+  id                Int     @id @default(autoincrement())
+  productId         Int
+  sku               String  @unique
+  price             Decimal @db.Decimal(10, 2)
+  currency          String  @default("USD") @db.VarChar(3)
+  stock             Int     @default(0) // derived available stock across warehouses
+  lowStockThreshold Int     @default(10)
+  isDefault         Boolean @default(false)
+  active            Boolean @default(true)
+  digitalAssetId    Int?
 
   options Json // { size: "XL", color: "Red" }
 
@@ -546,6 +547,7 @@ model Order {
   orderItems            OrderItem[]
   payments              Payment[]
   refunds               Refund[]
+  deliveryProofs        DeliveryProof[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   shipments             Shipment[]
@@ -682,15 +684,18 @@ model Blog {
 }
 
 model Shipment {
-  id             Int            @id @default(autoincrement())
-  orderId        Int            @unique
-  warehouseId    Int?
-  courier        String
-  courierId      Int?
-  trackingNumber String?
-  externalId     String? // courier consignment id
-  trackingUrl    String? // courier tracking page
-  status         ShipmentStatus @default(PENDING)
+  id                              Int            @id @default(autoincrement())
+  orderId                         Int            @unique
+  warehouseId                     Int?
+  courier                         String
+  courierId                       Int?
+  trackingNumber                  String?
+  externalId                      String? // courier consignment id
+  trackingUrl                     String? // courier tracking page
+  status                          ShipmentStatus @default(PENDING)
+  deliveryConfirmationToken       String?        @unique
+  deliveryConfirmationPin         String?
+  deliveryConfirmationRequestedAt DateTime?
 
   courierStatus String? // raw courier status
   lastSyncedAt  DateTime?
@@ -699,15 +704,42 @@ model Shipment {
   expectedDate DateTime?
   deliveredAt  DateTime?
 
-  order      Order          @relation(fields: [orderId], references: [id])
-  warehouse  Warehouse?     @relation(fields: [warehouseId], references: [id])
-  courierRef Courier?       @relation("ShipmentToCourier", fields: [courierId], references: [id])
-  items      ShipmentItem[]
+  order         Order          @relation(fields: [orderId], references: [id])
+  warehouse     Warehouse?     @relation(fields: [warehouseId], references: [id])
+  courierRef    Courier?       @relation("ShipmentToCourier", fields: [courierId], references: [id])
+  items         ShipmentItem[]
+  deliveryProof DeliveryProof?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([courierId])
+  @@index([deliveryConfirmationRequestedAt])
+}
+
+model DeliveryProof {
+  id                Int      @id @default(autoincrement())
+  orderId           Int
+  shipmentId        Int      @unique
+  userId            String?
+  tickReceived      Boolean
+  tickCorrectItems  Boolean
+  tickGoodCondition Boolean
+  photoUrl          String?
+  note              String?
+  confirmedAt       DateTime @default(now())
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  shipment Shipment @relation(fields: [shipmentId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([confirmedAt])
 }
 
 model Courier {

@@ -46,14 +46,23 @@ interface Order {
 }
 
 interface Shipment {
+  id?: number;
   status: string;
   courier?: string | null;
   trackingNumber?: string | null;
+  deliveryConfirmationToken?: string | null;
+  deliveryConfirmationUrl?: string | null;
   shippedAt?: string | null;
   expectedDate?: string | null;
   deliveredAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  deliveryProof?: {
+    id: number;
+    confirmedAt: string;
+    photoUrl?: string | null;
+    note?: string | null;
+  } | null;
 }
 
 const formatDate = (date: string | null | undefined) => {
@@ -452,14 +461,18 @@ export default function OrderDetailsPage() {
 
         if (s) {
           setShipment({
+            id: s.id,
             status: s.status,
             courier: s.courier,
             trackingNumber: s.trackingNumber,
+            deliveryConfirmationToken: s.deliveryConfirmationToken,
+            deliveryConfirmationUrl: s.deliveryConfirmationUrl,
             shippedAt: s.shippedAt,
             expectedDate: s.expectedDate,
             deliveredAt: s.deliveredAt,
             createdAt: s.createdAt,
             updatedAt: s.updatedAt,
+            deliveryProof: s.deliveryProof || null,
           });
         }
       } catch (err) {
@@ -618,6 +631,12 @@ export default function OrderDetailsPage() {
 
   const stages = buildStages(order, shipment);
   const activeStageIndex = getActiveStageIndex(stages, order, shipment);
+  const canConfirmDelivery =
+    Boolean(shipment?.deliveryConfirmationUrl) &&
+    ["OUT_FOR_DELIVERY", "DELIVERED"].includes(
+      shipment?.status?.toUpperCase() || "",
+    ) &&
+    !shipment?.deliveryProof;
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -822,7 +841,6 @@ export default function OrderDetailsPage() {
                   >
                     <div className="w-20 h-28 flex-shrink-0 bg-muted border border-border rounded-sm overflow-hidden flex items-center justify-center">
                       {item.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.image}
                           alt={item.name}
@@ -940,6 +958,66 @@ export default function OrderDetailsPage() {
                       "N/A"}
                   </p>
                 </div>
+              </div>
+            </Card>
+
+            <Card className="card-theme overflow-hidden border border-emerald-200/70 p-0">
+              <div className="bg-[linear-gradient(135deg,rgba(16,185,129,0.12),rgba(15,23,42,0.04))] px-6 py-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                      Delivery Proof
+                    </p>
+                    <h3 className="mt-1 font-semibold text-foreground">
+                      Customer confirmation
+                    </h3>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 px-6 py-5">
+                {shipment?.deliveryProof ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Delivery was confirmed on{" "}
+                      <span className="font-medium text-foreground">
+                        {formatDate(shipment.deliveryProof.confirmedAt)}
+                      </span>
+                      .
+                    </p>
+                    {shipment.deliveryProof.photoUrl ? (
+                      <a
+                        href={shipment.deliveryProof.photoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex text-sm font-medium text-emerald-700 underline"
+                      >
+                        View proof photo
+                      </a>
+                    ) : null}
+                  </>
+                ) : canConfirmDelivery ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Once the courier shares the delivery PIN, complete the proof
+                      form to confirm you received the parcel.
+                    </p>
+                    <Link
+                      href={shipment?.deliveryConfirmationUrl || "#"}
+                      className="inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                      Confirm Delivery
+                    </Link>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Delivery confirmation will appear here when the shipment is out
+                    for delivery.
+                  </p>
+                )}
               </div>
             </Card>
 
