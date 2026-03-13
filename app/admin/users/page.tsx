@@ -25,6 +25,21 @@ interface User {
   };
 }
 
+interface Role {
+  id: string;
+  name: string;
+  label: string;
+  description: string | null;
+  isSystem: boolean;
+  isImmutable: boolean;
+  userCount: number;
+  permissions: Array<{
+    id: string;
+    key: string;
+    description: string | null;
+  }>;
+}
+
 interface PaginationInfo {
   page: number;
   limit: number;
@@ -81,6 +96,8 @@ export default function AdminUsersPage() {
   const [creating, setCreating] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
   const [newUser, setNewUser] = useState({
     email: "",
     name: "",
@@ -90,6 +107,42 @@ export default function AdminUsersPage() {
     addresses: [""],
   });
   const [showPassword, setShowPassword] = useState(false);
+
+  // Fetch roles from RBAC API
+  const fetchRoles = useCallback(async () => {
+    try {
+      setRolesLoading(true);
+      const response = await fetch("/api/admin/rbac/roles");
+      
+      if (!response.ok) {
+        throw new Error("Failed to load roles");
+      }
+      
+      const rolesData = await response.json();
+      setRoles(rolesData);
+    } catch (err) {
+      console.error("Error fetching roles:", err);
+    } finally {
+      setRolesLoading(false);
+    }
+  }, []);
+
+  // Fetch roles when component mounts
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
+
+  // Update default role when roles are loaded
+  useEffect(() => {
+    if (roles.length > 0 && newUser.role === "user") {
+      // Find a suitable default role (prefer non-system roles, or first available)
+      const defaultRole = roles.find(r => !r.isSystem) || roles[0];
+      if (defaultRole) {
+        setNewUser(prev => ({ ...prev, role: defaultRole.name }));
+      }
+    }
+  }, [roles, newUser.role]);
+
   // Memoize fetch function with persistent page-level caching
   const fetchUsers = useCallback(async (showRefresh = false) => {
     const queryState: UsersQueryState = {
@@ -266,32 +319,48 @@ export default function AdminUsersPage() {
 
     try {
       setCreating(true);
+      
+      const requestData = {
+        email: newUser.email,
+        name: newUser.name || "",
+        role: newUser.role,
+        phone: newUser.phone || "",
+        password: newUser.password,
+        addresses: normalizedAddresses,
+      };
+      
+      console.log('Sending user creation request:', requestData);
+      
       const response = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: newUser.email,
-          name: newUser.name || null,
-          role: newUser.role,
-          phone: newUser.phone || null,
-          password: newUser.password,
-          addresses: normalizedAddresses,
-        }),
+        body: JSON.stringify(requestData),
       });
 
+      console.log('Response status:', response.status, response.statusText);
+      
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
+        const data = await response.json().catch((e) => {
+          console.error('Error parsing JSON response:', e);
+          return {};
+        });
+        console.error('Create user error response:', data);
         setCreateError(
-          data?.error || "Failed to create user"
+          data?.error || data?.message || "Failed to create user"
         );
         return;
       }
 
+      const successData = await response.json();
+      console.log('User created successfully:', successData);
       setShowCreateModal(false);
+      
+      // Reset form with proper default role
+      const defaultRole = roles.find(r => !r.isSystem) || roles[0] || { name: "user" };
       setNewUser({
         email: "",
         name: "",
-        role: "user",
+        role: defaultRole.name,
         phone: "",
         password: "",
         addresses: [""],
@@ -495,6 +564,7 @@ export default function AdminUsersPage() {
         <UserFilters
           search={filters.search}
           role={filters.role}
+          roles={roles}
           onSearchChange={handleSearchChange}
           onRoleChange={handleRoleChange}
           onReset={handleResetFilters}
@@ -702,7 +772,7 @@ export default function AdminUsersPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    Legacy Role
+                    Role
                   </label>
                   <select
                     value={newUser.role}
@@ -710,12 +780,30 @@ export default function AdminUsersPage() {
                       setNewUser((prev) => ({ ...prev, role: e.target.value }))
                     }
                     className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                    disabled={rolesLoading}
                   >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                    <option value="moderator">Moderator</option>
-                    <option value="manager">Manager</option>
+                    {rolesLoading ? (
+                      <option value="">Loading roles...</option>
+                    ) : roles.length > 0 ? (
+                      roles.map((role) => (
+                        <option key={role.id} value={role.name}>
+                          {role.label} {role.isSystem && "(System)"}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                        <option value="moderator">Moderator</option>
+                        <option value="manager">Manager</option>
+                      </>
+                    )}
                   </select>
+                  {!rolesLoading && roles.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {roles.find(r => r.name === newUser.role)?.description || "Select a role for this user"}
+                    </p>
+                  )}
                 </div>
               </div>
 

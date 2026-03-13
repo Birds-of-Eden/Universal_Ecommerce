@@ -210,7 +210,7 @@ export default function Footer({
   return (
     <footer className="bg-card border-t border-border">
       {/* Features Bar */}
-      <div className="border-b border-border bg-muted/30 shadow-sm transition-all duration-300 ease-out hover:shadow-lg hover:scale-102 hover:-translate-y-1 group">
+      <div className="border-b border-border bg-muted/30 shadow-sm">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6">
             {features.map((feature, index) => (
@@ -218,7 +218,7 @@ export default function Footer({
                 key={index}
                 className="flex items-center gap-3 group cursor-pointer"
               >
-                <div className="p-2 rounded-lg bg-primary/5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+                <div className="p-2 rounded-lg bg-primary/5 text-primary">
                   <feature.icon className="h-5 w-5" />
                 </div>
                 <div>

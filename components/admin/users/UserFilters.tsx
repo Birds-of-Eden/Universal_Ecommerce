@@ -2,9 +2,20 @@
 
 import { Search, RotateCcw, Shield } from "lucide-react";
 
+interface Role {
+  id: string;
+  name: string;
+  label: string;
+  description: string | null;
+  isSystem: boolean;
+  isImmutable: boolean;
+  userCount: number;
+}
+
 interface UserFiltersProps {
   search: string;
   role: string;
+  roles: Role[];
   onSearchChange: (value: string) => void;
   onRoleChange: (value: string) => void;
   onReset: () => void;
@@ -13,16 +24,19 @@ interface UserFiltersProps {
 export default function UserFilters({
   search,
   role,
+  roles,
   onSearchChange,
   onRoleChange,
   onReset,
 }: UserFiltersProps) {
-  const formatRoleLabel = (value: string) =>
-    value
+  const formatRoleLabel = (roleName: string) => {
+    const role = roles.find(r => r.name === roleName);
+    return role ? role.label : roleName
       .split("_")
       .filter(Boolean)
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
+  };
 
   return (
     <div className="bg-gradient-to-r from-background to-muted p-6 rounded-2xl shadow-lg border-border mb-8">
@@ -57,10 +71,20 @@ export default function UserFilters({
             className="w-full px-4 py-3 rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground shadow-sm"
           >
             <option value="">All Roles</option>
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-            <option value="moderator">Moderator</option>
-            <option value="manager">Manager</option>
+            {roles.length > 0 ? (
+              roles.map((role) => (
+                <option key={role.id} value={role.name}>
+                  {role.label} {role.isSystem && "(System)"}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+                <option value="moderator">Moderator</option>
+                <option value="manager">Manager</option>
+              </>
+            )}
           </select>
         </div>
         
