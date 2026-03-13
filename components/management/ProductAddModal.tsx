@@ -599,15 +599,23 @@ export default function ProductAddModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      onClick={(e) => {
+        // Close modal when clicking on the backdrop (outside the modal content)
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border bg-background p-6 shadow-xl">
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-4 top-4 text-muted-foreground transition-colors hover:text-foreground"
-          aria-label="Close"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted/50 text-muted-foreground transition-all hover:bg-destructive hover:text-destructive-foreground hover:border-destructive focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2"
+          aria-label="Close modal"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
 
         <h2 className="mb-4 text-2xl font-bold">{editing ? "Edit Product" : "Add Product"}</h2>
