@@ -97,6 +97,8 @@ export default function CheckoutPage() {
   const [loadingAreas, setLoadingAreas] = useState(false);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null);
+  const [vatRates, setVatRates] = useState<any[]>([]);
+  const [vatCalculations, setVatCalculations] = useState<any>(null);
 
   const isAuthenticated = !!session;
 
@@ -128,6 +130,7 @@ export default function CheckoutPage() {
       } catch {}
     };
     fetchGateways();
+    fetchVatRates();
   }, []);
 
   useEffect(() => {
@@ -165,6 +168,7 @@ export default function CheckoutPage() {
                   .map(([key, value]) => `${key}: ${String(value)}`)
                   .join(", ")
               : item.variant?.sku ?? null,
+          product: item.product, // Include full product data for VAT calculation
         }));
 
         setServerCartItems(mapped);
@@ -251,6 +255,59 @@ export default function CheckoutPage() {
     if (key === "india") return "IN";
     if (key === "pakistan") return "PK";
     return v.slice(0, 2).toUpperCase();
+  };
+
+  const fetchVatRates = async () => {
+    try {
+      const res = await fetch("/api/vat-rates", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setVatRates(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error fetching VAT rates:", error);
+    }
+  };
+
+  const calculateVAT = (items: any[], countryCode: string) => {
+    const vatBreakdown: any = {};
+    let totalVAT = 0;
+
+    items.forEach((item) => {
+      const vatClass = item.product?.VatClass;
+      if (!vatClass) return;
+
+      const vatRate = vatRates.find(
+        (rate: any) => 
+          rate.VatClassId === vatClass.id && 
+          rate.countryCode === countryCode &&
+          (!rate.startDate || new Date(rate.startDate) <= new Date()) &&
+          (!rate.endDate || new Date(rate.endDate) >= new Date())
+      );
+
+      if (!vatRate) return;
+
+      const itemSubtotal = Number(item.price) * Number(item.quantity);
+      const vatAmount = itemSubtotal * Number(vatRate.rate);
+      
+      if (!vatBreakdown[vatClass.name]) {
+        vatBreakdown[vatClass.name] = {
+          className: vatClass.name,
+          classCode: vatClass.code,
+          rate: Number(vatRate.rate) * 100, // Convert to percentage
+          subtotal: 0,
+          vatAmount: 0,
+        };
+      }
+
+      vatBreakdown[vatClass.name].subtotal += itemSubtotal;
+      vatBreakdown[vatClass.name].vatAmount += vatAmount;
+      totalVAT += vatAmount;
+    });
+
+    return {
+      breakdown: vatBreakdown,
+      totalVAT,
+    };
   };
 
   const fetchUserAddresses = async () => {
@@ -362,7 +419,8 @@ export default function CheckoutPage() {
   );
   const hasShippingQuote = shippingQuote !== null;
   const shipping = hasShippingQuote ? Number(shippingQuote.shippingCost) : 0;
-  const total = subtotal + shipping;
+  const vat = vatCalculations ? vatCalculations.totalVAT : 0;
+  const total = subtotal + shipping + vat;
 
   useEffect(() => {
     if (!selectedAddressId) return;
@@ -411,6 +469,18 @@ export default function CheckoutPage() {
 
     fetchShippingQuote();
   }, [country, location, area, subtotal]);
+
+  useEffect(() => {
+    const countryCode = normalizeCountryCode(country);
+    const items = isAuthenticated && serverCartItems ? serverCartItems : cartItems;
+    
+    if (items.length > 0 && vatRates.length > 0) {
+      const vatCalc = calculateVAT(items, countryCode);
+      setVatCalculations(vatCalc);
+    } else {
+      setVatCalculations(null);
+    }
+  }, [itemsToRender, country, vatRates, isAuthenticated, serverCartItems, cartItems]);
 
   const handleScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -633,14 +703,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      try {
-        if ((session as any)?.user) {
-          await fetch("/api/cart", { method: "DELETE" });
-          window.dispatchEvent(new Event("serverCartCleared"));
-        }
-      } catch {}
-
-      clearCart();
       setInvoiceId(localInvoiceId);
       setStep("confirm");
       toast.success("Order created, please confirm now");
@@ -661,7 +723,16 @@ export default function CheckoutPage() {
       } catch {}
     }
 
+    // Clear both client and server cart after order confirmation
     clearCart();
+    
+    try {
+      if ((session as any)?.user) {
+        await fetch("/api/cart", { method: "DELETE" });
+        window.dispatchEvent(new Event("serverCartCleared"));
+      }
+    } catch {}
+
     setOrderConfirmed(true);
     setShowModal(true);
     toast.success("Order completed successfully!");
@@ -1114,7 +1185,22 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                 )}
-
+ {vatCalculations && Object.keys(vatCalculations.breakdown).length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>VAT</span>
+                      <span className="text-foreground">৳{vat.toFixed(2)}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      {Object.values(vatCalculations.breakdown).map((breakdown: any) => (
+                        <div key={breakdown.classCode} className="flex justify-between">
+                          <span>{breakdown.className} ({breakdown.rate}%):</span>
+                          <span>৳{breakdown.vatAmount.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {!shippingLoading && hasShippingQuote && shippingQuote?.matchedRate && (
                   <div className="text-xs text-muted-foreground space-y-1">
                     <div>
@@ -1134,6 +1220,8 @@ export default function CheckoutPage() {
                     )}
                   </div>
                 )}
+
+               
 
                 <div className="flex justify-between font-bold text-base text-foreground border-t border-border pt-3">
                   <span>Total</span>

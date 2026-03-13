@@ -16,6 +16,7 @@ const productInclude = {
   brand: true,
   writer: true,
   publisher: true,
+  VatClass: true,
   variantOptions: {
     orderBy: { position: "asc" },
     include: {

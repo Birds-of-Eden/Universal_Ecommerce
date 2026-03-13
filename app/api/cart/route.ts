@@ -23,6 +23,7 @@ export async function GET() {
             variants: {
               orderBy: { id: 'asc' },
             },
+            VatClass: true,
           },
         },
         variant: true,

@@ -198,17 +198,19 @@ export default function CartPage() {
     }));
   }, [serverCartItems]);
 
-  useEffect(() => {
-    if (!hasMounted) return;
-    if (!isAuthenticated) return;
-    if (!mappedServerForContext) return;
+  // ✅ Removed replaceCart to preserve cart context
+  // Cart page should only display items, not modify the context
+  // useEffect(() => {
+  //   if (!hasMounted) return;
+  //   if (!isAuthenticated) return;
+  //   if (!mappedServerForContext) return;
 
-    const nextStr = JSON.stringify(mappedServerForContext);
-    if (lastReplacedRef.current === nextStr) return;
+  //   const nextStr = JSON.stringify(mappedServerForContext);
+  //   if (lastReplacedRef.current === nextStr) return;
 
-    lastReplacedRef.current = nextStr;
-    replaceCart(mappedServerForContext);
-  }, [hasMounted, isAuthenticated, mappedServerForContext, replaceCart]);
+  //   lastReplacedRef.current = nextStr;
+  //   replaceCart(mappedServerForContext);
+  // }, [hasMounted, isAuthenticated, mappedServerForContext, replaceCart]);
 
   const fetchServerCart = useCallback(async () => {
     try {
@@ -318,44 +320,80 @@ export default function CartPage() {
   }, [cartItems, clearGuestCartStorageOnly, fetchServerCart]);
 
   // ----------------------------
-  // ✅ Main auth sync
+  // ✅ Main auth sync - DISABLED on cart page to preserve context
   // ----------------------------
   useEffect(() => {
+    // Don't sync on cart page to prevent context changes
+    // Cart page should be read-only view
     if (!hasMounted) return;
-
-    if (!isAuthenticated) {
-      setServerCartItems(null);
-      setServerCartError(null);
-      setLoadingServerCart(false);
-      lastReplacedRef.current = "";
-      inFlightRef.current = false;
-      return;
+    
+    if (isAuthenticated && !serverCartItems && !serverCartError) {
+      // Only fetch server cart for display, don't sync with context
+      fetchServerCart();
     }
-
-    // need server cart always when authenticated
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-
-    const run = async () => {
-      try {
-        const localSnapshot: any[] = Array.isArray(cartItems) ? cartItems : [];
-
-        // if guest has items, sync them to server, else just fetch
-        if (localSnapshot.length === 0) await fetchServerCart();
-        else await syncGuestCartToServer();
-      } finally {
-        inFlightRef.current = false;
-      }
-    };
-
-    run();
+    
+    return;
   }, [
     isAuthenticated,
     hasMounted,
-    cartItems,
+    serverCartItems,
+    serverCartError,
     fetchServerCart,
-    syncGuestCartToServer,
   ]);
+
+  // ----------------------------
+  // ✅ Gentle sync for authenticated users - DISABLED on cart page
+  // ----------------------------
+  useEffect(() => {
+    // Disable sync on cart page to prevent automatic additions
+    // Cart page should be read-only view only
+    return;
+    
+    if (!hasMounted) return;
+    if (!isAuthenticated) return;
+    
+    const syncContextToServer = async () => {
+      const contextItems = (cartItems as any) || [];
+      const serverItems = serverCartItems ?? [];
+      
+      if (contextItems.length === 0) return;
+      
+      // Find items in context that don't exist in server
+      const itemsToSync = contextItems.filter((contextItem: any) =>
+        !serverItems.some(
+          (serverItem: any) =>
+            String(serverItem.productId) === String(contextItem.productId) &&
+            String(serverItem.variantId ?? "") === String(contextItem.variantId ?? "")
+        )
+      );
+      
+      // Sync to server without affecting context
+      for (const item of itemsToSync) {
+        try {
+          await fetch("/api/cart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              productId: item.productId,
+              variantId: item.variantId ?? null,
+              quantity: item.quantity,
+            }),
+          });
+        } catch (error) {
+          console.error("Failed to sync item to server:", error);
+        }
+      }
+      
+      // Refresh server cart after syncing
+      if (itemsToSync.length > 0) {
+        fetchServerCart();
+      }
+    };
+    
+    // Delay sync to avoid immediate calls
+    const timer = setTimeout(syncContextToServer, 1000);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, hasMounted, cartItems, serverCartItems, fetchServerCart]);
 
   // manual retry
   const retryServerCart = async () => {
@@ -382,9 +420,33 @@ export default function CartPage() {
   const showAuthError =
     isAuthenticated && serverCartItems === null && !!serverCartError;
 
-  const itemsToRender: LocalCartItem[] = isAuthenticated
-    ? serverCartItems ?? []
-    : ((cartItems as any) || []);
+  const itemsToRender: LocalCartItem[] = (() => {
+  if (!isAuthenticated) {
+    return ((cartItems as any) || []);
+  }
+
+  // For authenticated users, combine server cart and context items
+  const serverItems = serverCartItems ?? [];
+  const contextItems = (cartItems as any) || [];
+
+  // Merge items, preferring server items for same product/variant
+  const mergedItems = [...serverItems];
+  
+  // Add context items that don't exist in server cart
+  contextItems.forEach((contextItem: any) => {
+    const existsInServer = serverItems.some(
+      (serverItem: any) =>
+        String(serverItem.productId) === String(contextItem.productId) &&
+        String(serverItem.variantId ?? "") === String(contextItem.variantId ?? "")
+    );
+    
+    if (!existsInServer) {
+      mergedItems.push(contextItem);
+    }
+  });
+
+  return mergedItems;
+})();
 
   const subtotal = itemsToRender.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -434,7 +496,11 @@ export default function CartPage() {
 
   const handleRemoveItem = async (itemId: string | number) => {
     try {
-      if (isAuthenticated) {
+      // Check if this is a server cart item or context item
+      const isServerItem = isAuthenticated && serverCartItems?.some(item => item.id === itemId);
+      
+      if (isAuthenticated && isServerItem) {
+        // Remove from server cart
         const res = await fetch(`/api/cart/${itemId}`, { method: "DELETE" });
 
         if (!res.ok && res.status !== 404) {
@@ -449,6 +515,7 @@ export default function CartPage() {
         );
       }
 
+      // Always remove from context
       removeFromCart(itemId);
       toast.success("Item removed.");
     } catch (error) {
@@ -464,7 +531,11 @@ export default function CartPage() {
     if (newQuantity < 1) return;
 
     try {
-      if (isAuthenticated) {
+      // Check if this is a server cart item or context item
+      const isServerItem = isAuthenticated && serverCartItems?.some(item => item.id === itemId);
+      
+      if (isAuthenticated && isServerItem) {
+        // Update server cart item
         const res = await fetch(`/api/cart/${itemId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -487,6 +558,7 @@ export default function CartPage() {
         );
       }
 
+      // Always update context
       updateQuantity(itemId, newQuantity);
     } catch (error) {
       console.error("Error updating quantity:", error);
