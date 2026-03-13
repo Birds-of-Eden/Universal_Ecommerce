@@ -43,6 +43,7 @@ interface Order {
   createdAt: string;
   status: string;
   paymentStatus: string;
+  vatTotal?: number;
 }
 
 interface Shipment {
@@ -418,6 +419,7 @@ export default function OrderDetailsPage() {
           createdAt: o.createdAt ?? o.order_date,
           status: o.status ?? "PENDING",
           paymentStatus: o.paymentStatus ?? "UNPAID",
+          vatTotal: Number(o.Vat_total ?? 0),
         };
 
         setOrder(mapped);
@@ -624,7 +626,8 @@ export default function OrderDetailsPage() {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
-  const deliveryCharge = Math.max(order.total - subTotal, 0);
+  const vatTotal = Number(order.vatTotal ?? 0);
+  const deliveryCharge = Math.max(order.total - subTotal - vatTotal, 0);
 
   const statusCfg = getOrderStatusConfig(order.status);
   const paymentCfg = getPaymentStatusConfig(order.paymentStatus);
@@ -898,6 +901,10 @@ export default function OrderDetailsPage() {
                     <span className="text-foreground">
                       TK. {deliveryCharge.toFixed(2)}
                     </span>
+                  </div>
+                  <div className="flex justify-between gap-8 text-[13px] text-muted-foreground">
+                    <span>VAT</span>
+                    <span className="text-foreground">TK. {vatTotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between gap-8 text-[13px] text-muted-foreground">
                     <span>Payable Amount</span>

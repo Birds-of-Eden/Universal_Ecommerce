@@ -61,6 +61,26 @@ type ShippingRateOption = {
   priority: number;
 };
 
+type TaxQuote = {
+  countryCode: string;
+  totalVAT: number;
+  totalTaxCharge: number;
+  totalInclusiveVAT: number;
+  totalExclusiveVAT: number;
+  breakdown: Array<{
+    vatClassId: number;
+    className: string;
+    classCode: string;
+    rate: number;
+    inclusive: boolean;
+    countryCode: string;
+    regionCode?: string | null;
+    taxableAmount: number;
+    vatAmount: number;
+    taxCharge: number;
+  }>;
+};
+
 export default function CheckoutPage() {
   const { cartItems, clearCart } = useCart();
   const { data: session } = useSession();
@@ -97,8 +117,7 @@ export default function CheckoutPage() {
   const [loadingAreas, setLoadingAreas] = useState(false);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null);
-  const [vatRates, setVatRates] = useState<any[]>([]);
-  const [vatCalculations, setVatCalculations] = useState<any>(null);
+  const [taxQuote, setTaxQuote] = useState<TaxQuote | null>(null);
 
   const isAuthenticated = !!session;
 
@@ -130,7 +149,6 @@ export default function CheckoutPage() {
       } catch {}
     };
     fetchGateways();
-    fetchVatRates();
   }, []);
 
   useEffect(() => {
@@ -257,59 +275,6 @@ export default function CheckoutPage() {
     return v.slice(0, 2).toUpperCase();
   };
 
-  const fetchVatRates = async () => {
-    try {
-      const res = await fetch("/api/vat-rates", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = await res.json();
-      setVatRates(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Error fetching VAT rates:", error);
-    }
-  };
-
-  const calculateVAT = (items: any[], countryCode: string) => {
-    const vatBreakdown: any = {};
-    let totalVAT = 0;
-
-    items.forEach((item) => {
-      const vatClass = item.product?.VatClass;
-      if (!vatClass) return;
-
-      const vatRate = vatRates.find(
-        (rate: any) => 
-          rate.VatClassId === vatClass.id && 
-          rate.countryCode === countryCode &&
-          (!rate.startDate || new Date(rate.startDate) <= new Date()) &&
-          (!rate.endDate || new Date(rate.endDate) >= new Date())
-      );
-
-      if (!vatRate) return;
-
-      const itemSubtotal = Number(item.price) * Number(item.quantity);
-      const vatAmount = itemSubtotal * Number(vatRate.rate);
-      
-      if (!vatBreakdown[vatClass.name]) {
-        vatBreakdown[vatClass.name] = {
-          className: vatClass.name,
-          classCode: vatClass.code,
-          rate: Number(vatRate.rate) * 100, // Convert to percentage
-          subtotal: 0,
-          vatAmount: 0,
-        };
-      }
-
-      vatBreakdown[vatClass.name].subtotal += itemSubtotal;
-      vatBreakdown[vatClass.name].vatAmount += vatAmount;
-      totalVAT += vatAmount;
-    });
-
-    return {
-      breakdown: vatBreakdown,
-      totalVAT,
-    };
-  };
-
   const fetchUserAddresses = async () => {
     try {
       setLoadingAddresses(true);
@@ -419,8 +384,9 @@ export default function CheckoutPage() {
   );
   const hasShippingQuote = shippingQuote !== null;
   const shipping = hasShippingQuote ? Number(shippingQuote.shippingCost) : 0;
-  const vat = vatCalculations ? vatCalculations.totalVAT : 0;
-  const total = subtotal + shipping + vat;
+  const vat = taxQuote ? Number(taxQuote.totalVAT || 0) : 0;
+  const taxCharge = taxQuote ? Number(taxQuote.totalTaxCharge || 0) : 0;
+  const total = subtotal + shipping + taxCharge;
 
   useEffect(() => {
     if (!selectedAddressId) return;
@@ -471,16 +437,41 @@ export default function CheckoutPage() {
   }, [country, location, area, subtotal]);
 
   useEffect(() => {
-    const countryCode = normalizeCountryCode(country);
-    const items = isAuthenticated && serverCartItems ? serverCartItems : cartItems;
-    
-    if (items.length > 0 && vatRates.length > 0) {
-      const vatCalc = calculateVAT(items, countryCode);
-      setVatCalculations(vatCalc);
-    } else {
-      setVatCalculations(null);
-    }
-  }, [itemsToRender, country, vatRates, isAuthenticated, serverCartItems, cartItems]);
+    const fetchTaxQuote = async () => {
+      if (!country.trim() || itemsToRender.length === 0) {
+        setTaxQuote(null);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/tax/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            country,
+            district: location,
+            items: itemsToRender.map((item) => ({
+              productId: item.productId ?? item.id,
+              variantId: item.variantId ?? null,
+              quantity: item.quantity,
+            })),
+          }),
+        });
+
+        if (!res.ok) {
+          setTaxQuote(null);
+          return;
+        }
+
+        const data = await res.json();
+        setTaxQuote(data);
+      } catch {
+        setTaxQuote(null);
+      }
+    };
+
+    void fetchTaxQuote();
+  }, [country, location, itemsToRender]);
 
   const handleScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1185,16 +1176,19 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                 )}
- {vatCalculations && Object.keys(vatCalculations.breakdown).length > 0 && (
+                {taxQuote && taxQuote.breakdown.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-muted-foreground">
                       <span>VAT</span>
                       <span className="text-foreground">৳{vat.toFixed(2)}</span>
                     </div>
                     <div className="text-xs text-muted-foreground space-y-1">
-                      {Object.values(vatCalculations.breakdown).map((breakdown: any) => (
+                      {taxQuote.breakdown.map((breakdown) => (
                         <div key={breakdown.classCode} className="flex justify-between">
-                          <span>{breakdown.className} ({breakdown.rate}%):</span>
+                          <span>
+                            {breakdown.className} ({breakdown.rate}%)
+                            {breakdown.inclusive ? " included" : " added"}:
+                          </span>
                           <span>৳{breakdown.vatAmount.toFixed(2)}</span>
                         </div>
                       ))}

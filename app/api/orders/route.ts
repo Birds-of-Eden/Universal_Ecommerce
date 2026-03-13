@@ -6,6 +6,7 @@ import { deductVariantInventory } from "@/lib/inventory";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { calculateShippingQuote } from "@/lib/shipping";
+import { calculateTaxForItems } from "@/lib/tax";
 
 // GET /api/orders
 // - admin: all orders (with pagination & optional status filter)
@@ -205,6 +206,7 @@ export async function POST(request: NextRequest) {
         id: { in: productIds },
       },
       include: {
+        VatClass: true,
         variants: {
           include: {
             stockLevels: {
@@ -274,6 +276,9 @@ export async function POST(request: NextRequest) {
         quantity: item.quantity,
         price: priceNumber,
         currency: String(targetVariant.currency || product.currency || "BDT"),
+        vatClassId: product.VatClass?.id ?? null,
+        vatClassName: product.VatClass?.name ?? null,
+        vatClassCode: product.VatClass?.code ?? null,
         product,
         variant: targetVariant,
       };
@@ -286,8 +291,26 @@ export async function POST(request: NextRequest) {
       subtotal,
     });
 
+    const taxQuote = await calculateTaxForItems(prisma, {
+      country: String(country),
+      district: String(district),
+      currency: orderItemsData[0]?.currency || "BDT",
+      items: orderItemsData.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        currency: item.currency,
+        vatClassId: item.vatClassId,
+        vatClassName: item.vatClassName,
+        vatClassCode: item.vatClassCode,
+      })),
+    });
+
     const shipping_cost = shippingQuote.shippingCost;
-    const grand_total = subtotal + shipping_cost;
+    const vat_total = taxQuote.totalVAT;
+    const tax_charge_total = taxQuote.totalTaxCharge;
+    const grand_total = subtotal + shipping_cost + tax_charge_total;
 
     // payment_method থেকে paymentStatus ঠিক করা
     const paymentStatus = (isCOD || isSSLCOMMERZ) ? "UNPAID" : "PAID";
@@ -310,17 +333,20 @@ export async function POST(request: NextRequest) {
           total: subtotal,
           shipping_cost,
           grand_total,
+          Vat_total: vat_total,
+          taxSnapshot: taxQuote,
           status: "PENDING",
           paymentStatus,
           transactionId: transactionId ?? null,
           image: isManualPayment ? (image ?? null) : null,
           orderItems: {
-            create: orderItemsData.map((item) => ({
+            create: orderItemsData.map((item, index) => ({
               productId: item.productId,
               variantId: item.variantId,
               quantity: item.quantity,
               price: item.price,
               currency: item.currency,
+              VatAmount: taxQuote.items[index]?.VatAmount ?? 0,
             })),
           },
         },

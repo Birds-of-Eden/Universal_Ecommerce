@@ -116,12 +116,15 @@ export async function GET(
         grand_total: true,
         total: true,
         currency: true,
+        Vat_total: true,
+        taxSnapshot: true,
         orderItems: {
           select: {
             id: true,
             productId: true,
             price: true,
             quantity: true,
+            VatAmount: true,
             product: { select: { name: true, sku: true } },
           },
         },
@@ -150,8 +153,13 @@ export async function GET(
       (s, it) => s + Number(it.price ?? 0) * Number(it.quantity ?? 1),
       0
     );
+    const vatTotal = Number(order.Vat_total ?? 0);
+    const taxCharge = Number(
+      (order.taxSnapshot as { totalTaxCharge?: number } | null)?.totalTaxCharge ??
+        vatTotal,
+    );
     const grand = Number(order.grand_total ?? order.total ?? subTotal);
-    const delivery = Math.max(grand - subTotal, 0);
+    const delivery = Math.max(grand - subTotal - taxCharge, 0);
 
     // ✅ Get site settings from database
     const siteSettings = await getSiteSettings();
@@ -383,7 +391,7 @@ export async function GET(
     const summaryRows: Array<{ label: string; value: number }> = [
       { label: `Total Base Amount (${items.length || 1} Items)`, value: subTotal },
       { label: "Delivery Charge", value: delivery },
-      { label: "Tax", value: 0 },
+      { label: "Tax", value: vatTotal },
       { label: "Add-ons", value: 0 },
       { label: "Convenience Charge", value: 0 },
     ];
@@ -398,7 +406,7 @@ export async function GET(
     // Subtotal
     rect(marginX, cursor - payRowH, tableW, payRowH, WHITE, true);
     text("Subtotal", col1, cursor - 14, 9.2, true);
-    rightText(money(subTotal + delivery), marginX + tableW - 10, cursor - 14, 9.2, true);
+    rightText(money(subTotal + delivery + taxCharge), marginX + tableW - 10, cursor - 14, 9.2, true);
     cursor -= payRowH;
 
     line(marginX, cursor - 3, marginX + tableW, cursor - 3);

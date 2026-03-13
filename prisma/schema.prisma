@@ -537,6 +537,7 @@ model Order {
   grand_total    Decimal  @db.Decimal(10, 2)
   currency       String   @default("BDT") @db.VarChar(3)
   Vat_total      Decimal? @db.Decimal(10, 2)
+  taxSnapshot    Json?
   discount_total Decimal? @db.Decimal(10, 2)
 
   status        OrderStatus   @default(PENDING)
