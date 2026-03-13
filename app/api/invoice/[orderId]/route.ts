@@ -13,31 +13,37 @@ let SITE_NAME = "ECOMMERCE";
 let SITE_WEBSITE = "www.example.com";
 let SITE_EMAIL = "support@example.com";
 let SITE_PHONE = "+880-XXXXXXXXXX";
-let SITE_ADDRESS = "Level 2, House 1A, Road 16/A, Gulshan-1, Dhaka 1212.";
+let SITE_ADDRESS =
+  "Level 2, House 1A, Road 16/A, Gulshan-1, Dhaka 1212.";
 
 // Fetch site settings from database
 async function getSiteSettings() {
   try {
-    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/site`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
-    });
-    
+    const response = await fetch(
+      `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/site`,
+      {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      }
+    );
+
     if (response.ok) {
       const settings = await response.json();
       return {
         SITE_NAME: settings.siteTitle || SITE_NAME,
-        SITE_WEBSITE: settings.siteTitle ? settings.siteTitle.toLowerCase().replace(/\s+/g, '') + '.com' : SITE_WEBSITE,
+        SITE_WEBSITE: settings.siteTitle
+          ? settings.siteTitle.toLowerCase().replace(/\s+/g, "") + ".com"
+          : SITE_WEBSITE,
         SITE_EMAIL: settings.contactEmail || SITE_EMAIL,
         SITE_PHONE: settings.contactNumber || SITE_PHONE,
         SITE_ADDRESS: settings.address || SITE_ADDRESS,
       };
     }
   } catch (error) {
-    console.error('Failed to fetch site settings:', error);
+    console.error("Failed to fetch site settings:", error);
   }
-  
+
   return {
     SITE_NAME,
     SITE_WEBSITE,
@@ -54,7 +60,7 @@ const TEXT = rgb(0.1, 0.12, 0.16);
 const MUTED = rgb(0.4, 0.45, 0.52);
 const BORDER = rgb(0.82, 0.84, 0.88);
 
-// table header (black row)
+// table header
 const TABLE_HEAD_BG = BLACK;
 const TABLE_HEAD_TXT = WHITE;
 
@@ -87,8 +93,8 @@ export async function GET(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    // ✅ session
     const session = await getServerSession(authOptions);
+
     if (!session?.user || !(session.user as any).id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -97,14 +103,13 @@ export async function GET(
     const sessionName = session.user.name || "Customer";
     const sessionEmail = session.user.email || "";
 
-    // ✅ order id -> int
     const { orderId } = await params;
     const id = Number.parseInt(String(orderId), 10);
+
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: "Invalid order id" }, { status: 400 });
     }
 
-    // ✅ order (only owner)
     const order = await db.order.findFirst({
       where: { id, userId },
       select: {
@@ -125,7 +130,12 @@ export async function GET(
             price: true,
             quantity: true,
             VatAmount: true,
-            product: { select: { name: true, sku: true } },
+            product: {
+              select: {
+                name: true,
+                sku: true,
+              },
+            },
           },
         },
       },
@@ -135,33 +145,35 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // ✅ phone from user profile (session usually doesn't include phone)
     const userProfile = await db.user.findUnique({
       where: { id: userId },
       select: { phone: true },
     });
+
     const sessionPhone = userProfile?.phone || "—";
 
     const currency = order.currency || "BDT";
     const invoiceId = `INV${String(order.id).padStart(9, "0")}`;
     const orderDate = formatDate(new Date(order.createdAt));
     const orderRef = String(order.id);
-    const invoiceQrValue = `${getAppBaseUrl(req)}/ecommerce/user/orders/${order.id}`;
+    const invoiceQrValue = `${getAppBaseUrl(
+      req
+    )}/ecommerce/user/orders/${order.id}`;
 
     const items = order.orderItems ?? [];
     const subTotal = items.reduce(
       (s, it) => s + Number(it.price ?? 0) * Number(it.quantity ?? 1),
       0
     );
+
     const vatTotal = Number(order.Vat_total ?? 0);
     const taxCharge = Number(
-      (order.taxSnapshot as { totalTaxCharge?: number } | null)?.totalTaxCharge ??
-        vatTotal,
+      (order.taxSnapshot as { totalTaxCharge?: number } | null)
+        ?.totalTaxCharge ?? vatTotal
     );
     const grand = Number(order.grand_total ?? order.total ?? subTotal);
     const delivery = Math.max(grand - subTotal - taxCharge, 0);
 
-    // ✅ Get site settings from database
     const siteSettings = await getSiteSettings();
     SITE_NAME = siteSettings.SITE_NAME;
     SITE_WEBSITE = siteSettings.SITE_WEBSITE;
@@ -169,10 +181,10 @@ export async function GET(
     SITE_PHONE = siteSettings.SITE_PHONE;
     SITE_ADDRESS = siteSettings.SITE_ADDRESS;
 
-    // ---------- PDF ----------
     const pdf = await PDFDocument.create();
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
     const invoiceQrPng = await QRCode.toBuffer(invoiceQrValue, {
       errorCorrectionLevel: "M",
       margin: 1,
@@ -182,9 +194,9 @@ export async function GET(
         light: "#FFFFFF",
       },
     });
+
     const invoiceQrImage = await pdf.embedPng(invoiceQrPng);
 
-    // A4
     const W = 595.28;
     const H = 841.89;
     const marginX = 38;
@@ -199,13 +211,31 @@ export async function GET(
       b = false,
       color = TEXT
     ) => {
-      page.drawText(t, { x, y, size, font: b ? bold : font, color });
+      page.drawText(String(t ?? ""), {
+        x,
+        y,
+        size,
+        font: b ? bold : font,
+        color,
+      });
     };
 
-    const centerText = (t: string, centerX: number, y: number, size = 12, b = false) => {
+    const centerText = (
+      t: string,
+      centerX: number,
+      y: number,
+      size = 12,
+      b = false
+    ) => {
       const f = b ? bold : font;
-      const w = f.widthOfTextAtSize(t, size);
-      page.drawText(t, { x: centerX - w / 2, y, size, font: f, color: TEXT });
+      const w = f.widthOfTextAtSize(String(t ?? ""), size);
+      page.drawText(String(t ?? ""), {
+        x: centerX - w / 2,
+        y,
+        size,
+        font: f,
+        color: TEXT,
+      });
     };
 
     const rightText = (
@@ -217,8 +247,14 @@ export async function GET(
       color = TEXT
     ) => {
       const f = b ? bold : font;
-      const w = f.widthOfTextAtSize(t, size);
-      page.drawText(t, { x: rightX - w, y, size, font: f, color });
+      const w = f.widthOfTextAtSize(String(t ?? ""), size);
+      page.drawText(String(t ?? ""), {
+        x: rightX - w,
+        y,
+        size,
+        font: f,
+        color,
+      });
     };
 
     const rect = (
@@ -249,20 +285,101 @@ export async function GET(
       });
     };
 
-    // ========= TOP HEADER (WHITE, CENTERED TEXT) =========
+    const wrapText = (
+      value: string,
+      maxWidth: number,
+      size = 9.2,
+      isBold = false
+    ) => {
+      const f = isBold ? bold : font;
+      const raw = String(value ?? "").trim();
+
+      if (!raw) return ["—"];
+
+      const words = raw.split(/\s+/).filter(Boolean);
+      const lines: string[] = [];
+      let current = "";
+
+      for (const word of words) {
+        const test = current ? `${current} ${word}` : word;
+        const testWidth = f.widthOfTextAtSize(test, size);
+
+        if (testWidth <= maxWidth) {
+          current = test;
+          continue;
+        }
+
+        if (current) {
+          lines.push(current);
+          current = "";
+        }
+
+        if (f.widthOfTextAtSize(word, size) <= maxWidth) {
+          current = word;
+          continue;
+        }
+
+        let chunk = "";
+        for (const ch of word) {
+          const chunkTest = chunk + ch;
+          if (f.widthOfTextAtSize(chunkTest, size) <= maxWidth) {
+            chunk = chunkTest;
+          } else {
+            if (chunk) lines.push(chunk);
+            chunk = ch;
+          }
+        }
+        current = chunk;
+      }
+
+      if (current) lines.push(current);
+
+      return lines.length ? lines : ["—"];
+    };
+
+    const drawWrappedText = (
+      value: string,
+      x: number,
+      topY: number,
+      maxWidth: number,
+      size = 9.2,
+      isBold = false,
+      color = TEXT,
+      lineGap = 11
+    ) => {
+      const lines = wrapText(value, maxWidth, size, isBold);
+
+      lines.forEach((ln, i) => {
+        page.drawText(ln, {
+          x,
+          y: topY - i * lineGap,
+          size,
+          font: isBold ? bold : font,
+          color,
+        });
+      });
+
+      return lines.length;
+    };
+
+    let y = H;
+
+    // ========= TOP HEADER =========
     const headerH = 70;
     rect(0, H - headerH, W, headerH, WHITE);
 
     centerText(SITE_NAME, W / 2, H - 30, 18, true);
     centerText(SITE_WEBSITE, W / 2, H - 48, 10, false);
 
-    let y = H - headerH - 18;
+    y = H - headerH - 18;
 
-    // ========= COMPANY LEFT + META RIGHT =========
     text(`${SITE_NAME} Limited`, marginX, y, 11, true);
     y -= 14;
 
-    const addrLines = [SITE_ADDRESS, SITE_EMAIL, SITE_PHONE].filter(Boolean) as string[];
+    const addrLines = [SITE_ADDRESS, SITE_EMAIL, SITE_PHONE].filter(
+      Boolean
+    ) as string[];
+
     for (const l of addrLines) {
       text(l, marginX, y, 9.5, false, MUTED);
       y -= 12;
@@ -277,29 +394,37 @@ export async function GET(
     my -= 14;
     rightText(`Order Date : ${orderDate}`, metaRight, my, 10, true);
     my -= 14;
-    rightText(`Payment Mode : ${safeText(order.payment_method, "Online")}`, metaRight, my, 10, true);
+    rightText(
+      `Payment Mode : ${safeText(order.payment_method, "Online")}`,
+      metaRight,
+      my,
+      10,
+      true
+    );
     my -= 12;
 
     const qrSize = 64;
     const qrX = metaRight - qrSize;
     const qrY = my - qrSize;
+
     page.drawImage(invoiceQrImage, {
       x: qrX,
       y: qrY,
       width: qrSize,
       height: qrSize,
     });
+
     rightText("Scan to open order", metaRight, qrY - 10, 8.5, false, MUTED);
 
     let cursor = Math.min(y, qrY - 18) - 18;
 
-    // helpers
     const tableW = W - marginX * 2;
     const headH = 22;
     const rowH = 22;
 
     const drawTableHead = (titleCols: Array<{ label: string; x: number }>) => {
       rect(marginX, cursor - headH, tableW, headH, TABLE_HEAD_BG, true);
+
       for (const c of titleCols) {
         page.drawText(c.label, {
           x: c.x,
@@ -309,6 +434,7 @@ export async function GET(
           color: TABLE_HEAD_TXT,
         });
       }
+
       cursor -= headH;
     };
 
@@ -336,44 +462,174 @@ export async function GET(
     text("Item Details", marginX, cursor, 11, true);
     cursor -= 14;
 
-    const itemNameX = col1;
-    const itemSkuX = marginX + 260;
-    const itemQtyX = marginX + 360;
-    const itemPriceX = marginX + 430;
-    const itemTotalX = marginX + tableW - 70;
+    const itemTableLeft = marginX;
+    const itemTableRight = marginX + tableW;
+
+    const itemColItemW = 235;
+    const itemColSkuW = 95;
+    const itemColQtyW = 40;
+    const itemColUnitW = 75;
+    const itemColTotalW =
+      tableW -
+      itemColItemW -
+      itemColSkuW -
+      itemColQtyW -
+      itemColUnitW;
+
+    const itemNameX = itemTableLeft + 10;
+    const itemSkuX = itemTableLeft + itemColItemW + 10;
+    const itemQtyX = itemTableLeft + itemColItemW + itemColSkuW + 10;
+    const itemUnitHeaderX =
+      itemTableLeft + itemColItemW + itemColSkuW + itemColQtyW + 8;
+    const itemTotalHeaderX =
+      itemTableLeft +
+      itemColItemW +
+      itemColSkuW +
+      itemColQtyW +
+      itemColUnitW +
+      8;
+
+    const itemUnitRightX =
+      itemTableLeft +
+      itemColItemW +
+      itemColSkuW +
+      itemColQtyW +
+      itemColUnitW -
+      10;
+
+    const itemTotalRightX = itemTableRight - 10;
 
     drawTableHead([
       { label: "Item", x: itemNameX },
       { label: "SKU", x: itemSkuX },
       { label: "Qty", x: itemQtyX },
-      { label: `Unit (${currency})`, x: itemPriceX },
-      { label: `Total (${currency})`, x: itemTotalX },
+      { label: `Unit Price (${currency})`, x: itemUnitHeaderX },
+      { label: `Total (${currency})`, x: itemTotalHeaderX },
     ]);
 
-    const itemRowH = 20;
+    const itemFontSize = 9.2;
+    const itemLineGap = 11;
+    const itemTopPadding = 14;
+    const itemBottomPadding = 8;
+    const itemNameMaxWidth = itemColItemW - 20;
+    const skuFontSize = 8.6;
+    const skuLineGap = 10;
+    const skuMaxWidth = itemColSkuW - 12;
+
     for (const item of items) {
-      rect(marginX, cursor - itemRowH, tableW, itemRowH, WHITE, true);
-      const itemName =
-        item?.product?.name
-          ? safeText(item.product.name)
-          : `Product #${safeText(item?.productId)}`;
+      const itemName = item?.product?.name
+        ? safeText(item.product.name)
+        : `Product #${safeText(item?.productId)}`;
+
       const sku = safeText(item?.product?.sku);
       const qty = Number(item.quantity ?? 1);
       const unitPrice = Number(item.price ?? 0);
       const lineTotal = unitPrice * qty;
 
-      text(itemName, itemNameX, cursor - 14, 9.2);
-      text(sku, itemSkuX, cursor - 14, 9.2, false, MUTED);
-      text(String(qty), itemQtyX, cursor - 14, 9.2);
-      rightText(money(unitPrice), itemPriceX + 62, cursor - 14, 9.2, false, TEXT);
-      rightText(money(lineTotal), marginX + tableW - 10, cursor - 14, 9.2, false, TEXT);
+      const wrappedNameLines = wrapText(
+        itemName,
+        itemNameMaxWidth,
+        itemFontSize,
+        false
+      );
+
+      const wrappedSkuLines = wrapText(sku, skuMaxWidth, skuFontSize, false);
+
+      const lineCount = Math.max(
+        1,
+        wrappedNameLines.length,
+        wrappedSkuLines.length
+      );
+
+      const itemRowH = Math.max(
+        24,
+        itemTopPadding + itemBottomPadding + (lineCount - 1) * itemLineGap
+      );
+
+      rect(itemTableLeft, cursor - itemRowH, tableW, itemRowH, WHITE, true);
+
+      line(
+        itemTableLeft + itemColItemW,
+        cursor - itemRowH,
+        itemTableLeft + itemColItemW,
+        cursor
+      );
+      line(
+        itemTableLeft + itemColItemW + itemColSkuW,
+        cursor - itemRowH,
+        itemTableLeft + itemColItemW + itemColSkuW,
+        cursor
+      );
+      line(
+        itemTableLeft + itemColItemW + itemColSkuW + itemColQtyW,
+        cursor - itemRowH,
+        itemTableLeft + itemColItemW + itemColSkuW + itemColQtyW,
+        cursor
+      );
+      line(
+        itemTableLeft + itemColItemW + itemColSkuW + itemColQtyW + itemColUnitW,
+        cursor - itemRowH,
+        itemTableLeft + itemColItemW + itemColSkuW + itemColQtyW + itemColUnitW,
+        cursor
+      );
+
+      drawWrappedText(
+        itemName,
+        itemNameX,
+        cursor - itemTopPadding,
+        itemNameMaxWidth,
+        itemFontSize,
+        false,
+        TEXT,
+        itemLineGap
+      );
+
+      drawWrappedText(
+        sku,
+        itemSkuX,
+        cursor - itemTopPadding,
+        skuMaxWidth,
+        skuFontSize,
+        false,
+        MUTED,
+        skuLineGap
+      );
+
+      text(
+        String(qty),
+        itemQtyX,
+        cursor - itemTopPadding,
+        itemFontSize,
+        false,
+        TEXT
+      );
+
+      rightText(
+        money(unitPrice),
+        itemUnitRightX,
+        cursor - itemTopPadding,
+        itemFontSize,
+        false,
+        TEXT
+      );
+
+      rightText(
+        money(lineTotal),
+        itemTotalRightX,
+        cursor - itemTopPadding,
+        itemFontSize,
+        false,
+        TEXT
+      );
+
       cursor -= itemRowH;
     }
 
     if (items.length === 0) {
-      rect(marginX, cursor - itemRowH, tableW, itemRowH, WHITE, true);
+      const emptyRowH = 24;
+      rect(itemTableLeft, cursor - emptyRowH, tableW, emptyRowH, WHITE, true);
       text("No items found", itemNameX, cursor - 14, 9.2, false, MUTED);
-      cursor -= itemRowH;
+      cursor -= emptyRowH;
     }
 
     cursor -= 18;
@@ -384,14 +640,14 @@ export async function GET(
 
     drawTableHead([
       { label: "Particular", x: col1 },
-      { label: `Amount(${currency})`, x: marginX + tableW - 110 },
+      { label: `Amount (${currency})`, x: marginX + tableW - 110 },
     ]);
 
     const payRowH = 20;
     const summaryRows: Array<{ label: string; value: number }> = [
       { label: `Total Base Amount (${items.length || 1} Items)`, value: subTotal },
       { label: "Delivery Charge", value: delivery },
-      { label: "Tax", value: vatTotal },
+      { label: "Tax", value: taxCharge },
       { label: "Add-ons", value: 0 },
       { label: "Convenience Charge", value: 0 },
     ];
@@ -399,28 +655,46 @@ export async function GET(
     for (const r of summaryRows) {
       rect(marginX, cursor - payRowH, tableW, payRowH, WHITE, true);
       text(r.label, col1, cursor - 14, 9.2, false, MUTED);
-      rightText(money(r.value), marginX + tableW - 10, cursor - 14, 9.2, false, TEXT);
+      rightText(
+        money(r.value),
+        marginX + tableW - 10,
+        cursor - 14,
+        9.2,
+        false,
+        TEXT
+      );
       cursor -= payRowH;
     }
 
-    // Subtotal
     rect(marginX, cursor - payRowH, tableW, payRowH, WHITE, true);
     text("Subtotal", col1, cursor - 14, 9.2, true);
-    rightText(money(subTotal + delivery + taxCharge), marginX + tableW - 10, cursor - 14, 9.2, true);
+    rightText(
+      money(subTotal + delivery + taxCharge),
+      marginX + tableW - 10,
+      cursor - 14,
+      9.2,
+      true
+    );
     cursor -= payRowH;
 
     line(marginX, cursor - 3, marginX + tableW, cursor - 3);
     cursor -= 10;
 
-    // Total Payment
     rect(marginX, cursor - payRowH, tableW, payRowH, WHITE, true);
     text("Total Payment", col1, cursor - 14, 10, true);
     rightText(money(grand), marginX + tableW - 10, cursor - 14, 10, true);
 
-    // Footer
+    // ========= FOOTER =========
     const footerY = 40;
     line(marginX, footerY + 20, W - marginX, footerY + 20);
-    text(`Generated by ${SITE_NAME} • ${SITE_EMAIL}`, marginX, footerY + 8, 9, false, MUTED);
+    text(
+      `Generated by ${SITE_NAME} • ${SITE_EMAIL}`,
+      marginX,
+      footerY + 8,
+      9,
+      false,
+      MUTED
+    );
 
     const pdfBytes = await pdf.save();
 
@@ -434,7 +708,10 @@ export async function GET(
   } catch (err: any) {
     console.error("Invoice PDF error:", err);
     return NextResponse.json(
-      { error: "Failed to generate invoice", details: err?.message || String(err) },
+      {
+        error: "Failed to generate invoice",
+        details: err?.message || String(err),
+      },
       { status: 500 }
     );
   }
