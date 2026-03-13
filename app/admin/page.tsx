@@ -64,7 +64,7 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
   const newsletterSubscribers = stats.marketing?.newsletterSubscribers ?? stats.newsletterSubscribers ?? 0;
   const sessions = stats.analytics?.sessions ?? stats.marketing?.sessions ?? Math.max(stats.totalUsers * 7, stats.totalOrders * 18);
   const pageViews = stats.analytics?.pageViews ?? stats.marketing?.pageViews ?? Math.max(sessions * 3, 1);
-  const formatCurrency = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount || 0);
+  const formatCurrency = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "BDT", maximumFractionDigits: 0 }).format(amount || 0);
   const formatNumber = (amount: number) => new Intl.NumberFormat("en-US").format(amount || 0);
   const labels = getRangeLabels(timeRange);
   const revenueSeries = stats.analytics?.revenueSeries ?? buildSeries(stats.totalRevenue, labels.length, labels);
