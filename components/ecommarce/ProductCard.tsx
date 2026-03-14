@@ -108,7 +108,11 @@ export default function ProductCardCompact({
         <div className={cn("h-full", className)}>
           {/* Image Area */}
           <div className="relative h-[160px] sm:h-[170px] bg-muted/30 overflow-hidden">
-            {product.discountPct && product.discountPct > 0 ? (
+            {isOutOfStock ? (
+              <span className="absolute left-3 top-3 z-10 rounded-md bg-red-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm">
+                Out of Stock
+              </span>
+            ) : product.discountPct && product.discountPct > 0 ? (
               <span className="absolute left-3 top-3 z-10 rounded-md bg-orange-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm">
                 {product.discountPct}%
               </span>
