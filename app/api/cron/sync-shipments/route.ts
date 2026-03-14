@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCourierProvider } from "@/lib/couriers";
+import { appendShipmentStatusLog } from "@/lib/report-history";
 
 function isAuthorized(request: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -49,18 +50,27 @@ export async function GET(request: NextRequest) {
           externalId: shipment.externalId,
         });
 
-        await prisma.shipment.update({
-          where: { id: shipment.id },
-          data: {
-            status: tracking.status,
-            courierStatus: tracking.courierStatus,
-            trackingUrl: tracking.trackingUrl || shipment.trackingUrl,
-            trackingNumber: tracking.trackingNumber || shipment.trackingNumber,
-            externalId: tracking.externalId || shipment.externalId,
-            deliveredAt:
-              tracking.status === "DELIVERED" ? new Date() : shipment.deliveredAt,
-            lastSyncedAt: new Date(),
-          },
+        await prisma.$transaction(async (tx) => {
+          const updated = await tx.shipment.update({
+            where: { id: shipment.id },
+            data: {
+              status: tracking.status,
+              courierStatus: tracking.courierStatus,
+              trackingUrl: tracking.trackingUrl || shipment.trackingUrl,
+              trackingNumber: tracking.trackingNumber || shipment.trackingNumber,
+              externalId: tracking.externalId || shipment.externalId,
+              deliveredAt:
+                tracking.status === "DELIVERED" ? new Date() : shipment.deliveredAt,
+              lastSyncedAt: new Date(),
+            },
+          });
+
+          await appendShipmentStatusLog(tx, {
+            shipmentId: updated.id,
+            fromStatus: shipment.status,
+            toStatus: updated.status,
+            source: "COURIER_SYNC",
+          });
         });
 
         return {

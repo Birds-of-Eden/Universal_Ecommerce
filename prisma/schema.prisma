@@ -320,12 +320,14 @@ model Product {
   VatClass     VatClass?     @relation(fields: [VatClassId], references: [id])
   digitalAsset DigitalAsset? @relation("ProductDigitalAsset", fields: [digitalAssetId], references: [id])
 
-  variants       ProductVariant[]
-  codes          ProductCode[]
-  variantOptions ProductVariantOption[]
-  attributes     ProductAttribute[]
-  serviceSlots   ServiceSlot[]
-  inventoryLogs  InventoryLog[]
+  variants                ProductVariant[]
+  codes                   ProductCode[]
+  variantOptions          ProductVariantOption[]
+  attributes              ProductAttribute[]
+  serviceSlots            ServiceSlot[]
+  inventoryLogs           InventoryLog[]
+  dailySnapshots          InventoryDailySnapshot[]
+  warehouseDailySnapshots InventoryWarehouseDailySnapshot[]
 
   orderItems OrderItem[]
   wishlist   Wishlist[]
@@ -334,26 +336,29 @@ model Product {
 }
 
 model ProductVariant {
-  id                Int     @id @default(autoincrement())
+  id                Int      @id @default(autoincrement())
   productId         Int
-  sku               String  @unique
-  price             Decimal @db.Decimal(10, 2)
-  currency          String  @default("USD") @db.VarChar(3)
-  stock             Int     @default(0) // derived available stock across warehouses
-  lowStockThreshold Int     @default(10)
-  isDefault         Boolean @default(false)
-  active            Boolean @default(true)
+  sku               String   @unique
+  price             Decimal  @db.Decimal(10, 2)
+  costPrice         Decimal? @db.Decimal(10, 2)
+  currency          String   @default("USD") @db.VarChar(3)
+  stock             Int      @default(0) // derived available stock across warehouses
+  lowStockThreshold Int      @default(10)
+  isDefault         Boolean  @default(false)
+  active            Boolean  @default(true)
   digitalAssetId    Int?
 
   options Json // { size: "XL", color: "Red" }
 
-  product       Product        @relation(fields: [productId], references: [id])
-  digitalAsset  DigitalAsset?  @relation("VariantDigitalAsset", fields: [digitalAssetId], references: [id])
-  codes         ProductCode[]
-  stockLevels   StockLevel[]
-  orderItems    OrderItem[]
-  inventoryLogs InventoryLog[]
-  cartItems     CartItem[]
+  product                 Product                           @relation(fields: [productId], references: [id])
+  digitalAsset            DigitalAsset?                     @relation("VariantDigitalAsset", fields: [digitalAssetId], references: [id])
+  codes                   ProductCode[]
+  stockLevels             StockLevel[]
+  dailySnapshots          InventoryDailySnapshot[]
+  warehouseDailySnapshots InventoryWarehouseDailySnapshot[]
+  orderItems              OrderItem[]
+  inventoryLogs           InventoryLog[]
+  cartItems               CartItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -573,15 +578,16 @@ model Payment {
 }
 
 model OrderItem {
-  id             Int      @id @default(autoincrement())
-  orderId        Int
-  productId      Int
-  variantId      Int?
-  quantity       Int      @default(1)
-  price          Decimal  @db.Decimal(10, 2)
-  currency       String   @default("BDT") @db.VarChar(3)
-  VatAmount      Decimal? @db.Decimal(10, 2)
-  discountAmount Decimal? @db.Decimal(10, 2)
+  id                Int      @id @default(autoincrement())
+  orderId           Int
+  productId         Int
+  variantId         Int?
+  quantity          Int      @default(1)
+  price             Decimal  @db.Decimal(10, 2)
+  costPriceSnapshot Decimal? @db.Decimal(10, 2)
+  currency          String   @default("BDT") @db.VarChar(3)
+  VatAmount         Decimal? @db.Decimal(10, 2)
+  discountAmount    Decimal? @db.Decimal(10, 2)
 
   order             Order             @relation(fields: [orderId], references: [id])
   product           Product           @relation(fields: [productId], references: [id])
@@ -705,11 +711,12 @@ model Shipment {
   expectedDate DateTime?
   deliveredAt  DateTime?
 
-  order         Order          @relation(fields: [orderId], references: [id])
-  warehouse     Warehouse?     @relation(fields: [warehouseId], references: [id])
-  courierRef    Courier?       @relation("ShipmentToCourier", fields: [courierId], references: [id])
+  order         Order               @relation(fields: [orderId], references: [id])
+  warehouse     Warehouse?          @relation(fields: [warehouseId], references: [id])
+  courierRef    Courier?            @relation("ShipmentToCourier", fields: [courierId], references: [id])
   items         ShipmentItem[]
   deliveryProof DeliveryProof?
+  statusLogs    ShipmentStatusLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -760,14 +767,15 @@ model Courier {
 }
 
 model Warehouse {
-  id            Int            @id @default(autoincrement())
-  name          String
-  code          String         @unique
-  address       Json?
-  isDefault     Boolean        @default(false)
-  stockLevels   StockLevel[]
-  shipments     Shipment[]
-  inventoryLogs InventoryLog[]
+  id                               Int                               @id @default(autoincrement())
+  name                             String
+  code                             String                            @unique
+  address                          Json?
+  isDefault                        Boolean                           @default(false)
+  stockLevels                      StockLevel[]
+  inventoryWarehouseDailySnapshots InventoryWarehouseDailySnapshot[]
+  shipments                        Shipment[]
+  inventoryLogs                    InventoryLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -832,6 +840,46 @@ model InventoryReservation {
   createdAt DateTime @default(now())
 }
 
+model InventoryDailySnapshot {
+  id                Int      @id @default(autoincrement())
+  snapshotDate      DateTime @db.Date
+  productId         Int
+  variantId         Int
+  stock             Int      @default(0)
+  lowStockThreshold Int      @default(10)
+  status            String   @db.VarChar(20)
+
+  product Product        @relation(fields: [productId], references: [id])
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([snapshotDate, variantId])
+  @@index([snapshotDate])
+}
+
+model InventoryWarehouseDailySnapshot {
+  id           Int      @id @default(autoincrement())
+  snapshotDate DateTime @db.Date
+  productId    Int
+  variantId    Int
+  warehouseId  Int
+  quantity     Int      @default(0)
+  reserved     Int      @default(0)
+  available    Int      @default(0)
+
+  product   Product        @relation(fields: [productId], references: [id])
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([snapshotDate, variantId, warehouseId])
+  @@index([snapshotDate, warehouseId])
+}
+
 model ShipmentItem {
   id          Int @id @default(autoincrement())
   shipmentId  Int
@@ -842,6 +890,22 @@ model ShipmentItem {
   orderItem OrderItem @relation(fields: [orderItemId], references: [id])
 
   createdAt DateTime @default(now())
+}
+
+model ShipmentStatusLog {
+  id         Int             @id @default(autoincrement())
+  shipmentId Int
+  fromStatus ShipmentStatus?
+  toStatus   ShipmentStatus
+  source     String          @default("SYSTEM")
+  note       String?
+
+  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([shipmentId, createdAt])
+  @@index([toStatus, createdAt])
 }
 
 model Refund {

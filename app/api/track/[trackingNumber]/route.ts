@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCourierProvider } from "@/lib/couriers";
+import { appendShipmentStatusLog } from "@/lib/report-history";
 
 type RouteParams = {
   params: Promise<{ trackingNumber: string }>;
@@ -56,32 +57,43 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       externalId: shipment.externalId,
     });
 
-    const updated = await prisma.shipment.update({
-      where: { id: shipment.id },
-      data: {
-        status: live.status,
-        courierStatus: live.courierStatus,
-        trackingUrl: live.trackingUrl || shipment.trackingUrl,
-        externalId: live.externalId || shipment.externalId,
-        trackingNumber: live.trackingNumber || shipment.trackingNumber,
-        lastSyncedAt: new Date(),
-        deliveredAt: live.status === "DELIVERED" ? new Date() : shipment.deliveredAt,
-      },
-      include: {
-        order: {
-          select: {
-            id: true,
-            name: true,
-            phone_number: true,
+    const updated = await prisma.$transaction(async (tx) => {
+      const nextShipment = await tx.shipment.update({
+        where: { id: shipment.id },
+        data: {
+          status: live.status,
+          courierStatus: live.courierStatus,
+          trackingUrl: live.trackingUrl || shipment.trackingUrl,
+          externalId: live.externalId || shipment.externalId,
+          trackingNumber: live.trackingNumber || shipment.trackingNumber,
+          lastSyncedAt: new Date(),
+          deliveredAt: live.status === "DELIVERED" ? new Date() : shipment.deliveredAt,
+        },
+        include: {
+          order: {
+            select: {
+              id: true,
+              name: true,
+              phone_number: true,
+            },
+          },
+          courierRef: {
+            select: {
+              name: true,
+              type: true,
+            },
           },
         },
-        courierRef: {
-          select: {
-            name: true,
-            type: true,
-          },
-        },
-      },
+      });
+
+      await appendShipmentStatusLog(tx, {
+        shipmentId: nextShipment.id,
+        fromStatus: shipment.status,
+        toStatus: nextShipment.status,
+        source: "PUBLIC_TRACK",
+      });
+
+      return nextShipment;
     });
 
     return NextResponse.json({

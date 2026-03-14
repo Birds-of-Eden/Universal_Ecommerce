@@ -9,6 +9,7 @@ import {
   buildDeliveryConfirmationUrl,
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
+import { appendShipmentStatusLog } from "@/lib/report-history";
 
 type CreateShipmentBody = {
   orderId: number;
@@ -216,6 +217,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await appendShipmentStatusLog(prisma, {
+      shipmentId: localShipment.id,
+      fromStatus: null,
+      toStatus: "PENDING",
+      source: "SHIPMENT_CREATE",
+      createdAt: localShipment.createdAt,
+    });
+
     if (courier.type === "CUSTOM") {
       let customShipment = await prisma.shipment.update({
         where: { id: localShipment.id },
@@ -276,6 +285,13 @@ export async function POST(request: NextRequest) {
             lastSyncedAt: new Date(),
             shippedAt: new Date(),
           },
+        });
+
+        await appendShipmentStatusLog(tx, {
+          shipmentId: nextShipment.id,
+          fromStatus: localShipment.status,
+          toStatus: nextShipment.status,
+          source: "COURIER_CREATE",
         });
 
         await ensureShipmentDeliveryConfirmation(tx, nextShipment.id);

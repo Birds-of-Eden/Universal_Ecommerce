@@ -65,6 +65,16 @@ export async function POST(req: Request) {
     if (!Number.isFinite(price) || price < 0) {
       return NextResponse.json({ error: "Price is required" }, { status: 400 });
     }
+    const costPrice =
+      body.costPrice !== undefined && body.costPrice !== null && body.costPrice !== ""
+        ? Number(body.costPrice)
+        : null;
+    if (costPrice !== null && (!Number.isFinite(costPrice) || costPrice < 0)) {
+      return NextResponse.json(
+        { error: "Cost price must be a number (0 or more)" },
+        { status: 400 },
+      );
+    }
 
     const currency = String(body.currency || "USD").trim().toUpperCase();
     const stock = body.stock !== undefined ? Number(body.stock) : 0;
@@ -93,6 +103,7 @@ export async function POST(req: Request) {
           productId,
           sku,
           price,
+          costPrice,
           currency,
           stock: 0,
           lowStockThreshold,

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { refreshVariantStock } from "@/lib/inventory";
+import { captureVariantInventoryDailySnapshots } from "@/lib/report-history";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -36,6 +37,7 @@ export async function DELETE(
     await prisma.stockLevel.delete({ where: { id } });
 
     await refreshVariantStock(prisma, existing.productVariantId);
+    await captureVariantInventoryDailySnapshots(prisma, existing.productVariantId);
 
     const change = -Number(existing.quantity);
     if (change !== 0 && existing.variant.product.type === "PHYSICAL") {

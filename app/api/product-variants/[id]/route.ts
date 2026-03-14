@@ -43,6 +43,20 @@ export async function PUT(
     if (!Number.isFinite(price) || price < 0) {
       return NextResponse.json({ error: "Price is required" }, { status: 400 });
     }
+    const costPrice =
+      body.costPrice !== undefined
+        ? body.costPrice !== null && body.costPrice !== ""
+          ? Number(body.costPrice)
+          : null
+        : existing.costPrice !== null
+          ? Number(existing.costPrice)
+          : null;
+    if (costPrice !== null && (!Number.isFinite(costPrice) || costPrice < 0)) {
+      return NextResponse.json(
+        { error: "Cost price must be a number (0 or more)" },
+        { status: 400 },
+      );
+    }
 
     const currency =
       body.currency !== undefined
@@ -73,6 +87,7 @@ export async function PUT(
         data: {
           sku,
           price,
+          costPrice,
           currency,
           ...(hasStockUpdate ? { stock: 0 } : {}),
           lowStockThreshold,

@@ -1,9 +1,15 @@
 import type { Prisma } from "@prisma/client";
+import { captureVariantInventoryDailySnapshots } from "@/lib/report-history";
 
 type TransactionClient = Prisma.TransactionClient;
 type InventoryClient = Pick<
   Prisma.TransactionClient,
-  "warehouse" | "stockLevel" | "productVariant" | "inventoryLog"
+  | "warehouse"
+  | "stockLevel"
+  | "productVariant"
+  | "inventoryLog"
+  | "inventoryDailySnapshot"
+  | "inventoryWarehouseDailySnapshot"
 >;
 
 export function computeAvailableStock(
@@ -119,6 +125,8 @@ export async function syncVariantWarehouseStock(params: {
     });
   }
 
+  await captureVariantInventoryDailySnapshots(tx, productVariantId);
+
   return { warehouseId, stock };
 }
 
@@ -195,5 +203,6 @@ export async function deductVariantInventory(params: {
   }
 
   const stock = await refreshVariantStock(tx, productVariantId);
+  await captureVariantInventoryDailySnapshots(tx, productVariantId);
   return { stock };
 }

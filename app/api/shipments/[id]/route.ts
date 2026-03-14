@@ -8,6 +8,7 @@ import {
   buildDeliveryConfirmationUrl,
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
+import { appendShipmentStatusLog } from "@/lib/report-history";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -310,6 +311,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         where: { id },
         data,
       });
+
+      if (nextStatus && nextStatus !== prevStatus) {
+        await appendShipmentStatusLog(tx, {
+          shipmentId: updatedShipment.id,
+          fromStatus: existingShipment.status,
+          toStatus: updatedShipment.status,
+          source: "ADMIN_UPDATE",
+        });
+      }
 
       await ensureShipmentDeliveryConfirmation(tx, updatedShipment.id);
 

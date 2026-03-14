@@ -27,6 +27,7 @@ interface ProductForm {
   type: ProductType;
   sku: string;
   basePrice: string;
+  baseCostPrice: string;
   originalPrice: string;
   currency: string;
   weight: string;
@@ -66,6 +67,7 @@ interface VariantRowForm {
   options: Record<string, string>;
   sku: string;
   price: string;
+  costPrice: string;
   stock: string;
   lowStockThreshold: string;
   active: boolean;
@@ -91,6 +93,7 @@ const emptyForm: ProductForm = {
   type: "PHYSICAL",
   sku: "",
   basePrice: "",
+  baseCostPrice: "",
   originalPrice: "",
   currency: "BDT",
   weight: "",
@@ -288,6 +291,7 @@ export default function ProductAddModal({
           options,
           sku: String(variant?.sku || ""),
           price: String(variant?.price ?? ""),
+          costPrice: variant?.costPrice != null ? String(variant.costPrice) : "",
           stock: String(Number(variant?.stock) || 0),
           lowStockThreshold: String(Number(variant?.lowStockThreshold) || 10),
           active: variant?.active !== undefined ? Boolean(variant.active) : true,
@@ -302,6 +306,10 @@ export default function ProductAddModal({
       type: (editing.type as ProductType) ?? "PHYSICAL",
       sku: editing.sku ?? "",
       basePrice: editing.basePrice?.toString?.() ?? "",
+      baseCostPrice:
+        mappedRows[0]?.costPrice ??
+        variants.find((variant: any) => variant?.isDefault)?.costPrice?.toString?.() ??
+        "",
       originalPrice: editing.originalPrice?.toString?.() ?? "",
       currency: editing.currency ?? "BDT",
       weight: editing.weight?.toString?.() ?? "",
@@ -376,6 +384,7 @@ export default function ProductAddModal({
           options: combination,
           sku: previous?.sku ?? "",
           price: previous?.price ?? "",
+          costPrice: previous?.costPrice ?? form.baseCostPrice ?? "",
           stock: previous?.stock ?? "0",
           lowStockThreshold: previous?.lowStockThreshold ?? form.lowStockThreshold ?? "10",
           active: previous?.active ?? true,
@@ -485,11 +494,17 @@ export default function ProductAddModal({
       toast.error("Base price must be 0 or more");
       return;
     }
+    const baseCostPrice = form.baseCostPrice.trim() ? Number(form.baseCostPrice) : null;
+    if (baseCostPrice !== null && (!Number.isFinite(baseCostPrice) || baseCostPrice < 0)) {
+      toast.error("Base purchase price must be 0 or more");
+      return;
+    }
 
     const normalizedVariants = variantRows.map((row) => ({
       id: row.id,
       sku: row.sku.trim().toUpperCase(),
       price: row.price.trim() ? Number(row.price) : basePrice,
+      costPrice: row.costPrice.trim() ? Number(row.costPrice) : baseCostPrice,
       stock: row.stock.trim() ? Number(row.stock) : 0,
       lowStockThreshold: row.lowStockThreshold.trim()
         ? Number(row.lowStockThreshold)
@@ -503,6 +518,8 @@ export default function ProductAddModal({
         !variant.sku ||
         !Number.isFinite(variant.price) ||
         variant.price < 0 ||
+        (variant.costPrice !== null &&
+          (!Number.isFinite(variant.costPrice) || variant.costPrice < 0)) ||
         !Number.isFinite(variant.stock) ||
         variant.stock < 0 ||
         !Number.isFinite(variant.lowStockThreshold) ||
@@ -555,6 +572,7 @@ export default function ProductAddModal({
         writerId: form.writerId ? Number(form.writerId) : null,
         publisherId: form.publisherId ? Number(form.publisherId) : null,
         basePrice,
+        baseCostPrice,
         originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
         currency: form.currency || "USD",
         weight: form.weight ? Number(form.weight) : null,
@@ -579,6 +597,7 @@ export default function ProductAddModal({
           id: variant.id,
           sku: variant.sku,
           price: variant.price,
+          costPrice: variant.costPrice,
           currency: form.currency || "USD",
           stock: form.type === "PHYSICAL" ? variant.stock : 0,
           lowStockThreshold: variant.lowStockThreshold,
@@ -656,12 +675,22 @@ export default function ProductAddModal({
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <Label>Base Price *</Label>
+                <Label>Base Sell Price *</Label>
                 <Input type="number" value={form.basePrice} onChange={(e) => setForm((prev) => ({ ...prev, basePrice: e.target.value }))} />
               </div>
               <div>
+                <Label>Base Purchase Price</Label>
+                <Input type="number" value={form.baseCostPrice} onChange={(e) => setForm((prev) => ({ ...prev, baseCostPrice: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
                 <Label>Original Price</Label>
                 <Input type="number" value={form.originalPrice} onChange={(e) => setForm((prev) => ({ ...prev, originalPrice: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Currency</Label>
+                <Input value={form.currency} onChange={(e) => setForm((prev) => ({ ...prev, currency: e.target.value.toUpperCase() }))} />
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -836,12 +865,13 @@ export default function ProductAddModal({
                     <p className="mt-4 text-sm text-muted-foreground">Add option names and values to generate combinations.</p>
                   ) : (
                     <div className="mt-4 overflow-x-auto">
-                      <table className="w-full min-w-[920px] border-collapse text-sm">
+                      <table className="w-full min-w-[1080px] border-collapse text-sm">
                         <thead>
                           <tr className="border-b text-left">
                             <th className="px-2 py-2 font-medium">Combination</th>
                             <th className="px-2 py-2 font-medium">SKU</th>
-                            <th className="px-2 py-2 font-medium">Price</th>
+                            <th className="px-2 py-2 font-medium">Sell Price</th>
+                            <th className="px-2 py-2 font-medium">Purchase Price</th>
                             {form.type === "PHYSICAL" && <th className="px-2 py-2 font-medium">Stock</th>}
                             {form.type === "PHYSICAL" && <th className="px-2 py-2 font-medium">Emergency Stock</th>}
                             <th className="px-2 py-2 font-medium">Status</th>
@@ -859,6 +889,9 @@ export default function ProductAddModal({
                               </td>
                               <td className="px-2 py-3">
                                 <Input type="number" value={row.price} placeholder={form.basePrice || "Base price"} onChange={(e) => updateVariantRow(index, { price: e.target.value })} />
+                              </td>
+                              <td className="px-2 py-3">
+                                <Input type="number" value={row.costPrice} placeholder={form.baseCostPrice || "Purchase price"} onChange={(e) => updateVariantRow(index, { costPrice: e.target.value })} />
                               </td>
                               {form.type === "PHYSICAL" && (
                                 <td className="px-2 py-3">
@@ -893,10 +926,6 @@ export default function ProductAddModal({
           <section className="space-y-4 rounded-xl border p-4">
             <h3 className="font-semibold">Additional Details</h3>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label>Currency</Label>
-                <Input value={form.currency} onChange={(e) => setForm((prev) => ({ ...prev, currency: e.target.value.toUpperCase() }))} />
-              </div>
               <div>
                 <Label>Weight</Label>
                 <Input type="number" value={form.weight} onChange={(e) => setForm((prev) => ({ ...prev, weight: e.target.value }))} />

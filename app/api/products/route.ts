@@ -142,6 +142,16 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    const baseCostPrice =
+      body.baseCostPrice !== undefined && body.baseCostPrice !== null && body.baseCostPrice !== ""
+        ? Number(body.baseCostPrice)
+        : null;
+    if (baseCostPrice !== null && (!Number.isFinite(baseCostPrice) || baseCostPrice < 0)) {
+      return NextResponse.json(
+        { error: "Base cost price must be a number (0 or more)" },
+        { status: 400 }
+      );
+    }
 
     const type = body.type || "PHYSICAL";
     const lowStockThreshold = normalizeLowStockThreshold(body.lowStockThreshold);
@@ -167,6 +177,10 @@ export async function POST(req: Request) {
           item?.price !== undefined && item?.price !== null
             ? Number(item.price)
             : basePrice;
+        const costPrice =
+          item?.costPrice !== undefined && item?.costPrice !== null && item?.costPrice !== ""
+            ? Number(item.costPrice)
+            : baseCostPrice;
         const stock =
           type === "PHYSICAL"
             ? item?.stock !== undefined && item?.stock !== null
@@ -192,6 +206,7 @@ export async function POST(req: Request) {
         return {
           sku,
           price,
+          costPrice,
           stock,
           currency: variantCurrency,
           lowStockThreshold: variantLowStockThreshold,
@@ -207,9 +222,11 @@ export async function POST(req: Request) {
       .filter((item: { sku: string } | null) => !!item && !!item.sku);
 
     const invalidVariant = parsedVariants.find(
-      (item: { price: number; stock: number }) =>
+      (item: { price: number; costPrice: number | null; stock: number }) =>
         !Number.isFinite(item.price) ||
         item.price < 0 ||
+        (item.costPrice !== null &&
+          (!Number.isFinite(item.costPrice) || item.costPrice < 0)) ||
         !Number.isFinite(item.stock) ||
         item.stock < 0
     );
@@ -307,6 +324,7 @@ export async function POST(req: Request) {
               productId: created.id,
               sku: variant.sku,
               price: variant.price,
+              costPrice: variant.costPrice,
               currency: variant.currency,
               stock: 0,
               lowStockThreshold: variant.lowStockThreshold,
@@ -336,6 +354,7 @@ export async function POST(req: Request) {
             productId: created.id,
             sku: createVariantSku(truncatedSlug, 0).slice(0, 64),
             price: basePrice,
+            costPrice: baseCostPrice,
             currency,
             stock: 0,
             lowStockThreshold,

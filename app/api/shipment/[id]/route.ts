@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { appendShipmentStatusLog } from "@/lib/report-history";
 
 // GET single shipment
 export async function GET(
@@ -50,19 +51,43 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await req.json();
-
-    const shipment = await prisma.shipment.update({
+    const existing = await prisma.shipment.findUnique({
       where: { id: Number(id) },
-      data: {
-        courier: body.courier,
-        trackingNumber: body.trackingNumber,
-        status: body.status,
-        shippedAt: body.shippedAt ? new Date(body.shippedAt) : undefined,
-        expectedDate: body.expectedDate
-          ? new Date(body.expectedDate)
-          : undefined,
-        deliveredAt: body.deliveredAt ? new Date(body.deliveredAt) : undefined,
-      },
+      select: { id: true, status: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Shipment not found" },
+        { status: 404 },
+      );
+    }
+
+    const shipment = await prisma.$transaction(async (tx) => {
+      const updated = await tx.shipment.update({
+        where: { id: Number(id) },
+        data: {
+          courier: body.courier,
+          trackingNumber: body.trackingNumber,
+          status: body.status,
+          shippedAt: body.shippedAt ? new Date(body.shippedAt) : undefined,
+          expectedDate: body.expectedDate
+            ? new Date(body.expectedDate)
+            : undefined,
+          deliveredAt: body.deliveredAt ? new Date(body.deliveredAt) : undefined,
+        },
+      });
+
+      if (body.status && body.status !== existing.status) {
+        await appendShipmentStatusLog(tx, {
+          shipmentId: updated.id,
+          fromStatus: existing.status,
+          toStatus: updated.status,
+          source: "LEGACY_API",
+        });
+      }
+
+      return updated;
     });
 
     return NextResponse.json(shipment);

@@ -40,6 +40,7 @@ type VariantPayload = {
   id: number | null;
   sku: string;
   price: number;
+  costPrice: number | null;
   stock: number;
   lowStockThreshold: number;
   currency: string;
@@ -165,6 +166,22 @@ export async function PUT(
         { status: 400 },
       );
     }
+    const nextBaseCostPrice =
+      body.baseCostPrice !== undefined
+        ? body.baseCostPrice !== null && body.baseCostPrice !== ""
+          ? Number(body.baseCostPrice)
+          : null
+        : undefined;
+    if (
+      nextBaseCostPrice !== undefined &&
+      nextBaseCostPrice !== null &&
+      (!Number.isFinite(nextBaseCostPrice) || nextBaseCostPrice < 0)
+    ) {
+      return NextResponse.json(
+        { error: "Base cost price must be a number (0 or more)" },
+        { status: 400 },
+      );
+    }
 
     const nextSimpleStock =
       body.stock !== undefined && body.stock !== null ? Number(body.stock) : null;
@@ -203,6 +220,10 @@ export async function PUT(
           item?.price !== undefined && item?.price !== null
             ? Number(item.price)
             : nextBasePrice;
+        const costPrice =
+          item?.costPrice !== undefined && item?.costPrice !== null && item?.costPrice !== ""
+            ? Number(item.costPrice)
+            : nextBaseCostPrice ?? null;
         const stock =
           effectiveType === "PHYSICAL"
             ? item?.stock !== undefined && item?.stock !== null
@@ -218,6 +239,7 @@ export async function PUT(
           id: item?.id ? Number(item.id) : null,
           sku: skuRaw.slice(0, 64),
           price,
+          costPrice,
           stock,
           lowStockThreshold: normalizeLowStockThreshold(
             item?.lowStockThreshold,
@@ -238,6 +260,8 @@ export async function PUT(
         (variant) =>
           !Number.isFinite(variant.price) ||
           variant.price < 0 ||
+          (variant.costPrice !== null &&
+            (!Number.isFinite(variant.costPrice) || variant.costPrice < 0)) ||
           !Number.isFinite(variant.stock) ||
           variant.stock < 0,
       )
@@ -440,6 +464,7 @@ export async function PUT(
                 data: {
                   sku: variant.sku,
                   price: variant.price,
+                  costPrice: variant.costPrice,
                   currency: variant.currency,
                   stock: 0,
                   lowStockThreshold: variant.lowStockThreshold,
@@ -454,6 +479,7 @@ export async function PUT(
                   productId: id,
                   sku: variant.sku,
                   price: variant.price,
+                  costPrice: variant.costPrice,
                   currency: variant.currency,
                   stock: 0,
                   lowStockThreshold: variant.lowStockThreshold,
@@ -493,6 +519,8 @@ export async function PUT(
                     ? String(body.sku).trim().toUpperCase().slice(0, 64)
                     : defaultVariant.sku,
                 price: nextBasePrice,
+                costPrice:
+                  nextBaseCostPrice !== undefined ? nextBaseCostPrice : defaultVariant.costPrice,
                 currency,
                 stock: 0,
                 lowStockThreshold: nextLowStockThreshold,
@@ -515,6 +543,7 @@ export async function PUT(
                     ? String(body.sku).trim().toUpperCase().slice(0, 64)
                     : `${slug.substring(0, 20)}-V1`.toUpperCase(),
                 price: nextBasePrice,
+                costPrice: nextBaseCostPrice ?? null,
                 currency,
                 stock: 0,
                 lowStockThreshold: nextLowStockThreshold,

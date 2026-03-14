@@ -48,6 +48,12 @@ const menuItems: MenuItem[] = [
     icon: BarChart3,
   },
   {
+    name: "Reports",
+    href: "/admin/reports",
+    icon: FileText,
+    requiredPermissions: ["reports.read"],
+  },
+  {
     name: "Users",
     href: "/admin/users",
     icon: Users,

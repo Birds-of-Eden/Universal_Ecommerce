@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isDeliveryConfirmationStatus } from "@/lib/delivery-proof";
+import { appendShipmentStatusLog } from "@/lib/report-history";
 
 function getClientIp(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -186,6 +187,13 @@ export async function POST(
             status: "DELIVERED",
             deliveredAt: shipment.deliveredAt || new Date(),
           },
+        });
+
+        await appendShipmentStatusLog(tx, {
+          shipmentId: shipment.id,
+          fromStatus: shipment.status,
+          toStatus: "DELIVERED",
+          source: "DELIVERY_PROOF",
         });
       }
 

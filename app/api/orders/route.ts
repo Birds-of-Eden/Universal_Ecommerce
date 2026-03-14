@@ -345,6 +345,10 @@ export async function POST(request: NextRequest) {
               variantId: item.variantId,
               quantity: item.quantity,
               price: item.price,
+              costPriceSnapshot:
+                item.variant?.costPrice !== null && item.variant?.costPrice !== undefined
+                  ? Number(item.variant.costPrice)
+                  : null,
               currency: item.currency,
               VatAmount: taxQuote.items[index]?.VatAmount ?? 0,
             })),

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { refreshVariantStock } from "@/lib/inventory";
+import { captureVariantInventoryDailySnapshots } from "@/lib/report-history";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -123,6 +124,7 @@ export async function POST(req: Request) {
     const change = quantity - oldQty;
 
     await refreshVariantStock(prisma, productVariantId);
+    await captureVariantInventoryDailySnapshots(prisma, productVariantId);
 
     if (change !== 0) {
       await prisma.inventoryLog.create({
