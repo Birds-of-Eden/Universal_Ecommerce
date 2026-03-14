@@ -264,9 +264,8 @@ export default function ProductManager({
               key={p.id}
               className="bg-card shadow-sm hover:shadow-lg transition-all duration-200 rounded-2xl overflow-hidden border hover:border-primary/50"
             >
-              <SpotlightCard
+              <div
                 className="!p-0 !border-border !bg-card !rounded-xl overflow-hidden"
-                spotlightColor="rgba(0, 229, 255, 0.1)"
               >
                 <div className="relative h-60 bg-muted">
                   {p.image ? (
@@ -341,7 +340,7 @@ export default function ProductManager({
                     </Button>
                   </div>
                 </CardContent>
-              </SpotlightCard>
+              </div>
             </Card>
           ))}
         </div>
