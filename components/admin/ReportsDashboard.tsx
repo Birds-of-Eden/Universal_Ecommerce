@@ -1,848 +1,236 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Download, RefreshCw } from "lucide-react";
+import { AlertTriangle, Download, RefreshCw, ShieldCheck, TrendingUp, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-type SalesDailyRow = {
-  date: string;
-  orders: number;
-  revenue: number;
-  vat: number;
-};
-
-type SalesTopProductRow = {
-  productId: number;
-  name: string;
-  quantity: number;
-  revenue: number;
-};
-
-type ProfitVariantRow = {
-  variantId: number;
-  sku: string;
-  productName: string;
-  optionsText: string;
-  quantity: number;
-  revenue: number;
-  estimatedCost: number;
-  grossProfit: number;
-};
-
-type VatCountryRow = {
-  country: string;
-  vatAmount: number;
-  orders: number;
-};
-
-type VatClassRow = {
-  className: string;
-  classCode: string;
-  rate: number;
-  inclusive: boolean;
-  vatAmount: number;
-  taxCharge: number;
-  orders: number;
-};
-
-type WarehouseRow = {
-  warehouseId: number;
-  name: string;
-  code: string;
-  quantity: number;
-  reserved: number;
-};
-
-type LowStockRow = {
-  variantId: number;
-  sku: string;
-  productName: string;
-  stock: number;
-  lowStockThreshold: number;
-  status: string;
-};
-
-type InventoryReasonRow = {
-  reason: string;
-  change: number;
-  events: number;
-};
-
-type InventoryLogRow = {
-  id: number;
-  createdAt: string;
-  reason: string;
-  change: number;
-  productName: string;
-  variantSku: string;
-  warehouseName: string;
-};
-
-type CourierRow = {
-  courier: string;
-  shipments: number;
-  delivered: number;
-  proofs: number;
-};
-
-type DeliveryExceptionRow = {
-  shipmentId: number;
-  orderId: number;
-  courier: string;
-  status: string;
-  customer: string;
-  phone: string;
-  proofStatus: string;
-};
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ReportsResponse = {
-  filters: {
-    from: string;
-    to: string;
-  };
-  sales: {
-    summary: {
-      totalOrders: number;
-      activeOrders: number;
-      deliveredOrders: number;
-      cancelledOrders: number;
-      paidOrders: number;
-      unpaidOrders: number;
-      subtotal: number;
-      shippingTotal: number;
-      vatTotal: number;
-      grandTotal: number;
-      refundTotal: number;
-      netSales: number;
-      paidTotal: number;
-      unpaidTotal: number;
-      averageOrderValue: number;
-    };
-    daily: SalesDailyRow[];
-    topProducts: SalesTopProductRow[];
-  };
-  profit: {
-    summary: {
-      grossSales: number;
-      estimatedCost: number;
-      grossProfit: number;
-      refundedEstimatedCost: number;
-      netProfit: number;
-      marginPct: number;
-      netMarginPct: number;
-      missingCostItems: number;
-      completedRefunds: number;
-      refundedUnits: number;
-    };
-    topVariants: ProfitVariantRow[];
-  };
-  vat: {
-    summary: {
-      totalVatCollected: number;
-      inclusiveVatTotal: number;
-      exclusiveVatTotal: number;
-      taxedOrders: number;
-    };
-    byCountry: VatCountryRow[];
-    byClass: VatClassRow[];
-  };
-  inventory: {
-    summary: {
-      totalVariants: number;
-      totalUnits: number;
-      reservedUnits: number;
-      lowStockCount: number;
-      outOfStockCount: number;
-      movementIn: number;
-      movementOut: number;
-    };
-    warehouses: WarehouseRow[];
-    lowStock: LowStockRow[];
-    movementReasons: InventoryReasonRow[];
-    recentLogs: InventoryLogRow[];
-  };
-  delivery: {
-    summary: {
-      totalShipments: number;
-      delivered: number;
-      outForDelivery: number;
-      inTransit: number;
-      returned: number;
-      cancelled: number;
-      proofConfirmed: number;
-      proofPending: number;
-    };
-    byCourier: CourierRow[];
-    exceptions: DeliveryExceptionRow[];
-  };
+  filters: { from: string; to: string };
+  sales: { summary: { totalOrders: number; deliveredOrders: number; paidOrders: number; subtotal: number; shippingTotal: number; vatTotal: number; grandTotal: number; refundTotal: number; netSales: number; unpaidTotal: number; averageOrderValue: number }; daily: Array<{ date: string; orders: number; revenue: number; vat: number }>; topProducts: Array<{ productId: number; name: string; quantity: number; revenue: number }> };
+  profit: { summary: { grossSales: number; estimatedCost: number; refundedEstimatedCost: number; netProfit: number; netMarginPct: number; completedRefunds: number; refundedUnits: number }; topVariants: Array<{ variantId: number; sku: string; productName: string; optionsText: string; quantity: number; revenue: number; estimatedCost: number; grossProfit: number }> };
+  vat: { summary: { totalVatCollected: number; inclusiveVatTotal: number; exclusiveVatTotal: number; taxedOrders: number }; byCountry: Array<{ country: string; vatAmount: number; orders: number }>; byClass: Array<{ className: string; classCode: string; rate: number; inclusive: boolean; vatAmount: number }> };
+  inventory: { summary: { totalVariants: number; totalUnits: number; reservedUnits: number; lowStockCount: number; outOfStockCount: number; movementIn: number; movementOut: number }; warehouses: Array<{ warehouseId: number; name: string; code: string; quantity: number; reserved: number }>; lowStock: Array<{ variantId: number; sku: string; productName: string; stock: number; status: string }>; movementReasons: Array<{ reason: string; change: number; events: number }>; recentLogs: Array<{ id: number; createdAt: string; productName: string; variantSku: string; warehouseName: string; change: number }> };
+  delivery: { summary: { totalShipments: number; delivered: number; outForDelivery: number; inTransit: number; returned: number; cancelled: number; proofConfirmed: number; proofPending: number }; byCourier: Array<{ courier: string; shipments: number; delivered: number; proofs: number }>; exceptions: Array<{ shipmentId: number; orderId: number; courier: string; status: string; customer: string; phone: string; proofStatus: string }> };
 };
 
 type ExportSection = "sales" | "profit" | "vat" | "inventory" | "delivery";
+type ReportTab = "overview" | ExportSection;
 
-function formatDateInput(value: Date) {
-  return value.toISOString().slice(0, 10);
+const QUICK_RANGES = [
+  { label: "Last 7 days", days: 6 },
+  { label: "Last 30 days", days: 29 },
+  { label: "Last 90 days", days: 89 },
+];
+
+function fmtDate(value: Date) { return value.toISOString().slice(0, 10); }
+function fmtMoney(value: number) { return new Intl.NumberFormat("en-BD", { style: "currency", currency: "BDT", maximumFractionDigits: 2 }).format(value || 0); }
+function fmtNum(value: number) { return new Intl.NumberFormat("en-BD").format(value || 0); }
+function shiftRange(days: number) { const to = new Date(); const from = new Date(); from.setDate(to.getDate() - days); return { from: fmtDate(from), to: fmtDate(to) }; }
+
+function Metric({ label, value, hint, tone = "default" }: { label: string; value: string; hint?: string; tone?: "default" | "good" | "warn" }) {
+  const cls = tone === "good" ? "border-emerald-500/20 bg-emerald-500/5" : tone === "warn" ? "border-amber-500/20 bg-amber-500/5" : "border-border/60 bg-card/95";
+  return <Card className={`${cls} shadow-sm`}><CardContent className="p-5"><div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div><div className="mt-3 text-2xl font-semibold">{value}</div>{hint ? <div className="mt-2 text-sm text-muted-foreground">{hint}</div> : null}</CardContent></Card>;
 }
 
-function buildInitialFromDate() {
-  const current = new Date();
-  current.setDate(current.getDate() - 29);
-  return formatDateInput(current);
+function Header({ title, description, onExport }: { title: string; description: string; onExport: () => void }) {
+  return <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-xl font-semibold">{title}</h2><p className="text-sm text-muted-foreground">{description}</p></div><Button variant="outline" size="sm" onClick={onExport}><Download className="h-4 w-4" />Export CSV</Button></div>;
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-BD", {
-    style: "currency",
-    currency: "BDT",
-    maximumFractionDigits: 2,
-  }).format(amount || 0);
-}
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("en-BD").format(value || 0);
-}
-
-function MetricCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <Card className="border-border/60 bg-card/95 shadow-sm">
-      <CardContent className="p-5">
-        <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-        <div className="mt-3 text-2xl font-semibold text-foreground">{value}</div>
-        {hint ? <div className="mt-2 text-sm text-muted-foreground">{hint}</div> : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function SectionHeader({
-  title,
-  description,
-  onExport,
-}: {
-  title: string;
-  description: string;
-  onExport: () => void;
-}) {
-  return (
-    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 className="text-xl font-semibold text-foreground">{title}</h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      <Button variant="outline" size="sm" onClick={onExport}>
-        <Download className="h-4 w-4" />
-        Export CSV
-      </Button>
-    </div>
-  );
+function GridTable({ headers, rows, empty, cols }: { headers: string[]; rows: React.ReactNode; empty: string; cols: number }) {
+  return <Table><TableHeader><TableRow>{headers.map((h) => <TableHead key={h}>{h}</TableHead>)}</TableRow></TableHeader><TableBody>{rows || <TableRow><TableCell colSpan={cols} className="text-center text-muted-foreground">{empty}</TableCell></TableRow>}</TableBody></Table>;
 }
 
 export default function ReportsDashboard() {
-  const [from, setFrom] = useState(buildInitialFromDate);
-  const [to, setTo] = useState(() => formatDateInput(new Date()));
+  const initialFrom = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - 29); return fmtDate(d); }, []);
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(() => fmtDate(new Date()));
+  const [tab, setTab] = useState<ReportTab>("overview");
   const [data, setData] = useState<ReportsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
 
-  const fetchReports = async (nextFrom: string, nextTo: string) => {
+  const load = async (nextFrom: string, nextTo: string) => {
     try {
       setLoading(true);
       setError(null);
-      const params = new URLSearchParams({
-        from: nextFrom,
-        to: nextTo,
-      });
-      const response = await fetch(`/api/reports/overview?${params.toString()}`, {
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload?.error || `Failed to load reports (${response.status})`);
-      }
-
-      const payload = (await response.json()) as ReportsResponse;
-      setData(payload);
-    } catch (fetchError) {
-      const message =
-        fetchError instanceof Error ? fetchError.message : "Failed to load reports.";
-      setError(message);
+      const qs = new URLSearchParams({ from: nextFrom, to: nextTo });
+      const res = await fetch(`/api/reports/overview?${qs.toString()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || `Failed to load reports (${res.status})`);
+      setData(await res.json());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load reports.");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void fetchReports(from, to);
-  }, []);
+  useEffect(() => { void load(from, to); }, []);
 
-  const handleApply = () => {
-    startTransition(() => {
-      void fetchReports(from, to);
-    });
-  };
+  const apply = () => startTransition(() => { void load(from, to); });
+  const quick = (days: number) => { const next = shiftRange(days); setFrom(next.from); setTo(next.to); startTransition(() => { void load(next.from, next.to); }); };
+  const exportTab = (section: ExportSection) => { const qs = new URLSearchParams({ section, from, to }); window.open(`/api/reports/export?${qs.toString()}`, "_blank", "noopener,noreferrer"); };
 
-  const exportSection = (section: ExportSection) => {
-    const params = new URLSearchParams({
-      section,
-      from,
-      to,
-    });
-    window.open(`/api/reports/export?${params.toString()}`, "_blank", "noopener,noreferrer");
-  };
+  const topMetrics = useMemo(() => data ? [
+    { label: "Net Sales", value: fmtMoney(data.sales.summary.netSales), hint: `${fmtMoney(data.sales.summary.refundTotal)} refund impact` },
+    { label: "Net Profit", value: fmtMoney(data.profit.summary.netProfit), hint: `${data.profit.summary.netMarginPct.toFixed(2)}% net margin`, tone: "good" as const },
+    { label: "Collected VAT", value: fmtMoney(data.vat.summary.totalVatCollected), hint: `${fmtNum(data.vat.summary.taxedOrders)} taxed orders` },
+    { label: "Low Stock", value: fmtNum(data.inventory.summary.lowStockCount), hint: `${fmtNum(data.inventory.summary.outOfStockCount)} out of stock`, tone: data.inventory.summary.lowStockCount > 0 ? "warn" as const : "good" as const },
+    { label: "Proof Pending", value: fmtNum(data.delivery.summary.proofPending), hint: `${fmtNum(data.delivery.summary.proofConfirmed)} confirmed proofs`, tone: data.delivery.summary.proofPending > 0 ? "warn" as const : "good" as const },
+  ] : [], [data]);
 
-  const heroMetrics = useMemo(() => {
-    if (!data) return [];
-    return [
-      {
-        label: "Sales Revenue",
-        value: formatCurrency(data.sales.summary.grandTotal),
-        hint: `${formatNumber(data.sales.summary.activeOrders)} active orders in range`,
-      },
-      {
-        label: "Gross Profit",
-        value: formatCurrency(data.profit.summary.netProfit),
-        hint: `${data.profit.summary.netMarginPct.toFixed(2)}% net margin`,
-      },
-      {
-        label: "Collected VAT",
-        value: formatCurrency(data.vat.summary.totalVatCollected),
-        hint: `${formatNumber(data.vat.summary.taxedOrders)} taxed orders`,
-      },
-      {
-        label: "Units On Hand",
-        value: formatNumber(data.inventory.summary.totalUnits),
-        hint: `${formatNumber(data.inventory.summary.lowStockCount)} low-stock variants`,
-      },
-      {
-        label: "Proof Confirmed",
-        value: formatNumber(data.delivery.summary.proofConfirmed),
-        hint: `${formatNumber(data.delivery.summary.proofPending)} proofs still pending`,
-      },
-    ];
-  }, [data]);
+  const alerts = useMemo(() => data ? [
+    { title: "Refund pressure", text: `${fmtNum(data.profit.summary.completedRefunds)} completed refunds in this range.`, active: data.profit.summary.completedRefunds > 0 },
+    { title: "Stock pressure", text: `${fmtNum(data.inventory.summary.lowStockCount)} variants need replenishment.`, active: data.inventory.summary.lowStockCount > 0 },
+    { title: "Proof gaps", text: `${fmtNum(data.delivery.summary.proofPending)} shipments still need customer proof.`, active: data.delivery.summary.proofPending > 0 },
+  ].filter((x) => x.active) : [], [data]);
 
   return (
-    <div className="space-y-8 p-6">
-      <div className="rounded-[28px] border border-border/60 bg-gradient-to-br from-card via-card to-muted/35 p-6 shadow-sm">
+    <div className="space-y-6 p-6">
+      <div className="rounded-[30px] border border-border/60 bg-gradient-to-br from-card via-card to-muted/35 p-6 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl space-y-3">
-            <div className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-              Commerce Reports
-            </div>
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">Sales, margin, tax, inventory and delivery in one place</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Filter by date range, review operational health, and export report slices for finance or ops follow-up.
-              </p>
-            </div>
+            <div className="inline-flex rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">Commerce Reports</div>
+            <div><h1 className="text-3xl font-semibold tracking-tight">Executive overview first, details only when needed</h1><p className="mt-2 text-sm text-muted-foreground">Use one clean overview tab for the business pulse, then move into focused sales, profit, VAT, inventory, and delivery tabs.</p></div>
           </div>
-
-          <Card className="border-border/70 bg-background/90 shadow-none">
-            <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-end">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="reports-from">
-                  From
-                </label>
-                <Input id="reports-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="reports-to">
-                  To
-                </label>
-                <Input id="reports-to" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleApply} disabled={loading || isPending}>
-                  {(loading || isPending) ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  Apply
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {QUICK_RANGES.map((item) => <Button key={item.label} variant="outline" size="sm" onClick={() => quick(item.days)}>{item.label}</Button>)}
+          </div>
         </div>
       </div>
 
-      {error ? (
-        <Card className="border-destructive/40 bg-destructive/5">
-          <CardContent className="p-6 text-sm text-destructive">{error}</CardContent>
-        </Card>
-      ) : null}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        {heroMetrics.map((metric) => (
-          <MetricCard key={metric.label} label={metric.label} value={metric.value} hint={metric.hint} />
-        ))}
+      <div className="sticky top-0 z-20 rounded-[24px] border border-border/70 bg-background/95 p-4 shadow-sm backdrop-blur">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="space-y-2"><label className="text-sm font-medium" htmlFor="reports-from">From</label><Input id="reports-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+            <div className="space-y-2"><label className="text-sm font-medium" htmlFor="reports-to">To</label><Input id="reports-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {tab !== "overview" ? <Button variant="outline" onClick={() => exportTab(tab)}><Download className="h-4 w-4" />Export {tab}</Button> : null}
+            <Button onClick={apply} disabled={loading || pending}>{(loading || pending) ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Apply filters</Button>
+          </div>
+        </div>
       </div>
 
+      {error ? <Card className="border-destructive/40 bg-destructive/5"><CardContent className="p-6 text-sm text-destructive">{error}</CardContent></Card> : null}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">{topMetrics.map((m) => <Metric key={m.label} label={m.label} value={m.value} hint={m.hint} tone={m.tone} />)}</div>
+
       {data ? (
-        <>
-          <section>
-            <SectionHeader
-              title="Sales Report"
-              description={`Revenue and order flow from ${data.filters.from} to ${data.filters.to}.`}
-              onExport={() => exportSection("sales")}
-            />
-            <div className="grid gap-4 lg:grid-cols-4">
-              <MetricCard label="Gross Revenue" value={formatCurrency(data.sales.summary.grandTotal)} hint={`${formatCurrency(data.sales.summary.averageOrderValue)} average order`} />
-              <MetricCard label="Net Sales" value={formatCurrency(data.sales.summary.netSales)} hint={`${formatCurrency(data.sales.summary.refundTotal)} refunds`} />
-              <MetricCard label="Subtotal" value={formatCurrency(data.sales.summary.subtotal)} hint={`${formatCurrency(data.sales.summary.shippingTotal)} shipping collected`} />
-              <MetricCard label="Delivered Orders" value={formatNumber(data.sales.summary.deliveredOrders)} hint={`${formatNumber(data.sales.summary.cancelledOrders)} cancelled`} />
-              <MetricCard label="Paid Orders" value={formatNumber(data.sales.summary.paidOrders)} hint={`${formatCurrency(data.sales.summary.unpaidTotal)} unpaid value`} />
-            </div>
-            <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_1fr]">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Daily Revenue</CardTitle>
-                  <CardDescription>Daily order volume, revenue and VAT.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead className="text-right">Orders</TableHead>
-                        <TableHead className="text-right">Revenue</TableHead>
-                        <TableHead className="text-right">VAT</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.sales.daily.length ? data.sales.daily.map((row) => (
-                        <TableRow key={row.date}>
-                          <TableCell>{row.date}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.orders)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.vat)}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground">No sales data in this range.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Selling Products</CardTitle>
-                  <CardDescription>Highest revenue products in the selected range.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Revenue</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.sales.topProducts.length ? data.sales.topProducts.map((row) => (
-                        <TableRow key={row.productId}>
-                          <TableCell>{row.name}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.quantity)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground">No product sales found.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
+        <Tabs value={tab} onValueChange={(value) => setTab(value as ReportTab)} className="space-y-6">
+          <TabsList className="w-full justify-start overflow-x-auto rounded-[20px] border border-border/60 bg-card/85 p-1.5">
+            <TabsTrigger value="overview" className="rounded-2xl px-4 py-2.5">Overview</TabsTrigger>
+            <TabsTrigger value="sales" className="rounded-2xl px-4 py-2.5">Sales</TabsTrigger>
+            <TabsTrigger value="profit" className="rounded-2xl px-4 py-2.5">Profit</TabsTrigger>
+            <TabsTrigger value="vat" className="rounded-2xl px-4 py-2.5">VAT</TabsTrigger>
+            <TabsTrigger value="inventory" className="rounded-2xl px-4 py-2.5">Inventory</TabsTrigger>
+            <TabsTrigger value="delivery" className="rounded-2xl px-4 py-2.5">Delivery</TabsTrigger>
+          </TabsList>
 
-          <section>
-            <SectionHeader
-              title="Profit Report"
-              description="Estimated gross margin using stored purchase prices on variants."
-              onExport={() => exportSection("profit")}
-            />
-            <div className="grid gap-4 lg:grid-cols-4">
-              <MetricCard label="Gross Sales" value={formatCurrency(data.profit.summary.grossSales)} />
-              <MetricCard label="Estimated Cost" value={formatCurrency(data.profit.summary.estimatedCost)} />
-              <MetricCard label="Net Profit" value={formatCurrency(data.profit.summary.netProfit)} hint={`${formatCurrency(data.profit.summary.refundedEstimatedCost)} refunded cost`} />
-              <MetricCard label="Refund Impact" value={formatNumber(data.profit.summary.completedRefunds)} hint={`${formatNumber(data.profit.summary.refundedUnits)} refunded units`} />
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Card><CardContent className="flex gap-4 p-5"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-muted"><TrendingUp className="h-5 w-5" /></div><div><div className="text-sm font-medium">Sales Pulse</div><div className="mt-1 text-sm text-muted-foreground">Gross vs net sales across the selected window.</div><div className="mt-3 text-lg font-semibold">{fmtMoney(data.sales.summary.grandTotal)} gross / {fmtMoney(data.sales.summary.netSales)} net</div></div></CardContent></Card>
+              <Card><CardContent className="flex gap-4 p-5"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-muted"><ShieldCheck className="h-5 w-5" /></div><div><div className="text-sm font-medium">Tax Snapshot</div><div className="mt-1 text-sm text-muted-foreground">VAT captured from saved order-time tax snapshots.</div><div className="mt-3 text-lg font-semibold">{fmtMoney(data.vat.summary.totalVatCollected)} VAT</div></div></CardContent></Card>
+              <Card><CardContent className="flex gap-4 p-5"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-muted"><Truck className="h-5 w-5" /></div><div><div className="text-sm font-medium">Delivery Confidence</div><div className="mt-1 text-sm text-muted-foreground">Courier completion and customer proof capture posture.</div><div className="mt-3 text-lg font-semibold">{fmtNum(data.delivery.summary.delivered)} delivered / {fmtNum(data.delivery.summary.proofPending)} pending proof</div></div></CardContent></Card>
+              <Card><CardContent className="flex gap-4 p-5"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-muted"><AlertTriangle className="h-5 w-5" /></div><div><div className="text-sm font-medium">Inventory Health</div><div className="mt-1 text-sm text-muted-foreground">Tracked units and replenishment pressure.</div><div className="mt-3 text-lg font-semibold">{fmtNum(data.inventory.summary.totalUnits)} units / {fmtNum(data.inventory.summary.lowStockCount)} low stock</div></div></CardContent></Card>
             </div>
-            <div className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Profitable Variants</CardTitle>
-                  <CardDescription>Variants with the highest estimated gross profit contribution.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Variant</TableHead>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Revenue</TableHead>
-                        <TableHead className="text-right">Cost</TableHead>
-                        <TableHead className="text-right">Profit</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.profit.topVariants.length ? data.profit.topVariants.map((row) => (
-                        <TableRow key={row.variantId}>
-                          <TableCell>
-                            <div className="font-medium">{row.sku}</div>
-                            {row.optionsText ? <div className="text-xs text-muted-foreground">{row.optionsText}</div> : null}
-                          </TableCell>
-                          <TableCell>{row.productName}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.quantity)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.revenue)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.estimatedCost)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.grossProfit)}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">No profit rows available in this range.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
 
-          <section>
-            <SectionHeader
-              title="VAT Report"
-              description="Collected VAT grouped by tax class and shipping destination."
-              onExport={() => exportSection("vat")}
-            />
-            <div className="grid gap-4 lg:grid-cols-4">
-              <MetricCard label="Total VAT" value={formatCurrency(data.vat.summary.totalVatCollected)} />
-              <MetricCard label="Inclusive VAT" value={formatCurrency(data.vat.summary.inclusiveVatTotal)} />
-              <MetricCard label="Exclusive VAT" value={formatCurrency(data.vat.summary.exclusiveVatTotal)} />
-              <MetricCard label="Taxed Orders" value={formatNumber(data.vat.summary.taxedOrders)} />
+            <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <Card><CardHeader><CardTitle>Executive Snapshot</CardTitle><CardDescription>{data.filters.from} to {data.filters.to}</CardDescription></CardHeader><CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <Metric label="Orders" value={fmtNum(data.sales.summary.totalOrders)} hint={`${fmtNum(data.sales.summary.deliveredOrders)} delivered`} />
+                <Metric label="Avg Order Value" value={fmtMoney(data.sales.summary.averageOrderValue)} />
+                <Metric label="Refunds" value={fmtMoney(data.sales.summary.refundTotal)} hint={`${fmtNum(data.profit.summary.completedRefunds)} completed refunds`} />
+                <Metric label="Warehouse Units" value={fmtNum(data.inventory.summary.totalUnits)} hint={`${fmtNum(data.inventory.summary.reservedUnits)} reserved`} />
+                <Metric label="Courier Delivered" value={fmtNum(data.delivery.summary.delivered)} hint={`${fmtNum(data.delivery.summary.inTransit)} still in transit`} />
+                <Metric label="VAT" value={fmtMoney(data.vat.summary.totalVatCollected)} hint={`${fmtMoney(data.vat.summary.exclusiveVatTotal)} tax added on top`} />
+              </CardContent></Card>
+              <Card><CardHeader><CardTitle>Priority Alerts</CardTitle><CardDescription>Fastest issues to review first.</CardDescription></CardHeader><CardContent className="space-y-3">
+                {alerts.length ? alerts.map((a) => <div key={a.title} className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4"><div className="text-sm font-medium">{a.title}</div><div className="mt-1 text-sm text-muted-foreground">{a.text}</div></div>) : <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-700">No major report alerts in this range.</div>}
+              </CardContent></Card>
             </div>
-            <div className="mt-4 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-              <Card>
-                <CardHeader>
-                  <CardTitle>VAT by Country</CardTitle>
-                  <CardDescription>Collected VAT based on order destination.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Country</TableHead>
-                        <TableHead className="text-right">Orders</TableHead>
-                        <TableHead className="text-right">VAT</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.vat.byCountry.length ? data.vat.byCountry.map((row) => (
-                        <TableRow key={row.country}>
-                          <TableCell>{row.country}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.orders)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.vatAmount)}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground">No VAT data found for the selected range.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>VAT by Class</CardTitle>
-                  <CardDescription>Tax class performance pulled from saved order tax snapshots.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Class</TableHead>
-                        <TableHead className="text-right">Rate</TableHead>
-                        <TableHead className="text-right">Inclusive</TableHead>
-                        <TableHead className="text-right">VAT</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.vat.byClass.length ? data.vat.byClass.map((row) => (
-                        <TableRow key={`${row.classCode}-${row.rate}-${row.inclusive ? "i" : "e"}`}>
-                          <TableCell>
-                            <div className="font-medium">{row.className}</div>
-                            <div className="text-xs text-muted-foreground">{row.classCode}</div>
-                          </TableCell>
-                          <TableCell className="text-right">{row.rate.toFixed(2)}%</TableCell>
-                          <TableCell className="text-right">{row.inclusive ? "Yes" : "No"}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.vatAmount)}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground">No tax class snapshot rows found.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-          <section>
-            <SectionHeader
-              title="Inventory Report"
-              description="Current stock snapshot plus movement activity inside the selected range."
-              onExport={() => exportSection("inventory")}
-            />
-            <div className="grid gap-4 lg:grid-cols-4">
-              <MetricCard label="Tracked Variants" value={formatNumber(data.inventory.summary.totalVariants)} />
-              <MetricCard label="Units On Hand" value={formatNumber(data.inventory.summary.totalUnits)} hint={`${formatNumber(data.inventory.summary.reservedUnits)} reserved`} />
-              <MetricCard label="Low Stock" value={formatNumber(data.inventory.summary.lowStockCount)} hint={`${formatNumber(data.inventory.summary.outOfStockCount)} out of stock`} />
-              <MetricCard label="Movement" value={`${formatNumber(data.inventory.summary.movementIn)} in / ${formatNumber(data.inventory.summary.movementOut)} out`} />
-            </div>
-            <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Warehouse Stock</CardTitle>
-                  <CardDescription>Current quantity and reserved units by warehouse.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Warehouse</TableHead>
-                        <TableHead className="text-right">Quantity</TableHead>
-                        <TableHead className="text-right">Reserved</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.inventory.warehouses.length ? data.inventory.warehouses.map((row) => (
-                        <TableRow key={row.warehouseId}>
-                          <TableCell>
-                            <div className="font-medium">{row.name}</div>
-                            <div className="text-xs text-muted-foreground">{row.code}</div>
-                          </TableCell>
-                          <TableCell className="text-right">{formatNumber(row.quantity)}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.reserved)}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground">No warehouse stock records found.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Low Stock Alerts</CardTitle>
-                  <CardDescription>Variants that need replenishment attention.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Variant</TableHead>
-                        <TableHead>Product</TableHead>
-                        <TableHead className="text-right">Stock</TableHead>
-                        <TableHead className="text-right">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.inventory.lowStock.length ? data.inventory.lowStock.map((row) => (
-                        <TableRow key={row.variantId}>
-                          <TableCell>{row.sku}</TableCell>
-                          <TableCell>{row.productName}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.stock)}</TableCell>
-                          <TableCell className="text-right">{row.status.replaceAll("_", " ")}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground">No low-stock alerts right now.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
-            <div className="mt-4 grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Movement Reasons</CardTitle>
-                  <CardDescription>Net stock movement grouped by logged reason.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Reason</TableHead>
-                        <TableHead className="text-right">Events</TableHead>
-                        <TableHead className="text-right">Net Change</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.inventory.movementReasons.length ? data.inventory.movementReasons.slice(0, 10).map((row) => (
-                        <TableRow key={row.reason}>
-                          <TableCell>{row.reason}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.events)}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.change)}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground">No inventory movements logged in this range.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Inventory Logs</CardTitle>
-                  <CardDescription>Latest stock change events captured in the selected range.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>When</TableHead>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Warehouse</TableHead>
-                        <TableHead className="text-right">Change</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.inventory.recentLogs.length ? data.inventory.recentLogs.slice(0, 10).map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell>{new Date(row.createdAt).toLocaleString()}</TableCell>
-                          <TableCell>
-                            <div className="font-medium">{row.productName}</div>
-                            {row.variantSku ? <div className="text-xs text-muted-foreground">{row.variantSku}</div> : null}
-                          </TableCell>
-                          <TableCell>{row.warehouseName || "N/A"}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.change)}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground">No inventory log rows found in this range.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
 
-          <section>
-            <SectionHeader
-              title="Delivery Report"
-              description="Shipment outcomes and customer delivery proof coverage."
-              onExport={() => exportSection("delivery")}
-            />
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Card><CardHeader><CardTitle>Top Products</CardTitle><CardDescription>Highest revenue products in the selected range.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Product", "Qty", "Revenue"], cols: 3, empty: "No product sales found.", rows: data.sales.topProducts.slice(0, 5).map((row) => <TableRow key={row.productId}><TableCell>{row.name}</TableCell><TableCell className="text-right">{fmtNum(row.quantity)}</TableCell><TableCell className="text-right">{fmtMoney(row.revenue)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+              <Card><CardHeader><CardTitle>Delivery Exceptions</CardTitle><CardDescription>Current courier exceptions needing follow-up.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Shipment", "Courier", "Status"], cols: 3, empty: "No delivery exceptions in this range.", rows: data.delivery.exceptions.slice(0, 5).map((row) => <TableRow key={row.shipmentId}><TableCell>#{row.shipmentId}</TableCell><TableCell>{row.courier}</TableCell><TableCell className="text-right">{row.status.replaceAll("_", " ")}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="sales" className="space-y-6">
+            <Header title="Sales Report" description={`Revenue and order flow from ${data.filters.from} to ${data.filters.to}.`} onExport={() => exportTab("sales")} />
             <div className="grid gap-4 lg:grid-cols-4">
-              <MetricCard label="Shipments" value={formatNumber(data.delivery.summary.totalShipments)} />
-              <MetricCard label="Delivered" value={formatNumber(data.delivery.summary.delivered)} hint={`${formatNumber(data.delivery.summary.outForDelivery)} out for delivery`} />
-              <MetricCard label="Proof Confirmed" value={formatNumber(data.delivery.summary.proofConfirmed)} hint={`${formatNumber(data.delivery.summary.proofPending)} pending proof`} />
-              <MetricCard label="Returns / Cancelled" value={`${formatNumber(data.delivery.summary.returned)} / ${formatNumber(data.delivery.summary.cancelled)}`} />
+              <Metric label="Gross Revenue" value={fmtMoney(data.sales.summary.grandTotal)} hint={`${fmtMoney(data.sales.summary.averageOrderValue)} average order`} />
+              <Metric label="Net Sales" value={fmtMoney(data.sales.summary.netSales)} hint={`${fmtMoney(data.sales.summary.refundTotal)} refunds`} />
+              <Metric label="Subtotal" value={fmtMoney(data.sales.summary.subtotal)} hint={`${fmtMoney(data.sales.summary.shippingTotal)} shipping collected`} />
+              <Metric label="Paid Orders" value={fmtNum(data.sales.summary.paidOrders)} hint={`${fmtMoney(data.sales.summary.unpaidTotal)} unpaid value`} />
             </div>
-            <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Courier Performance</CardTitle>
-                  <CardDescription>Shipment count, delivered count and proof coverage by courier.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Courier</TableHead>
-                        <TableHead className="text-right">Shipments</TableHead>
-                        <TableHead className="text-right">Delivered</TableHead>
-                        <TableHead className="text-right">Proofs</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.delivery.byCourier.length ? data.delivery.byCourier.map((row) => (
-                        <TableRow key={row.courier}>
-                          <TableCell>{row.courier}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.shipments)}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.delivered)}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.proofs)}</TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground">No shipment activity found in this range.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Delivery Exceptions</CardTitle>
-                  <CardDescription>Returned, cancelled or proof-missing shipment records.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Shipment</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Courier</TableHead>
-                        <TableHead className="text-right">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.delivery.exceptions.length ? data.delivery.exceptions.map((row) => (
-                        <TableRow key={row.shipmentId}>
-                          <TableCell>
-                            <div className="font-medium">#{row.shipmentId}</div>
-                            <div className="text-xs text-muted-foreground">Order #{row.orderId}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div>{row.customer}</div>
-                            {row.phone ? <div className="text-xs text-muted-foreground">{row.phone}</div> : null}
-                          </TableCell>
-                          <TableCell>{row.courier}</TableCell>
-                          <TableCell className="text-right">
-                            <div>{row.status.replaceAll("_", " ")}</div>
-                            <div className="text-xs text-muted-foreground">{row.proofStatus}</div>
-                          </TableCell>
-                        </TableRow>
-                      )) : (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground">No delivery exceptions in the selected range.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+            <div className="grid gap-4 xl:grid-cols-[1.05fr_1fr]">
+              <Card><CardHeader><CardTitle>Daily Revenue</CardTitle><CardDescription>Daily order volume, revenue and VAT.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Date", "Orders", "Revenue", "VAT"], cols: 4, empty: "No sales data in this range.", rows: data.sales.daily.map((row) => <TableRow key={row.date}><TableCell>{row.date}</TableCell><TableCell className="text-right">{fmtNum(row.orders)}</TableCell><TableCell className="text-right">{fmtMoney(row.revenue)}</TableCell><TableCell className="text-right">{fmtMoney(row.vat)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+              <Card><CardHeader><CardTitle>Top Selling Products</CardTitle><CardDescription>Highest revenue products in the selected range.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Product", "Qty", "Revenue"], cols: 3, empty: "No product sales found.", rows: data.sales.topProducts.map((row) => <TableRow key={row.productId}><TableCell>{row.name}</TableCell><TableCell className="text-right">{fmtNum(row.quantity)}</TableCell><TableCell className="text-right">{fmtMoney(row.revenue)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
             </div>
-          </section>
-        </>
-      ) : !loading ? (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">No report data available.</CardContent>
-        </Card>
-      ) : null}
+          </TabsContent>
+
+          <TabsContent value="profit" className="space-y-6">
+            <Header title="Profit Report" description="Estimated gross and net margin using stored purchase-cost snapshots." onExport={() => exportTab("profit")} />
+            <div className="grid gap-4 lg:grid-cols-4">
+              <Metric label="Gross Sales" value={fmtMoney(data.profit.summary.grossSales)} />
+              <Metric label="Estimated Cost" value={fmtMoney(data.profit.summary.estimatedCost)} />
+              <Metric label="Net Profit" value={fmtMoney(data.profit.summary.netProfit)} hint={`${data.profit.summary.netMarginPct.toFixed(2)}% net margin`} tone="good" />
+              <Metric label="Refund Impact" value={fmtNum(data.profit.summary.completedRefunds)} hint={`${fmtNum(data.profit.summary.refundedUnits)} refunded units`} tone={data.profit.summary.completedRefunds > 0 ? "warn" : "default"} />
+            </div>
+            <Card><CardHeader><CardTitle>Top Profitable Variants</CardTitle><CardDescription>Variants with the highest estimated gross profit contribution.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Variant", "Product", "Qty", "Revenue", "Cost", "Profit"], cols: 6, empty: "No profit rows available in this range.", rows: data.profit.topVariants.map((row) => <TableRow key={row.variantId}><TableCell><div className="font-medium">{row.sku}</div>{row.optionsText ? <div className="text-xs text-muted-foreground">{row.optionsText}</div> : null}</TableCell><TableCell>{row.productName}</TableCell><TableCell className="text-right">{fmtNum(row.quantity)}</TableCell><TableCell className="text-right">{fmtMoney(row.revenue)}</TableCell><TableCell className="text-right">{fmtMoney(row.estimatedCost)}</TableCell><TableCell className="text-right">{fmtMoney(row.grossProfit)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+          </TabsContent>
+
+          <TabsContent value="vat" className="space-y-6">
+            <Header title="VAT Report" description="Collected VAT grouped by tax class and shipping destination." onExport={() => exportTab("vat")} />
+            <div className="grid gap-4 lg:grid-cols-4">
+              <Metric label="Total VAT" value={fmtMoney(data.vat.summary.totalVatCollected)} />
+              <Metric label="Inclusive VAT" value={fmtMoney(data.vat.summary.inclusiveVatTotal)} />
+              <Metric label="Exclusive VAT" value={fmtMoney(data.vat.summary.exclusiveVatTotal)} />
+              <Metric label="Taxed Orders" value={fmtNum(data.vat.summary.taxedOrders)} />
+            </div>
+            <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+              <Card><CardHeader><CardTitle>VAT by Country</CardTitle><CardDescription>Collected VAT based on order destination.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Country", "Orders", "VAT"], cols: 3, empty: "No VAT data found for the selected range.", rows: data.vat.byCountry.map((row) => <TableRow key={row.country}><TableCell>{row.country}</TableCell><TableCell className="text-right">{fmtNum(row.orders)}</TableCell><TableCell className="text-right">{fmtMoney(row.vatAmount)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+              <Card><CardHeader><CardTitle>VAT by Class</CardTitle><CardDescription>Tax class performance from saved order tax snapshots.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Class", "Rate", "Inclusive", "VAT"], cols: 4, empty: "No tax class snapshot rows found.", rows: data.vat.byClass.map((row) => <TableRow key={`${row.classCode}-${row.rate}-${row.inclusive ? "i" : "e"}`}><TableCell><div className="font-medium">{row.className}</div><div className="text-xs text-muted-foreground">{row.classCode}</div></TableCell><TableCell className="text-right">{row.rate.toFixed(2)}%</TableCell><TableCell className="text-right">{row.inclusive ? "Yes" : "No"}</TableCell><TableCell className="text-right">{fmtMoney(row.vatAmount)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="inventory" className="space-y-6">
+            <Header title="Inventory Report" description="Current stock snapshot plus movement activity inside the selected range." onExport={() => exportTab("inventory")} />
+            <div className="grid gap-4 lg:grid-cols-4">
+              <Metric label="Tracked Variants" value={fmtNum(data.inventory.summary.totalVariants)} />
+              <Metric label="Units On Hand" value={fmtNum(data.inventory.summary.totalUnits)} hint={`${fmtNum(data.inventory.summary.reservedUnits)} reserved`} />
+              <Metric label="Low Stock" value={fmtNum(data.inventory.summary.lowStockCount)} hint={`${fmtNum(data.inventory.summary.outOfStockCount)} out of stock`} tone={data.inventory.summary.lowStockCount > 0 ? "warn" : "default"} />
+              <Metric label="Movement" value={`${fmtNum(data.inventory.summary.movementIn)} in / ${fmtNum(data.inventory.summary.movementOut)} out`} />
+            </div>
+            <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+              <Card><CardHeader><CardTitle>Warehouse Stock</CardTitle><CardDescription>Current quantity and reserved units by warehouse.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Warehouse", "Quantity", "Reserved"], cols: 3, empty: "No warehouse stock records found.", rows: data.inventory.warehouses.map((row) => <TableRow key={row.warehouseId}><TableCell><div className="font-medium">{row.name}</div><div className="text-xs text-muted-foreground">{row.code}</div></TableCell><TableCell className="text-right">{fmtNum(row.quantity)}</TableCell><TableCell className="text-right">{fmtNum(row.reserved)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+              <Card><CardHeader><CardTitle>Low Stock Alerts</CardTitle><CardDescription>Variants that need replenishment attention.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Variant", "Product", "Stock", "Status"], cols: 4, empty: "No low-stock alerts right now.", rows: data.inventory.lowStock.map((row) => <TableRow key={row.variantId}><TableCell>{row.sku}</TableCell><TableCell>{row.productName}</TableCell><TableCell className="text-right">{fmtNum(row.stock)}</TableCell><TableCell className="text-right">{row.status.replaceAll("_", " ")}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+              <Card><CardHeader><CardTitle>Movement Reasons</CardTitle><CardDescription>Net stock movement grouped by logged reason.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Reason", "Events", "Net Change"], cols: 3, empty: "No inventory movements logged in this range.", rows: data.inventory.movementReasons.slice(0, 10).map((row) => <TableRow key={row.reason}><TableCell>{row.reason}</TableCell><TableCell className="text-right">{fmtNum(row.events)}</TableCell><TableCell className="text-right">{fmtNum(row.change)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+              <Card><CardHeader><CardTitle>Recent Inventory Logs</CardTitle><CardDescription>Latest stock change events captured in the selected range.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["When", "Item", "Warehouse", "Change"], cols: 4, empty: "No inventory log rows found in this range.", rows: data.inventory.recentLogs.slice(0, 10).map((row) => <TableRow key={row.id}><TableCell>{new Date(row.createdAt).toLocaleString()}</TableCell><TableCell><div className="font-medium">{row.productName}</div>{row.variantSku ? <div className="text-xs text-muted-foreground">{row.variantSku}</div> : null}</TableCell><TableCell>{row.warehouseName || "N/A"}</TableCell><TableCell className="text-right">{fmtNum(row.change)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="delivery" className="space-y-6">
+            <Header title="Delivery Report" description="Shipment outcomes and customer delivery proof coverage." onExport={() => exportTab("delivery")} />
+            <div className="grid gap-4 lg:grid-cols-4">
+              <Metric label="Shipments" value={fmtNum(data.delivery.summary.totalShipments)} />
+              <Metric label="Delivered" value={fmtNum(data.delivery.summary.delivered)} hint={`${fmtNum(data.delivery.summary.outForDelivery)} out for delivery`} />
+              <Metric label="Proof Confirmed" value={fmtNum(data.delivery.summary.proofConfirmed)} hint={`${fmtNum(data.delivery.summary.proofPending)} pending proof`} tone={data.delivery.summary.proofPending > 0 ? "warn" : "good"} />
+              <Metric label="Returns / Cancelled" value={`${fmtNum(data.delivery.summary.returned)} / ${fmtNum(data.delivery.summary.cancelled)}`} />
+            </div>
+            <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+              <Card><CardHeader><CardTitle>Courier Performance</CardTitle><CardDescription>Shipment count, delivered count and proof coverage by courier.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Courier", "Shipments", "Delivered", "Proofs"], cols: 4, empty: "No shipment activity found in this range.", rows: data.delivery.byCourier.map((row) => <TableRow key={row.courier}><TableCell>{row.courier}</TableCell><TableCell className="text-right">{fmtNum(row.shipments)}</TableCell><TableCell className="text-right">{fmtNum(row.delivered)}</TableCell><TableCell className="text-right">{fmtNum(row.proofs)}</TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+              <Card><CardHeader><CardTitle>Delivery Exceptions</CardTitle><CardDescription>Returned, cancelled or proof-missing shipment records.</CardDescription></CardHeader><CardContent>{GridTable({ headers: ["Shipment", "Customer", "Courier", "Status"], cols: 4, empty: "No delivery exceptions in the selected range.", rows: data.delivery.exceptions.map((row) => <TableRow key={row.shipmentId}><TableCell><div className="font-medium">#{row.shipmentId}</div><div className="text-xs text-muted-foreground">Order #{row.orderId}</div></TableCell><TableCell><div>{row.customer}</div>{row.phone ? <div className="text-xs text-muted-foreground">{row.phone}</div> : null}</TableCell><TableCell>{row.courier}</TableCell><TableCell className="text-right"><div>{row.status.replaceAll("_", " ")}</div><div className="text-xs text-muted-foreground">{row.proofStatus}</div></TableCell></TableRow>) as unknown as React.ReactNode })}</CardContent></Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+      ) : !loading ? <Card><CardContent className="p-6 text-sm text-muted-foreground">No report data available.</CardContent></Card> : null}
     </div>
   );
 }
