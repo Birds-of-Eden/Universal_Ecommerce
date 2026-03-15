@@ -122,7 +122,16 @@ export async function GET(
         total: true,
         currency: true,
         Vat_total: true,
+        discount_total: true,
         taxSnapshot: true,
+        coupon: {
+          select: {
+            id: true,
+            code: true,
+            discountType: true,
+            discountValue: true,
+          },
+        },
         orderItems: {
           select: {
             id: true,
@@ -167,12 +176,13 @@ export async function GET(
     );
 
     const vatTotal = Number(order.Vat_total ?? 0);
+    const discountTotal = Number(order.discount_total ?? 0);
     const taxCharge = Number(
       (order.taxSnapshot as { totalTaxCharge?: number } | null)
         ?.totalTaxCharge ?? vatTotal
     );
     const grand = Number(order.grand_total ?? order.total ?? subTotal);
-    const delivery = Math.max(grand - subTotal - taxCharge, 0);
+    const delivery = Math.max(grand - subTotal - taxCharge + discountTotal, 0);
 
     const siteSettings = await getSiteSettings();
     SITE_NAME = siteSettings.SITE_NAME;
@@ -630,9 +640,8 @@ export async function GET(
       rect(itemTableLeft, cursor - emptyRowH, tableW, emptyRowH, WHITE, true);
       text("No items found", itemNameX, cursor - 14, 9.2, false, MUTED);
       cursor -= emptyRowH;
+      cursor -= 18; // Added this line
     }
-
-    cursor -= 18;
 
     // ========= PAYMENT SUMMARY =========
     text("Payment Summary", marginX, cursor, 11, true);
@@ -666,10 +675,26 @@ export async function GET(
       cursor -= payRowH;
     }
 
+    // Add coupon discount if applicable
+    if (discountTotal > 0 && order.coupon) {
+      rect(marginX, cursor - payRowH, tableW, payRowH, WHITE, true);
+      const discountLabel = `Coupon Discount (${order.coupon.code})`;
+      text(discountLabel, col1, cursor - 14, 9.2, false, rgb(0.13, 0.6, 0.13));
+      rightText(
+        `-${money(discountTotal)}`,
+        marginX + tableW - 10,
+        cursor - 14,
+        9.2,
+        false,
+        rgb(0.13, 0.6, 0.13)
+      );
+      cursor -= payRowH;
+    }
+
     rect(marginX, cursor - payRowH, tableW, payRowH, WHITE, true);
     text("Subtotal", col1, cursor - 14, 9.2, true);
     rightText(
-      money(subTotal + delivery + taxCharge),
+      money(subTotal + delivery + taxCharge - discountTotal),
       marginX + tableW - 10,
       cursor - 14,
       9.2,
