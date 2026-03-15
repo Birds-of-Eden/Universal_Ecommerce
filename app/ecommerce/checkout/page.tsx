@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { LabeledInput } from "@/components/ui/labeled-input";
 import { toast } from "sonner";
 import {
@@ -118,6 +119,12 @@ export default function CheckoutPage() {
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingQuote, setShippingQuote] = useState<ShippingQuote | null>(null);
   const [taxQuote, setTaxQuote] = useState<TaxQuote | null>(null);
+
+  // Coupon states
+  const [couponCode, setCouponCode] = useState("");
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   const isAuthenticated = !!session;
 
@@ -386,7 +393,7 @@ export default function CheckoutPage() {
   const shipping = hasShippingQuote ? Number(shippingQuote.shippingCost) : 0;
   const vat = taxQuote ? Number(taxQuote.totalVAT || 0) : 0;
   const taxCharge = taxQuote ? Number(taxQuote.totalTaxCharge || 0) : 0;
-  const total = subtotal + shipping + taxCharge;
+  const total = subtotal + shipping + taxCharge - discountAmount;
 
   useEffect(() => {
     if (!selectedAddressId) return;
@@ -517,6 +524,52 @@ export default function CheckoutPage() {
     } finally {
       setIsUploadingScreenshot(false);
     }
+  };
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast.error("Enter a coupon code.");
+      return;
+    }
+
+    try {
+      setValidatingCoupon(true);
+      const response = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponCode.trim(),
+          subtotal,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || "Failed to apply coupon.");
+
+      if (data.success) {
+        setDiscountAmount(data.coupon.discountAmount);
+        setAppliedCoupon(data.coupon);
+        toast.success("Coupon applied!");
+        setCouponCode("");
+      }
+    } catch (error) {
+      console.error("Coupon application error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Invalid coupon code."
+      );
+      setDiscountAmount(0);
+      setAppliedCoupon(null);
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setDiscountAmount(0);
+    setAppliedCoupon(null);
+    setCouponCode("");
+    toast.info("Coupon removed.");
   };
 
   const getPaymentStatusFromMethod = (method: string) => {
@@ -659,6 +712,8 @@ export default function CheckoutPage() {
       transactionId: isManualPayment ? transactionId : null,
       paymentStatus: computedPaymentStatus,
       image: isManualPayment ? (paymentScreenshotUrl || null) : null,
+      couponId: appliedCoupon?.id || null,
+      discountAmount: discountAmount || 0,
     };
 
     try {
@@ -1167,6 +1222,67 @@ export default function CheckoutPage() {
                   <span>Subtotal</span>
                   <span className="text-foreground">৳{subtotal.toFixed(2)}</span>
                 </div>
+
+                {/* Coupon Section */}
+                <div className="space-y-2">
+                  {appliedCoupon ? (
+                    <div className="rounded-xl border border-border bg-muted/40 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-sm min-w-0">
+                          <span className="font-semibold">
+                            {appliedCoupon.code}
+                          </span>
+                          {appliedCoupon.discountType === "percentage" && (
+                            <span className="ml-2 text-muted-foreground">
+                              ({appliedCoupon.discountValue}%)
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={removeCoupon}
+                          className="text-sm text-foreground hover:underline shrink-0"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Coupon applied successfully.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Input
+                        placeholder="PROMO / COUPON Code"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        className="rounded-xl"
+                      />
+                      <Button
+                        onClick={applyCoupon}
+                        disabled={validatingCoupon}
+                        className="rounded-xl w-full"
+                        variant="outline"
+                      >
+                        {validatingCoupon ? "Validating..." : "Apply Coupon"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Discount
+                      {appliedCoupon?.discountType === "percentage"
+                        ? ` (${appliedCoupon.discountValue}%)`
+                        : ""}
+                      :
+                    </span>
+                    <span className="font-semibold text-green-600">
+                      -৳{discountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
 
                 {(shippingLoading || hasShippingQuote) && (
                   <div className="flex justify-between text-muted-foreground">

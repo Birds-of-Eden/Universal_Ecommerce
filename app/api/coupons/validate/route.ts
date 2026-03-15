@@ -51,12 +51,8 @@ export async function POST(req: Request) {
       discountAmount = Number(coupon.discountValue);
     }
 
-    // Increment usage count
-    await prisma.coupon.update({
-      where: { id: coupon.id },
-      data: { usedCount: coupon.usedCount + 1 }
-    });
-
+    // Return coupon validation without incrementing usage count
+    // Usage count will be incremented when order is placed
     return NextResponse.json({
       success: true,
       coupon: {

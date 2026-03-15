@@ -143,6 +143,8 @@ export async function POST(request: NextRequest) {
       items,
       transactionId, // body থেকে নিচ্ছি
       image,         // 🔥 payment screenshot URL (e.g. /upload/xxx.png)
+      couponId,      // 🔥 coupon ID if applied
+      discountAmount, // 🔥 discount amount
     } = body;
 
     const paymentMethod = String(payment_method || "");
@@ -310,7 +312,8 @@ export async function POST(request: NextRequest) {
     const shipping_cost = shippingQuote.shippingCost;
     const vat_total = taxQuote.totalVAT;
     const tax_charge_total = taxQuote.totalTaxCharge;
-    const grand_total = subtotal + shipping_cost + tax_charge_total;
+    const discount_total = Number(discountAmount || 0);
+    const grand_total = subtotal + shipping_cost + tax_charge_total - discount_total;
 
     // payment_method থেকে paymentStatus ঠিক করা
     const paymentStatus = (isCOD || isSSLCOMMERZ) ? "UNPAID" : "PAID";
@@ -333,12 +336,14 @@ export async function POST(request: NextRequest) {
           total: subtotal,
           shipping_cost,
           grand_total,
+          discount_total,
           Vat_total: vat_total,
           taxSnapshot: taxQuote,
           status: "PENDING",
           paymentStatus,
           transactionId: transactionId ?? null,
           image: isManualPayment ? (image ?? null) : null,
+          couponId: couponId ?? null,
           orderItems: {
             create: orderItemsData.map((item, index) => ({
               productId: item.productId,
@@ -356,6 +361,8 @@ export async function POST(request: NextRequest) {
         },
         include: {
           orderItems: { include: { product: true, variant: true } },
+          user: userId ? true : false,
+          coupon: couponId ? true : false,
         },
       });
 
@@ -369,6 +376,14 @@ export async function POST(request: NextRequest) {
             reason: `Order #${o.id} checkout deduction`,
           });
         }
+      }
+
+      // Increment coupon usage count if coupon was applied
+      if (couponId && discount_total > 0) {
+        await tx.coupon.update({
+          where: { id: couponId },
+          data: { usedCount: { increment: 1 } },
+        });
       }
 
       return o;

@@ -841,7 +841,7 @@ export default function CartPage() {
               </div>
 
               {/* Coupon Card */}
-              <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+              {/* <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
                 <div className="p-6">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 text-muted-foreground">
@@ -898,7 +898,7 @@ export default function CartPage() {
                     )}
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Right */}

@@ -51,6 +51,7 @@ export async function GET(
           },
         },
         user: true,
+        coupon: true,
       },
     });
 

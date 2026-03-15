@@ -44,6 +44,13 @@ interface Order {
   status: string;
   paymentStatus: string;
   vatTotal?: number;
+  discountTotal?: number;
+  coupon?: {
+    id: string;
+    code: string;
+    discountType: string;
+    discountValue: number;
+  } | null;
 }
 
 interface Shipment {
@@ -420,6 +427,13 @@ export default function OrderDetailsPage() {
           status: o.status ?? "PENDING",
           paymentStatus: o.paymentStatus ?? "UNPAID",
           vatTotal: Number(o.Vat_total ?? 0),
+          discountTotal: Number(o.discount_total ?? 0),
+          coupon: o.coupon ? {
+            id: o.coupon.id,
+            code: o.coupon.code,
+            discountType: o.coupon.discountType,
+            discountValue: Number(o.coupon.discountValue),
+          } : null,
         };
 
         setOrder(mapped);
@@ -627,7 +641,8 @@ export default function OrderDetailsPage() {
     0
   );
   const vatTotal = Number(order.vatTotal ?? 0);
-  const deliveryCharge = Math.max(order.total - subTotal - vatTotal, 0);
+  const discountTotal = Number(order.discountTotal ?? 0);
+  const deliveryCharge = Math.max(order.total - subTotal - vatTotal + discountTotal, 0);
 
   const statusCfg = getOrderStatusConfig(order.status);
   const paymentCfg = getPaymentStatusConfig(order.paymentStatus);
@@ -896,6 +911,21 @@ export default function OrderDetailsPage() {
                       TK. {subTotal.toFixed(2)}
                     </span>
                   </div>
+                  {discountTotal > 0 && (
+                    <div className="flex justify-between gap-8 text-[13px] text-emerald-600">
+                      <span>
+                        Coupon Discount
+                        {order.coupon && (
+                          <span className="text-muted-foreground ml-1">
+                            ({order.coupon.code})
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-emerald-600">
+                        -TK. {discountTotal.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between gap-8 text-[13px] text-muted-foreground">
                     <span>Delivery Charge</span>
                     <span className="text-foreground">

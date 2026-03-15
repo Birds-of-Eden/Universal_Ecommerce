@@ -544,12 +544,14 @@ model Order {
   Vat_total      Decimal? @db.Decimal(10, 2)
   taxSnapshot    Json?
   discount_total Decimal? @db.Decimal(10, 2)
+  couponId       String?
 
   status        OrderStatus   @default(PENDING)
   paymentStatus PaymentStatus @default(UNPAID)
   transactionId String?
 
   user                  User?                  @relation(fields: [userId], references: [id])
+  coupon                Coupon?                @relation(fields: [couponId], references: [id])
   orderItems            OrderItem[]
   payments              Payment[]
   refunds               Refund[]
@@ -975,6 +977,7 @@ model Coupon {
   usedCount     Int       @default(0)
   isValid       Boolean   @default(true)
   expiresAt     DateTime?
+  orders        Order[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
