@@ -10,7 +10,9 @@ function getApiKey() {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ countryCode: string }> },
+  {
+    params,
+  }: { params: Promise<{ countryCode: string; stateCode: string }> },
 ) {
   try {
     const apiKey = getApiKey();
@@ -21,14 +23,19 @@ export async function GET(
       );
     }
 
-    const { countryCode } = await params;
-    const code = String(countryCode || "").trim().toUpperCase();
-    if (!code) {
-      return NextResponse.json({ error: "countryCode is required" }, { status: 400 });
+    const { countryCode, stateCode } = await params;
+    const country = String(countryCode || "").trim().toUpperCase();
+    const state = String(stateCode || "").trim().toUpperCase();
+
+    if (!country || !state) {
+      return NextResponse.json(
+        { error: "countryCode and stateCode are required" },
+        { status: 400 },
+      );
     }
 
     const res = await fetch(
-      `https://api.countrystatecity.in/v1/countries/${encodeURIComponent(code)}/states`,
+      `https://api.countrystatecity.in/v1/countries/${encodeURIComponent(country)}/states/${encodeURIComponent(state)}/cities`,
       {
         headers: { "X-CSCAPI-KEY": apiKey },
         cache: "no-store",
@@ -38,26 +45,25 @@ export async function GET(
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       return NextResponse.json(
-        { error: `Failed to load states: ${body || res.statusText}` },
+        { error: `Failed to load cities: ${body || res.statusText}` },
         { status: res.status },
       );
     }
 
     const data = await res.json();
-    const states = Array.isArray(data)
+    const cities = Array.isArray(data)
       ? data
           .map((item: any) => ({
+            id: item?.id,
             name: String(item?.name || ""),
-            iso2: String(item?.iso2 || "").toUpperCase(),
           }))
           .filter((item) => item.name)
           .sort((a, b) => a.name.localeCompare(b.name))
       : [];
 
-    return NextResponse.json(states);
+    return NextResponse.json(cities);
   } catch (error) {
-    console.error("GEO STATES ERROR:", error);
-    return NextResponse.json({ error: "Failed to load states" }, { status: 500 });
+    console.error("GEO CITIES ERROR:", error);
+    return NextResponse.json({ error: "Failed to load cities" }, { status: 500 });
   }
 }
-

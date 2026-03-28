@@ -788,6 +788,22 @@ model Warehouse {
   code                             String                            @unique
   address                          Json?
   isDefault                        Boolean                           @default(false)
+
+  // NEW: location mapping
+  country                          String?                           @default("BD")
+  division                         String?
+  district                         String?
+  area                             String?
+  postCode                         String?
+  latitude                         Float?
+  longitude                        Float?
+  mapLabel                         String?
+  geoFence                         Json?     // polygon / boundary
+  coverageRadiusKm                 Float?
+  locationNote                     String?
+  isMapEnabled                     Boolean   @default(true)
+
+  // existing
   stockLevels                      StockLevel[]
   inventoryWarehouseDailySnapshots InventoryWarehouseDailySnapshot[]
   shipments                        Shipment[]
@@ -797,6 +813,9 @@ model Warehouse {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([country, division, district, area])
+  @@index([latitude, longitude])
 }
 
 model WarehouseMembership {

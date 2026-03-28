@@ -97,6 +97,18 @@ export async function POST(req: Request) {
           code,
           isDefault,
           address: body.address ?? null,
+          // Location fields
+          country: body.country || "BD",
+          division: body.division || null,
+          district: body.district || null,
+          area: body.area || null,
+          postCode: body.postCode || null,
+          latitude: body.latitude ? parseFloat(body.latitude) : null,
+          longitude: body.longitude ? parseFloat(body.longitude) : null,
+          mapLabel: body.mapLabel || null,
+          coverageRadiusKm: body.coverageRadiusKm ? parseFloat(body.coverageRadiusKm) : null,
+          locationNote: body.locationNote || null,
+          isMapEnabled: body.isMapEnabled !== undefined ? Boolean(body.isMapEnabled) : true,
         },
       });
     });

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 
 function getApiKey() {
-  return process.env.CSC_API_KEY || process.env.COUNTRYSTATECITY_API_KEY;
+  return (
+    process.env.CSC_API_KEY ||
+    process.env.COUNTRYSTATECITY_API_KEY ||
+    process.env.NEXT_PUBLIC_CSC_API_KEY
+  );
 }
 
 export async function GET() {
