@@ -3,7 +3,7 @@ import {
   Prisma,
   ProductCodeKind,
   ProductCodeSymbology,
-} from "@prisma/client";
+} from "@/generated/prisma";
 
 const FALLBACK_APP_URL = "http://localhost:3000";
 

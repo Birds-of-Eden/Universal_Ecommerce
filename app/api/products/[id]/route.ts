@@ -4,7 +4,7 @@ import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variant
 import { ensureVariantCodes } from "@/lib/product-codes";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { NextResponse } from "next/server";
-import type { Prisma, ProductType } from "@prisma/client";
+import type { Prisma, ProductType } from "@/generated/prisma";
 import slugify from "slugify";
 
 const productInclude = {

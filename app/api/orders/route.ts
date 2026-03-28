@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { calculateShippingQuote } from "@/lib/shipping";
 import { calculateTaxForItems } from "@/lib/tax";
+import { resolveWarehouseScope } from "@/lib/warehouse-scope";
 
 // GET /api/orders
 // - admin: all orders (with pagination & optional status filter)
@@ -41,6 +42,27 @@ export async function GET(request: NextRequest) {
     // normal user -> only his/her orders
     if (!canReadAll) {
       where.userId = userId;
+    } else if (!access.hasGlobal("orders.read_all")) {
+      const warehouseScope = resolveWarehouseScope(access, "orders.read_all");
+      if (warehouseScope.mode === "none") {
+        return NextResponse.json({
+          orders: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+
+      if (warehouseScope.mode === "assigned") {
+        where.shipments = {
+          some: {
+            warehouseId: { in: warehouseScope.warehouseIds },
+          },
+        };
+      }
     }
 
     if (statusParam) {
@@ -65,7 +87,10 @@ export async function GET(request: NextRequest) {
 
     // Admin helper filter for shipment flow
     if (hasShipmentParam === "true") {
-      where.shipments = { some: {} };
+      const existingShipmentFilter = where.shipments?.some;
+      where.shipments = {
+        some: existingShipmentFilter ?? {},
+      };
     } else if (hasShipmentParam === "false") {
       where.shipments = { none: {} };
     }

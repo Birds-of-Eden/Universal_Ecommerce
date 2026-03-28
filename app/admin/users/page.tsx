@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import UserTable from "@/components/admin/users/UserTable";
 import UserFilters from "@/components/admin/users/UserFilters";
 import Pagination from "@/components/admin/users/Pagination";
@@ -76,8 +77,12 @@ const getCacheKey = (query: UsersQueryState) =>
   });
 
 export default function AdminUsersPage() {
+  const { data: session } = useSession();
   const initialCacheKey = getCacheKey(lastUsersQueryState);
   const initialCachedEntry = usersCache.get(initialCacheKey);
+  const canCreateUsers = Array.isArray((session?.user as any)?.globalPermissions)
+    ? ((session?.user as any).globalPermissions as string[]).includes("users.manage")
+    : false;
 
   const [users, setUsers] = useState<User[]>(() => initialCachedEntry?.users ?? []);
   const [pagination, setPagination] = useState<PaginationInfo>(() => ({
@@ -517,16 +522,18 @@ export default function AdminUsersPage() {
 
             {/* Actions: Add User + Refresh */}
             <div className="flex items-center gap-2 self-start sm:self-auto">
-              <button
-                onClick={() => {
-                  setCreateError("");
-                  setShowCreateModal(true);
-                }}
-                className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 shadow-sm font-medium"
-              >
-                <UserPlus className="h-4 w-4" />
-                <span>New User</span>
-              </button>
+              {canCreateUsers ? (
+                <button
+                  onClick={() => {
+                    setCreateError("");
+                    setShowCreateModal(true);
+                  }}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 shadow-sm font-medium"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>New User</span>
+                </button>
+              ) : null}
 
               <button
                 onClick={handleRefresh}
@@ -712,7 +719,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Add User Modal */}
-      {showCreateModal && (
+      {canCreateUsers && showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="bg-card rounded-2xl shadow-2xl border-border max-w-lg w-full mx-4 p-6">
             <div className="flex items-start justify-between mb-4">

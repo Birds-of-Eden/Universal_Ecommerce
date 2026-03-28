@@ -1,4 +1,4 @@
-import type { Prisma, ShipmentStatus } from "@prisma/client";
+import type { Prisma, ShipmentStatus } from "@/generated/prisma";
 import { getInventoryStatus } from "@/lib/stock-status";
 
 type TransactionClient = Prisma.TransactionClient;

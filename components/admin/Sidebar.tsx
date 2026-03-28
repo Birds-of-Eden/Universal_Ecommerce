@@ -19,6 +19,7 @@ import {
   Truck,
   MessageCircle,
   BarChart3,
+  Warehouse,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -41,6 +42,12 @@ const menuItems: MenuItem[] = [
     href: "/admin",
     icon: LayoutDashboard,
     requiredPermissions: ["dashboard.read", "admin.panel.access"],
+  },
+  {
+    name: "Warehouse Ops",
+    href: "/admin/warehouse",
+    icon: Warehouse,
+    requiredPermissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
   },
   {
     name: "Analytics",
@@ -335,6 +342,15 @@ export default function Sidebar({
   const permissionKeys = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
     : [];
+  const warehouseIds = Array.isArray((session?.user as any)?.warehouseIds)
+    ? ((session?.user as any).warehouseIds as number[])
+    : [];
+  const defaultAdminRoute = (session?.user as any)?.defaultAdminRoute as
+    | "/admin"
+    | "/admin/warehouse"
+    | undefined;
+  const isWarehouseScopedOnly =
+    defaultAdminRoute === "/admin/warehouse" && warehouseIds.length > 0;
 
   const hasPermission = useCallback(
     (required?: string[]) => {
@@ -363,13 +379,21 @@ export default function Sidebar({
           };
         }
 
+        if (item.href === "/admin" && isWarehouseScopedOnly) {
+          return null;
+        }
+
+        if (item.href === "/admin/warehouse" && warehouseIds.length === 0) {
+          return null;
+        }
+
         if (!hasPermission(item.requiredPermissions)) {
           return null;
         }
         return item;
       })
       .filter((item): item is MenuItem => item !== null);
-  }, [hasPermission]);
+  }, [hasPermission, isWarehouseScopedOnly, warehouseIds.length]);
 
   // Using CSS variables from global.css
   const themeBg = "bg-background";

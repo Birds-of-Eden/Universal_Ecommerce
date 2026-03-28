@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 import { refreshVariantStock } from "@/lib/inventory";
+import { getAccessContext } from "@/lib/rbac";
 import { captureVariantInventoryDailySnapshots } from "@/lib/report-history";
+import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -11,6 +14,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("inventory.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id: idParam } = await params;
     const id = Number(idParam);
     if (!id || Number.isNaN(id)) {
@@ -32,6 +46,10 @@ export async function DELETE(
         { error: "Stock level not found" },
         { status: 404 },
       );
+    }
+
+    if (!access.can("inventory.manage", existing.warehouseId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await prisma.stockLevel.delete({ where: { id } });

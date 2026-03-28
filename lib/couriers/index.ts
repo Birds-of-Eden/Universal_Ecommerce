@@ -1,4 +1,4 @@
-import type { Courier, CourierType } from "@prisma/client";
+import type { Courier, CourierType } from "@/generated/prisma";
 import type { CourierProvider } from "./types";
 import { pathaoProvider } from "./pathao";
 import { redxProvider } from "./redx";

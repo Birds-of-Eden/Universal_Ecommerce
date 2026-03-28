@@ -8,6 +8,10 @@ declare module "next-auth" {
       role?: string;
       roleNames?: string[];
       permissions?: string[];
+      globalPermissions?: string[];
+      warehouseIds?: number[];
+      primaryWarehouseId?: number | null;
+      defaultAdminRoute?: "/admin" | "/admin/warehouse";
     } & DefaultSession["user"];
   }
 
@@ -15,6 +19,10 @@ declare module "next-auth" {
     role?: string;
     roleNames?: string[];
     permissions?: string[];
+    globalPermissions?: string[];
+    warehouseIds?: number[];
+    primaryWarehouseId?: number | null;
+    defaultAdminRoute?: "/admin" | "/admin/warehouse";
   }
 }
 
@@ -24,5 +32,9 @@ declare module "next-auth/jwt" {
     role?: string;
     roleNames?: string[];
     permissions?: string[];
+    globalPermissions?: string[];
+    warehouseIds?: number[];
+    primaryWarehouseId?: number | null;
+    defaultAdminRoute?: "/admin" | "/admin/warehouse";
   }
 }

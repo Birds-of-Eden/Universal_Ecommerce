@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import type { ChatStatus } from "@prisma/client";
+import type { ChatStatus } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessConversation, getChatActor, normalizeGuestEmail } from "@/lib/chat";

@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 import { refreshVariantStock } from "@/lib/inventory";
+import { getAccessContext } from "@/lib/rbac";
 import { captureVariantInventoryDailySnapshots } from "@/lib/report-history";
+import { resolveWarehouseScope } from "@/lib/warehouse-scope";
+import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -9,16 +13,39 @@ import { NextResponse } from "next/server";
 ========================= */
 export async function GET(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("inventory.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const url = new URL(req.url);
     const variantIdParam = url.searchParams.get("productVariantId");
     const productIdParam = url.searchParams.get("productId");
+    const warehouseIdParam = url.searchParams.get("warehouseId");
 
     const productVariantId = variantIdParam ? Number(variantIdParam) : null;
     const productId = productIdParam ? Number(productIdParam) : null;
+    const requestedWarehouseId = warehouseIdParam ? Number(warehouseIdParam) : null;
+    const warehouseScope = resolveWarehouseScope(access, "inventory.manage", requestedWarehouseId);
+
+    if (warehouseScope.mode === "none") {
+      return NextResponse.json([], { status: 200 });
+    }
+
+    const warehouseWhere =
+      warehouseScope.mode === "assigned"
+        ? { warehouseId: { in: warehouseScope.warehouseIds } }
+        : {};
 
     if (productVariantId && !Number.isNaN(productVariantId)) {
       const levels = await prisma.stockLevel.findMany({
-        where: { productVariantId },
+        where: { productVariantId, ...warehouseWhere },
         orderBy: { id: "desc" },
         include: { warehouse: true },
       });
@@ -31,6 +58,7 @@ export async function GET(req: Request) {
         orderBy: { id: "desc" },
         include: {
           stockLevels: {
+            where: warehouseWhere,
             include: { warehouse: true },
             orderBy: { id: "desc" },
           },
@@ -40,6 +68,7 @@ export async function GET(req: Request) {
     }
 
     const levels = await prisma.stockLevel.findMany({
+      where: warehouseWhere,
       orderBy: { id: "desc" },
       include: { warehouse: true, variant: true },
     });
@@ -58,6 +87,17 @@ export async function GET(req: Request) {
 ========================= */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("inventory.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
     const warehouseId = Number(body.warehouseId);
     const productVariantId = Number(body.productVariantId);
@@ -80,6 +120,10 @@ export async function POST(req: Request) {
         { error: "Quantity must be 0 or more" },
         { status: 400 },
       );
+    }
+
+    if (!access.can("inventory.manage", warehouseId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const variant = await prisma.productVariant.findUnique({

@@ -597,6 +597,7 @@ export default function Header({
         role?: string;
         roleNames?: string[];
         permissions?: string[];
+        defaultAdminRoute?: "/admin" | "/admin/warehouse";
       }
     | null;
   const userName = sessionUser?.name || "User";
@@ -608,6 +609,10 @@ export default function Header({
   const permissionKeys = Array.isArray(sessionUser?.permissions)
     ? sessionUser.permissions
     : [];
+  const defaultAdminRoute =
+    sessionUser?.defaultAdminRoute === "/admin/warehouse"
+      ? "/admin/warehouse"
+      : "/admin";
   const canAccessAdminPanel =
     permissionKeys.includes("admin.panel.access") ||
     userRole.toLowerCase() === "admin";
@@ -830,7 +835,7 @@ export default function Header({
                         </div>
 
                         <Link
-                          href={canAccessAdminPanel ? "/admin" : "/ecommerce/user/"}
+                          href={canAccessAdminPanel ? defaultAdminRoute : "/ecommerce/user/"}
                           onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                         >
@@ -1008,7 +1013,7 @@ export default function Header({
                     </div>
 
                     <Link
-                      href={canAccessAdminPanel ? "/admin" : "/ecommerce/user/"}
+                      href={canAccessAdminPanel ? defaultAdminRoute : "/ecommerce/user/"}
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                     >

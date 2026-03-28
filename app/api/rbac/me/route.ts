@@ -19,6 +19,11 @@ export async function GET() {
       legacyRole: access.legacyRole,
       roleNames: access.roleNames,
       permissions: access.permissions,
+      globalPermissions: access.globalPermissions,
+      warehouseIds: access.warehouseIds,
+      primaryWarehouseId: access.primaryWarehouseId,
+      warehouseMemberships: access.warehouseMemberships,
+      defaultAdminRoute: access.defaultAdminRoute,
       isSuperAdmin: access.isSuperAdmin,
     });
   } catch (error) {

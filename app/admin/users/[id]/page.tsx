@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -65,6 +67,7 @@ interface UserDetail {
 export default function UserDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -88,6 +91,9 @@ export default function UserDetailPage() {
     note: "",
     addresses: [""],
   });
+  const canManageGlobalUserProfile = Array.isArray((session?.user as any)?.globalPermissions)
+    ? ((session?.user as any).globalPermissions as string[]).includes("users.manage")
+    : false;
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -486,7 +492,7 @@ export default function UserDetailPage() {
             </div>
 
             <div className="flex items-center space-x-2">
-              {user.banned ? (
+              {canManageGlobalUserProfile && user.banned ? (
                 <button
                   onClick={() => setConfirmAction("unban")}
                   className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 transition-all duration-300 shadow-sm font-medium"
@@ -494,7 +500,7 @@ export default function UserDetailPage() {
                   <CheckCircle className="h-4 w-4" />
                   <span>Unban User</span>
                 </button>
-              ) : (
+              ) : canManageGlobalUserProfile ? (
                 <button
                   onClick={() => setConfirmAction("ban")}
                   className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all duration-300 shadow-sm font-medium"
@@ -502,31 +508,43 @@ export default function UserDetailPage() {
                   <Ban className="h-4 w-4" />
                   <span>Ban User</span>
                 </button>
-              )}
+              ) : null}
 
-              <button
-                onClick={() => setShowPasswordModal(true)}
-                className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 shadow-sm font-medium"
+              <Link
+                href={`/admin/users/${user.id}/warehouse-access`}
+                className="flex items-center space-x-2 px-4 py-2 rounded-xl border border-border bg-card text-foreground hover:bg-accent transition-all duration-300 shadow-sm font-medium"
               >
-                <Lock className="h-4 w-4" />
-                <span>Change Password</span>
-              </button>
+                <Shield className="h-4 w-4" />
+                <span>Warehouse Access</span>
+              </Link>
 
-              <button
-                onClick={() => setEditing(!editing)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl border transition-all duration-300 shadow-sm font-medium ${
-                  editing
-                    ? "bg-muted text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
-                    : "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-                }`}
-              >
-                {editing ? (
-                  <X className="h-4 w-4" />
-                ) : (
-                  <Edit className="h-4 w-4" />
-                )}
-                <span>{editing ? "Cancel" : "Edit"}</span>
-              </button>
+              {canManageGlobalUserProfile ? (
+                <>
+                  <button
+                    onClick={() => setShowPasswordModal(true)}
+                    className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 shadow-sm font-medium"
+                  >
+                    <Lock className="h-4 w-4" />
+                    <span>Change Password</span>
+                  </button>
+
+                  <button
+                    onClick={() => setEditing(!editing)}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-xl border transition-all duration-300 shadow-sm font-medium ${
+                      editing
+                        ? "bg-muted text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                        : "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
+                    }`}
+                  >
+                    {editing ? (
+                      <X className="h-4 w-4" />
+                    ) : (
+                      <Edit className="h-4 w-4" />
+                    )}
+                    <span>{editing ? "Cancel" : "Edit"}</span>
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
         </div>

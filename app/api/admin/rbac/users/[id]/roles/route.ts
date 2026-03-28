@@ -17,7 +17,7 @@ export async function GET(
     if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!access.has("users.manage")) {
+    if (!access.hasGlobal("users.manage")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -29,7 +29,7 @@ export async function GET(
           email: true,
           role: true,
           userRoles: {
-            where: { role: { deletedAt: null } },
+            where: { role: { deletedAt: null }, scopeType: "GLOBAL" },
             include: {
               role: {
                 select: {
@@ -91,7 +91,7 @@ export async function PUT(
     if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!access.has("users.manage")) {
+    if (!access.hasGlobal("users.manage")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -142,13 +142,8 @@ export async function PUT(
       select: { id: true },
     });
     if (persistedSuperAdminRole) {
-      const currentlyHasSuperAdmin = await prisma.userRole.findUnique({
-        where: {
-          userId_roleId: {
-            userId,
-            roleId: persistedSuperAdminRole.id,
-          },
-        },
+      const currentlyHasSuperAdmin = await prisma.userRole.findFirst({
+        where: { userId, roleId: persistedSuperAdminRole.id, scopeType: "GLOBAL" },
         select: { userId: true },
       });
 
@@ -168,37 +163,40 @@ export async function PUT(
 
     await prisma.$transaction(async (tx) => {
       const existing = await tx.userRole.findMany({
-        where: { userId },
-        select: { roleId: true },
+        where: { userId, scopeType: "GLOBAL" },
+        select: { id: true, roleId: true },
       });
       const existingIds = new Set(existing.map((item) => item.roleId));
       const nextIds = new Set(roleIds);
 
-      const toRemove = [...existingIds].filter((id) => !nextIds.has(id));
+      const toRemove = existing
+        .filter((item) => !nextIds.has(item.roleId))
+        .map((item) => item.id);
       if (toRemove.length > 0) {
         await tx.userRole.deleteMany({
           where: {
-            userId,
-            roleId: { in: toRemove },
+            id: { in: toRemove },
           },
         });
       }
 
       const toAdd = roleIds.filter((id) => !existingIds.has(id));
       if (toAdd.length > 0) {
-        await tx.userRole.createMany({
-          data: toAdd.map((roleId) => ({
-            userId,
-            roleId,
-            assignedById: access.userId,
-          })),
-          skipDuplicates: true,
-        });
+        for (const roleId of toAdd) {
+          await tx.userRole.create({
+            data: {
+              userId,
+              roleId,
+              scopeType: "GLOBAL",
+              assignedById: access.userId,
+            },
+          });
+        }
       }
     });
 
     const assignedRoles = await prisma.userRole.findMany({
-      where: { userId, role: { deletedAt: null } },
+      where: { userId, scopeType: "GLOBAL", role: { deletedAt: null } },
       include: {
         role: {
           select: {

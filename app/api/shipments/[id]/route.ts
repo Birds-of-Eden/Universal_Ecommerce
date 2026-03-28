@@ -9,6 +9,7 @@ import {
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
 import { appendShipmentStatusLog } from "@/lib/report-history";
+import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -93,6 +94,25 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     if (!canReadAll && shipment.order.userId !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    if (
+      canReadAll &&
+      !access.hasGlobal("shipments.manage") &&
+      !access.hasGlobal("orders.read_all")
+    ) {
+      const canReadShipment = canAccessWarehouseWithPermission(
+        access,
+        "shipments.manage",
+        shipment.warehouseId,
+      );
+      const canReadOrder = canAccessWarehouseWithPermission(
+        access,
+        "orders.read_all",
+        shipment.warehouseId,
+      );
+      if (!canReadShipment && !canReadOrder) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     return NextResponse.json(withDeliveryConfirmationMeta(shipment, canReadAll));
   } catch (error) {
@@ -143,6 +163,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         id: true,
         status: true,
         orderId: true,
+        warehouseId: true,
         deliveryConfirmationToken: true,
         deliveryConfirmationPin: true,
         deliveryConfirmationRequestedAt: true,
@@ -154,6 +175,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { error: "Shipment not found" },
         { status: 404 }
       );
+    }
+
+    if (
+      !access.hasGlobal("shipments.manage") &&
+      !canAccessWarehouseWithPermission(access, "shipments.manage", existingShipment.warehouseId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     let body: any = {};
@@ -199,6 +227,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
     if (warehouseId !== undefined) {
       if (warehouseId === null || warehouseId === "") {
+        if (!access.hasGlobal("shipments.manage")) {
+          return NextResponse.json(
+            { error: "Warehouse-scoped users must keep a warehouse assigned." },
+            { status: 400 },
+          );
+        }
         data.warehouseId = null;
       } else {
         const warehouseIdNum = Number(warehouseId);
@@ -211,6 +245,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         });
         if (!warehouseEntity) {
           return NextResponse.json({ error: "Warehouse not found" }, { status: 400 });
+        }
+        if (!canAccessWarehouseWithPermission(access, "shipments.manage", warehouseEntity.id)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
         data.warehouseId = warehouseEntity.id;
       }
@@ -372,6 +409,13 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
         { error: "Shipment not found" },
         { status: 404 }
       );
+    }
+
+    if (
+      !access.hasGlobal("shipments.manage") &&
+      !canAccessWarehouseWithPermission(access, "shipments.manage", existingShipment.warehouseId)
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await prisma.shipment.delete({

@@ -61,14 +61,41 @@ export async function GET(request: NextRequest) {
 
     const { page, limit, search, role } = queryValidation.data;
     const skip = (page - 1) * limit;
+    const hasGlobalUserAccess = access.hasGlobal("users.read") || access.hasGlobal("users.manage");
 
     // Build where condition
     const where: any = {};
+    if (!hasGlobalUserAccess) {
+      if (access.warehouseIds.length === 0) {
+        return NextResponse.json({
+          users: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+      where.warehouseMemberships = {
+        some: {
+          warehouseId: { in: access.warehouseIds },
+          status: "ACTIVE",
+        },
+      };
+    }
     if (search) {
-      where.OR = [
+      const searchConditions = [
         { email: { contains: search, mode: 'insensitive' } },
         { name: { contains: search, mode: 'insensitive' } },
       ];
+      if (where.AND) {
+        where.AND.push({ OR: searchConditions });
+      } else if (where.warehouseMemberships) {
+        where.AND = [{ OR: searchConditions }];
+      } else {
+        where.OR = searchConditions;
+      }
     }
     if (role) {
       where.role = { equals: role, mode: "insensitive" };
@@ -146,6 +173,9 @@ export async function POST(request: NextRequest) {
     if (!access.has('users.manage')) {
       console.log('Forbidden - no users.manage permission');
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!access.hasGlobal('users.manage')) {
+      return NextResponse.json({ error: 'Only global user managers can create users' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -243,20 +273,25 @@ export async function POST(request: NextRequest) {
     console.log('Mapped role:', mappedRole);
 
     if (mappedRole) {
-      await db.userRole.upsert({
+      const existingAssignment = await db.userRole.findFirst({
         where: {
-          userId_roleId: {
-            userId: user.id,
-            roleId: mappedRole.id,
-          },
-        },
-        update: {},
-        create: {
           userId: user.id,
           roleId: mappedRole.id,
-          assignedById: access.userId ?? null,
+          scopeType: "GLOBAL",
         },
+        select: { id: true },
       });
+
+      if (!existingAssignment) {
+        await db.userRole.create({
+          data: {
+            userId: user.id,
+            roleId: mappedRole.id,
+            scopeType: "GLOBAL",
+            assignedById: access.userId ?? null,
+          },
+        });
+      }
       console.log('UserRole assigned');
     }
 

@@ -41,6 +41,7 @@ export async function GET(
     }
 
     const { id } = await params;
+    const hasGlobalUserAccess = access.hasGlobal('users.read') || access.hasGlobal('users.manage');
 
     const user = await db.user.findUnique({
       where: { id },
@@ -86,6 +87,20 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    if (!hasGlobalUserAccess) {
+      const hasWarehouseAccess = await db.warehouseMembership.findFirst({
+        where: {
+          userId: id,
+          warehouseId: { in: access.warehouseIds },
+          status: "ACTIVE",
+        },
+        select: { id: true },
+      });
+      if (!hasWarehouseAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     return NextResponse.json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -111,6 +126,12 @@ export async function PATCH(
     }
     if (!access.has('users.manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!access.hasGlobal('users.manage')) {
+      return NextResponse.json(
+        { error: 'Only global user managers can update user profiles from this endpoint' },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();
@@ -221,20 +242,25 @@ export async function PATCH(
       });
 
       if (mappedRole) {
-        await db.userRole.upsert({
+        const existingAssignment = await db.userRole.findFirst({
           where: {
-            userId_roleId: {
-              userId: id,
-              roleId: mappedRole.id,
-            },
-          },
-          update: {},
-          create: {
             userId: id,
             roleId: mappedRole.id,
-            assignedById: access.userId ?? null,
+            scopeType: "GLOBAL",
           },
+          select: { id: true },
         });
+
+        if (!existingAssignment) {
+          await db.userRole.create({
+            data: {
+              userId: id,
+              roleId: mappedRole.id,
+              scopeType: "GLOBAL",
+              assignedById: access.userId ?? null,
+            },
+          });
+        }
       }
     }
 
@@ -275,6 +301,12 @@ export async function DELETE(
     }
     if (!access.has('users.manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!access.hasGlobal('users.manage')) {
+      return NextResponse.json(
+        { error: 'Only global user managers can delete users' },
+        { status: 403 },
+      );
     }
 
     const { id } = await params;

@@ -4,7 +4,7 @@ import type {
   CourierTrackingResult,
   CreateCourierShipmentInput,
 } from "./types";
-import type { Courier, ShipmentStatus } from "@prisma/client";
+import type { Courier, ShipmentStatus } from "@/generated/prisma";
 
 function mapRedXStatus(raw?: string | null): ShipmentStatus {
   const status = (raw || "").toLowerCase();

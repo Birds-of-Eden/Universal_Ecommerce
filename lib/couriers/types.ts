@@ -1,4 +1,4 @@
-import type { Courier, CourierType, ShipmentStatus } from "@prisma/client";
+import type { Courier, CourierType, ShipmentStatus } from "@/generated/prisma";
 
 export interface CourierRecipient {
   name: string;

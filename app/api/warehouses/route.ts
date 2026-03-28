@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { getAccessContext } from "@/lib/rbac";
+import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -6,7 +9,37 @@ import { NextResponse } from "next/server";
 ========================= */
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (
+      !access.hasAny([
+        "settings.warehouse.manage",
+        "inventory.manage",
+        "shipments.manage",
+        "orders.read_all",
+        "dashboard.read",
+      ])
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const warehouses = await prisma.warehouse.findMany({
+      where:
+        access.isSuperAdmin ||
+        access.hasGlobal("settings.warehouse.manage") ||
+        access.hasGlobal("inventory.manage") ||
+        access.hasGlobal("shipments.manage") ||
+        access.hasGlobal("orders.read_all") ||
+        access.hasGlobal("dashboard.read")
+          ? undefined
+          : access.warehouseIds.length > 0
+            ? { id: { in: access.warehouseIds } }
+            : { id: -1 },
       orderBy: [{ isDefault: "desc" }, { id: "desc" }],
     });
 
@@ -25,6 +58,17 @@ export async function GET() {
 ========================= */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.hasGlobal("settings.warehouse.manage") && !access.hasGlobal("settings.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const name = String(body.name || "").trim();

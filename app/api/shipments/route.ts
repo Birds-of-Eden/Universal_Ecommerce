@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import type { ShipmentStatus } from "@prisma/client";
+import type { ShipmentStatus } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCourierProvider } from "@/lib/couriers";
@@ -10,6 +10,7 @@ import {
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
 import { appendShipmentStatusLog } from "@/lib/report-history";
+import { canAccessWarehouseWithPermission, resolveWarehouseScope } from "@/lib/warehouse-scope";
 
 type CreateShipmentBody = {
   orderId: number;
@@ -99,6 +100,26 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
     if (!canReadAll) {
       where.order = { userId: access.userId ?? userId };
+    } else if (!access.hasGlobal("shipments.manage") && !access.hasGlobal("orders.read_all")) {
+      const warehouseScope = resolveWarehouseScope(
+        access,
+        access.has("shipments.manage") ? "shipments.manage" : "orders.read_all",
+      );
+      if (warehouseScope.mode === "none") {
+        return NextResponse.json({
+          shipments: [],
+          pagination: {
+            page,
+            limit: Math.max(limit, 1),
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
+
+      if (warehouseScope.mode === "assigned") {
+        where.warehouseId = { in: warehouseScope.warehouseIds };
+      }
     }
     if (status) where.status = status;
     if (orderId && !Number.isNaN(Number(orderId))) where.orderId = Number(orderId);
@@ -154,6 +175,10 @@ export async function POST(request: NextRequest) {
     const orderId = Number(body.orderId);
     const courierId = body.courierId ? Number(body.courierId) : null;
     const courierName = body.courier?.trim();
+    const warehouseId =
+      body.warehouseId === null || body.warehouseId === undefined
+        ? null
+        : Number(body.warehouseId);
 
     if (
       !orderId ||
@@ -164,6 +189,21 @@ export async function POST(request: NextRequest) {
         { error: "orderId and (courierId or courier name) are required" },
         { status: 400 },
       );
+    }
+    if (warehouseId !== null && Number.isNaN(warehouseId)) {
+      return NextResponse.json({ error: "Invalid warehouseId" }, { status: 400 });
+    }
+
+    if (!access.hasGlobal("shipments.manage")) {
+      if (!warehouseId || Number.isNaN(warehouseId)) {
+        return NextResponse.json(
+          { error: "warehouseId is required for warehouse-scoped shipment creation" },
+          { status: 400 },
+        );
+      }
+      if (!canAccessWarehouseWithPermission(access, "shipments.manage", warehouseId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const [order, existingShipment] = await Promise.all([
@@ -210,7 +250,7 @@ export async function POST(request: NextRequest) {
     const localShipment = await prisma.shipment.create({
       data: {
         orderId,
-        warehouseId: body.warehouseId ?? null,
+        warehouseId,
         courier: courier.name,
         courierId: courier.id,
         status: "PENDING",

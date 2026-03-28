@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { getAccessContext } from "@/lib/rbac";
+import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 
 /* =========================
@@ -9,6 +12,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.hasGlobal("settings.warehouse.manage") && !access.hasGlobal("settings.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id: idParam } = await params;
     const id = Number(idParam);
     if (!id || Number.isNaN(id)) {
@@ -86,6 +100,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.hasGlobal("settings.warehouse.manage") && !access.hasGlobal("settings.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id: idParam } = await params;
     const id = Number(idParam);
     if (!id || Number.isNaN(id)) {

@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -103,6 +104,11 @@ enum ChatPriority {
   HIGH
 }
 
+enum AccessScopeType {
+  GLOBAL
+  WAREHOUSE
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -135,6 +141,8 @@ model User {
   activityLogs          ActivityLog[]
   userRoles             UserRole[]             @relation("UserRoles")
   assignedUserRoles     UserRole[]             @relation("AssignedUserRoles")
+  warehouseMemberships  WarehouseMembership[]  @relation("WarehouseMemberships")
+  assignedWarehouseMemberships WarehouseMembership[] @relation("AssignedWarehouseMemberships")
 }
 
 model UserAddress {
@@ -199,17 +207,23 @@ model RolePermission {
 }
 
 model UserRole {
+  id           String          @id @default(cuid())
   userId       String
   roleId       String
+  scopeType    AccessScopeType @default(GLOBAL)
+  warehouseId  Int?
   assignedById String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
-  user       User  @relation("UserRoles", fields: [userId], references: [id], onDelete: Cascade)
-  role       Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  assignedBy User? @relation("AssignedUserRoles", fields: [assignedById], references: [id], onDelete: SetNull)
+  user       User       @relation("UserRoles", fields: [userId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  warehouse  Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  assignedBy User?      @relation("AssignedUserRoles", fields: [assignedById], references: [id], onDelete: SetNull)
 
-  @@id([userId, roleId])
+  @@unique([userId, roleId, scopeType, warehouseId])
   @@index([roleId])
+  @@index([warehouseId])
   @@index([assignedById])
 }
 
@@ -778,9 +792,30 @@ model Warehouse {
   inventoryWarehouseDailySnapshots InventoryWarehouseDailySnapshot[]
   shipments                        Shipment[]
   inventoryLogs                    InventoryLog[]
+  userRoles                        UserRole[]
+  memberships                      WarehouseMembership[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model WarehouseMembership {
+  id           String   @id @default(cuid())
+  userId       String
+  warehouseId  Int
+  isPrimary    Boolean  @default(false)
+  status       String   @default("ACTIVE")
+  assignedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User       @relation("WarehouseMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  warehouse  Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  assignedBy User?      @relation("AssignedWarehouseMemberships", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, warehouseId])
+  @@index([warehouseId])
+  @@index([assignedById])
 }
 
 model ShippingRate {

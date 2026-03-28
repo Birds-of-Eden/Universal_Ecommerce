@@ -2,7 +2,7 @@
 
 import { SidebarProvider, useSidebar } from "@/providers/sidebar-provider";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Sidebar from "@/components/admin/Sidebar";
 import Header from "@/components/admin/Header";
@@ -11,6 +11,7 @@ import Header from "@/components/admin/Header";
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { openMobile, toggleSidebar, setOpenMobile } = useSidebar();
   const { data: session, status } = useSession();
+  const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
@@ -21,8 +22,14 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       !(session?.user?.permissions || []).includes("admin.panel.access")
     ) {
       router.push("/ecommerce/user");
+    } else if (
+      status === "authenticated" &&
+      pathname === "/admin" &&
+      session?.user?.defaultAdminRoute === "/admin/warehouse"
+    ) {
+      router.push("/admin/warehouse");
     }
-  }, [status, session, router]);
+  }, [pathname, status, session, router]);
 
   if (status === "loading") {
     return (

@@ -18,6 +18,7 @@ type SessionShape = {
   user?: {
     role?: string;
     permissions?: string[];
+    defaultAdminRoute?: "/admin" | "/admin/warehouse";
   };
 } | null;
 
@@ -29,6 +30,10 @@ type PermissionRule = {
 };
 
 const adminPagePermissionRules: PermissionRule[] = [
+  {
+    prefix: "/admin/warehouse",
+    permissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
+  },
   { prefix: "/admin/settings/rbac", permissions: ["roles.manage"] },
   { prefix: "/admin/settings", permissions: ["settings.banner.manage", "settings.manage"] },
   { prefix: "/admin/settings", permissions: ["settings.payment.manage", "settings.manage"] },
@@ -82,6 +87,10 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/admindashboard",
     permissions: ["dashboard.read"],
+  },
+  {
+    prefix: "/api/admin/warehouse-dashboard",
+    permissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
   },
   {
     prefix: "/api/blog",
@@ -210,6 +219,12 @@ function hasAdminPanelAccess(session: SessionShape): boolean {
   return permissionKeys.includes("admin.panel.access");
 }
 
+function getDefaultAdminRoute(session: SessionShape): "/admin" | "/admin/warehouse" {
+  return session?.user?.defaultAdminRoute === "/admin/warehouse"
+    ? "/admin/warehouse"
+    : "/admin";
+}
+
 function findMatchedRule(
   pathname: string,
   method: string,
@@ -272,6 +287,7 @@ export default async function authMiddleware(request: NextRequest) {
 
   const permissionKeys = getPermissionKeys(session);
   const adminAccess = hasAdminPanelAccess(session);
+  const defaultAdminRoute = getDefaultAdminRoute(session);
 
   // API permission checks
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")) {
@@ -300,7 +316,7 @@ export default async function authMiddleware(request: NextRequest) {
   if (session?.user) {
     // If user has admin panel access and trying to access user dashboard, redirect to admin
     if (adminAccess && pathname.startsWith('/ecommerce/user/')) {
-      return NextResponse.redirect(new URL('/admin', request.url));
+      return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
     }
     
     // If user does not have admin panel access and trying to access admin, redirect to dashboard
@@ -309,10 +325,14 @@ export default async function authMiddleware(request: NextRequest) {
     }
 
     if (adminAccess && pathname.startsWith("/admin")) {
+      if (pathname === "/admin" && defaultAdminRoute !== "/admin") {
+        return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
+      }
+
       const matchedPageRule = findMatchedRule(pathname, method, adminPagePermissionRules);
       if (matchedPageRule && !hasAnyPermission(permissionKeys, matchedPageRule.permissions)) {
         if (pathname !== "/admin") {
-          return NextResponse.redirect(new URL("/admin", request.url));
+          return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
         }
         return NextResponse.redirect(new URL("/ecommerce/user/", request.url));
       }

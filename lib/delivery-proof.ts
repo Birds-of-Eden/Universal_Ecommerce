@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from "crypto";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma";
 
 const FALLBACK_APP_URL = "http://localhost:3000";
 

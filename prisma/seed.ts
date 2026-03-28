@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../generated/prisma";
 import bcrypt from "bcrypt";
 import { SYSTEM_PERMISSIONS, SYSTEM_ROLE_DEFINITIONS } from "../lib/rbac-config";
 
@@ -90,19 +90,24 @@ async function main() {
   });
 
   if (admin && superAdminRole) {
-    await prisma.userRole.upsert({
+    const existingAssignment = await prisma.userRole.findFirst({
       where: {
-        userId_roleId: {
-          userId: admin.id,
-          roleId: superAdminRole.id,
-        },
-      },
-      update: {},
-      create: {
         userId: admin.id,
         roleId: superAdminRole.id,
+        scopeType: "GLOBAL",
       },
+      select: { id: true },
     });
+
+    if (!existingAssignment) {
+      await prisma.userRole.create({
+        data: {
+          userId: admin.id,
+          roleId: superAdminRole.id,
+          scopeType: "GLOBAL",
+        },
+      });
+    }
     console.log("✅ Superadmin role assigned to seed admin");
   }
 }

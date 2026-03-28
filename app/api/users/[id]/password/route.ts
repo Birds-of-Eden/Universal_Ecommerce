@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@/generated/prisma';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { getServerSession } from 'next-auth/next';
@@ -28,6 +28,12 @@ export async function PATCH(
     }
     if (!access.has('users.manage')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!access.hasGlobal('users.manage')) {
+      return NextResponse.json(
+        { error: 'Only global user managers can change passwords from this endpoint' },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();

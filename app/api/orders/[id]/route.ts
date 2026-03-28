@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
+import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 
 // GET /api/orders/:id
 export async function GET(
@@ -62,6 +63,18 @@ export async function GET(
     if (!canReadAll && order.userId !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    if (canReadAll && !access.hasGlobal("orders.read_all")) {
+      const linkedWarehouseIds = await prisma.shipment.findMany({
+        where: { orderId },
+        select: { warehouseId: true },
+      });
+      const hasAllowedWarehouse = linkedWarehouseIds.some((shipment) =>
+        canAccessWarehouseWithPermission(access, "orders.read_all", shipment.warehouseId),
+      );
+      if (!hasAllowedWarehouse) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     return NextResponse.json(order);
   } catch (error) {
@@ -111,6 +124,19 @@ export async function PATCH(
 
     if (!existingOrder) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (!access.hasGlobal("orders.update")) {
+      const linkedWarehouseIds = await prisma.shipment.findMany({
+        where: { orderId },
+        select: { warehouseId: true },
+      });
+      const hasAllowedWarehouse = linkedWarehouseIds.some((shipment) =>
+        canAccessWarehouseWithPermission(access, "orders.update", shipment.warehouseId),
+      );
+      if (!hasAllowedWarehouse) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const data: any = {};

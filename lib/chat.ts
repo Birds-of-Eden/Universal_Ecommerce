@@ -1,4 +1,4 @@
-import type { ChatConversation } from "@prisma/client";
+import type { ChatConversation } from "@/generated/prisma";
 
 type SessionUser = {
   id?: string;
