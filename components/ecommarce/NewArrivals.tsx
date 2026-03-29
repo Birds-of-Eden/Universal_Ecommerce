@@ -518,7 +518,7 @@ export default function NewArrivals({
         ) : null}
 
         <div className="group/slider relative mt-5 overflow-visible sm:mt-6">
-          {visible.length > 6 && (
+          {visible.length >= 6 && (
             <SliderNavButton
               direction="left"
               onClick={() => scrollByCards("left")}
@@ -587,7 +587,7 @@ export default function NewArrivals({
                 })}
           </div>
 
-          {visible.length > 6 && (
+          {visible.length >= 6 && (
             <SliderNavButton
               direction="right"
               onClick={() => scrollByCards("right")}
