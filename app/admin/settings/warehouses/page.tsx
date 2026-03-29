@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Map, List } from "lucide-react";
 import WarehouseFormModal from "@/components/Settings/WarehouseFormModal";
 import WarehouseLocationPicker from "@/components/Settings/WarehouseLocationPicker";
 import WarehouseSkeleton from "@/components/ui/WarehouseSkeleton";
@@ -49,9 +50,19 @@ export default function WarehousePage() {
         <div className="flex gap-2">
           <button
             onClick={() => setShowMapView(!showMapView)}
-            className="btn-secondary px-4 py-2 rounded"
+            className="btn-secondary px-4 py-2 rounded flex items-center gap-2"
           >
-            {showMapView ? "List View" : "Map View"}
+            {showMapView ? (
+              <>
+                <List className="w-4 h-4" />
+                List View
+              </>
+            ) : (
+              <>
+                <Map className="w-4 h-4" />
+                Map View
+              </>
+            )}
           </button>
           <button
             onClick={() => setShowAddModal(true)}
@@ -95,8 +106,7 @@ export default function WarehousePage() {
                   coverageRadiusKm: warehouse.coverageRadiusKm ?? null,
                 }))}
                 title="Warehouse Coverage Map"
-                description="OpenStreetMap is showing warehouse markers based on saved coordinates."
-                heightClassName="h-[460px]"
+                heightClassName="h-[660px]"
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
