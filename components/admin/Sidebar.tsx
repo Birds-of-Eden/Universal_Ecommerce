@@ -20,6 +20,7 @@ import {
   MessageCircle,
   BarChart3,
   Warehouse,
+  Forklift,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -47,7 +48,12 @@ const menuItems: MenuItem[] = [
     name: "Warehouse Ops",
     href: "/admin/warehouse",
     icon: Warehouse,
-    requiredPermissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
+    requiredPermissions: [
+      "dashboard.read",
+      "inventory.manage",
+      "orders.read_all",
+      "shipments.manage",
+    ],
   },
   {
     name: "Analytics",
@@ -86,11 +92,16 @@ const menuItems: MenuItem[] = [
     requiredPermissions: ["shipments.manage", "orders.read_all"],
   },
   {
+    name: "Logistics",
+    href: "/admin/logistics",
+    icon: Forklift,
+    requiredPermissions: ["logistics.manage"],
+  },
+  {
     name: "Management",
     icon: ClipboardList,
     requiredPermissions: ["products.manage", "inventory.manage"],
     subItems: [
-      
       {
         name: "Categories",
         href: "/admin/management/categories",
@@ -138,6 +149,11 @@ const menuItems: MenuItem[] = [
         name: "General Settings",
         href: "/admin/settings",
         requiredPermissions: ["settings.manage"],
+      },
+      {
+        name: "Payroll",
+        href: "/admin/payroll",
+        requiredPermissions: ["payroll.manage"],
       },
       {
         name: "Warehouses",

@@ -125,24 +125,30 @@ model User {
   banExpires    Int?
   note          String?
 
-  orders                Order[]
-  wishlist              Wishlist[]
-  cart                  CartItem[]
-  reviews               Review[]
-  inventoryReservations InventoryReservation[]
-  serviceBookings       ServiceBooking[]
-  refunds               Refund[]
-  deliveryProofs        DeliveryProof[]
-  addresses             UserAddress[]
-  analyticsEvents       AnalyticsEvent[]
-  assignedChats         ChatConversation[]     @relation("AssignedChats")
-  userChats             ChatConversation[]     @relation("UserChats")
-  chatMessages          ChatMessage[]
-  activityLogs          ActivityLog[]
-  userRoles             UserRole[]             @relation("UserRoles")
-  assignedUserRoles     UserRole[]             @relation("AssignedUserRoles")
-  warehouseMemberships  WarehouseMembership[]  @relation("WarehouseMemberships")
-  assignedWarehouseMemberships WarehouseMembership[] @relation("AssignedWarehouseMemberships")
+  orders                       Order[]
+  wishlist                     Wishlist[]
+  cart                         CartItem[]
+  reviews                      Review[]
+  inventoryReservations        InventoryReservation[]
+  serviceBookings              ServiceBooking[]
+  refunds                      Refund[]
+  deliveryProofs               DeliveryProof[]
+  addresses                    UserAddress[]
+  analyticsEvents              AnalyticsEvent[]
+  assignedChats                ChatConversation[]     @relation("AssignedChats")
+  userChats                    ChatConversation[]     @relation("UserChats")
+  chatMessages                 ChatMessage[]
+  activityLogs                 ActivityLog[]
+  userRoles                    UserRole[]             @relation("UserRoles")
+  assignedUserRoles            UserRole[]             @relation("AssignedUserRoles")
+  warehouseMemberships         WarehouseMembership[]  @relation("WarehouseMemberships")
+  assignedWarehouseMemberships WarehouseMembership[]  @relation("AssignedWarehouseMemberships")
+  assignedShipments            Shipment[]             @relation("AssignedShipments")
+  shipmentAssignmentsTo        ShipmentAssignment[]    @relation("ShipmentAssignmentTo")
+  shipmentAssignmentsBy        ShipmentAssignment[]    @relation("ShipmentAssignmentBy")
+  payrollProfile               PayrollProfile?
+  payrollEntries               PayrollEntry[]
+  shipmentCostLogsCreated      ShipmentCostLog[]
 }
 
 model UserAddress {
@@ -723,6 +729,20 @@ model Shipment {
   courierStatus String? // raw courier status
   lastSyncedAt  DateTime?
 
+  estimatedCost     Decimal? @db.Decimal(10, 2)
+  actualCost        Decimal? @db.Decimal(10, 2)
+  thirdPartyCost    Decimal? @db.Decimal(10, 2)
+  handlingCost      Decimal? @db.Decimal(10, 2)
+  packagingCost     Decimal? @db.Decimal(10, 2)
+  fuelCost          Decimal? @db.Decimal(10, 2)
+  dispatchNote      String?
+  assignedToUserId  String?
+  assignedAt        DateTime?
+  pickedAt          DateTime?
+  outForDeliveryAt  DateTime?
+  shippingRateId    Int?
+  priority          Int      @default(0)
+
   shippedAt    DateTime?
   expectedDate DateTime?
   deliveredAt  DateTime?
@@ -730,14 +750,20 @@ model Shipment {
   order         Order               @relation(fields: [orderId], references: [id])
   warehouse     Warehouse?          @relation(fields: [warehouseId], references: [id])
   courierRef    Courier?            @relation("ShipmentToCourier", fields: [courierId], references: [id])
+  shippingRate  ShippingRate?       @relation(fields: [shippingRateId], references: [id])
+  assignedTo    User?               @relation("AssignedShipments", fields: [assignedToUserId], references: [id])
   items         ShipmentItem[]
   deliveryProof DeliveryProof?
   statusLogs    ShipmentStatusLog[]
+  costLogs      ShipmentCostLog[]
+  assignments   ShipmentAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([courierId])
+  @@index([shippingRateId])
+  @@index([assignedToUserId])
   @@index([deliveryConfirmationRequestedAt])
 }
 
@@ -777,31 +803,32 @@ model Courier {
   isActive  Boolean     @default(true)
 
   shipments Shipment[] @relation("ShipmentToCourier")
+  shippingRates ShippingRate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Warehouse {
-  id                               Int                               @id @default(autoincrement())
-  name                             String
-  code                             String                            @unique
-  address                          Json?
-  isDefault                        Boolean                           @default(false)
+  id        Int     @id @default(autoincrement())
+  name      String
+  code      String  @unique
+  address   Json?
+  isDefault Boolean @default(false)
 
   // NEW: location mapping
-  country                          String?                           @default("BD")
-  division                         String?
-  district                         String?
-  area                             String?
-  postCode                         String?
-  latitude                         Float?
-  longitude                        Float?
-  mapLabel                         String?
-  geoFence                         Json?     // polygon / boundary
-  coverageRadiusKm                 Float?
-  locationNote                     String?
-  isMapEnabled                     Boolean   @default(true)
+  country          String? @default("BD")
+  division         String?
+  district         String?
+  area             String?
+  postCode         String?
+  latitude         Float?
+  longitude        Float?
+  mapLabel         String?
+  geoFence         Json? // polygon / boundary
+  coverageRadiusKm Float?
+  locationNote     String?
+  isMapEnabled     Boolean @default(true)
 
   // existing
   stockLevels                      StockLevel[]
@@ -810,6 +837,10 @@ model Warehouse {
   inventoryLogs                    InventoryLog[]
   userRoles                        UserRole[]
   memberships                      WarehouseMembership[]
+  shippingRates                    ShippingRate[]
+  payrollProfiles                  PayrollProfile[]
+  payrollEntries                   PayrollEntry[]
+  shipmentAssignments               ShipmentAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -828,9 +859,9 @@ model WarehouseMembership {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user       User       @relation("WarehouseMemberships", fields: [userId], references: [id], onDelete: Cascade)
-  warehouse  Warehouse  @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  assignedBy User?      @relation("AssignedWarehouseMemberships", fields: [assignedById], references: [id], onDelete: SetNull)
+  user       User      @relation("WarehouseMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  warehouse  Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  assignedBy User?     @relation("AssignedWarehouseMemberships", fields: [assignedById], references: [id], onDelete: SetNull)
 
   @@unique([userId, warehouseId])
   @@index([warehouseId])
@@ -844,6 +875,12 @@ model ShippingRate {
   country  String  @default("BD")
   district String?
   area     String
+  
+  // NEW: Warehouse and Courier scope
+  warehouseId   Int?
+  courierId     Int?
+  deliveryType  String?
+  estimatedDays Int?
 
   // Pricing config
   baseCost    Decimal @db.Decimal(10, 2)
@@ -856,11 +893,17 @@ model ShippingRate {
   isActive Boolean @default(true)
   priority Int     @default(1000)
 
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+  courier     Courier?   @relation(fields: [courierId], references: [id])
+  shipments   Shipment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([country, area])
   @@index([isActive, priority])
+  @@index([warehouseId])
+  @@index([courierId])
 }
 
 model StockLevel {
@@ -962,6 +1005,128 @@ model ShipmentStatusLog {
 
   @@index([shipmentId, createdAt])
   @@index([toStatus, createdAt])
+}
+
+model ShipmentCostLog {
+  id          Int      @id @default(autoincrement())
+  shipmentId  Int
+  costType    String
+  amount      Decimal  @db.Decimal(10, 2)
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  shipment  Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([shipmentId, createdAt])
+  @@index([createdById])
+}
+
+model ShipmentAssignment {
+  id            Int      @id @default(autoincrement())
+  shipmentId    Int
+  assignedToId  String
+  assignedById  String?
+  warehouseId   Int?
+  role          String?
+  note          String?
+  assignedAt    DateTime @default(now())
+  completedAt   DateTime?
+
+  shipment    Shipment   @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  assignedTo  User       @relation("ShipmentAssignmentTo", fields: [assignedToId], references: [id], onDelete: Cascade)
+  assignedBy  User?      @relation("ShipmentAssignmentBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+
+  @@index([shipmentId])
+  @@index([assignedToId])
+  @@index([warehouseId])
+}
+
+model PayrollProfile {
+  id              Int       @id @default(autoincrement())
+  userId          String    @unique
+  warehouseId     Int?
+  employeeCode    String?   @unique
+  paymentType     String    @default("MONTHLY")
+  baseSalary      Decimal   @db.Decimal(10, 2)
+  bankName        String?
+  bankAccountNo   String?
+  accountHolder   String?
+  mobileBankingNo String?
+  paymentMethod   String?
+  joiningDate     DateTime?
+  isActive        Boolean   @default(true)
+  notes           String?
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouse Warehouse?     @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  entries   PayrollEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([warehouseId])
+}
+
+model PayrollPeriod {
+  id        Int      @id @default(autoincrement())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("OPEN")
+  notes     String?
+
+  entries PayrollEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([startDate, endDate])
+}
+
+model PayrollEntry {
+  id               Int       @id @default(autoincrement())
+  payrollPeriodId  Int
+  payrollProfileId Int
+  userId           String
+  warehouseId      Int?
+  basicAmount      Decimal   @db.Decimal(10, 2)
+  overtimeAmount   Decimal   @default(0) @db.Decimal(10, 2)
+  bonusAmount      Decimal   @default(0) @db.Decimal(10, 2)
+  deductionAmount  Decimal   @default(0) @db.Decimal(10, 2)
+  netAmount        Decimal   @db.Decimal(10, 2)
+  paymentStatus    String    @default("PENDING")
+  paidAt           DateTime?
+  note             String?
+
+  payrollPeriod  PayrollPeriod  @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  payrollProfile PayrollProfile @relation(fields: [payrollProfileId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouse      Warehouse?     @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  adjustments    PayrollAdjustment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([payrollPeriodId, payrollProfileId])
+  @@index([payrollPeriodId])
+  @@index([userId])
+  @@index([warehouseId])
+}
+
+model PayrollAdjustment {
+  id             Int      @id @default(autoincrement())
+  payrollEntryId Int
+  type           String
+  amount         Decimal  @db.Decimal(10, 2)
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  payrollEntry PayrollEntry @relation(fields: [payrollEntryId], references: [id], onDelete: Cascade)
+
+  @@index([payrollEntryId])
 }
 
 model Refund {

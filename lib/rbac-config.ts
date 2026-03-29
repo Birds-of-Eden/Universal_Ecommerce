@@ -111,6 +111,14 @@ export const SYSTEM_PERMISSIONS = [
     key: "wishlist.manage",
     description: "Manage own wishlist.",
   },
+  {
+    key: "logistics.manage",
+    description: "Manage logistics operations and coordination.",
+  },
+  {
+    key: "payroll.manage",
+    description: "Manage payroll and employee compensation.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];
@@ -175,6 +183,7 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "dashboard.read",
       "orders.read_all",
       "shipments.manage",
+      "logistics.manage",
       "settings.shipping.manage",
       "settings.courier.manage",
       "settings.warehouse.manage",
@@ -207,6 +216,20 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "orders.update",
       "coupons.manage",
       "reports.read",
+      "profile.manage",
+    ],
+  },
+  {
+    name: "hr",
+    label: "HR Manager",
+    description: "Human resources and payroll management role.",
+    immutable: false,
+    permissions: [
+      "admin.panel.access",
+      "dashboard.read",
+      "users.read",
+      "users.manage",
+      "payroll.manage",
       "profile.manage",
     ],
   },

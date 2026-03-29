@@ -34,6 +34,7 @@ const adminPagePermissionRules: PermissionRule[] = [
     prefix: "/admin/warehouse",
     permissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
   },
+  { prefix: "/admin/settings/payroll", permissions: ["payroll.manage"] },
   { prefix: "/admin/settings/rbac", permissions: ["roles.manage"] },
   { prefix: "/admin/settings", permissions: ["settings.banner.manage", "settings.manage"] },
   { prefix: "/admin/settings", permissions: ["settings.payment.manage", "settings.manage"] },
@@ -58,6 +59,8 @@ const adminPagePermissionRules: PermissionRule[] = [
   { prefix: "/admin/orders", permissions: ["orders.read_all"] },
   { prefix: "/admin/chats", permissions: ["chats.manage"] },
   { prefix: "/admin/shipments", permissions: ["shipments.manage", "orders.read_all"] },
+  { prefix: "/admin/logistics", permissions: ["logistics.manage"] },
+  { prefix: "/admin/payroll", permissions: ["payroll.manage"] },
   { prefix: "/admin/management/stock", permissions: ["inventory.manage"] },
   { prefix: "/admin/management", permissions: ["products.manage"] },
   { prefix: "/admin/blogs", permissions: ["blogs.manage"] },
@@ -91,6 +94,10 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/admin/warehouse-dashboard",
     permissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
+  },
+  {
+    prefix: "/api/admin/payroll",
+    permissions: ["payroll.manage"],
   },
   {
     prefix: "/api/blog",

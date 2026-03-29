@@ -4,13 +4,31 @@ import type { ShipmentStatus } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getCourierProvider } from "@/lib/couriers";
-import { getAccessContext } from "@/lib/rbac";
+import { getAccessContext, type AccessContext } from "@/lib/rbac";
 import {
   buildDeliveryConfirmationUrl,
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission, resolveWarehouseScope } from "@/lib/warehouse-scope";
+
+function hasShipmentManagementAccess(access: AccessContext) {
+  return access.has("shipments.manage") || access.has("logistics.manage");
+}
+
+function hasGlobalShipmentManagementAccess(access: AccessContext) {
+  return access.hasGlobal("shipments.manage") || access.hasGlobal("logistics.manage");
+}
+
+function canAccessShipmentWarehouse(
+  access: AccessContext,
+  warehouseId: number | null | undefined,
+) {
+  return (
+    canAccessWarehouseWithPermission(access, "shipments.manage", warehouseId) ||
+    canAccessWarehouseWithPermission(access, "logistics.manage", warehouseId)
+  );
+}
 
 type CreateShipmentBody = {
   orderId: number;
@@ -24,6 +42,21 @@ function buildShipmentInclude() {
   return {
     courierRef: {
       select: { id: true, name: true, type: true, isActive: true },
+    },
+    assignedTo: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    shippingRate: {
+      select: {
+        id: true,
+        area: true,
+        district: true,
+        baseCost: true,
+      },
     },
     order: {
       select: {
@@ -80,8 +113,7 @@ export async function GET(request: NextRequest) {
     const access = await getAccessContext(
       session.user as { id?: string; role?: string } | undefined,
     );
-    const canReadAll =
-      access.has("shipments.manage") || access.has("orders.read_all");
+    const canReadAll = hasShipmentManagementAccess(access) || access.has("orders.read_all");
     const canReadOwn = canReadAll || access.has("orders.read_own");
     if (!canReadOwn) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -100,10 +132,12 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
     if (!canReadAll) {
       where.order = { userId: access.userId ?? userId };
-    } else if (!access.hasGlobal("shipments.manage") && !access.hasGlobal("orders.read_all")) {
+    } else if (!hasGlobalShipmentManagementAccess(access) && !access.hasGlobal("orders.read_all")) {
       const warehouseScope = resolveWarehouseScope(
         access,
-        access.has("shipments.manage") ? "shipments.manage" : "orders.read_all",
+        hasShipmentManagementAccess(access)
+          ? (access.has("shipments.manage") ? "shipments.manage" : "logistics.manage")
+          : "orders.read_all",
       );
       if (warehouseScope.mode === "none") {
         return NextResponse.json({
@@ -167,7 +201,7 @@ export async function POST(request: NextRequest) {
     if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!access.has("shipments.manage")) {
+    if (!hasShipmentManagementAccess(access)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -194,14 +228,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid warehouseId" }, { status: 400 });
     }
 
-    if (!access.hasGlobal("shipments.manage")) {
+    if (!hasGlobalShipmentManagementAccess(access)) {
       if (!warehouseId || Number.isNaN(warehouseId)) {
         return NextResponse.json(
           { error: "warehouseId is required for warehouse-scoped shipment creation" },
           { status: 400 },
         );
       }
-      if (!canAccessWarehouseWithPermission(access, "shipments.manage", warehouseId)) {
+      if (!canAccessShipmentWarehouse(access, warehouseId)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }

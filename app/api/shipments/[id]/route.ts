@@ -15,10 +15,49 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+function hasShipmentManagementAccess(access: {
+  has: (permission: string) => boolean;
+}) {
+  return access.has("shipments.manage") || access.has("logistics.manage");
+}
+
+function hasGlobalShipmentManagementAccess(access: {
+  hasGlobal: (permission: string) => boolean;
+}) {
+  return access.hasGlobal("shipments.manage") || access.hasGlobal("logistics.manage");
+}
+
+function canAccessShipmentWarehouse(
+  access: {
+    has: (permission: string) => boolean;
+  },
+  warehouseId: number | null | undefined,
+) {
+  return (
+    canAccessWarehouseWithPermission(access as any, "shipments.manage", warehouseId) ||
+    canAccessWarehouseWithPermission(access as any, "logistics.manage", warehouseId)
+  );
+}
+
 function buildShipmentInclude() {
   return {
     order: true,
     courierRef: true,
+    assignedTo: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    shippingRate: {
+      select: {
+        id: true,
+        area: true,
+        district: true,
+        baseCost: true,
+      },
+    },
     deliveryProof: {
       select: {
         id: true,
@@ -62,8 +101,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const access = await getAccessContext(
       session.user as { id?: string; role?: string } | undefined,
     );
-    const canReadAll =
-      access.has("shipments.manage") || access.has("orders.read_all");
+    const canReadAll = hasShipmentManagementAccess(access) || access.has("orders.read_all");
     const canReadOwn = canReadAll || access.has("orders.read_own");
     if (!canReadOwn) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -96,14 +134,10 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     }
     if (
       canReadAll &&
-      !access.hasGlobal("shipments.manage") &&
+      !hasGlobalShipmentManagementAccess(access) &&
       !access.hasGlobal("orders.read_all")
     ) {
-      const canReadShipment = canAccessWarehouseWithPermission(
-        access,
-        "shipments.manage",
-        shipment.warehouseId,
-      );
+      const canReadShipment = canAccessShipmentWarehouse(access, shipment.warehouseId);
       const canReadOrder = canAccessWarehouseWithPermission(
         access,
         "orders.read_all",
@@ -144,7 +178,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!access.has("shipments.manage")) {
+    if (!hasShipmentManagementAccess(access)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -178,8 +212,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     if (
-      !access.hasGlobal("shipments.manage") &&
-      !canAccessWarehouseWithPermission(access, "shipments.manage", existingShipment.warehouseId)
+      !hasGlobalShipmentManagementAccess(access) &&
+      !canAccessShipmentWarehouse(access, existingShipment.warehouseId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -198,14 +232,35 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       courier,
       courierId,
       warehouseId,
+      shippingRateId,
+      assignedToUserId,
+      assignedAt,
       trackingNumber,
       status,
       shippedAt,
+      pickedAt,
+      outForDeliveryAt,
       expectedDate,
       deliveredAt,
+      estimatedCost,
+      actualCost,
+      thirdPartyCost,
+      handlingCost,
+      packagingCost,
+      fuelCost,
+      dispatchNote,
+      priority,
     } = body;
 
     const data: any = {};
+    const decimalFields = [
+      ["estimatedCost", estimatedCost],
+      ["actualCost", actualCost],
+      ["thirdPartyCost", thirdPartyCost],
+      ["handlingCost", handlingCost],
+      ["packagingCost", packagingCost],
+      ["fuelCost", fuelCost],
+    ] as const;
 
     if (courier !== undefined) data.courier = courier;
     if (courierId !== undefined) {
@@ -227,7 +282,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
     if (warehouseId !== undefined) {
       if (warehouseId === null || warehouseId === "") {
-        if (!access.hasGlobal("shipments.manage")) {
+        if (!hasGlobalShipmentManagementAccess(access)) {
           return NextResponse.json(
             { error: "Warehouse-scoped users must keep a warehouse assigned." },
             { status: 400 },
@@ -246,13 +301,74 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         if (!warehouseEntity) {
           return NextResponse.json({ error: "Warehouse not found" }, { status: 400 });
         }
-        if (!canAccessWarehouseWithPermission(access, "shipments.manage", warehouseEntity.id)) {
+        if (!canAccessShipmentWarehouse(access, warehouseEntity.id)) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
         data.warehouseId = warehouseEntity.id;
       }
     }
     if (trackingNumber !== undefined) data.trackingNumber = trackingNumber;
+    if (dispatchNote !== undefined) {
+      data.dispatchNote = dispatchNote === null ? null : String(dispatchNote);
+    }
+    if (assignedToUserId !== undefined) {
+      if (assignedToUserId === null || assignedToUserId === "") {
+        data.assignedToUserId = null;
+      } else {
+        const assignedUser = await prisma.user.findUnique({
+          where: { id: String(assignedToUserId) },
+          select: { id: true },
+        });
+        if (!assignedUser) {
+          return NextResponse.json({ error: "Assigned user not found" }, { status: 400 });
+        }
+        data.assignedToUserId = assignedUser.id;
+        if (assignedAt === undefined) {
+          data.assignedAt = new Date();
+        }
+      }
+    }
+    if (assignedAt !== undefined) {
+      data.assignedAt = assignedAt ? new Date(assignedAt) : null;
+    }
+    if (shippingRateId !== undefined) {
+      if (shippingRateId === null || shippingRateId === "") {
+        data.shippingRateId = null;
+      } else {
+        const shippingRateIdNum = Number(shippingRateId);
+        if (Number.isNaN(shippingRateIdNum) || shippingRateIdNum <= 0) {
+          return NextResponse.json({ error: "Invalid shippingRateId" }, { status: 400 });
+        }
+        const shippingRateEntity = await prisma.shippingRate.findUnique({
+          where: { id: shippingRateIdNum },
+          select: { id: true },
+        });
+        if (!shippingRateEntity) {
+          return NextResponse.json({ error: "Shipping rate not found" }, { status: 400 });
+        }
+        data.shippingRateId = shippingRateEntity.id;
+      }
+    }
+    if (priority !== undefined) {
+      const priorityNum = Number(priority);
+      if (!Number.isInteger(priorityNum)) {
+        return NextResponse.json({ error: "priority must be an integer" }, { status: 400 });
+      }
+      data.priority = priorityNum;
+    }
+
+    for (const [field, value] of decimalFields) {
+      if (value === undefined) continue;
+      if (value === null || value === "") {
+        data[field] = null;
+        continue;
+      }
+      const amountNum = Number(value);
+      if (!Number.isFinite(amountNum)) {
+        return NextResponse.json({ error: `${field} must be a valid number` }, { status: 400 });
+      }
+      data[field] = amountNum;
+    }
 
     if (status !== undefined) {
       const validShipmentStatuses = [
@@ -297,11 +413,26 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (shippedAt !== undefined) {
       data.shippedAt = shippedAt ? new Date(shippedAt) : null;
     }
+    if (pickedAt !== undefined) {
+      data.pickedAt = pickedAt ? new Date(pickedAt) : null;
+    }
+    if (outForDeliveryAt !== undefined) {
+      data.outForDeliveryAt = outForDeliveryAt ? new Date(outForDeliveryAt) : null;
+    }
     if (expectedDate !== undefined) {
       data.expectedDate = expectedDate ? new Date(expectedDate) : null;
     }
     if (deliveredAt !== undefined) {
       data.deliveredAt = deliveredAt ? new Date(deliveredAt) : null;
+    }
+    if (data.status === "IN_TRANSIT" && data.pickedAt === undefined) {
+      data.pickedAt = new Date();
+    }
+    if (data.status === "OUT_FOR_DELIVERY" && data.outForDeliveryAt === undefined) {
+      data.outForDeliveryAt = new Date();
+    }
+    if (data.status === "DELIVERED" && data.deliveredAt === undefined) {
+      data.deliveredAt = new Date();
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -387,7 +518,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!access.has("shipments.manage")) {
+    if (!hasShipmentManagementAccess(access)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -412,8 +543,8 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     }
 
     if (
-      !access.hasGlobal("shipments.manage") &&
-      !canAccessWarehouseWithPermission(access, "shipments.manage", existingShipment.warehouseId)
+      !hasGlobalShipmentManagementAccess(access) &&
+      !canAccessShipmentWarehouse(access, existingShipment.warehouseId)
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
