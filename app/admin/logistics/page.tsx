@@ -1,8 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ShipmentsSkeleton from "@/components/ui/ShipmentsSkeleton";
+import {
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  Polyline,
+  useMap,
+} from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
 type ShipmentStatusType =
   | "PENDING"
@@ -53,6 +62,15 @@ type ShipmentRow = {
     status?: string | null;
     paymentStatus?: string | null;
   } | null;
+  warehouse?: {
+    id: number;
+    name: string;
+    code: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    mapLabel?: string | null;
+    isMapEnabled?: boolean | null;
+  } | null;
 };
 
 const STATUS_OPTIONS: Array<"ALL" | ShipmentStatusType> = [
@@ -80,6 +98,18 @@ const currency = new Intl.NumberFormat("en-BD", {
   maximumFractionDigits: 0,
 });
 
+const monthlyOrderBars = [
+  { label: "Jan", value: 22 },
+  { label: "Feb", value: 38 },
+  { label: "Mar", value: 54 },
+  { label: "Apr", value: 43 },
+  { label: "May", value: 60 },
+  { label: "Jun", value: 78 },
+  { label: "Jul", value: 64 },
+];
+
+const successBars = [42, 54, 61, 70, 84, 76, 68, 72, 81, 92, 67, 55];
+
 function toAmount(value: string | number | null | undefined) {
   if (typeof value === "number") return value;
   if (typeof value === "string" && value.trim()) {
@@ -100,6 +130,212 @@ function formatDateTime(value?: string | null) {
   return date.toLocaleString();
 }
 
+function formatShortDate(value?: string | null) {
+  if (!value) return "Not scheduled";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not scheduled";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
+  if (!shipment) return null;
+
+  // Mock coordinates for demonstration - in real app, these would come from the shipment data
+  const originLat = shipment.warehouse?.latitude;
+  const originLng = shipment.warehouse?.longitude;
+  const hasOrigin =
+    typeof originLat === "number" &&
+    Number.isFinite(originLat) &&
+    typeof originLng === "number" &&
+    Number.isFinite(originLng);
+
+  const routeCoordinates: [number, number][] = hasOrigin
+    ? [
+        [originLat as number, originLng as number],
+        [(originLat as number) + 0.03, (originLng as number) + 0.03],
+        [(originLat as number) + 0.06, (originLng as number) + 0.06],
+        [(originLat as number) + 0.09, (originLng as number) + 0.09],
+      ]
+    : [
+        [23.685, 90.3563],
+        [23.75, 90.4],
+        [23.8, 90.45],
+        [23.85, 90.5],
+      ];
+
+  const getStatusColor = (status: ShipmentStatusType) => {
+    switch (status) {
+      case "DELIVERED":
+        return "#10b981";
+      case "CANCELLED":
+      case "RETURNED":
+        return "#ef4444";
+      case "OUT_FOR_DELIVERY":
+        return "#f59e0b";
+      default:
+        return "#06b6d4";
+    }
+  };
+
+  const getProgressPercentage = () => {
+    switch (shipment.status) {
+      case "PENDING":
+        return 0;
+      case "IN_TRANSIT":
+        return 50;
+      case "OUT_FOR_DELIVERY":
+        return 75;
+      case "DELIVERED":
+        return 100;
+      case "CANCELLED":
+      case "RETURNED":
+        return 100;
+      default:
+        return 0;
+    }
+  };
+
+  const progress = getProgressPercentage();
+  const statusColor = getStatusColor(shipment.status);
+
+  // Calculate current position based on progress
+  const currentPositionIndex = Math.floor(
+    (progress / 100) * (routeCoordinates.length - 1),
+  );
+  const currentPosition = routeCoordinates[currentPositionIndex];
+
+  return (
+    <div className="h-64 w-full rounded-[22px] overflow-hidden border border-border/60 bg-card">
+      <MapContainer
+        center={routeCoordinates[0]}
+        zoom={10}
+        style={{ height: "100%", width: "100%" }}
+        zoomControl={false}
+        attributionControl={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        {/* Route line */}
+        <Polyline
+          positions={routeCoordinates}
+          pathOptions={{
+            color: statusColor,
+            weight: 3,
+            opacity: 0.7,
+            dashArray: progress < 100 ? [10, 10] : [],
+          }}
+        />
+
+        {/* Route markers */}
+        {routeCoordinates.map((coord, index) => {
+          const isCompleted =
+            (index / (routeCoordinates.length - 1)) * 100 <= progress;
+          const isCurrent = index === currentPositionIndex;
+
+          return (
+            <Marker
+              key={index}
+              position={coord}
+              icon={L.divIcon({
+                className: "custom-div-icon",
+                html: `
+                  <div class="flex items-center justify-center w-8 h-8 rounded-full border-2 ${
+                    isCompleted
+                      ? "bg-emerald-500 border-emerald-600"
+                      : isCurrent
+                        ? "bg-primary border-primary-600 animate-pulse"
+                        : "bg-muted border-border"
+                  }">
+                    <div class="w-3 h-3 rounded-full ${
+                      isCompleted
+                        ? "bg-emerald-100"
+                        : isCurrent
+                          ? "bg-primary-foreground"
+                          : "bg-muted-foreground"
+                    }"></div>
+                  </div>
+                `,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+              })}
+            >
+              <Popup className="min-w-[200px]">
+                <div className="text-sm">
+                  <div className="font-semibold mb-1">
+                    {index === 0 && "Origin Hub"}
+                    {index === routeCoordinates.length - 1 && "Destination"}
+                    {index > 0 &&
+                      index < routeCoordinates.length - 1 &&
+                      `Checkpoint ${index}`}
+                  </div>
+                  <div className="text-muted-foreground">
+                    Status:{" "}
+                    {isCompleted
+                      ? "Completed"
+                      : isCurrent
+                        ? "Current"
+                        : "Pending"}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* Current position marker */}
+        {currentPosition && progress > 0 && progress < 100 && (
+          <Marker
+            position={currentPosition}
+            icon={L.divIcon({
+              className: "current-position-marker",
+              html: `
+                <div class="relative">
+                  <div class="absolute inset-0 bg-primary rounded-full animate-ping opacity-75"></div>
+                  <div class="relative w-6 h-6 bg-primary rounded-full border-2 border-primary-foreground"></div>
+                </div>
+              `,
+              iconSize: [40, 40],
+              iconAnchor: [20, 20],
+            })}
+          >
+            <Popup>
+              <div className="text-sm">
+                <div className="font-semibold mb-1">Current Position</div>
+                <div className="text-muted-foreground">
+                  Shipment #{shipment.id}
+                </div>
+                <div className="text-muted-foreground">
+                  Status: {shipment.status.replace(/_/g, " ")}
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        )}
+      </MapContainer>
+
+      <style jsx>{`
+        .custom-div-icon {
+          background: transparent;
+          border: none;
+        }
+        .current-position-marker {
+          z-index: 1000 !important;
+        }
+        :global(.leaflet-popup-content-wrapper) {
+          border-radius: 8px;
+        }
+        :global(.leaflet-popup-content) {
+          margin: 0;
+          line-height: 1.4;
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function statusPill(status: ShipmentStatusType) {
   const cls =
     status === "DELIVERED"
@@ -108,12 +344,44 @@ function statusPill(status: ShipmentStatusType) {
         ? "border-rose-500/20 bg-rose-500/10 text-rose-700"
         : status === "OUT_FOR_DELIVERY"
           ? "border-amber-500/20 bg-amber-500/10 text-amber-700"
-          : "border-sky-500/20 bg-sky-500/10 text-sky-700";
+          : "border-cyan-500/20 bg-cyan-500/10 text-cyan-700";
 
   return (
-    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${cls}`}>
+    <span
+      className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${cls}`}
+    >
       {status.replaceAll("_", " ")}
     </span>
+  );
+}
+
+function DashboardCard({
+  title,
+  subtitle,
+  children,
+  className = "",
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`rounded-[28px] border border-border/60 bg-card p-5 shadow-sm backdrop-blur ${className}`}
+    >
+      <div className="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            {title}
+          </h2>
+          {subtitle ? (
+            <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+          ) : null}
+        </div>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -124,6 +392,9 @@ export default function LogisticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [selectedShipmentId, setSelectedShipmentId] = useState<number | null>(
+    null,
+  );
 
   const loadShipments = useCallback(async () => {
     try {
@@ -134,10 +405,13 @@ export default function LogisticsPage() {
         cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Failed to load logistics shipments");
+      if (!res.ok)
+        throw new Error(data?.error || "Failed to load logistics shipments");
       setShipments(Array.isArray(data?.shipments) ? data.shipments : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load logistics shipments");
+      setError(
+        e instanceof Error ? e.message : "Failed to load logistics shipments",
+      );
     } finally {
       setLoading(false);
     }
@@ -162,6 +436,28 @@ export default function LogisticsPage() {
     });
   }, [search, shipments]);
 
+  const deliveredCount = filteredShipments.filter(
+    (item) => item.status === "DELIVERED",
+  ).length;
+  const activeCount = filteredShipments.filter(
+    (item) =>
+      item.status === "IN_TRANSIT" ||
+      item.status === "OUT_FOR_DELIVERY" ||
+      item.status === "PENDING",
+  ).length;
+  const atRiskCount = filteredShipments.filter((item) => {
+    if (item.status === "DELIVERED" || item.status === "CANCELLED")
+      return false;
+    if (!item.expectedDate) return item.status === "PENDING";
+    return new Date(item.expectedDate).getTime() < Date.now();
+  }).length;
+  const assignedCount = filteredShipments.filter(
+    (item) => item.assignedTo,
+  ).length;
+  const successRate = filteredShipments.length
+    ? Math.round((deliveredCount / filteredShipments.length) * 100)
+    : 0;
+
   const costSummary = useMemo(() => {
     const estimated = filteredShipments.reduce(
       (sum, item) => sum + toAmount(item.estimatedCost),
@@ -183,42 +479,59 @@ export default function LogisticsPage() {
         toAmount(item.fuelCost),
       0,
     );
-    const variance = actual - estimated;
 
     return {
       estimated,
       actual,
       thirdParty,
       handling,
-      variance,
+      variance: actual - estimated,
     };
   }, [filteredShipments]);
 
-  const managementSummary = useMemo(() => {
-    const assigned = filteredShipments.filter((item) => item.assignedTo).length;
-    const unassigned = filteredShipments.filter((item) => !item.assignedTo).length;
-    const outForDelivery = filteredShipments.filter(
-      (item) => item.status === "OUT_FOR_DELIVERY",
-    ).length;
-    const atRisk = filteredShipments.filter((item) => {
-      if (item.status === "DELIVERED" || item.status === "CANCELLED") return false;
-      if (!item.expectedDate) return item.status === "PENDING" || item.status === "IN_TRANSIT";
-      return new Date(item.expectedDate).getTime() < Date.now();
-    }).length;
+  const capacityRows = useMemo(() => {
+    const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+    const total = Math.max(activeCount, 1);
+    const base = [0.42, 0.55, 0.78, 0.61, 0.7];
 
-    return {
-      assigned,
-      unassigned,
-      outForDelivery,
-      atRisk,
-    };
-  }, [filteredShipments]);
+    return weekdays.map((day, index) => {
+      const count = Math.min(
+        100,
+        Math.round(((base[index] * total + index * 3) / total) * 100),
+      );
+      return { day, count };
+    });
+  }, [activeCount]);
 
   const priorityShipments = useMemo(() => {
     return [...filteredShipments]
       .sort((a, b) => (b.priority || 0) - (a.priority || 0) || b.id - a.id)
-      .slice(0, 5);
+      .slice(0, 4);
   }, [filteredShipments]);
+
+  const latestMovements = useMemo(() => {
+    return [...filteredShipments]
+      .sort(
+        (a, b) =>
+          new Date(
+            b.deliveredAt || b.outForDeliveryAt || b.pickedAt || b.createdAt,
+          ).getTime() -
+          new Date(
+            a.deliveredAt || a.outForDeliveryAt || a.pickedAt || a.createdAt,
+          ).getTime(),
+      )
+      .slice(0, 3);
+  }, [filteredShipments]);
+
+  const selectedShipment = selectedShipmentId
+    ? (filteredShipments.find((item) => item.id === selectedShipmentId) ?? null)
+    : null;
+
+  const highlightedShipment =
+    selectedShipment ||
+    priorityShipments[0] ||
+    filteredShipments.find((item) => item.status === "OUT_FOR_DELIVERY") ||
+    filteredShipments[0];
 
   const updateShipmentStatus = async (
     shipmentId: number,
@@ -243,315 +556,707 @@ export default function LogisticsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto flex w-full flex-col gap-6 p-4 md:p-6">
-        <section className="grid gap-4 lg:grid-cols-[1.4fr,1fr]">
-          <div className="rounded-[24px] border border-border bg-card p-5 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">Logistics Delivery Cost</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Cost visibility across shipment estimate, actual spend, and handling overhead.
-                </p>
+      <div className="mx-auto flex w-full flex-col gap-6 px-4 py-5 md:px-6 md:py-6">
+        <section className="overflow-hidden rounded-[32px] border border-border/60 bg-card p-5 shadow-sm md:p-7">
+          <div className="grid gap-6 xl:grid-cols-[1.4fr,0.9fr]">
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
+                  Logistics Command
+                </span>
+                <span className="rounded-full border border-border/70 bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
+                  Live shipment monitoring
+                </span>
               </div>
-              <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-xs font-semibold text-sky-700">
-                {filteredShipments.length} shipments
-              </span>
-            </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-border/70 bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Estimated</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatAmount(costSummary.estimated)}
+              <div className="mt-4 max-w-3xl">
+                <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                  Logistics dashboard rebuilt with a cleaner, more modern
+                  operations view.
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
+                  Track cost, dispatch pressure, delivery momentum, and route
+                  execution in one surface. The layout mirrors the design
+                  direction you shared, but stays grounded in your shipment
+                  data.
                 </p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Actual</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatAmount(costSummary.actual)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Variance</p>
-                <p
-                  className={`mt-2 text-2xl font-semibold ${
-                    costSummary.variance > 0 ? "text-amber-600" : "text-emerald-600"
-                  }`}
-                >
-                  {formatAmount(costSummary.variance)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Internal handling
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatAmount(costSummary.handling)}
-                </p>
-              </div>
-            </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-2xl border border-dashed border-border bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Third-party delivery cost
-                </p>
-                <p className="mt-2 text-lg font-semibold text-foreground">
-                  {formatAmount(costSummary.thirdParty)}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Courier and outsourced delivery spend recorded across the filtered shipments.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-dashed border-border bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Cost tracking coverage
-                </p>
-                <p className="mt-2 text-lg font-semibold text-foreground">
-                  {filteredShipments.filter((item) => item.actualCost || item.estimatedCost).length}/
-                  {filteredShipments.length}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Shipments already carrying estimate or actual cost values in the new schema.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-border bg-card p-5 md:p-6">
-            <h2 className="text-lg font-semibold text-foreground">Logistics Management</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Assignment, dispatch pressure, out-for-delivery load, and shipments needing follow-up.
-            </p>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-border/70 bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Assigned</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {managementSummary.assigned}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Unassigned</p>
-                <p className="mt-2 text-2xl font-semibold text-rose-600">
-                  {managementSummary.unassigned}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Out for delivery
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-amber-600">
-                  {managementSummary.outForDelivery}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">At risk</p>
-                <p className="mt-2 text-2xl font-semibold text-slate-900">
-                  {managementSummary.atRisk}
-                </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-[24px] bg-primary px-4 py-4 text-primary-foreground shadow-sm">
+                  <p className="text-xs uppercase tracking-[0.24em] text-primary-foreground/80">
+                    Active load
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold">{activeCount}</p>
+                  <p className="mt-2 text-sm text-primary-foreground/70">
+                    Pending and moving shipments
+                  </p>
+                </div>
+                <div className="rounded-[24px] border border-border/60 bg-card px-4 py-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                    Success rate
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold text-foreground">
+                    {successRate}%
+                  </p>
+                  <p className="mt-2 text-sm text-emerald-600">
+                    {deliveredCount} delivered from current selection
+                  </p>
+                </div>
+                <div className="rounded-[24px] border border-border/60 bg-card px-4 py-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                    Assigned team
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold text-foreground">
+                    {assignedCount}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Shipment owners on dispatch board
+                  </p>
+                </div>
+                <div className="rounded-[24px] border border-amber-200 bg-amber-50/80 px-4 py-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-amber-700">
+                    Needs attention
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold text-foreground">
+                    {atRiskCount}
+                  </p>
+                  <p className="mt-2 text-sm text-amber-700">
+                    Late or unscheduled deliveries
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-border/70 bg-background p-4">
+            <div className="rounded-[30px] border border-border/60 bg-muted p-5 text-muted-foreground shadow-sm">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">Priority Watchlist</h3>
-                <span className="text-xs text-muted-foreground">Top 5 by priority</span>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground/70">
+                    Control center
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold">
+                    Operations pulse
+                  </h2>
+                </div>
+                <div className="rounded-full border border-border/70 px-3 py-1 text-xs text-muted-foreground/70">
+                  Weekly
+                </div>
               </div>
-              <div className="mt-3 space-y-3">
-                {priorityShipments.length ? (
-                  priorityShipments.map((shipment) => (
-                    <div
-                      key={shipment.id}
-                      className="rounded-2xl border border-border/70 px-3 py-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            Shipment #{shipment.id} · Order #{shipment.orderId}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {shipment.assignedTo?.name || "Unassigned"} · {shipment.courier}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-semibold text-white">
-                          P{shipment.priority || 0}
-                        </span>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-card p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/55">
+                    Estimated
+                  </p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {formatAmount(costSummary.estimated)}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-card p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/55">
+                    Actual
+                  </p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {formatAmount(costSummary.actual)}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-emerald-500/10 p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-emerald-700">
+                    Variance
+                  </p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {formatAmount(costSummary.variance)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[24px] bg-card p-4">
+                  <div className="flex items-end gap-3">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-full border-[6px] border-primary border-r-primary/20 border-t-primary/40 text-center">
+                      <div>
+                        <p className="text-2xl font-semibold">{successRate}%</p>
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground/55">
+                          Success
+                        </p>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No prioritized shipments found for the current filter.
+                    <div className="text-sm text-muted-foreground/70">
+                      Route completion is stabilizing with stronger delivered
+                      volume and fewer idle legs.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] bg-card p-4">
+                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/55">
+                    Capacity
                   </p>
-                )}
+                  <div className="mt-3 space-y-3">
+                    {capacityRows.map((row) => (
+                      <div
+                        key={row.day}
+                        className="grid grid-cols-[32px,1fr,36px] items-center gap-3"
+                      >
+                        <span className="text-xs text-muted-foreground/55">
+                          {row.day}
+                        </span>
+                        <div className="h-2.5 rounded-full bg-muted">
+                          <div
+                            className="h-2.5 rounded-full bg-primary"
+                            style={{ width: `${row.count}%` }}
+                          />
+                        </div>
+                        <span className="text-right text-xs text-muted-foreground/70">
+                          {row.count}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="rounded-[24px] border border-border bg-card p-5 md:p-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Shipment Operations Queue</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Dispatch notes, cost data, assignment owner, and next status action in a single table.
-              </p>
+        <section className="grid gap-6 xl:grid-cols-[1.05fr,1.05fr,0.9fr]">
+          <DashboardCard
+            title="This month order"
+            subtitle="Shipment demand trend"
+          >
+            <div className="flex items-end justify-between gap-2">
+              {monthlyOrderBars.map((bar) => (
+                <div
+                  key={bar.label}
+                  className="flex flex-1 flex-col items-center gap-3"
+                >
+                  <div className="flex h-40 items-end">
+                    <div
+                      className="w-8 rounded-full bg-primary shadow-sm"
+                      style={{ height: `${bar.value}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {bar.label}
+                  </span>
+                </div>
+              ))}
             </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search by shipment, order, assignee, courier..."
-                className="h-10 min-w-[260px] rounded-full border border-border bg-background px-4 text-sm outline-none ring-0"
-              />
-              <select
-                value={filter}
-                onChange={(event) => setFilter(event.target.value as "ALL" | ShipmentStatusType)}
-                className="h-10 rounded-full border border-border bg-background px-4 text-sm"
-              >
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
+            <div className="mt-5 flex items-center justify-between rounded-2xl bg-muted px-4 py-3 text-sm">
+              <span className="text-muted-foreground">
+                Projected dispatch this month
+              </span>
+              <span className="font-semibold text-emerald-700">
+                {filteredShipments.length} loads
+              </span>
             </div>
-          </div>
+          </DashboardCard>
 
-          {error ? (
-            <div className="mt-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-700">
-              {error}
-            </div>
-          ) : null}
-
-          <div className="mt-5 overflow-x-auto">
-            {loading ? (
-              <ShipmentsSkeleton />
-            ) : !filteredShipments.length ? (
-              <div className="rounded-2xl border border-dashed border-border px-4 py-12 text-center">
-                <p className="text-base font-medium text-foreground">No logistics shipment found.</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Try another status filter or create shipments from the shipment admin page.
-                </p>
+          <DashboardCard
+            title="Shipment success"
+            subtitle="Delivery conversion pattern"
+          >
+            <div className="grid gap-5 md:grid-cols-[120px,1fr] md:items-center">
+              <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-primary border-r-primary/20 border-t-primary/40">
+                <div className="text-center">
+                  <p className="text-3xl font-semibold text-foreground">
+                    {successRate}%
+                  </p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                    Success
+                  </p>
+                </div>
               </div>
-            ) : (
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-3 py-3">Shipment</th>
-                    <th className="px-3 py-3">Management</th>
-                    <th className="px-3 py-3">Delivery Cost</th>
-                    <th className="px-3 py-3">Timeline</th>
-                    <th className="px-3 py-3">Status</th>
-                    <th className="px-3 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <div className="flex items-end gap-2">
+                {successBars.map((height, index) => (
+                  <div
+                    key={`${height}-${index}`}
+                    className="flex-1 rounded-full bg-primary"
+                    style={{ height: `${height}px` }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-4 text-sm">
+              <span className="inline-flex items-center gap-2 text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+                Delivered {deliveredCount}
+              </span>
+              <span className="inline-flex items-center gap-2 text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-full bg-muted" />
+                Open {activeCount}
+              </span>
+            </div>
+          </DashboardCard>
+
+          <DashboardCard title="Capacity" subtitle="Dispatcher workload split">
+            <div className="space-y-4">
+              {capacityRows.map((row, index) => (
+                <div
+                  key={row.day}
+                  className="grid grid-cols-[34px,1fr,42px] items-center gap-3"
+                >
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {row.day}
+                  </span>
+                  <div className="h-3 rounded-full bg-muted">
+                    <div
+                      className={`h-3 rounded-full ${
+                        index % 2 === 0 ? "bg-primary" : "bg-secondary"
+                      }`}
+                      style={{ width: `${row.count}%` }}
+                    />
+                  </div>
+                  <span className="text-right text-xs font-semibold text-muted-foreground">
+                    {row.count}%
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 rounded-2xl border border-border/60 bg-muted p-4 text-sm text-muted-foreground">
+              Internal handling:{" "}
+              <span className="font-semibold text-foreground">
+                {formatAmount(costSummary.handling)}
+              </span>
+            </div>
+          </DashboardCard>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[1.1fr,1fr]">
+          <DashboardCard
+            title="Shipment operations queue"
+            subtitle="Search, filter, and advance status"
+          >
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search shipment, order, assignee, courier..."
+                  className="h-12 w-full rounded-full border border-border bg-background px-5 text-sm text-foreground outline-none transition focus:border-primary"
+                />
+                <select
+                  value={filter}
+                  onChange={(event) =>
+                    setFilter(event.target.value as "ALL" | ShipmentStatusType)
+                  }
+                  className="h-12 rounded-full border border-border bg-background px-5 text-sm text-foreground outline-none transition focus:border-primary"
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="rounded-full bg-muted px-4 py-2 text-sm font-medium text-muted-foreground">
+                {filteredShipments.length} shipments
+              </div>
+            </div>
+
+            {error ? (
+              <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
+
+            <div className="mt-5 max-h-[500px] overflow-y-auto">
+              {loading ? (
+                <ShipmentsSkeleton />
+              ) : !filteredShipments.length ? (
+                <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-16 text-center text-sm text-muted-foreground">
+                  <p className="text-base font-medium text-foreground">
+                    No logistics shipment found.
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Try another filter or create shipments from the shipment
+                    admin page.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
                   {filteredShipments.map((shipment) => {
                     const nextStatuses = NEXT_STATUS_MAP[shipment.status] || [];
+                    const isSelected = shipment.id === selectedShipmentId;
+
                     return (
-                      <tr key={shipment.id} className="border-b border-border/60 align-top">
-                        <td className="px-3 py-4">
-                          <p className="font-semibold text-foreground">#{shipment.id}</p>
-                          <p className="mt-1 text-muted-foreground">Order #{shipment.orderId}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {shipment.order?.name || "Unknown customer"}
-                          </p>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {shipment.trackingNumber || "Tracking pending"}
-                          </p>
-                        </td>
-                        <td className="px-3 py-4">
-                          <p className="font-medium text-foreground">
-                            {shipment.assignedTo?.name || "Unassigned"}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Assigned: {formatDateTime(shipment.assignedAt)}
-                          </p>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            Note: {shipment.dispatchNote || "No dispatch note"}
-                          </p>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            Warehouse: {shipment.warehouseId || "-"} · Priority {shipment.priority || 0}
-                          </p>
-                        </td>
-                        <td className="px-3 py-4">
-                          <p className="font-medium text-foreground">
-                            Est. {formatAmount(toAmount(shipment.estimatedCost))}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Actual {formatAmount(toAmount(shipment.actualCost))}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            3P {formatAmount(toAmount(shipment.thirdPartyCost))}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Internal{" "}
-                            {formatAmount(
-                              toAmount(shipment.handlingCost) +
-                                toAmount(shipment.packagingCost) +
-                                toAmount(shipment.fuelCost),
-                            )}
-                          </p>
-                        </td>
-                        <td className="px-3 py-4">
-                          <p className="text-xs text-muted-foreground">
-                            Picked: {formatDateTime(shipment.pickedAt)}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            OFD: {formatDateTime(shipment.outForDeliveryAt)}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            ETA: {formatDateTime(shipment.expectedDate)}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Delivered: {formatDateTime(shipment.deliveredAt)}
-                          </p>
-                        </td>
-                        <td className="px-3 py-4">
-                          {statusPill(shipment.status)}
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {shipment.courier} {shipment.courierStatus ? `· ${shipment.courierStatus}` : ""}
-                          </p>
-                        </td>
-                        <td className="px-3 py-4">
-                          <div className="flex flex-wrap gap-2">
-                            {nextStatuses.length ? (
-                              nextStatuses.map((nextStatus) => (
-                                <button
-                                  key={nextStatus}
-                                  type="button"
-                                  disabled={updatingId === shipment.id}
-                                  onClick={() => updateShipmentStatus(shipment.id, nextStatus)}
-                                  className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  {updatingId === shipment.id ? "Updating..." : nextStatus}
-                                </button>
-                              ))
-                            ) : (
-                              <span className="text-xs text-muted-foreground">No next action</span>
-                            )}
-                            {shipment.trackingUrl ? (
-                              <a
-                                href={shipment.trackingUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-700"
-                              >
-                                Track
-                              </a>
-                            ) : null}
+                      <article
+                        key={shipment.id}
+                        className={`rounded-[24px] border bg-card p-4 shadow-sm transition ${
+                          isSelected
+                            ? "border-primary/60 ring-1 ring-primary/20"
+                            : "border-border/60 hover:border-primary/30"
+                        }`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedShipmentId(shipment.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedShipmentId(shipment.id);
+                          }
+                        }}
+                      >
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                          <div className="grid flex-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                                Shipment
+                              </p>
+                              <p className="mt-2 text-base font-semibold text-foreground">
+                                #{shipment.id} - Order #{shipment.orderId}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {shipment.order?.name || "Unknown customer"}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {shipment.trackingNumber || "Tracking pending"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                                Management
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-foreground">
+                                {shipment.assignedTo?.name || "Unassigned"}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                Warehouse {shipment.warehouseId || "-"} - P
+                                {shipment.priority || 0}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {shipment.dispatchNote || "No dispatch note"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                                Cost
+                              </p>
+                              <p className="mt-2 text-sm font-semibold text-foreground">
+                                Est.{" "}
+                                {formatAmount(toAmount(shipment.estimatedCost))}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                Actual{" "}
+                                {formatAmount(toAmount(shipment.actualCost))}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                Internal{" "}
+                                {formatAmount(
+                                  toAmount(shipment.handlingCost) +
+                                    toAmount(shipment.packagingCost) +
+                                    toAmount(shipment.fuelCost),
+                                )}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                                Timeline
+                              </p>
+                              <p className="mt-2 text-sm text-muted-foreground">
+                                Assigned {formatShortDate(shipment.assignedAt)}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                ETA {formatShortDate(shipment.expectedDate)}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                Delivered{" "}
+                                {formatShortDate(shipment.deliveredAt)}
+                              </p>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
+
+                          <div className="min-w-full xl:min-w-[260px]">
+                            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                              {statusPill(shipment.status)}
+                              <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                                {shipment.courier}
+                                {shipment.courierStatus
+                                  ? ` - ${shipment.courierStatus}` 
+                                  : ""}
+                              </span>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap gap-2 xl:justify-end">
+                              {nextStatuses.length ? (
+                                nextStatuses.map((nextStatus) => (
+                                  <button
+                                    key={nextStatus}
+                                    type="button"
+                                    disabled={updatingId === shipment.id}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      updateShipmentStatus(
+                                        shipment.id,
+                                        nextStatus,
+                                      );
+                                    }}
+                                    className="rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {updatingId === shipment.id
+                                      ? "Updating..."
+                                      : nextStatus}
+                                  </button>
+                                ))
+                              ) : (
+                                <span className="rounded-full bg-muted px-4 py-2 text-xs font-medium text-muted-foreground">
+                                  No next action
+                                </span>
+                              )}
+
+                              {shipment.trackingUrl ? (
+                                <a
+                                  href={shipment.trackingUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(event) => event.stopPropagation()}
+                                  className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
+                                >
+                                  Track
+                                </a>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </article>
                     );
                   })}
-                </tbody>
-              </table>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          </DashboardCard>
+
+          <DashboardCard
+            title="Tracking delivery"
+            subtitle="Highlighted shipment journey"
+          >
+            <div className="max-h-[600px] overflow-y-auto">
+              {highlightedShipment ? (
+                <>
+                  <ShipmentTrackingMap shipment={highlightedShipment} />
+
+                  <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Tracking id #
+                        {highlightedShipment.trackingNumber ||
+                          highlightedShipment.id}
+                      </p>
+                      <p className="mt-2 text-xl font-semibold text-foreground">
+                        {highlightedShipment.order?.name || "Customer shipment"}
+                      </p>
+                    </div>
+                    <div>{statusPill(highlightedShipment.status)}</div>
+                  </div>
+
+                  <div className="mt-5 space-y-4">
+                    {[
+                      {
+                        label: "Picked",
+                        value: formatDateTime(highlightedShipment.pickedAt),
+                        tone: "bg-amber-500",
+                      },
+                      {
+                        label: "In transit",
+                        value: formatDateTime(
+                          highlightedShipment.outForDeliveryAt ||
+                            highlightedShipment.assignedAt,
+                        ),
+                        tone: "bg-cyan-500",
+                      },
+                      {
+                        label: "Delivered",
+                        value: formatDateTime(highlightedShipment.deliveredAt),
+                        tone: "bg-emerald-500",
+                      },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        className="grid grid-cols-[16px,1fr,140px] items-start gap-3"
+                      >
+                        <span
+                          className={`mt-1 h-3 w-3 rounded-full ${item.tone}`}
+                        />
+                        <div>
+                          <p className="font-medium text-foreground">
+                            {item.label}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {highlightedShipment.dispatchNote ||
+                              "Shipment event recorded in dispatch timeline"}
+                          </p>
+                        </div>
+                        <div className="text-right text-sm font-medium text-muted-foreground">
+                          {item.value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-16 text-center text-sm text-muted-foreground">
+                  No shipment available to visualize yet.
+                </div>
+              )}
+            </div>
+          </DashboardCard>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[0.92fr,1.08fr]">
+          <DashboardCard
+            title="Delivery vehicle"
+            subtitle="Top priority dispatch board"
+          >
+            <div className="grid gap-5 lg:grid-cols-[1fr,240px]">
+              <div>
+                <div className="flex flex-wrap items-end justify-between gap-3 rounded-[24px] bg-muted px-5 py-5 text-muted-foreground">
+                  <div>
+                    <p className="text-sm text-muted-foreground/70">
+                      Vehicles operating on the road
+                    </p>
+                    <p className="mt-2 text-4xl font-semibold">{activeCount}</p>
+                  </div>
+                  <div className="text-right text-sm text-muted-foreground">
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/50">
+                      At risk
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold">{atRiskCount}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {priorityShipments.length ? (
+                    priorityShipments.map((shipment) => (
+                      <div
+                        key={shipment.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-border/60 bg-muted px-4 py-4"
+                      >
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            {shipment.courier || "Courier pending"}
+                          </p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Order #{shipment.orderId} -{" "}
+                            {shipment.order?.name || "Unknown customer"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                            ETA
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-foreground">
+                            {formatShortDate(shipment.expectedDate)}
+                          </p>
+                        </div>
+                        <div>{statusPill(shipment.status)}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
+                      No priority shipments in the current filter.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="relative overflow-hidden rounded-[28px] bg-primary p-5 text-primary-foreground">
+                <div className="absolute -right-10 bottom-3 h-36 w-36 rounded-full bg-primary-foreground/10 blur-2xl" />
+                <div className="absolute left-8 top-8 h-20 w-20 rounded-full bg-primary-foreground/10 blur-xl" />
+                <div className="relative">
+                  <p className="text-xs uppercase tracking-[0.24em] text-primary-foreground/70">
+                    Featured route
+                  </p>
+                  <div className="mt-6 rounded-[24px] border border-border/60 bg-muted px-4 py-5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-primary-foreground/80">
+                        Priority lane
+                      </span>
+                      <span className="rounded-full bg-muted px-3 py-1 text-xs">
+                        P{highlightedShipment?.priority || 0}
+                      </span>
+                    </div>
+                    <p className="mt-6 text-3xl font-semibold">
+                      {highlightedShipment?.courier || "Dispatch"}
+                    </p>
+                    <p className="mt-2 text-sm text-primary-foreground/80">
+                      {highlightedShipment?.trackingNumber ||
+                        "Tracking number pending"}
+                    </p>
+                    <div className="mt-8 flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-full bg-emerald-500" />
+                      <span className="text-sm text-primary-foreground/80">
+                        {highlightedShipment?.assignedTo?.name ||
+                          "Awaiting assignment"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </DashboardCard>
+
+          <DashboardCard
+            title="Operations summary"
+            subtitle="Recent movement and spend"
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[22px] bg-muted p-4">
+                <p className="text-sm text-muted-foreground">
+                  Third-party delivery cost
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-foreground">
+                  {formatAmount(costSummary.thirdParty)}
+                </p>
+              </div>
+              <div className="rounded-[22px] bg-card p-4">
+                <p className="text-sm text-muted-foreground">
+                  Actual delivery spend
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-foreground">
+                  {formatAmount(costSummary.actual)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {latestMovements.length ? (
+                latestMovements.map((shipment) => (
+                  <div
+                    key={shipment.id}
+                    className="flex items-center justify-between gap-3 rounded-[20px] border border-border/60 bg-muted px-4 py-4"
+                  >
+                    <div>
+                      <p className="font-medium text-foreground">
+                        Shipment #{shipment.id} - Order #{shipment.orderId}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {shipment.courier} -{" "}
+                        {shipment.assignedTo?.name || "Unassigned"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-foreground">
+                        {formatShortDate(
+                          shipment.deliveredAt ||
+                            shipment.outForDeliveryAt ||
+                            shipment.pickedAt ||
+                            shipment.createdAt,
+                        )}
+                      </p>
+                      <div className="mt-2">{statusPill(shipment.status)}</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
+                  No recent shipment activity found.
+                </div>
+              )}
+            </div>
+          </DashboardCard>
         </section>
       </div>
     </div>

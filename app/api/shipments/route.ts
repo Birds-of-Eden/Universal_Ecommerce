@@ -43,6 +43,17 @@ function buildShipmentInclude() {
     courierRef: {
       select: { id: true, name: true, type: true, isActive: true },
     },
+    warehouse: {
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        latitude: true,
+        longitude: true,
+        mapLabel: true,
+        isMapEnabled: true,
+      },
+    },
     assignedTo: {
       select: {
         id: true,

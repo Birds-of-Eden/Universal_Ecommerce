@@ -108,51 +108,7 @@ enum AccessScopeType {
   GLOBAL
   WAREHOUSE
 }
-enum IdentityType {
-  NID
-  PASSPORT
-}
 
-enum DeliveryManStatus {
-  PENDING
-  ACTIVE
-  SUSPENDED
-  REJECTED
-  RESIGNED
-}
-
-enum DeliveryApplicationStatus {
-  DRAFT
-  SUBMITTED
-  UNDER_REVIEW
-  APPROVED
-  REJECTED
-}
-
-enum DeliveryManDocumentType {
-  PROFILE_PHOTO
-
-  IDENTITY_FRONT
-  IDENTITY_BACK
-
-  FATHER_IDENTITY_FRONT
-  FATHER_IDENTITY_BACK
-
-  MOTHER_IDENTITY_FRONT
-  MOTHER_IDENTITY_BACK
-
-  REFERENCE_1_NID_FRONT
-  REFERENCE_1_NID_BACK
-
-  REFERENCE_2_NID_FRONT
-  REFERENCE_2_NID_BACK
-
-  BANK_CHEQUE
-  BOND
-  CONTRACT_PAPER
-
-  OTHER
-}
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -169,28 +125,30 @@ model User {
   banExpires    Int?
   note          String?
 
-  orders                Order[]
-  wishlist              Wishlist[]
-  cart                  CartItem[]
-  reviews               Review[]
-  inventoryReservations InventoryReservation[]
-  serviceBookings       ServiceBooking[]
-  refunds               Refund[]
-  deliveryProofs        DeliveryProof[]
-  addresses             UserAddress[]
-  analyticsEvents       AnalyticsEvent[]
-  assignedChats         ChatConversation[]     @relation("AssignedChats")
-  userChats             ChatConversation[]     @relation("UserChats")
-  chatMessages          ChatMessage[]
-  activityLogs          ActivityLog[]
-  userRoles             UserRole[]             @relation("UserRoles")
-  assignedUserRoles     UserRole[]             @relation("AssignedUserRoles")
-  warehouseMemberships  WarehouseMembership[]  @relation("WarehouseMemberships")
-  assignedWarehouseMemberships WarehouseMembership[] @relation("AssignedWarehouseMemberships")
-  deliveryManProfile            DeliveryManProfile?
-  verifiedDeliveryMen           DeliveryManProfile[]   @relation("VerifiedDeliveryMen")
-  assignedDeliveryMen           DeliveryManProfile[]   @relation("AssignedDeliveryMen")
-  verifiedDeliveryManDocuments  DeliveryManDocument[]  @relation("VerifiedDeliveryManDocuments")
+  orders                       Order[]
+  wishlist                     Wishlist[]
+  cart                         CartItem[]
+  reviews                      Review[]
+  inventoryReservations        InventoryReservation[]
+  serviceBookings              ServiceBooking[]
+  refunds                      Refund[]
+  deliveryProofs               DeliveryProof[]
+  addresses                    UserAddress[]
+  analyticsEvents              AnalyticsEvent[]
+  assignedChats                ChatConversation[]     @relation("AssignedChats")
+  userChats                    ChatConversation[]     @relation("UserChats")
+  chatMessages                 ChatMessage[]
+  activityLogs                 ActivityLog[]
+  userRoles                    UserRole[]             @relation("UserRoles")
+  assignedUserRoles            UserRole[]             @relation("AssignedUserRoles")
+  warehouseMemberships         WarehouseMembership[]  @relation("WarehouseMemberships")
+  assignedWarehouseMemberships WarehouseMembership[]  @relation("AssignedWarehouseMemberships")
+  assignedShipments            Shipment[]             @relation("AssignedShipments")
+  shipmentAssignmentsTo        ShipmentAssignment[]    @relation("ShipmentAssignmentTo")
+  shipmentAssignmentsBy        ShipmentAssignment[]    @relation("ShipmentAssignmentBy")
+  payrollProfile               PayrollProfile?
+  payrollEntries               PayrollEntry[]
+  shipmentCostLogsCreated      ShipmentCostLog[]
 }
 
 model UserAddress {
@@ -877,9 +835,13 @@ model Warehouse {
   inventoryWarehouseDailySnapshots InventoryWarehouseDailySnapshot[]
   shipments                        Shipment[]
   inventoryLogs                    InventoryLog[]
+  inventoryDailySnapshots          InventoryDailySnapshot[]
   userRoles                        UserRole[]
   memberships                      WarehouseMembership[]
-  deliveryMen                      DeliveryManProfile[]
+  shippingRates                    ShippingRate[]
+  payrollProfiles                  PayrollProfile[]
+  payrollEntries                   PayrollEntry[]
+  shipmentAssignments               ShipmentAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1288,135 +1250,7 @@ model Banner {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-model DeliveryManProfile {
-  id                    String                    @id @default(cuid())
-  userId                String                    @unique
-  warehouseId           Int
-  employeeCode          String?                   @unique
 
-  // Personal info
-  fullName              String
-  phone                 String
-  alternatePhone        String?
-  email                 String?
-  dateOfBirth           DateTime?
-  gender                String?
-
-  presentAddress        String
-  permanentAddress      String
-
-  emergencyContactName     String?
-  emergencyContactPhone    String?
-  emergencyContactRelation String?
-
-  // Identity info (self)
-  identityType          IdentityType
-  identityNumber        String
-  passportExpiryDate    DateTime?
-
-  // Parents info
-  fatherName            String
-  fatherIdentityType    IdentityType?
-  fatherIdentityNumber  String?
-
-  motherName            String
-  motherIdentityType    IdentityType?
-  motherIdentityNumber  String?
-
-  // Bank / legal
-  bankName              String?
-  bankAccountName       String?
-  bankAccountNumber     String?
-  bankChequeNumber      String?
-
-  bondAmount            Decimal?                  @db.Decimal(10, 2)
-  bondSignedAt          DateTime?
-  bondExpiryDate        DateTime?
-
-  contractSignedAt      DateTime?
-  contractStartDate     DateTime?
-  contractEndDate       DateTime?
-  contractStatus        String?
-
-  joiningDate           DateTime
-  status                DeliveryManStatus         @default(PENDING)
-  applicationStatus     DeliveryApplicationStatus @default(DRAFT)
-
-  verifiedById          String?
-  verifiedAt            DateTime?
-  rejectionReason       String?
-  note                  String?
-
-  assignedById          String?
-
-  createdAt             DateTime                  @default(now())
-  updatedAt             DateTime                  @updatedAt
-
-  // Relations
-  user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  warehouse             Warehouse                 @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  verifiedBy            User?                     @relation("VerifiedDeliveryMen", fields: [verifiedById], references: [id], onDelete: SetNull)
-  assignedBy            User?                     @relation("AssignedDeliveryMen", fields: [assignedById], references: [id], onDelete: SetNull)
-
-  references            DeliveryManReference[]
-  documents             DeliveryManDocument[]
-
-  @@index([warehouseId])
-  @@index([status])
-  @@index([applicationStatus])
-  @@index([verifiedById])
-  @@index([assignedById])
-}
-model DeliveryManReference {
-  id                    String              @id @default(cuid())
-  deliveryManProfileId  String
-
-  name                  String
-  phone                 String
-  relation              String?
-  address               String?
-  occupation            String?
-
-  identityType          IdentityType        @default(NID)
-  identityNumber        String
-
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-
-  profile               DeliveryManProfile  @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
-  documents             DeliveryManDocument[]
-
-  @@index([deliveryManProfileId])
-}
-model DeliveryManDocument {
-  id                    String                   @id @default(cuid())
-  deliveryManProfileId  String
-  referenceId           String?
-
-  type                  DeliveryManDocumentType
-  title                 String?
-  fileUrl               String
-  fileName              String?
-  mimeType              String?
-  fileSize              Int?
-  note                  String?
-
-  isVerified            Boolean                  @default(false)
-  verifiedAt            DateTime?
-  verifiedById          String?
-
-  createdAt             DateTime                 @default(now())
-  updatedAt             DateTime                 @updatedAt
-
-  profile               DeliveryManProfile       @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
-  reference             DeliveryManReference?    @relation(fields: [referenceId], references: [id], onDelete: Cascade)
-  verifiedBy            User?                    @relation("VerifiedDeliveryManDocuments", fields: [verifiedById], references: [id], onDelete: SetNull)
-
-  @@index([deliveryManProfileId])
-  @@index([referenceId])
-  @@index([type])
-  @@index([verifiedById])
-}
 model AnalyticsEvent {
   id    BigInt             @id @default(autoincrement())
   ts    DateTime           @default(now())
