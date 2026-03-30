@@ -3,39 +3,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getAccessContext } from "@/lib/rbac";
+import { getAccessContext, type AccessContext } from "@/lib/rbac";
 import {
   buildDeliveryConfirmationUrl,
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
+import { logActivity } from "@/lib/activity-log";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-function hasShipmentManagementAccess(access: {
-  has: (permission: string) => boolean;
-}) {
+function hasShipmentManagementAccess(access: AccessContext) {
   return access.has("shipments.manage") || access.has("logistics.manage");
 }
 
-function hasGlobalShipmentManagementAccess(access: {
-  hasGlobal: (permission: string) => boolean;
-}) {
+function hasGlobalShipmentManagementAccess(access: AccessContext) {
   return access.hasGlobal("shipments.manage") || access.hasGlobal("logistics.manage");
 }
 
 function canAccessShipmentWarehouse(
-  access: {
-    has: (permission: string) => boolean;
-  },
+  access: AccessContext,
   warehouseId: number | null | undefined,
 ) {
   return (
-    canAccessWarehouseWithPermission(access as any, "shipments.manage", warehouseId) ||
-    canAccessWarehouseWithPermission(access as any, "logistics.manage", warehouseId)
+    canAccessWarehouseWithPermission(access, "shipments.manage", warehouseId) ||
+    canAccessWarehouseWithPermission(access, "logistics.manage", warehouseId)
   );
 }
 
@@ -86,6 +81,20 @@ function withDeliveryConfirmationMeta<T extends {
     ...shipment,
     deliveryConfirmationUrl: confirmationUrl,
     deliveryConfirmationPin: canReadAll ? shipment.deliveryConfirmationPin ?? null : undefined,
+  };
+}
+
+function toShipmentLogSnapshot(shipment: Record<string, any>) {
+  return {
+    orderId: shipment.orderId ?? null,
+    warehouseId: shipment.warehouseId ?? null,
+    courier: shipment.courier ?? null,
+    courierId: shipment.courierId ?? null,
+    status: shipment.status ?? null,
+    trackingNumber: shipment.trackingNumber ?? null,
+    assignedToUserId: shipment.assignedToUserId ?? null,
+    shippingRateId: shipment.shippingRateId ?? null,
+    priority: shipment.priority ?? null,
   };
 }
 
@@ -497,6 +506,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       });
     });
 
+    await logActivity({
+      action: "update_shipment",
+      entity: "shipment",
+      entityId: id,
+      access,
+      request,
+      metadata: {
+        message:
+          data.status && data.status !== existingShipment.status
+            ? `Shipment #${id} status changed from ${existingShipment.status} to ${data.status}`
+            : `Shipment #${id} updated`,
+      },
+      before: toShipmentLogSnapshot(existingShipment),
+      after: updated ? toShipmentLogSnapshot(updated as any) : null,
+    });
+
     return NextResponse.json(withDeliveryConfirmationMeta(updated as any, true));
   } catch (error) {
     console.error("Error updating shipment:", error);
@@ -508,7 +533,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 }
 
 // DELETE /api/shipments/:id
-export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {
     const { id: idStr } = await params;
     const session = await getServerSession(authOptions);
@@ -551,6 +576,18 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     await prisma.shipment.delete({
       where: { id },
+    });
+
+    await logActivity({
+      action: "delete_shipment",
+      entity: "shipment",
+      entityId: id,
+      access,
+      request: req,
+      metadata: {
+        message: `Shipment #${id} deleted`,
+      },
+      before: toShipmentLogSnapshot(existingShipment),
     });
 
     return NextResponse.json({ success: true });

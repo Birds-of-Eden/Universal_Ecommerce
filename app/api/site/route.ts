@@ -1,7 +1,41 @@
 // app/api/site/route.ts
 
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
+import { getAccessContext } from "@/lib/rbac";
 import { NextResponse } from "next/server";
+
+function toSiteSettingsLogSnapshot(settings: {
+  id: number;
+  logo: string | null;
+  siteTitle: string | null;
+  footerDescription: string | null;
+  contactNumber: string | null;
+  contactEmail: string | null;
+  address: string | null;
+  facebookLink: string | null;
+  instagramLink: string | null;
+  twitterLink: string | null;
+  tiktokLink: string | null;
+  youtubeLink: string | null;
+}) {
+  return {
+    id: settings.id,
+    logo: settings.logo,
+    siteTitle: settings.siteTitle,
+    footerDescription: settings.footerDescription,
+    contactNumber: settings.contactNumber,
+    contactEmail: settings.contactEmail,
+    address: settings.address,
+    facebookLink: settings.facebookLink,
+    instagramLink: settings.instagramLink,
+    twitterLink: settings.twitterLink,
+    tiktokLink: settings.tiktokLink,
+    youtubeLink: settings.youtubeLink,
+  };
+}
 
 /* =========================
    GET SITE SETTINGS
@@ -47,6 +81,17 @@ export async function GET() {
 ========================= */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("settings.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
     const {
       logo,
@@ -83,6 +128,18 @@ export async function POST(req: Request) {
         },
       });
 
+      await logActivity({
+        action: "create_site_settings",
+        entity: "settings",
+        entityId: created.id,
+        access,
+        request: req,
+        metadata: {
+          message: "General settings created",
+        },
+        after: toSiteSettingsLogSnapshot(created),
+      });
+
       return NextResponse.json(created);
     }
 
@@ -103,6 +160,19 @@ export async function POST(req: Request) {
       },
     });
 
+    await logActivity({
+      action: "update_site_settings",
+      entity: "settings",
+      entityId: updated.id,
+      access,
+      request: req,
+      metadata: {
+        message: "General settings updated",
+      },
+      before: toSiteSettingsLogSnapshot(existingSettings),
+      after: toSiteSettingsLogSnapshot(updated),
+    });
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("POST site settings error:", error);
@@ -116,8 +186,19 @@ export async function POST(req: Request) {
 /* =========================
    DELETE SITE SETTINGS
 ========================= */
-export async function DELETE() {
+export async function DELETE(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("settings.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const settings = await prisma.sitesettings.findFirst({
       orderBy: { id: "asc" },
     });
@@ -141,6 +222,19 @@ export async function DELETE() {
         tiktokLink: null,
         youtubeLink: null,
       },
+    });
+
+    await logActivity({
+      action: "reset_site_settings",
+      entity: "settings",
+      entityId: updated.id,
+      access,
+      request: req,
+      metadata: {
+        message: "General settings reset",
+      },
+      before: toSiteSettingsLogSnapshot(settings),
+      after: toSiteSettingsLogSnapshot(updated),
     });
 
     return NextResponse.json(updated);

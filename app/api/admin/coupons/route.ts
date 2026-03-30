@@ -1,8 +1,34 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
+
+function toCouponLogSnapshot(coupon: {
+  id: string;
+  code: string;
+  discountType: string;
+  discountValue: unknown;
+  minOrderValue: unknown;
+  maxDiscount: unknown;
+  usageLimit: number | null;
+  isValid?: boolean;
+  expiresAt: Date | null;
+}) {
+  return {
+    id: coupon.id,
+    code: coupon.code,
+    discountType: coupon.discountType,
+    discountValue: Number(coupon.discountValue),
+    minOrderValue:
+      coupon.minOrderValue === null ? null : Number(coupon.minOrderValue),
+    maxDiscount: coupon.maxDiscount === null ? null : Number(coupon.maxDiscount),
+    usageLimit: coupon.usageLimit,
+    isValid: coupon.isValid ?? true,
+    expiresAt: coupon.expiresAt?.toISOString() ?? null,
+  };
+}
 
 async function ensureCouponAccess(permission: "read" | "manage") {
   const session = await getServerSession(authOptions);
@@ -18,14 +44,14 @@ async function ensureCouponAccess(permission: "read" | "manage") {
     if (!access.hasAny(["coupons.manage", "settings.manage", "reports.read"])) {
       return { ok: false as const, status: 403, error: "Forbidden" };
     }
-    return { ok: true as const };
+    return { ok: true as const, access };
   }
 
   if (!access.hasAny(["coupons.manage", "settings.manage"])) {
     return { ok: false as const, status: 403, error: "Forbidden" };
   }
 
-  return { ok: true as const };
+  return { ok: true as const, access };
 }
 
 export async function GET() {
@@ -82,6 +108,18 @@ export async function POST(req: Request) {
         usageLimit: usageLimit ? parseInt(usageLimit) : null,
         expiresAt: expiresAt ? new Date(expiresAt) : null
       }
+    });
+
+    await logActivity({
+      action: "create_coupon",
+      entity: "coupon",
+      entityId: coupon.id,
+      access: allowed.access,
+      request: req,
+      metadata: {
+        message: `Coupon created: ${coupon.code}`,
+      },
+      after: toCouponLogSnapshot(coupon),
     });
 
     return NextResponse.json(coupon);

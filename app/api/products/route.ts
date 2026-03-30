@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variants";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { ensureVariantCodes } from "@/lib/product-codes";
+import { getAccessContext } from "@/lib/rbac";
+import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
 
@@ -40,6 +44,47 @@ const productInclude = {
     },
   },
 } as const;
+
+function toProductLogSnapshot(product: any) {
+  return {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    sku: product.sku ?? null,
+    type: product.type,
+    category: product.category?.name ?? null,
+    brand: product.brand?.name ?? null,
+    writer: product.writer?.name ?? null,
+    publisher: product.publisher?.name ?? null,
+    VatClassId: product.VatClassId ?? null,
+    basePrice: Number(product.basePrice),
+    originalPrice: product.originalPrice === null ? null : Number(product.originalPrice),
+    currency: product.currency,
+    available: product.available,
+    featured: product.featured,
+    lowStockThreshold: product.lowStockThreshold,
+    variantOptions: Array.isArray(product.variantOptions)
+      ? product.variantOptions.map((option: any) => ({
+          name: option.name,
+          values: Array.isArray(option.values)
+            ? option.values.map((value: any) => value.value)
+            : [],
+        }))
+      : [],
+    variants: Array.isArray(product.variants)
+      ? product.variants.map((variant: any) => ({
+          id: variant.id,
+          sku: variant.sku,
+          price: Number(variant.price),
+          stock: Number(variant.stock),
+          lowStockThreshold: variant.lowStockThreshold,
+          active: variant.active,
+          isDefault: variant.isDefault,
+          options: variant.options ?? {},
+        }))
+      : [],
+  };
+}
 
 /* =========================
    GET PRODUCTS
@@ -91,6 +136,17 @@ export async function GET() {
 ========================= */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("products.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     if (!body.name || !body.categoryId || !body.basePrice) {
@@ -392,6 +448,18 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+
+    await logActivity({
+      action: "create_product",
+      entity: "product",
+      entityId: product.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Product created: ${product.name}`,
+      },
+      after: toProductLogSnapshot(product),
+    });
 
     return NextResponse.json(product, { status: 201 });
   } catch (err) {

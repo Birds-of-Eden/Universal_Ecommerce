@@ -11,6 +11,7 @@ import {
 } from "@/lib/delivery-proof";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission, resolveWarehouseScope } from "@/lib/warehouse-scope";
+import { logActivity } from "@/lib/activity-log";
 
 function hasShipmentManagementAccess(access: AccessContext) {
   return access.has("shipments.manage") || access.has("logistics.manage");
@@ -107,6 +108,18 @@ function withDeliveryConfirmationMeta<T extends {
     ...shipment,
     deliveryConfirmationUrl: confirmationUrl,
     deliveryConfirmationPin: canReadAll ? shipment.deliveryConfirmationPin ?? null : undefined,
+  };
+}
+
+function toShipmentLogSnapshot(shipment: Record<string, any>) {
+  return {
+    orderId: shipment.orderId ?? null,
+    warehouseId: shipment.warehouseId ?? null,
+    courier: shipment.courier ?? null,
+    courierId: shipment.courierId ?? null,
+    status: shipment.status ?? null,
+    trackingNumber: shipment.trackingNumber ?? null,
+    courierStatus: shipment.courierStatus ?? null,
   };
 }
 
@@ -328,6 +341,18 @@ export async function POST(request: NextRequest) {
           include: buildShipmentInclude(),
         })) || customShipment;
 
+      await logActivity({
+        action: "create_shipment",
+        entity: "shipment",
+        entityId: customShipment.id,
+        access,
+        request,
+        metadata: {
+          message: `Shipment #${customShipment.id} created for order #${order.id}`,
+        },
+        after: toShipmentLogSnapshot(customShipment as any),
+      });
+
       return NextResponse.json(
         withDeliveryConfirmationMeta(customShipment as any, true),
         { status: 201 },
@@ -385,6 +410,19 @@ export async function POST(request: NextRequest) {
           where: { id: nextShipment.id },
           include: buildShipmentInclude(),
         });
+      });
+
+      await logActivity({
+        action: "create_shipment",
+        entity: "shipment",
+        entityId: updated?.id ?? localShipment.id,
+        access,
+        request,
+        metadata: {
+          message: `Shipment #${updated?.id ?? localShipment.id} created for order #${order.id}`,
+        },
+        before: toShipmentLogSnapshot(localShipment),
+        after: updated ? toShipmentLogSnapshot(updated as any) : null,
       });
 
       return NextResponse.json(

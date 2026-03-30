@@ -32,6 +32,28 @@ function normalizePermissionKeys(rawKeys: string[]): string[] {
   return [...unique, "admin.panel.access"];
 }
 
+function toRoleLogSnapshot(role: {
+  name: string;
+  label: string;
+  description?: string | null;
+  isSystem?: boolean;
+  isImmutable?: boolean;
+  rolePermissions?: Array<{
+    permission: {
+      key: string;
+    };
+  }>;
+}) {
+  return {
+    name: role.name,
+    label: role.label,
+    description: role.description ?? null,
+    isSystem: role.isSystem ?? null,
+    isImmutable: role.isImmutable ?? null,
+    permissionKeys: (role.rolePermissions ?? []).map((item) => item.permission.key).sort(),
+  };
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -104,7 +126,15 @@ export async function PATCH(
 
     const existingRole = await prisma.role.findUnique({
       where: { id },
-      select: { id: true, isImmutable: true, deletedAt: true },
+      include: {
+        rolePermissions: {
+          include: {
+            permission: {
+              select: { key: true },
+            },
+          },
+        },
+      },
     });
     if (!existingRole || existingRole.deletedAt) {
       return NextResponse.json({ error: "Role not found." }, { status: 404 });
@@ -189,9 +219,10 @@ export async function PATCH(
       access,
       request,
       metadata: {
-        label: updatedRole?.label ?? null,
-        permissionCount: updatedRole?.rolePermissions.length ?? 0,
+        message: `Updated role ${updatedRole?.label ?? updatedRole?.name ?? id}`,
       },
+      before: toRoleLogSnapshot(existingRole),
+      after: updatedRole ? toRoleLogSnapshot(updatedRole) : null,
     });
 
     return NextResponse.json({
@@ -270,7 +301,12 @@ export async function DELETE(
       access,
       request,
       metadata: {
+        message: `Deleted role ${role.name}`,
+      },
+      before: {
         name: role.name,
+        isImmutable: role.isImmutable,
+        assignedUserCount: role._count.userRoles,
       },
     });
 

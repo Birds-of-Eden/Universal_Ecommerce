@@ -1,5 +1,27 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
+import { getAccessContext } from "@/lib/rbac";
+
+function toNewsletterLogSnapshot(newsletter: {
+  id: string;
+  title: string;
+  subject: string;
+  content: string;
+  status?: string;
+  sentAt?: Date | null;
+}) {
+  return {
+    id: newsletter.id,
+    title: newsletter.title,
+    subject: newsletter.subject,
+    contentLength: newsletter.content.length,
+    status: newsletter.status ?? "draft",
+    sentAt: newsletter.sentAt?.toISOString() ?? null,
+  };
+}
 
 // Get all newsletters
 export async function GET() {
@@ -18,6 +40,17 @@ export async function GET() {
 // Create newsletter
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("newsletter.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { title, subject, content } = await req.json();
 
     if (!title || !subject || !content) {
@@ -30,6 +63,18 @@ export async function POST(req: Request) {
         subject,
         content,
       },
+    });
+
+    await logActivity({
+      action: "create_newsletter",
+      entity: "newsletter",
+      entityId: newsletter.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Newsletter created: ${newsletter.title}`,
+      },
+      after: toNewsletterLogSnapshot(newsletter),
     });
 
     return NextResponse.json(newsletter, { status: 201 });

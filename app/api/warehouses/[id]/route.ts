@@ -4,7 +4,6 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
-import { logActivity } from "@/lib/activity-log";
 
 function toWarehouseLogSnapshot(warehouse: {
   name: string;

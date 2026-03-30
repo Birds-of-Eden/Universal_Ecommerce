@@ -8,6 +8,26 @@ import { logActivity } from "@/lib/activity-log";
 
 const db = prisma as any;
 
+function toShippingRateLogSnapshot(rate: {
+  country: string;
+  area: string;
+  baseCost?: unknown;
+  weightSlabs?: unknown;
+  freeMinOrder?: unknown;
+  isActive?: boolean;
+  priority?: number;
+}) {
+  return {
+    country: rate.country,
+    area: rate.area,
+    baseCost: rate.baseCost ?? null,
+    weightSlabs: rate.weightSlabs ?? null,
+    freeMinOrder: rate.freeMinOrder ?? null,
+    isActive: rate.isActive ?? null,
+    priority: rate.priority ?? null,
+  };
+}
+
 function toDecimal(value: unknown, field: string): Prisma.Decimal {
   if (value === null || value === undefined || value === "") {
     throw new Error(`${field} is required`);
@@ -90,6 +110,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
 
+    const existing = await db.shippingRate.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Shipping rate not found" }, { status: 404 });
+    }
+
     const body = await request.json();
     const data: any = {};
 
@@ -129,10 +154,10 @@ export async function PATCH(
       access,
       request,
       metadata: {
-        country: updated.country,
-        area: updated.area,
-        isActive: updated.isActive,
+        message: `Updated shipping rate for ${updated.area}, ${updated.country}`,
       },
+      before: toShippingRateLogSnapshot(existing),
+      after: toShippingRateLogSnapshot(updated),
     });
 
     return NextResponse.json(updated);
@@ -174,7 +199,14 @@ export async function DELETE(
       entityId: id,
       access,
       request: _request,
-      metadata: existing,
+      metadata: existing
+        ? {
+            message: `Deleted shipping rate for ${existing.area}, ${existing.country}`,
+          }
+        : {
+            message: `Deleted shipping rate ${id}`,
+          },
+      before: existing ? toShippingRateLogSnapshot(existing) : null,
     });
 
     return NextResponse.json({ success: true });

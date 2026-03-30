@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import type { ChatPriority, ChatStatus, Prisma } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
 import { canAccessConversation, getChatActor, normalizeGuestEmail } from "@/lib/chat";
 import { getAccessContext } from "@/lib/rbac";
@@ -19,6 +20,18 @@ function buildFeedbackMessage(rating: number | null, feedback: string): string {
   if (rating !== null) lines.push(`CSAT rating: ${rating}/5`);
   if (feedback) lines.push(`Feedback: ${feedback}`);
   return lines.join("\n").trim();
+}
+
+function toConversationLogSnapshot(conversation: any) {
+  return {
+    id: conversation.id,
+    userId: conversation.userId ?? null,
+    guestEmail: conversation.guestEmail ?? null,
+    status: conversation.status,
+    priority: conversation.priority,
+    assignedToId: conversation.assignedToId ?? null,
+    closedAt: conversation.closedAt?.toISOString?.() ?? conversation.closedAt ?? null,
+  };
 }
 
 export async function GET(
@@ -88,7 +101,15 @@ export async function PATCH(
 
     const conversation = await prisma.chatConversation.findUnique({
       where: { id },
-      select: { id: true, userId: true, guestEmail: true },
+      select: {
+        id: true,
+        userId: true,
+        guestEmail: true,
+        status: true,
+        priority: true,
+        assignedToId: true,
+        closedAt: true,
+      },
     });
 
     if (!conversation) {
@@ -173,6 +194,32 @@ export async function PATCH(
         },
       });
     });
+
+    if (updated && (Object.keys(updateData).length > 0 || feedbackMessage)) {
+      const action =
+        requestedStatus === "CLOSED"
+          ? "close_chat_conversation"
+          : feedbackMessage
+            ? "update_chat_feedback"
+            : "update_chat_conversation";
+      await logActivity({
+        action,
+        entity: "chat",
+        entityId: updated.id,
+        access,
+        request,
+        metadata: {
+          message:
+            requestedStatus === "CLOSED"
+              ? `Chat conversation closed: ${updated.id}`
+              : feedbackMessage
+                ? `Chat feedback submitted for conversation ${updated.id}`
+                : `Chat conversation updated: ${updated.id}`,
+        },
+        before: toConversationLogSnapshot(conversation),
+        after: toConversationLogSnapshot(updated),
+      });
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

@@ -37,6 +37,28 @@ function normalizePermissionKeys(rawKeys: string[]): string[] {
   return [...unique, "admin.panel.access"];
 }
 
+function toRoleLogSnapshot(role: {
+  name: string;
+  label: string;
+  description?: string | null;
+  isSystem?: boolean;
+  isImmutable?: boolean;
+  rolePermissions?: Array<{
+    permission: {
+      key: string;
+    };
+  }>;
+}) {
+  return {
+    name: role.name,
+    label: role.label,
+    description: role.description ?? null,
+    isSystem: role.isSystem ?? null,
+    isImmutable: role.isImmutable ?? null,
+    permissionKeys: (role.rolePermissions ?? []).map((item) => item.permission.key).sort(),
+  };
+}
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -176,10 +198,9 @@ export async function POST(request: NextRequest) {
       access,
       request,
       metadata: {
-        name: role.name,
-        label: role.label,
-        permissionCount: role.rolePermissions.length,
+        message: `Created role ${role.label} (${role.name})`,
       },
+      after: toRoleLogSnapshot(role),
     });
 
     return NextResponse.json(

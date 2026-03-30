@@ -1,8 +1,26 @@
 // api/categories/route.ts
 
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
+
+function toCategoryLogSnapshot(category: {
+  name: string;
+  slug: string;
+  image?: string | null;
+  parentId?: number | null;
+}) {
+  return {
+    name: category.name,
+    slug: category.slug,
+    image: category.image ?? null,
+    parentId: category.parentId ?? null,
+  };
+}
 
 /* =========================
    GET ALL CATEGORIES
@@ -90,6 +108,17 @@ export async function GET() {
 ========================= */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("products.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { name, parentId, image } = await req.json();
 
     if (!name) {
@@ -119,6 +148,18 @@ export async function POST(req: Request) {
         image: image || null,
         parentId: parentId || null,
       },
+    });
+
+    await logActivity({
+      action: "create",
+      entity: "category",
+      entityId: category.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Category created: ${category.name}`,
+      },
+      after: toCategoryLogSnapshot(category),
     });
 
     return NextResponse.json(category, { status: 201 });

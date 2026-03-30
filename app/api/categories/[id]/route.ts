@@ -1,8 +1,28 @@
 // api/categories/[id]/route.ts
 
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
+
+function toCategoryLogSnapshot(category: {
+  name: string;
+  slug: string;
+  image?: string | null;
+  parentId?: number | null;
+  deleted?: boolean;
+}) {
+  return {
+    name: category.name,
+    slug: category.slug,
+    image: category.image ?? null,
+    parentId: category.parentId ?? null,
+    deleted: category.deleted ?? false,
+  };
+}
 
 /* =========================
    GET SINGLE CATEGORY
@@ -83,6 +103,17 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("products.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id: idParam } = await params;
     const id = Number(idParam);
     const { name, parentId, image } = await req.json();
@@ -134,6 +165,19 @@ export async function PUT(
       },
     });
 
+    await logActivity({
+      action: "update",
+      entity: "category",
+      entityId: updated.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Category updated: ${updated.name}`,
+      },
+      before: toCategoryLogSnapshot(existing),
+      after: toCategoryLogSnapshot(updated),
+    });
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error(error);
@@ -152,6 +196,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("products.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id: idParam } = await params;
     const id = Number(idParam);
 
@@ -176,6 +231,22 @@ export async function DELETE(
     await prisma.category.update({
       where: { id },
       data: { deleted: true },
+    });
+
+    await logActivity({
+      action: "delete",
+      entity: "category",
+      entityId: id,
+      access,
+      request: req,
+      metadata: {
+        message: `Category deleted: ${existing.name}`,
+      },
+      before: toCategoryLogSnapshot(existing),
+      after: {
+        ...toCategoryLogSnapshot(existing),
+        deleted: true,
+      },
     });
 
     return NextResponse.json({

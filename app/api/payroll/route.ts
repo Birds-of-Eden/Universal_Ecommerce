@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-log";
 import {
   ensurePayrollAccess,
   toOptionalDate,
@@ -10,6 +11,55 @@ import {
 } from "@/lib/payroll";
 
 const db = prisma as any;
+
+function toPayrollProfileLogSnapshot(profile: any) {
+  return {
+    id: profile.id,
+    userId: profile.userId,
+    userName: profile.user?.name ?? null,
+    userEmail: profile.user?.email ?? null,
+    warehouseId: profile.warehouseId ?? null,
+    warehouseCode: profile.warehouse?.code ?? null,
+    employeeCode: profile.employeeCode ?? null,
+    paymentType: profile.paymentType,
+    baseSalary: Number(profile.baseSalary),
+    paymentMethod: profile.paymentMethod ?? null,
+    isActive: profile.isActive,
+    notes: profile.notes ?? null,
+  };
+}
+
+function toPayrollPeriodLogSnapshot(period: any) {
+  return {
+    id: period.id,
+    name: period.name,
+    startDate: period.startDate?.toISOString() ?? null,
+    endDate: period.endDate?.toISOString() ?? null,
+    status: period.status,
+    notes: period.notes ?? null,
+  };
+}
+
+function toPayrollEntryLogSnapshot(entry: any) {
+  return {
+    id: entry.id,
+    payrollProfileId: entry.payrollProfileId,
+    payrollPeriodId: entry.payrollPeriodId,
+    userId: entry.userId,
+    userName: entry.payrollProfile?.user?.name ?? null,
+    userEmail: entry.payrollProfile?.user?.email ?? null,
+    warehouseId: entry.warehouseId ?? null,
+    warehouseCode: entry.warehouse?.code ?? null,
+    basicAmount: Number(entry.basicAmount),
+    overtimeAmount: Number(entry.overtimeAmount),
+    bonusAmount: Number(entry.bonusAmount),
+    deductionAmount: Number(entry.deductionAmount),
+    netAmount: Number(entry.netAmount),
+    paymentStatus: entry.paymentStatus,
+    paidAt: entry.paidAt?.toISOString() ?? null,
+    note: entry.note ?? null,
+  };
+}
 
 function computeNetAmount(
   basicAmount: unknown,
@@ -180,6 +230,18 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      await logActivity({
+        action: "create_payroll_profile",
+        entity: "payroll",
+        entityId: created.id,
+        access: auth.access,
+        request,
+        metadata: {
+          message: `Payroll profile created for ${created.user?.name || created.user?.email || userId}`,
+        },
+        after: toPayrollProfileLogSnapshot(created),
+      });
+
       return NextResponse.json(created, { status: 201 });
     }
 
@@ -209,6 +271,18 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      await logActivity({
+        action: "create_payroll_period",
+        entity: "payroll",
+        entityId: created.id,
+        access: auth.access,
+        request,
+        metadata: {
+          message: `Payroll period created: ${created.name}`,
+        },
+        after: toPayrollPeriodLogSnapshot(created),
+      });
+
       return NextResponse.json(created, { status: 201 });
     }
 
@@ -236,6 +310,28 @@ export async function POST(request: NextRequest) {
       const overtimeAmount = body.overtimeAmount ?? 0;
       const bonusAmount = body.bonusAmount ?? 0;
       const deductionAmount = body.deductionAmount ?? 0;
+
+      const existingEntry = await db.payrollEntry.findUnique({
+        where: {
+          payrollPeriodId_payrollProfileId: {
+            payrollPeriodId,
+            payrollProfileId,
+          },
+        },
+        include: {
+          payrollPeriod: true,
+          warehouse: {
+            select: { id: true, name: true, code: true },
+          },
+          payrollProfile: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
+        },
+      });
 
       const saved = await db.payrollEntry.upsert({
         where: {
@@ -295,6 +391,21 @@ export async function POST(request: NextRequest) {
             },
           },
         },
+      });
+
+      await logActivity({
+        action: existingEntry ? "update_payroll_entry" : "create_payroll_entry",
+        entity: "payroll",
+        entityId: saved.id,
+        access: auth.access,
+        request,
+        metadata: {
+          message: existingEntry
+            ? `Payroll entry updated for ${saved.payrollProfile?.user?.name || saved.payrollProfile?.user?.email || saved.userId}`
+            : `Payroll entry created for ${saved.payrollProfile?.user?.name || saved.payrollProfile?.user?.email || saved.userId}`,
+        },
+        before: existingEntry ? toPayrollEntryLogSnapshot(existingEntry) : null,
+        after: toPayrollEntryLogSnapshot(saved),
       });
 
       return NextResponse.json(saved, { status: 201 });

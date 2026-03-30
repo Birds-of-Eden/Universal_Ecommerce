@@ -48,7 +48,11 @@ export async function GET(request: NextRequest) {
     }
 
     const visibleEntities = fullAccess ? [] : getVisibleActivityEntities(access);
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = {
+      NOT: {
+        entity: "activity_log",
+      },
+    };
 
     if (requestedEntity) {
       where.entity = requestedEntity.toLowerCase();
@@ -121,19 +125,6 @@ export async function GET(request: NextRequest) {
         orderBy: { entity: "asc" },
       }),
     ]);
-
-    await logActivity({
-      action: "view",
-      entity: "activity_log",
-      access,
-      request,
-      metadata: {
-        page,
-        pageSize,
-        search: search || null,
-        entity: requestedEntity || null,
-      },
-    });
 
     return NextResponse.json({
       logs: rows.map((row) => ({

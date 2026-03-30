@@ -8,6 +8,7 @@ import { getAccessContext } from "@/lib/rbac";
 import { calculateShippingQuote } from "@/lib/shipping";
 import { calculateTaxForItems } from "@/lib/tax";
 import { resolveWarehouseScope } from "@/lib/warehouse-scope";
+import { logActivity } from "@/lib/activity-log";
 
 // GET /api/orders
 // - admin: all orders (with pagination & optional status filter)
@@ -412,6 +413,34 @@ export async function POST(request: NextRequest) {
       }
 
       return o;
+    });
+
+    await logActivity({
+      action: "place_order",
+      entity: "order",
+      entityId: created.id,
+      userId: userId ?? null,
+      request,
+      metadata: {
+        message: `Order #${created.id} placed by ${created.name}`,
+      },
+      after: {
+        orderId: created.id,
+        customerName: created.name,
+        customerEmail: created.email ?? null,
+        paymentMethod: created.payment_method,
+        status: created.status,
+        paymentStatus: created.paymentStatus,
+        grandTotal: Number(created.grand_total),
+        itemCount: created.orderItems.length,
+        items: created.orderItems.map((item: any) => ({
+          productId: item.productId,
+          productName: item.product?.name ?? null,
+          variantId: item.variantId ?? null,
+          quantity: item.quantity,
+          price: Number(item.price),
+        })),
+      },
     });
 
     return NextResponse.json(created, { status: 201 });

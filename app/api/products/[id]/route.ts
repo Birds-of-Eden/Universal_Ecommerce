@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variants";
 import { ensureVariantCodes } from "@/lib/product-codes";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
+import { getAccessContext } from "@/lib/rbac";
+import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import type { Prisma, ProductType } from "@/generated/prisma";
 import slugify from "slugify";
@@ -35,6 +39,48 @@ const productInclude = {
     },
   },
 } as const;
+
+function toProductLogSnapshot(product: any) {
+  return {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    sku: product.sku ?? null,
+    type: product.type,
+    category: product.category?.name ?? null,
+    brand: product.brand?.name ?? null,
+    writer: product.writer?.name ?? null,
+    publisher: product.publisher?.name ?? null,
+    VatClassId: product.VatClassId ?? null,
+    basePrice: Number(product.basePrice),
+    originalPrice: product.originalPrice === null ? null : Number(product.originalPrice),
+    currency: product.currency,
+    available: product.available,
+    featured: product.featured,
+    lowStockThreshold: product.lowStockThreshold,
+    deleted: product.deleted ?? false,
+    variantOptions: Array.isArray(product.variantOptions)
+      ? product.variantOptions.map((option: any) => ({
+          name: option.name,
+          values: Array.isArray(option.values)
+            ? option.values.map((value: any) => value.value)
+            : [],
+        }))
+      : [],
+    variants: Array.isArray(product.variants)
+      ? product.variants.map((variant: any) => ({
+          id: variant.id,
+          sku: variant.sku,
+          price: Number(variant.price),
+          stock: Number(variant.stock),
+          lowStockThreshold: variant.lowStockThreshold,
+          active: variant.active,
+          isDefault: variant.isDefault,
+          options: variant.options ?? {},
+        }))
+      : [],
+  };
+}
 
 type VariantPayload = {
   id: number | null;
@@ -99,6 +145,17 @@ export async function PUT(
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("products.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id: idParam } = await ctx.params;
     const id = Number(idParam);
 
@@ -113,6 +170,7 @@ export async function PUT(
 
     const existing = await prisma.product.findFirst({
       where: { id, deleted: false },
+      include: productInclude,
     });
 
     if (!existing) {
@@ -584,6 +642,21 @@ export async function PUT(
       include: productInclude,
     });
 
+    if (withRelations) {
+      await logActivity({
+        action: "update_product",
+        entity: "product",
+        entityId: withRelations.id,
+        access,
+        request: req,
+        metadata: {
+          message: `Product updated: ${withRelations.name}`,
+        },
+        before: toProductLogSnapshot(existing),
+        after: toProductLogSnapshot(withRelations),
+      });
+    }
+
     return NextResponse.json(withRelations);
   } catch (err) {
     console.error(err);
@@ -611,6 +684,17 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("products.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id: idParam } = await ctx.params;
     const id = Number(idParam);
 
@@ -623,6 +707,7 @@ export async function DELETE(
 
     const existing = await prisma.product.findFirst({
       where: { id, deleted: false },
+      include: productInclude,
     });
 
     if (!existing) {
@@ -632,9 +717,23 @@ export async function DELETE(
       );
     }
 
-    await prisma.product.update({
+    const deletedProduct = await prisma.product.update({
       where: { id },
       data: { deleted: true },
+      include: productInclude,
+    });
+
+    await logActivity({
+      action: "delete_product",
+      entity: "product",
+      entityId: deletedProduct.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Product deleted: ${deletedProduct.name}`,
+      },
+      before: toProductLogSnapshot(existing),
+      after: toProductLogSnapshot(deletedProduct),
     });
 
     return NextResponse.json({

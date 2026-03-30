@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { NextRequest } from "next/server";
+import { Prisma } from "@/generated/prisma";
 import type { PermissionKey } from "@/lib/rbac-config";
 import type { AccessContext } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
@@ -242,7 +243,7 @@ export async function logActivity({
       after: normalizedAfter,
       changes,
       permissionKeys: resolvedPermissionKeys,
-    };
+    } as Prisma.InputJsonValue;
 
     await prisma.activityLog.create({
       data: {

@@ -1,5 +1,23 @@
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
+import { getAccessContext } from "@/lib/rbac";
 import { NextResponse } from "next/server";
+
+function toVatClassLogSnapshot(vatClass: {
+  id: number;
+  name: string;
+  code: string;
+  description: string | null;
+}) {
+  return {
+    id: vatClass.id,
+    name: vatClass.name,
+    code: vatClass.code,
+    description: vatClass.description,
+  };
+}
 
 /* =========================
    GET VAT CLASSES
@@ -30,6 +48,17 @@ export async function GET() {
 ========================= */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.hasAny(["settings.vat.manage", "settings.manage"])) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     if (!body.name || !body.code) {
@@ -59,6 +88,18 @@ export async function POST(req: Request) {
         code,
         description: body.description || null,
       },
+    });
+
+    await logActivity({
+      action: "create_vat_class",
+      entity: "vat_class",
+      entityId: vatClass.id,
+      access,
+      request: req,
+      metadata: {
+        message: `VAT class created: ${vatClass.name} (${vatClass.code})`,
+      },
+      after: toVatClassLogSnapshot(vatClass),
     });
 
     return NextResponse.json(vatClass);

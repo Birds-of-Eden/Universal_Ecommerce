@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { Prisma, type ChatPriority, type ChatStatus } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
 import { getChatActor, normalizeGuestEmail } from "@/lib/chat";
 import { getAccessContext } from "@/lib/rbac";
@@ -24,6 +25,11 @@ function composeMessage(
   if (orderReference) tags.push(`Order: ${orderReference}`);
   const prefix = tags.length > 0 ? `[${tags.join(" | ")}] ` : "";
   return `${prefix}${message}`.trim();
+}
+
+function formatChatActorName(actor: { userId: string | null; senderRole: string }, body: any) {
+  if (actor.userId) return actor.userId;
+  return normalizeGuestEmail(body.guestEmail) || toCleanText(body.guestName, 120) || "guest";
 }
 
 export async function GET(request: NextRequest) {
@@ -167,6 +173,29 @@ export async function POST(request: NextRequest) {
           guestName: actor.userId ? null : guestName,
           status: "OPEN",
           priority: "NORMAL",
+        },
+      });
+
+      await logActivity({
+        action: "create_chat_conversation",
+        entity: "chat",
+        entityId: conversation.id,
+        access,
+        request,
+        metadata: {
+          message: actor.isAdmin
+            ? `Chat conversation opened by admin ${formatChatActorName(actor, body)}`
+            : `Chat conversation started by ${formatChatActorName(actor, body)}`,
+          status: conversation.status,
+          priority: conversation.priority,
+        },
+        after: {
+          id: conversation.id,
+          userId: conversation.userId,
+          guestEmail: conversation.guestEmail,
+          guestName: conversation.guestName,
+          status: conversation.status,
+          priority: conversation.priority,
         },
       });
     }

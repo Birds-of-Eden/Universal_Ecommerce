@@ -1,11 +1,28 @@
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 import { refreshVariantStock } from "@/lib/inventory";
 import { getAccessContext } from "@/lib/rbac";
 import { captureVariantInventoryDailySnapshots } from "@/lib/report-history";
 import { resolveWarehouseScope } from "@/lib/warehouse-scope";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
+
+function toStockLevelLogSnapshot(stockLevel: {
+  id: number;
+  warehouseId: number;
+  productVariantId: number;
+  quantity: unknown;
+  reserved: unknown;
+}) {
+  return {
+    id: stockLevel.id,
+    warehouseId: stockLevel.warehouseId,
+    productVariantId: stockLevel.productVariantId,
+    quantity: Number(stockLevel.quantity),
+    reserved: Number(stockLevel.reserved),
+  };
+}
 
 /* =========================
    GET STOCK LEVELS
@@ -181,6 +198,23 @@ export async function POST(req: Request) {
         },
       });
     }
+
+    await logActivity({
+      action: existing ? "update_stock_level" : "create_stock_level",
+      entity: "stock_level",
+      entityId: updated.id,
+      access,
+      request: req,
+      metadata: {
+        message: existing
+          ? `Stock updated for variant #${productVariantId} in warehouse ${updated.warehouse.code}`
+          : `Stock created for variant #${productVariantId} in warehouse ${updated.warehouse.code}`,
+        warehouseCode: updated.warehouse.code,
+        stockChange: change,
+      },
+      before: existing ? toStockLevelLogSnapshot(existing) : null,
+      after: toStockLevelLogSnapshot(updated),
+    });
 
     return NextResponse.json(updated);
   } catch (error) {

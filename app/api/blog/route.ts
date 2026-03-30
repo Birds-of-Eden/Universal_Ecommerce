@@ -4,6 +4,25 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { generateSlug } from '@/lib/utils';
 import { getAccessContext } from '@/lib/rbac';
+import { logActivity } from '@/lib/activity-log';
+
+function toBlogLogSnapshot(blog: {
+  title: string;
+  slug: string;
+  summary?: string | null;
+  author: string;
+  image?: string | null;
+  ads?: string | null;
+}) {
+  return {
+    title: blog.title,
+    slug: blog.slug,
+    summary: blog.summary ?? null,
+    author: blog.author,
+    image: blog.image ?? null,
+    adsConfigured: Boolean(blog.ads),
+  };
+}
 
 // GET all blogs - Public access
 export async function GET(request: NextRequest) {
@@ -132,6 +151,18 @@ export async function POST(request: NextRequest) {
         image: image || '',
         ads: ads ?? null,
       }
+    });
+
+    await logActivity({
+      action: "create",
+      entity: "blog",
+      entityId: blog.id,
+      access,
+      request,
+      metadata: {
+        message: `Blog created: ${blog.title}`,
+      },
+      after: toBlogLogSnapshot(blog),
     });
 
     return NextResponse.json(blog, { status: 201 });

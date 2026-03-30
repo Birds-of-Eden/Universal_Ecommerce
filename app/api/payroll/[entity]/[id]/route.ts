@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logActivity } from "@/lib/activity-log";
 import {
   ensurePayrollAccess,
   toOptionalDate,
@@ -32,6 +33,55 @@ function computeNetAmount(
   return toRequiredDecimal(basic + overtime + bonus - deduction, "netAmount");
 }
 
+function toPayrollProfileLogSnapshot(profile: any) {
+  return {
+    id: profile.id,
+    userId: profile.userId,
+    userName: profile.user?.name ?? null,
+    userEmail: profile.user?.email ?? null,
+    warehouseId: profile.warehouseId ?? null,
+    warehouseCode: profile.warehouse?.code ?? null,
+    employeeCode: profile.employeeCode ?? null,
+    paymentType: profile.paymentType,
+    baseSalary: Number(profile.baseSalary),
+    paymentMethod: profile.paymentMethod ?? null,
+    isActive: profile.isActive,
+    notes: profile.notes ?? null,
+  };
+}
+
+function toPayrollPeriodLogSnapshot(period: any) {
+  return {
+    id: period.id,
+    name: period.name,
+    startDate: period.startDate?.toISOString() ?? null,
+    endDate: period.endDate?.toISOString() ?? null,
+    status: period.status,
+    notes: period.notes ?? null,
+  };
+}
+
+function toPayrollEntryLogSnapshot(entry: any) {
+  return {
+    id: entry.id,
+    payrollProfileId: entry.payrollProfileId,
+    payrollPeriodId: entry.payrollPeriodId,
+    userId: entry.userId,
+    userName: entry.payrollProfile?.user?.name ?? null,
+    userEmail: entry.payrollProfile?.user?.email ?? null,
+    warehouseId: entry.warehouseId ?? null,
+    warehouseCode: entry.warehouse?.code ?? null,
+    basicAmount: Number(entry.basicAmount),
+    overtimeAmount: Number(entry.overtimeAmount),
+    bonusAmount: Number(entry.bonusAmount),
+    deductionAmount: Number(entry.deductionAmount),
+    netAmount: Number(entry.netAmount),
+    paymentStatus: entry.paymentStatus,
+    paidAt: entry.paidAt?.toISOString() ?? null,
+    note: entry.note ?? null,
+  };
+}
+
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const auth = await ensurePayrollAccess();
@@ -48,6 +98,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
 
     if (entity === "profile") {
+      const existing = await db.payrollProfile.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true },
+          },
+          warehouse: {
+            select: { id: true, name: true, code: true },
+          },
+        },
+      });
+      if (!existing) {
+        return NextResponse.json({ error: "Payroll profile not found" }, { status: 404 });
+      }
+
       const data: any = {};
       if (body.userId !== undefined) data.userId = String(body.userId);
       if (body.warehouseId !== undefined) data.warehouseId = toOptionalInt(body.warehouseId, "warehouseId");
@@ -76,10 +141,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         },
       });
 
+      await logActivity({
+        action: "update_payroll_profile",
+        entity: "payroll",
+        entityId: updated.id,
+        access: auth.access,
+        request,
+        metadata: {
+          message: `Payroll profile updated for ${updated.user?.name || updated.user?.email || updated.userId}`,
+        },
+        before: toPayrollProfileLogSnapshot(existing),
+        after: toPayrollProfileLogSnapshot(updated),
+      });
+
       return NextResponse.json(updated);
     }
 
     if (entity === "period") {
+      const existing = await db.payrollPeriod.findUnique({ where: { id } });
+      if (!existing) {
+        return NextResponse.json({ error: "Payroll period not found" }, { status: 404 });
+      }
+
       const data: any = {};
       if (body.name !== undefined) data.name = String(body.name || "").trim();
       if (body.startDate !== undefined) data.startDate = toOptionalDate(body.startDate, "startDate");
@@ -99,17 +182,37 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         data,
       });
 
+      await logActivity({
+        action: "update_payroll_period",
+        entity: "payroll",
+        entityId: updated.id,
+        access: auth.access,
+        request,
+        metadata: {
+          message: `Payroll period updated: ${updated.name}`,
+        },
+        before: toPayrollPeriodLogSnapshot(existing),
+        after: toPayrollPeriodLogSnapshot(updated),
+      });
+
       return NextResponse.json(updated);
     }
 
     if (entity === "entry") {
       const current = await db.payrollEntry.findUnique({
         where: { id },
-        select: {
-          basicAmount: true,
-          overtimeAmount: true,
-          bonusAmount: true,
-          deductionAmount: true,
+        include: {
+          payrollPeriod: true,
+          warehouse: {
+            select: { id: true, name: true, code: true },
+          },
+          payrollProfile: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
         },
       });
       if (!current) {
@@ -167,6 +270,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             },
           },
         },
+      });
+
+      await logActivity({
+        action: "update_payroll_entry",
+        entity: "payroll",
+        entityId: updated.id,
+        access: auth.access,
+        request,
+        metadata: {
+          message: `Payroll entry updated for ${updated.payrollProfile?.user?.name || updated.payrollProfile?.user?.email || updated.userId}`,
+        },
+        before: toPayrollEntryLogSnapshot(current),
+        after: toPayrollEntryLogSnapshot(updated),
       });
 
       return NextResponse.json(updated);

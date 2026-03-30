@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
 import nodemailer from "nodemailer";
+import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
+import { getAccessContext } from "@/lib/rbac";
 
 // ----------- SMTP CONFIG -------------
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
@@ -35,6 +39,17 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("newsletter.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // ✅ AWAIT params
     const { id } = await params;
 
@@ -129,9 +144,31 @@ export async function POST(
     }
 
     // 6) Mark newsletter as sent
-    await prisma.newsletter.update({
+    const sentNewsletter = await prisma.newsletter.update({
       where: { id },
       data: { status: "sent", sentAt: new Date() },
+    });
+
+    await logActivity({
+      action: "send_newsletter",
+      entity: "newsletter",
+      entityId: sentNewsletter.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Newsletter sent: ${sentNewsletter.title}`,
+        recipients: subscribers.length,
+        delivered: successCount,
+        failed: failureCount,
+      },
+      before: {
+        status: newsletter.status,
+        sentAt: newsletter.sentAt?.toISOString() ?? null,
+      },
+      after: {
+        status: sentNewsletter.status,
+        sentAt: sentNewsletter.sentAt?.toISOString() ?? null,
+      },
     });
 
     // 7) Return result

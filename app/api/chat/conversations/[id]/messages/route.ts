@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import type { ChatStatus } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
 import { canAccessConversation, getChatActor, normalizeGuestEmail } from "@/lib/chat";
 import { getAccessContext } from "@/lib/rbac";
@@ -161,6 +162,27 @@ export async function POST(
       });
 
       return created;
+    });
+
+    await logActivity({
+      action: actor.isAdmin ? "send_chat_reply" : "send_chat_message",
+      entity: "chat",
+      entityId: id,
+      access,
+      request,
+      metadata: {
+        message: actor.isAdmin
+          ? `Admin replied to chat ${id}`
+          : `Customer sent message in chat ${id}`,
+        attachment: Boolean(attachmentUrl),
+      },
+      after: {
+        conversationId: id,
+        messageId: createdMessage.id,
+        senderId: createdMessage.senderId,
+        senderRole: createdMessage.senderRole,
+        attachmentUrl: createdMessage.attachmentUrl,
+      },
     });
 
     return NextResponse.json(createdMessage, { status: 201 });

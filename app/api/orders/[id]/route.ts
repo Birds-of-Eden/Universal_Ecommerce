@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
+import { logActivity } from "@/lib/activity-log";
 
 // GET /api/orders/:id
 export async function GET(
@@ -119,7 +120,14 @@ export async function PATCH(
 
     const existingOrder = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { status: true },
+      select: {
+        id: true,
+        status: true,
+        paymentStatus: true,
+        transactionId: true,
+        name: true,
+        email: true,
+      },
     });
 
     if (!existingOrder) {
@@ -236,6 +244,32 @@ export async function PATCH(
         where: { id: orderId },
         data,
       });
+    });
+
+    await logActivity({
+      action: "update_order",
+      entity: "order",
+      entityId: updated.id,
+      access,
+      request,
+      metadata: {
+        message:
+          status && status !== existingOrder.status
+            ? `Order #${updated.id} status changed from ${existingOrder.status} to ${status}`
+            : paymentStatus && paymentStatus !== existingOrder.paymentStatus
+              ? `Order #${updated.id} payment status changed from ${existingOrder.paymentStatus} to ${paymentStatus}`
+              : `Order #${updated.id} updated`,
+      },
+      before: {
+        status: existingOrder.status,
+        paymentStatus: existingOrder.paymentStatus,
+        transactionId: existingOrder.transactionId,
+      },
+      after: {
+        status: updated.status,
+        paymentStatus: updated.paymentStatus,
+        transactionId: updated.transactionId,
+      },
     });
 
     return NextResponse.json(updated);

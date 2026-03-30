@@ -1,16 +1,33 @@
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 import { refreshVariantStock } from "@/lib/inventory";
 import { getAccessContext } from "@/lib/rbac";
 import { captureVariantInventoryDailySnapshots } from "@/lib/report-history";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 
+function toStockLevelLogSnapshot(stockLevel: {
+  id: number;
+  warehouseId: number;
+  productVariantId: number;
+  quantity: unknown;
+  reserved: unknown;
+}) {
+  return {
+    id: stockLevel.id,
+    warehouseId: stockLevel.warehouseId,
+    productVariantId: stockLevel.productVariantId,
+    quantity: Number(stockLevel.quantity),
+    reserved: Number(stockLevel.reserved),
+  };
+}
+
 /* =========================
    DELETE STOCK LEVEL
 ========================= */
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -69,6 +86,20 @@ export async function DELETE(
         },
       });
     }
+
+    await logActivity({
+      action: "delete_stock_level",
+      entity: "stock_level",
+      entityId: existing.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Stock level deleted for variant #${existing.productVariantId} in warehouse ${existing.warehouse.code}`,
+        warehouseCode: existing.warehouse.code,
+        stockChange: change,
+      },
+      before: toStockLevelLogSnapshot(existing),
+    });
 
     return NextResponse.json({ message: "Deleted successfully" });
   } catch (error) {

@@ -4,6 +4,25 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateSlug } from "@/lib/utils";
 import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
+
+function toBlogLogSnapshot(blog: {
+  title: string;
+  slug: string;
+  summary?: string | null;
+  author: string;
+  image?: string | null;
+  ads?: string | null;
+}) {
+  return {
+    title: blog.title,
+    slug: blog.slug,
+    summary: blog.summary ?? null,
+    author: blog.author,
+    image: blog.image ?? null,
+    adsConfigured: Boolean(blog.ads),
+  };
+}
 
 // GET single blog by ID - Public access (for backward compatibility)
 export async function GET(
@@ -137,6 +156,19 @@ export async function PUT(
       data: updateData,
     });
 
+    await logActivity({
+      action: "update",
+      entity: "blog",
+      entityId: updated.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Blog updated: ${updated.title}`,
+      },
+      before: toBlogLogSnapshot(existingBlog),
+      after: toBlogLogSnapshot(updated),
+    });
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Error updating blog:", error);
@@ -146,7 +178,7 @@ export async function PUT(
 
 // DELETE blog - Admin only
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -175,6 +207,19 @@ export async function DELETE(
     }
 
     await prisma.blog.delete({ where: { id: blogId } });
+
+    await logActivity({
+      action: "delete",
+      entity: "blog",
+      entityId: blogId,
+      access,
+      request: req,
+      metadata: {
+        message: `Blog deleted: ${existing.title}`,
+      },
+      before: toBlogLogSnapshot(existing),
+    });
+
     return NextResponse.json({ message: "Blog deleted successfully" });
   } catch (error) {
     console.error("Error deleting blog:", error);

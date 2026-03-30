@@ -1,5 +1,31 @@
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
+import { getAccessContext } from "@/lib/rbac";
 import { NextResponse } from "next/server";
+
+function toVatRateLogSnapshot(rate: {
+  id: number;
+  VatClassId: number;
+  countryCode: string;
+  regionCode: string | null;
+  rate: unknown;
+  inclusive: boolean;
+  startDate: Date | null;
+  endDate: Date | null;
+}) {
+  return {
+    id: rate.id,
+    VatClassId: rate.VatClassId,
+    countryCode: rate.countryCode,
+    regionCode: rate.regionCode,
+    rate: Number(rate.rate),
+    inclusive: rate.inclusive,
+    startDate: rate.startDate?.toISOString() ?? null,
+    endDate: rate.endDate?.toISOString() ?? null,
+  };
+}
 
 /* =========================
    GET VAT RATES
@@ -31,6 +57,17 @@ export async function GET(req: Request) {
 ========================= */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.hasAny(["settings.vat.manage", "settings.manage"])) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const VatClassId = Number(body.VatClassId);
@@ -77,6 +114,18 @@ export async function POST(req: Request) {
         startDate,
         endDate,
       },
+    });
+
+    await logActivity({
+      action: "create_vat_rate",
+      entity: "vat_rate",
+      entityId: created.id,
+      access,
+      request: req,
+      metadata: {
+        message: `VAT rate created for ${created.countryCode}${created.regionCode ? `-${created.regionCode}` : ""}`,
+      },
+      after: toVatRateLogSnapshot(created),
     });
 
     return NextResponse.json(created, { status: 201 });

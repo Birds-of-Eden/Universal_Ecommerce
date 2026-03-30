@@ -1,8 +1,24 @@
 // api/brands/route.ts
 
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 import slugify from "slugify";
+
+function toBrandLogSnapshot(brand: {
+  name: string;
+  slug: string;
+  logo?: string | null;
+}) {
+  return {
+    name: brand.name,
+    slug: brand.slug,
+    logo: brand.logo ?? null,
+  };
+}
 
 /* =========================
    GET ALL BRANDS
@@ -47,6 +63,17 @@ export async function GET() {
 ========================= */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.has("products.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { name, logo } = await req.json();
 
     if (!name)
@@ -73,6 +100,18 @@ export async function POST(req: Request) {
         slug,
         logo: logo || null,
       },
+    });
+
+    await logActivity({
+      action: "create",
+      entity: "brand",
+      entityId: brand.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Brand created: ${brand.name}`,
+      },
+      after: toBrandLogSnapshot(brand),
     });
 
     return NextResponse.json(brand, { status: 201 });

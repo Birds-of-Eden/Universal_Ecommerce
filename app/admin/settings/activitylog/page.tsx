@@ -22,6 +22,12 @@ type ActivityLogRow = {
   } | null;
 };
 
+type ActivityChange = {
+  field: string;
+  before: unknown;
+  after: unknown;
+};
+
 type ActivityLogResponse = {
   logs: ActivityLogRow[];
   total: number;
@@ -56,12 +62,49 @@ function formatMetadata(metadata: Record<string, unknown> | null | undefined): s
   if ("permissionKeys" in copy) {
     delete copy.permissionKeys;
   }
+  if ("before" in copy) {
+    delete copy.before;
+  }
+  if ("after" in copy) {
+    delete copy.after;
+  }
+  if ("changes" in copy) {
+    delete copy.changes;
+  }
+  if (typeof copy.message === "string" && copy.message.trim()) {
+    return copy.message;
+  }
   const entries = Object.entries(copy);
   if (entries.length === 0) return "-";
   return entries
     .slice(0, 4)
     .map(([key, value]) => `${key}: ${String(value)}`)
     .join(" | ");
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function getChanges(metadata: Record<string, unknown> | null | undefined): ActivityChange[] {
+  if (!metadata || !Array.isArray(metadata.changes)) {
+    return [];
+  }
+
+  return metadata.changes.filter((item): item is ActivityChange => {
+    return (
+      typeof item === "object" &&
+      item !== null &&
+      "field" in item &&
+      typeof (item as { field?: unknown }).field === "string"
+    );
+  });
 }
 
 export default function ActivityLogPage() {
@@ -235,7 +278,31 @@ export default function ActivityLogPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatMetadata(log.metadata)}
+                      <div className="space-y-2">
+                        <div>{formatMetadata(log.metadata)}</div>
+                        {getChanges(log.metadata).length > 0 ? (
+                          <div className="rounded-md border border-border bg-muted/30 p-2">
+                            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-foreground">
+                              Changed Fields
+                            </div>
+                            <div className="space-y-1">
+                              {getChanges(log.metadata).map((change) => (
+                                <div key={change.field}>
+                                  <span className="font-medium text-foreground">
+                                    {change.field}
+                                  </span>
+                                  {" : "}
+                                  <span>{formatValue(change.before)}</span>
+                                  {" -> "}
+                                  <span className="text-foreground">
+                                    {formatValue(change.after)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))

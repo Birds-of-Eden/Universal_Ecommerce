@@ -109,7 +109,18 @@ export async function PUT(
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true },
+      select: {
+        id: true,
+        email: true,
+        userRoles: {
+          where: { scopeType: "GLOBAL", role: { deletedAt: null } },
+          include: {
+            role: {
+              select: { id: true, name: true, label: true },
+            },
+          },
+        },
+      },
     });
     if (!user) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
@@ -219,9 +230,17 @@ export async function PUT(
       access,
       request,
       metadata: {
+        message: `Updated global roles for ${user.email}`,
+      },
+      before: {
+        email: user.email,
+        roleIds: user.userRoles.map((item) => item.role.id).sort(),
+        roleNames: user.userRoles.map((item) => item.role.name).sort(),
+      },
+      after: {
         email: user.email,
         roleIds,
-        assignedRoleNames: assignedRoles.map((item) => item.role.name),
+        roleNames: assignedRoles.map((item) => item.role.name).sort(),
       },
     });
 

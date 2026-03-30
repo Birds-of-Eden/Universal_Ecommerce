@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { getAccessContext } from '@/lib/rbac';
+import { logActivity } from '@/lib/activity-log';
 
 // Validation schemas
 const createUserSchema = z.object({
@@ -296,6 +297,25 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('User creation complete');
+
+    await logActivity({
+      action: 'create_user',
+      entity: 'user',
+      entityId: user.id,
+      access,
+      request,
+      metadata: {
+        message: `User created: ${user.email}`,
+      },
+      after: {
+        email: user.email,
+        name: user.name ?? null,
+        role: user.role,
+        phone: user.phone ?? null,
+        addresses: normalizedAddresses,
+      },
+    });
+
     return NextResponse.json({
       message: 'User created successfully',
       user

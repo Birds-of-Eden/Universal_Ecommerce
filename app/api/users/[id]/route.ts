@@ -3,7 +3,33 @@ import { db } from '@/lib/db';
 import { z } from 'zod';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { logActivity } from '@/lib/activity-log';
 import { getAccessContext } from '@/lib/rbac';
+
+function toUserLogSnapshot(user: {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  phone: string | null;
+  banned: boolean | null;
+  banReason: string | null;
+  banExpires: number | null;
+  note: string | null;
+}, addresses: string[] = []) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    phone: user.phone,
+    banned: user.banned,
+    banReason: user.banReason,
+    banExpires: user.banExpires,
+    note: user.note,
+    addresses,
+  };
+}
 
 // Validation schema for user updates
 const updateUserSchema = z.object({
@@ -154,6 +180,28 @@ export async function PATCH(
       };
     }
     const { id } = await params;
+    const existingUser = await db.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        phone: true,
+        banned: true,
+        banReason: true,
+        banExpires: true,
+        note: true,
+      },
+    });
+    if (!existingUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const existingAddresses = await db.userAddress.findMany({
+      where: { userId: id },
+      orderBy: { id: 'asc' },
+      select: { details: true },
+    });
 
     // Handle addresses separately if provided
     if (updateData.addresses && Array.isArray(updateData.addresses)) {
@@ -185,6 +233,11 @@ export async function PATCH(
       const { addresses, ...otherUpdateData } = updateData;
       updateData = otherUpdateData;
     }
+    const nextAddresses = Array.isArray(body.addresses)
+      ? body.addresses
+          .filter((addr: string) => addr && addr.trim().length > 0)
+          .map((addr: string) => addr.trim())
+      : existingAddresses.map((item: { details: string }) => item.details);
 
     const roleToAssign = typeof updateData.role === "string" ? updateData.role : null;
 
@@ -263,6 +316,22 @@ export async function PATCH(
         }
       }
     }
+
+    await logActivity({
+      action: 'update_user',
+      entity: 'user',
+      entityId: user.id,
+      access,
+      request,
+      metadata: {
+        message: `User updated: ${user.email}`,
+      },
+      before: toUserLogSnapshot(
+        existingUser,
+        existingAddresses.map((item: { details: string }) => item.details),
+      ),
+      after: toUserLogSnapshot(user, nextAddresses),
+    });
 
     return NextResponse.json(user);
   } catch (error: any) {
@@ -348,8 +417,29 @@ export async function DELETE(
       );
     }
 
+    const userAddresses = await db.userAddress.findMany({
+      where: { userId: id },
+      orderBy: { id: 'asc' },
+      select: { details: true },
+    });
+
     await db.user.delete({
       where: { id },
+    });
+
+    await logActivity({
+      action: 'delete_user',
+      entity: 'user',
+      entityId: userWithOrders.id,
+      access,
+      request,
+      metadata: {
+        message: `User deleted: ${userWithOrders.email}`,
+      },
+      before: toUserLogSnapshot(
+        userWithOrders,
+        userAddresses.map((item: { details: string }) => item.details),
+      ),
     });
 
     return NextResponse.json({ 

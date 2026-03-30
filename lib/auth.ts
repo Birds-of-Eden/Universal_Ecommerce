@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db as never),
@@ -27,6 +28,21 @@ export const authOptions: NextAuthOptions = {
         const ok = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!ok) return null;
 
+        await logActivity({
+          action: "login",
+          entity: "profile",
+          entityId: user.id,
+          userId: user.id,
+          metadata: {
+            message: `Login successful for ${user.email}`,
+          },
+          after: {
+            email: user.email,
+            name: user.name ?? null,
+            role: user.role ?? "user",
+          },
+        });
+
         return {
           id: user.id,
           email: user.email ?? undefined,
@@ -39,6 +55,27 @@ export const authOptions: NextAuthOptions = {
 
   pages: {
     signIn: "/signin",
+  },
+
+  events: {
+    async signOut(message) {
+      const tokenUserId =
+        typeof message.token?.id === "string" ? message.token.id : null;
+      const tokenEmail =
+        typeof message.token?.email === "string" ? message.token.email : null;
+
+      await logActivity({
+        action: "logout",
+        entity: "profile",
+        entityId: tokenUserId,
+        userId: tokenUserId,
+        metadata: {
+          message: tokenEmail
+            ? `Logout completed for ${tokenEmail}`
+            : "Logout completed",
+        },
+      });
+    },
   },
 
   callbacks: {
