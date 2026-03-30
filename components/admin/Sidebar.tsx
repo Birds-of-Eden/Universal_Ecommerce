@@ -59,6 +59,7 @@ const menuItems: MenuItem[] = [
     name: "Analytics",
     href: "/admin/analytics",
     icon: BarChart3,
+    requiredPermissions: ["dashboard.read", "admin.panel.access"],
   },
   {
     name: "Reports",
