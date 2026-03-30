@@ -1133,6 +1133,7 @@ model ActivityLog {
   ipHash    String?
   userAgent String?
   createdAt DateTime @default(now())
+  updatetAt DateTime
   user      User?    @relation(fields: [userId], references: [id])
 
   @@index([entity, entityId])
