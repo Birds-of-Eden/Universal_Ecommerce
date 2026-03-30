@@ -98,6 +98,7 @@ const menuItems: MenuItem[] = [
     icon: Forklift,
     requiredPermissions: ["logistics.manage"],
   },
+  
   {
     name: "Management",
     icon: ClipboardList,
@@ -156,6 +157,12 @@ const menuItems: MenuItem[] = [
         href: "/admin/payroll",
         requiredPermissions: ["payroll.manage"],
       },
+      {
+        name: "Deliveryman Onboard",
+        href: "/admin/delivery-men",
+        requiredPermissions: ["delivery-men.manage"],
+      },
+      
       {
         name: "Warehouses",
         href: "/admin/settings/warehouses",

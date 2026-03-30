@@ -123,6 +123,10 @@ export const SYSTEM_PERMISSIONS = [
     key: "payroll.manage",
     description: "Manage payroll and employee compensation.",
   },
+  {
+    key: "delivery-men.manage",
+    description: "Onboard and manage delivery personnel.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];
