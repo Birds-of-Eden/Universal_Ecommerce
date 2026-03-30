@@ -209,6 +209,11 @@ const apiPermissionRules: PermissionRule[] = [
     permissions: ["settings.courier.manage", "settings.manage"],
   },
   {
+    prefix: "/api/delivery-men",
+    methods: ["POST", "PUT", "PATCH", "DELETE"],
+    permissions: ["delivery-men.manage", "logistics.manage"],
+  },
+  {
     prefix: "/api/newsletter/subscribe",
     permissions: [],
   },

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 
 type ReferencePayload = {
   name: string;
@@ -30,8 +34,62 @@ function buildFallbackEmail(phone: string) {
   return `deliveryman.${safePhone}.${Date.now()}@local.delivery`;
 }
 
+function toDeliveryManLogSnapshot(input: {
+  userId: string;
+  fullName: string;
+  email: string | null;
+  phone: string;
+  warehouseId: number;
+  warehouseName?: string | null;
+  employeeCode?: string | null;
+  identityType: string;
+  identityNumber: string;
+  joiningDate: Date | string;
+  status: string;
+  applicationStatus: string;
+  referenceCount: number;
+  documentCount: number;
+}) {
+  return {
+    userId: input.userId,
+    fullName: input.fullName,
+    email: input.email,
+    phone: input.phone,
+    warehouseId: input.warehouseId,
+    warehouseName: input.warehouseName ?? null,
+    employeeCode: input.employeeCode ?? null,
+    identityType: input.identityType,
+    identityNumber: input.identityNumber,
+    joiningDate:
+      input.joiningDate instanceof Date
+        ? input.joiningDate.toISOString()
+        : String(input.joiningDate),
+    status: input.status,
+    applicationStatus: input.applicationStatus,
+    referenceCount: input.referenceCount,
+    documentCount: input.documentCount,
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+    if (!access.hasAny(["delivery-men.manage", "logistics.manage"])) {
+      return NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 },
+      );
+    }
+
     const body = await req.json();
 
     const {
@@ -138,6 +196,16 @@ export async function POST(req: NextRequest) {
     }
 
     const finalEmail = sanitizeEmail(email) || buildFallbackEmail(phone);
+    const warehouse = await prisma.warehouse.findUnique({
+      where: { id: Number(warehouseId) },
+      select: { id: true, name: true, code: true },
+    });
+    if (!warehouse) {
+      return NextResponse.json(
+        { success: false, message: "Warehouse not found" },
+        { status: 400 }
+      );
+    }
 
     const existingByPhone = await prisma.user.findFirst({
       where: { phone },
@@ -267,6 +335,35 @@ export async function POST(req: NextRequest) {
         profile,
         references: createdReferences,
       };
+    });
+
+    await logActivity({
+      action: "create_delivery_man",
+      entity: "delivery_man",
+      entityId: result.profile.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Delivery man enlistment created: ${result.profile.fullName} (${result.profile.phone})`,
+      },
+      after: toDeliveryManLogSnapshot({
+        userId: result.user.id,
+        fullName: result.profile.fullName,
+        email: result.profile.email,
+        phone: result.profile.phone,
+        warehouseId: result.profile.warehouseId,
+        warehouseName: warehouse.code
+          ? `${warehouse.name} (${warehouse.code})`
+          : warehouse.name,
+        employeeCode: result.profile.employeeCode,
+        identityType: result.profile.identityType,
+        identityNumber: result.profile.identityNumber,
+        joiningDate: result.profile.joiningDate,
+        status: result.profile.status,
+        applicationStatus: result.profile.applicationStatus,
+        referenceCount: result.references.length,
+        documentCount: Array.isArray(documents) ? documents.length : 0,
+      }),
     });
 
     return NextResponse.json({

@@ -44,6 +44,10 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     permissions: ["logistics.manage"],
   },
   {
+    match: ["delivery_man", "deliveryman", "delivery_men"],
+    permissions: ["delivery-men.manage", "logistics.manage"],
+  },
+  {
     match: ["blog"],
     permissions: ["blogs.manage"],
   },
