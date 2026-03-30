@@ -34,41 +34,97 @@ function buildFallbackEmail(phone: string) {
   return `deliveryman.${safePhone}.${Date.now()}@local.delivery`;
 }
 
-function toDeliveryManLogSnapshot(input: {
-  userId: string;
-  fullName: string;
-  email: string | null;
-  phone: string;
-  warehouseId: number;
-  warehouseName?: string | null;
-  employeeCode?: string | null;
-  identityType: string;
-  identityNumber: string;
-  joiningDate: Date | string;
-  status: string;
-  applicationStatus: string;
-  referenceCount: number;
-  documentCount: number;
-}) {
-  return {
-    userId: input.userId,
-    fullName: input.fullName,
-    email: input.email,
-    phone: input.phone,
-    warehouseId: input.warehouseId,
-    warehouseName: input.warehouseName ?? null,
-    employeeCode: input.employeeCode ?? null,
-    identityType: input.identityType,
-    identityNumber: input.identityNumber,
-    joiningDate:
-      input.joiningDate instanceof Date
-        ? input.joiningDate.toISOString()
-        : String(input.joiningDate),
-    status: input.status,
-    applicationStatus: input.applicationStatus,
-    referenceCount: input.referenceCount,
-    documentCount: input.documentCount,
-  };
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const search = searchParams.get('search') || '';
+    const status = searchParams.get('status');
+    const warehouseId = searchParams.get('warehouseId');
+
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { employeeCode: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (warehouseId) {
+      where.warehouseId = parseInt(warehouseId);
+    }
+
+    const [deliveryMen, total] = await Promise.all([
+      prisma.deliveryManProfile.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              role: true,
+              createdAt: true,
+            },
+          },
+          warehouse: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          _count: {
+            select: {
+              references: true,
+              documents: true,
+            },
+          },
+        },
+        orderBy: [
+          { createdAt: 'desc' },
+          { fullName: 'asc' },
+        ],
+        skip,
+        take: limit,
+      }),
+      prisma.deliveryManProfile.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        deliveryMen,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("DELIVERY_MEN_FETCH_ERROR:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: error instanceof Error ? error.message : "Internal server error",
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
