@@ -158,7 +158,7 @@ const menuItems: MenuItem[] = [
         requiredPermissions: ["payroll.manage"],
       },
       {
-        name: "Deliveryman Onboard",
+        name: "Deliveryman",
         href: "/admin/delivery-men",
         requiredPermissions: ["delivery-men.manage"],
       },

@@ -42,6 +42,8 @@ import {
   XCircle,
   Clock,
   X,
+  Users,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -51,6 +53,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import dynamic from 'next/dynamic';
+
+const DeliveryManEnlistmentForm = dynamic(() => import("@/components/delivery-men/DeliveryManEnlistmentForm"), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-64">Loading form...</div>
+});
 
 interface DeliveryMan {
   id: string;
@@ -142,6 +150,7 @@ interface PaginationData {
 export default function DeliveryMenList() {
   const { data: session } = useSession();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"list" | "enlist">("list");
   const [deliveryMen, setDeliveryMen] = useState<DeliveryMan[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationData>({
@@ -408,216 +417,267 @@ export default function DeliveryMenList() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
+      {/* Header */}
       <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Delivery Men</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Delivery Men Management</h1>
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
-            Manage delivery personnel and their profiles
+            Manage delivery personnel and enlist new team members
           </p>
         </div>
-        <Button
-          onClick={() => router.push("/admin/delivery-men/enlist")}
-          className="flex items-center gap-2 w-full lg:w-auto"
-        >
-          <Plus className="h-4 w-4" />
-          Enlist Delivery Man
-        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Delivery Men List
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, phone, email, or employee code..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+      {/* Tabs */}
+      <div className="border-b border-border">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab("list")}
+            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === "list"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Delivery Men List
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="SUSPENDED">Suspended</SelectItem>
-                <SelectItem value="REJECTED">Rejected</SelectItem>
-                <SelectItem value="RESIGNED">Resigned</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
-              <SelectTrigger className="w-[180px]">
-                <Building className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by warehouse" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Warehouses</SelectItem>
-                {warehouses.map((warehouse) => (
-                  <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                    {warehouse.name} ({warehouse.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          </button>
+          <button
+            onClick={() => setActiveTab("enlist")}
+            className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === "enlist"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Onboard New Delivery Man
+            </div>
+          </button>
+        </nav>
+      </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      {/* Tab Content */}
+      {activeTab === "list" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Delivery Men List
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, phone, email, or employee code..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                  <SelectItem value="RESIGNED">Resigned</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <Building className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by warehouse" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Warehouses</SelectItem>
+                  {warehouses.map((warehouse) => (
+                    <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                      {warehouse.name} ({warehouse.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : (
-            <>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Delivery Man</TableHead>
-                      <TableHead>Contact Info</TableHead>
-                      <TableHead>Warehouse</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Application</TableHead>
-                      <TableHead>Joined Date</TableHead>
-                      <TableHead>Documents</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {deliveryMen.length === 0 ? (
+
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
-                          <div className="flex flex-col items-center gap-2">
-                            <User className="h-12 w-12 text-muted-foreground" />
-                            <p className="text-muted-foreground">No delivery men found</p>
-                          </div>
-                        </TableCell>
+                        <TableHead>Delivery Man</TableHead>
+                        <TableHead>Contact Info</TableHead>
+                        <TableHead>Warehouse</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Application</TableHead>
+                        <TableHead>Joined Date</TableHead>
+                        <TableHead>Documents</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ) : (
-                      deliveryMen.map((deliveryMan) => (
-                        <TableRow key={deliveryMan.id} className="hover:bg-muted/50">
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="font-medium">{deliveryMan.fullName}</div>
-                              {deliveryMan.employeeCode && (
-                                <div className="text-sm text-muted-foreground">
-                                  Code: {deliveryMan.employeeCode}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-1 text-sm">
-                                <Phone className="h-3 w-3" />
-                                {deliveryMan.phone}
-                              </div>
-                              {deliveryMan.email && (
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                  <Mail className="h-3 w-3" />
-                                  {deliveryMan.email}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Building className="h-3 w-3" />
-                              {deliveryMan.warehouse?.name || "N/A"}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {getStatusBadge(deliveryMan.status)}
-                          </TableCell>
-                          <TableCell>
-                            {getApplicationStatusBadge(deliveryMan.applicationStatus)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1 text-sm">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(deliveryMan.joiningDate)}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2 text-sm">
-                              <FileText className="h-3 w-3" />
-                              <span>{deliveryMan._count.documents}</span>
-                              <span className="text-muted-foreground">/</span>
-                              <span>{deliveryMan._count.references} Refs</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
+                    </TableHeader>
+                    <TableBody>
+                      {deliveryMen.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8">
+                            <div className="flex flex-col items-center gap-2">
+                              <User className="h-12 w-12 text-muted-foreground" />
+                              <p className="text-muted-foreground">No delivery men found</p>
                               <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewDetails(deliveryMan)}
+                                variant="outline"
+                                onClick={() => setActiveTab("enlist")}
+                                className="mt-2"
                               >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(deliveryMan)}
-                              >
-                                <Edit className="h-4 w-4" />
+                                Enlist First Delivery Man
                               </Button>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {pagination.pages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
-                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-                    {pagination.total} results
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={pagination.page === 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Previous
-                    </Button>
-                    <span className="text-sm">
-                      Page {pagination.page} of {pagination.pages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={pagination.page === pagination.pages}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      ) : (
+                        deliveryMen.map((deliveryMan) => (
+                          <TableRow key={deliveryMan.id} className="hover:bg-muted/50">
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="font-medium">{deliveryMan.fullName}</div>
+                                {deliveryMan.employeeCode && (
+                                  <div className="text-sm text-muted-foreground">
+                                    Code: {deliveryMan.employeeCode}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-1 text-sm">
+                                  <Phone className="h-3 w-3" />
+                                  {deliveryMan.phone}
+                                </div>
+                                {deliveryMan.email && (
+                                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                    <Mail className="h-3 w-3" />
+                                    {deliveryMan.email}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Building className="h-3 w-3" />
+                                {deliveryMan.warehouse?.name || "N/A"}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(deliveryMan.status)}
+                            </TableCell>
+                            <TableCell>
+                              {getApplicationStatusBadge(deliveryMan.applicationStatus)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1 text-sm">
+                                <Calendar className="h-3 w-3" />
+                                {formatDate(deliveryMan.joiningDate)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 text-sm">
+                                <FileText className="h-3 w-3" />
+                                <span>{deliveryMan._count.documents}</span>
+                                <span className="text-muted-foreground">/</span>
+                                <span>{deliveryMan._count.references} Refs</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleViewDetails(deliveryMan)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(deliveryMan)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+
+                {/* Pagination */}
+                {pagination.pages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
+                      {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+                      {pagination.total} results
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.page - 1)}
+                        disabled={pagination.page === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+                      <span className="text-sm">
+                        Page {pagination.page} of {pagination.pages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.page + 1)}
+                        disabled={pagination.page === pagination.pages}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === "enlist" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5" />
+              Onboard New Delivery Man
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DeliveryManEnlistmentForm />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Delivery Man Details Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
@@ -627,16 +687,6 @@ export default function DeliveryMenList() {
               <DialogTitle className="text-xl font-bold">
                 Delivery Man Details
               </DialogTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setSelectedDeliveryMan(null);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
             </div>
           </DialogHeader>
           

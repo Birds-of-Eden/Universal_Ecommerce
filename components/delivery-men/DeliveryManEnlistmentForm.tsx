@@ -653,7 +653,7 @@ export default function DeliveryManEnlistmentForm() {
           })}
         </div>
 
-        <div className="mt-5 space-y-2">
+        {/* <div className="mt-5 space-y-2">
           <button
             type="button"
             onClick={saveDraft}
@@ -668,7 +668,7 @@ export default function DeliveryManEnlistmentForm() {
           >
             Load Draft
           </button>
-        </div>
+        </div> */}
       </aside>
 
       <section className="rounded-3xl border border-border bg-card p-6 text-card-foreground shadow-sm sm:p-8">
