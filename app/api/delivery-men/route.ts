@@ -34,6 +34,40 @@ function buildFallbackEmail(phone: string) {
   return `deliveryman.${safePhone}.${Date.now()}@local.delivery`;
 }
 
+function toDeliveryManLogSnapshot(deliveryMan: {
+  userId: string;
+  fullName: string;
+  email?: string | null;
+  phone: string;
+  warehouseId: number;
+  warehouseName: string;
+  employeeCode?: string | null;
+  identityType: string;
+  identityNumber: string;
+  joiningDate: Date;
+  status: string;
+  applicationStatus: string;
+  referenceCount: number;
+  documentCount: number;
+}) {
+  return {
+    userId: deliveryMan.userId,
+    fullName: deliveryMan.fullName,
+    email: deliveryMan.email ?? null,
+    phone: deliveryMan.phone,
+    warehouseId: deliveryMan.warehouseId,
+    warehouseName: deliveryMan.warehouseName,
+    employeeCode: deliveryMan.employeeCode ?? null,
+    identityType: deliveryMan.identityType,
+    identityNumber: deliveryMan.identityNumber,
+    joiningDate: deliveryMan.joiningDate,
+    status: deliveryMan.status,
+    applicationStatus: deliveryMan.applicationStatus,
+    referenceCount: deliveryMan.referenceCount,
+    documentCount: deliveryMan.documentCount,
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

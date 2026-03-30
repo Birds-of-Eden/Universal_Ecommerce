@@ -742,7 +742,7 @@ export default function DeliveryMenList() {
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
-                                onClick={() => handleFieldSave('warehouseId', tempValue)}
+                                onClick={() => handleFieldSave('warehouseId')}
                                 disabled={statusUpdating}
                               >
                                 Save
