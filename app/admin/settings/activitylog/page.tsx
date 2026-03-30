@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ActivityLogSkeleton from "@/components/ui/ActivityLogSkeleton";
 import { RefreshCcw, Search } from "lucide-react";
 
 type ActivityLogRow = {
@@ -230,112 +231,111 @@ export default function ActivityLogPage() {
       ) : null}
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium">Time</th>
-                <th className="px-4 py-3 font-medium">Action</th>
-                <th className="px-4 py-3 font-medium">Entity</th>
-                <th className="px-4 py-3 font-medium">Actor</th>
-                <th className="px-4 py-3 font-medium">Target</th>
-                <th className="px-4 py-3 font-medium">Metadata</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        {loading ? (
+          <ActivityLogSkeleton />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-muted/50 text-left">
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                    Loading activity log...
-                  </td>
+                  <th className="px-4 py-3 font-medium">Time</th>
+                  <th className="px-4 py-3 font-medium">Action</th>
+                  <th className="px-4 py-3 font-medium">Entity</th>
+                  <th className="px-4 py-3 font-medium">Actor</th>
+                  <th className="px-4 py-3 font-medium">Target</th>
+                  <th className="px-4 py-3 font-medium">Metadata</th>
                 </tr>
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                    No activity log found for current filter.
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log) => (
-                  <tr key={log.id} className="border-t border-border align-top">
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {formatDate(log.createdAt)}
-                    </td>
-                    <td className="px-4 py-3 font-medium">{log.action}</td>
-                    <td className="px-4 py-3">
-                      <div>{log.entity}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div>{log.user?.name || "-"}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {log.user?.email || log.userId || "System"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div>{log.entityId || "-"}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {log.user?.role || ""}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      <div className="space-y-2">
-                        <div>{formatMetadata(log.metadata)}</div>
-                        {getChanges(log.metadata).length > 0 ? (
-                          <div className="rounded-md border border-border bg-muted/30 p-2">
-                            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-foreground">
-                              Changed Fields
-                            </div>
-                            <div className="space-y-1">
-                              {getChanges(log.metadata).map((change) => (
-                                <div key={change.field}>
-                                  <span className="font-medium text-foreground">
-                                    {change.field}
-                                  </span>
-                                  {" : "}
-                                  <span>{formatValue(change.before)}</span>
-                                  {" -> "}
-                                  <span className="text-foreground">
-                                    {formatValue(change.after)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
+              </thead>
+              <tbody>
+                {logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                      No activity log found for current filter.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  logs.map((log) => (
+                    <tr key={log.id} className="border-t border-border align-top">
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {formatDate(log.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 font-medium">{log.action}</td>
+                      <td className="px-4 py-3">
+                        <div>{log.entity}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>{log.user?.name || "-"}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {log.user?.email || log.userId || "System"}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>{log.entityId || "-"}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {log.user?.role || ""}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        <div className="space-y-2">
+                          <div>{formatMetadata(log.metadata)}</div>
+                          {getChanges(log.metadata).length > 0 ? (
+                            <div className="rounded-md border border-border bg-muted/30 p-2">
+                              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-foreground">
+                                Changed Fields
+                              </div>
+                              <div className="space-y-1">
+                                {getChanges(log.metadata).map((change) => (
+                                  <div key={change.field}>
+                                    <span className="font-medium text-foreground">
+                                      {change.field}
+                                    </span>
+                                    {" : "}
+                                    <span className="text-muted-foreground">
+                                      {formatValue(change.before)}
+                                    </span>
+                                    {" → "}
+                                    <span className="text-foreground">
+                                      {formatValue(change.after)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm md:flex-row md:items-center md:justify-between">
+        <div className="text-muted-foreground">
+          Showing {logs.length} of {total} records
         </div>
-
-        <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm md:flex-row md:items-center md:justify-between">
-          <div className="text-muted-foreground">
-            Showing {logs.length} of {total} records
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              disabled={page <= 1 || loading}
-              className="btn-secondary rounded px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span className="min-w-20 text-center text-muted-foreground">
-              Page {page} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              disabled={page >= totalPages || loading}
-              className="btn-secondary rounded px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={page <= 1 || loading}
+            className="btn-secondary rounded px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="min-w-20 text-center text-muted-foreground">
+            Page {page} / {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            disabled={page >= totalPages || loading}
+            className="btn-secondary rounded px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>

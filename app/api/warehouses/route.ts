@@ -103,7 +103,7 @@ export async function POST(req: Request) {
     if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!access.hasGlobal("settings.warehouse.manage") && !access.hasGlobal("settings.manage")) {
+    if (!access.has("settings.warehouse.manage") && !access.has("settings.manage")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

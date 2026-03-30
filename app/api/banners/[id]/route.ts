@@ -1,7 +1,43 @@
 // app/api/banners/[id]/route.ts
 
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
+import { getAccessContext } from "@/lib/rbac";
+import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
+
+function toBannerLogSnapshot(banner: {
+  id: number;
+  title: string | null;
+  subtitle: string | null;
+  description: string | null;
+  image: string;
+  mobileImage: string | null;
+  buttonText: string | null;
+  buttonLink: string | null;
+  position: number;
+  isActive: boolean;
+  startDate: Date | null;
+  endDate: Date | null;
+  type: string;
+}) {
+  return {
+    id: banner.id,
+    title: banner.title,
+    subtitle: banner.subtitle,
+    description: banner.description,
+    image: banner.image,
+    mobileImage: banner.mobileImage,
+    buttonText: banner.buttonText,
+    buttonLink: banner.buttonLink,
+    position: banner.position,
+    isActive: banner.isActive,
+    startDate: banner.startDate?.toISOString() ?? null,
+    endDate: banner.endDate?.toISOString() ?? null,
+    type: banner.type,
+  };
+}
 
 /* =========================
    GET SINGLE BANNER
@@ -37,9 +73,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 ========================= */
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.hasAny(["settings.banner.manage", "settings.manage"])) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id: idParam } = await params;
     const id = parseInt(idParam);
     const body = await req.json();
+    const existing = await prisma.banner.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Banner not found" }, { status: 404 });
+    }
 
     const banner = await prisma.banner.update({
       where: { id },
@@ -64,6 +117,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       },
     });
 
+    await logActivity({
+      action: "update_banner",
+      entity: "banner",
+      entityId: banner.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Banner updated: ${banner.title || `#${banner.id}`}`,
+      },
+      before: toBannerLogSnapshot(existing),
+      after: toBannerLogSnapshot(banner),
+    });
+
     return NextResponse.json(banner);
   } catch (error) {
     console.error("PUT banner error:", error);
@@ -79,11 +145,40 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 ========================= */
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.hasAny(["settings.banner.manage", "settings.manage"])) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id: idParam } = await params;
     const id = parseInt(idParam);
+    const existing = await prisma.banner.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Banner not found" }, { status: 404 });
+    }
 
     const banner = await prisma.banner.delete({
       where: { id },
+    });
+
+    await logActivity({
+      action: "delete_banner",
+      entity: "banner",
+      entityId: banner.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Banner deleted: ${existing.title || `#${existing.id}`}`,
+      },
+      before: toBannerLogSnapshot(existing),
     });
 
     return NextResponse.json(banner);

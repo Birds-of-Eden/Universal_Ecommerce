@@ -225,9 +225,9 @@ export default function BannerManager({
             </div>
 
             <div>
-              <Label>Type</Label>
+              <Label className="text-foreground">Type</Label>
               <select
-                className="border p-2 rounded w-full"
+                className="border border-border bg-background text-foreground p-2 rounded w-full"
                 value={form.type}
                 onChange={(e) =>
                   setForm({ ...form, type: e.target.value })

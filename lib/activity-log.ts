@@ -175,15 +175,18 @@ function sanitizeValue(value: unknown): unknown {
   if (value === null) return null;
   if (value instanceof Date) return value.toISOString();
   if (typeof value === "bigint") return value.toString();
+  if (value instanceof Prisma.Decimal) return value.toString();
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeValue(item));
   }
   if (typeof value === "object") {
+    if (typeof (value as { toJSON?: unknown }).toJSON === "function") {
+      return sanitizeValue((value as { toJSON: () => unknown }).toJSON());
+    }
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, nestedValue]) => [
-        key,
-        sanitizeValue(nestedValue),
-      ]),
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, nestedValue]) => typeof nestedValue !== "function")
+        .map(([key, nestedValue]) => [key, sanitizeValue(nestedValue)]),
     );
   }
   return value;

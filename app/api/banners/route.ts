@@ -1,7 +1,43 @@
 // app/api/banners/route.ts
 
 import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
+import { getAccessContext } from "@/lib/rbac";
+import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
+
+function toBannerLogSnapshot(banner: {
+  id: number;
+  title: string | null;
+  subtitle: string | null;
+  description: string | null;
+  image: string;
+  mobileImage: string | null;
+  buttonText: string | null;
+  buttonLink: string | null;
+  position: number;
+  isActive: boolean;
+  startDate: Date | null;
+  endDate: Date | null;
+  type: string;
+}) {
+  return {
+    id: banner.id,
+    title: banner.title,
+    subtitle: banner.subtitle,
+    description: banner.description,
+    image: banner.image,
+    mobileImage: banner.mobileImage,
+    buttonText: banner.buttonText,
+    buttonLink: banner.buttonLink,
+    position: banner.position,
+    isActive: banner.isActive,
+    startDate: banner.startDate?.toISOString() ?? null,
+    endDate: banner.endDate?.toISOString() ?? null,
+    type: banner.type,
+  };
+}
 
 /* =========================
    GET ALL BANNERS
@@ -48,6 +84,17 @@ export async function GET(req: Request) {
 ========================= */
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.hasAny(["settings.banner.manage", "settings.manage"])) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const banner = await prisma.banner.create({
@@ -70,6 +117,18 @@ export async function POST(req: Request) {
 
         type: body.type || "HERO",
       },
+    });
+
+    await logActivity({
+      action: "create_banner",
+      entity: "banner",
+      entityId: banner.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Banner created: ${banner.title || `#${banner.id}`}`,
+      },
+      after: toBannerLogSnapshot(banner),
     });
 
     return NextResponse.json(banner);
