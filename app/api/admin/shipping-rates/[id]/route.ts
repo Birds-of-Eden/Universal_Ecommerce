@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 
 const db = prisma as any;
 
@@ -62,12 +63,15 @@ function validateWeightSlabs(input: unknown) {
   return input;
 }
 
-async function ensureAdmin() {
+async function getAdminAccess() {
   const session = await getServerSession(authOptions);
   const access = await getAccessContext(
     session?.user as { id?: string; role?: string } | undefined,
   );
-  return access.has("settings.shipping.manage") || access.has("settings.manage");
+  return {
+    access,
+    canManage: access.has("settings.shipping.manage") || access.has("settings.manage"),
+  };
 }
 
 export async function PATCH(
@@ -75,7 +79,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    if (!(await ensureAdmin())) {
+    const { access, canManage } = await getAdminAccess();
+    if (!canManage) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -116,6 +121,20 @@ export async function PATCH(
     }
 
     const updated = await db.shippingRate.update({ where: { id }, data });
+
+    await logActivity({
+      action: "update",
+      entity: "shipping_rate",
+      entityId: updated.id,
+      access,
+      request,
+      metadata: {
+        country: updated.country,
+        area: updated.area,
+        isActive: updated.isActive,
+      },
+    });
+
     return NextResponse.json(updated);
   } catch (error: any) {
     console.error("PATCH SHIPPING RATE ERROR:", error);
@@ -131,7 +150,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    if (!(await ensureAdmin())) {
+    const { access, canManage } = await getAdminAccess();
+    if (!canManage) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -141,7 +161,22 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
 
+    const existing = await db.shippingRate.findUnique({
+      where: { id },
+      select: { id: true, country: true, area: true, isActive: true },
+    });
+
     await db.shippingRate.delete({ where: { id } });
+
+    await logActivity({
+      action: "delete",
+      entity: "shipping_rate",
+      entityId: id,
+      access,
+      request: _request,
+      metadata: existing,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE SHIPPING RATE ERROR:", error);

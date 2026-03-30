@@ -1,8 +1,46 @@
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
+import { logActivity } from "@/lib/activity-log";
+
+function toWarehouseLogSnapshot(warehouse: {
+  name: string;
+  code: string;
+  isDefault: boolean;
+  country?: string | null;
+  division?: string | null;
+  district?: string | null;
+  area?: string | null;
+  postCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  mapLabel?: string | null;
+  coverageRadiusKm?: number | null;
+  locationNote?: string | null;
+  isMapEnabled?: boolean | null;
+  address?: unknown;
+}) {
+  return {
+    name: warehouse.name,
+    code: warehouse.code,
+    isDefault: warehouse.isDefault,
+    country: warehouse.country ?? null,
+    division: warehouse.division ?? null,
+    district: warehouse.district ?? null,
+    area: warehouse.area ?? null,
+    postCode: warehouse.postCode ?? null,
+    latitude: warehouse.latitude ?? null,
+    longitude: warehouse.longitude ?? null,
+    mapLabel: warehouse.mapLabel ?? null,
+    coverageRadiusKm: warehouse.coverageRadiusKm ?? null,
+    locationNote: warehouse.locationNote ?? null,
+    isMapEnabled: warehouse.isMapEnabled ?? null,
+    address: warehouse.address ?? null,
+  };
+}
 
 /* =========================
    UPDATE WAREHOUSE (PATCH)
@@ -90,6 +128,19 @@ export async function PATCH(
           isMapEnabled: body.isMapEnabled !== undefined ? Boolean(body.isMapEnabled) : existing.isMapEnabled,
         },
       });
+    });
+
+    await logActivity({
+      action: "update",
+      entity: "warehouse",
+      entityId: updated.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Updated warehouse ${updated.name} (${updated.code})`,
+      },
+      before: toWarehouseLogSnapshot(existing),
+      after: toWarehouseLogSnapshot(updated),
     });
 
     return NextResponse.json(updated);
@@ -197,6 +248,19 @@ export async function PUT(
       });
     });
 
+    await logActivity({
+      action: "replace",
+      entity: "warehouse",
+      entityId: updated.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Replaced warehouse ${updated.name} (${updated.code})`,
+      },
+      before: toWarehouseLogSnapshot(existing),
+      after: toWarehouseLogSnapshot(updated),
+    });
+
     return NextResponse.json(updated);
   } catch (error: any) {
     console.error("PUT WAREHOUSE ERROR:", error);
@@ -218,7 +282,7 @@ export async function PUT(
    DELETE WAREHOUSE
 ========================= */
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -239,6 +303,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
 
+    const existing = await prisma.warehouse.findUnique({ where: { id } });
+
     await prisma.$transaction(async (tx) => {
       await tx.stockLevel.deleteMany({ where: { warehouseId: id } });
       await tx.inventoryLog.updateMany({
@@ -246,6 +312,22 @@ export async function DELETE(
         data: { warehouseId: null },
       });
       await tx.warehouse.delete({ where: { id } });
+    });
+
+    await logActivity({
+      action: "delete",
+      entity: "warehouse",
+      entityId: id,
+      access,
+      request: req,
+      metadata: existing
+        ? {
+            message: `Deleted warehouse ${existing.name} (${existing.code})`,
+          }
+        : {
+            message: `Deleted warehouse ${id}`,
+          },
+      before: existing ? toWarehouseLogSnapshot(existing) : null,
     });
 
     return NextResponse.json({ message: "Deleted successfully" });

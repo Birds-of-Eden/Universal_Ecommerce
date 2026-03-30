@@ -34,10 +34,14 @@ const adminPagePermissionRules: PermissionRule[] = [
     prefix: "/admin/warehouse",
     permissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
   },
+  { prefix: "/admin/analytics", permissions: ["dashboard.read", "admin.panel.access"] },
+  { prefix: "/admin/reports", permissions: ["reports.read"] },
+   { prefix: "/admin/settings/activitylog", permissions: ["admin.panel.access"] },
   { prefix: "/admin/settings/payroll", permissions: ["payroll.manage"] },
   { prefix: "/admin/settings/rbac", permissions: ["roles.manage"] },
-  { prefix: "/admin/settings", permissions: ["settings.banner.manage", "settings.manage"] },
-  { prefix: "/admin/settings", permissions: ["settings.payment.manage", "settings.manage"] },
+  { prefix: "/admin/settings/banner", permissions: ["settings.banner.manage", "settings.manage"] },
+  { prefix: "/admin/settings/general", permissions: ["settings.manage"] },
+  { prefix: "/admin/settings/payment", permissions: ["settings.payment.manage", "settings.manage"] },
   { prefix: "/admin/settings/warehouses", permissions: ["settings.warehouse.manage", "settings.manage"] },
   { prefix: "/admin/settings/couriers", permissions: ["settings.courier.manage", "settings.manage"] },
   { prefix: "/admin/settings/vatclasses", permissions: ["settings.vat.manage", "settings.manage"] },
@@ -61,6 +65,10 @@ const adminPagePermissionRules: PermissionRule[] = [
   { prefix: "/admin/shipments", permissions: ["shipments.manage", "orders.read_all"] },
   { prefix: "/admin/logistics", permissions: ["logistics.manage"] },
   { prefix: "/admin/payroll", permissions: ["payroll.manage"] },
+  { prefix: "/admin/management/categories", permissions: ["products.manage"] },
+  { prefix: "/admin/management/brands", permissions: ["products.manage"] },
+  { prefix: "/admin/management/writers", permissions: ["products.manage"] },
+  { prefix: "/admin/management/publishers", permissions: ["products.manage"] },
   { prefix: "/admin/management/stock", permissions: ["inventory.manage"] },
   { prefix: "/admin/management", permissions: ["products.manage"] },
   { prefix: "/admin/blogs", permissions: ["blogs.manage"] },
@@ -74,6 +82,10 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/admin/rbac/users",
     permissions: ["users.manage"],
+  },
+  {
+    prefix: "/api/admin/activity-log",
+    permissions: ["admin.panel.access"],
   },
   {
     prefix: "/api/admin/rbac",
@@ -90,6 +102,14 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/admindashboard",
     permissions: ["dashboard.read"],
+  },
+  {
+    prefix: "/api/analytics/summary",
+    permissions: ["dashboard.read", "admin.panel.access"],
+  },
+  {
+    prefix: "/api/reports",
+    permissions: ["reports.read"],
   },
   {
     prefix: "/api/admin/warehouse-dashboard",

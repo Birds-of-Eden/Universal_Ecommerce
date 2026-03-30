@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 
 export async function GET(
   _request: NextRequest,
@@ -208,6 +209,19 @@ export async function PUT(
             isImmutable: true,
           },
         },
+      },
+    });
+
+    await logActivity({
+      action: "assign_roles",
+      entity: "user_role",
+      entityId: user.id,
+      access,
+      request,
+      metadata: {
+        email: user.email,
+        roleIds,
+        assignedRoleNames: assignedRoles.map((item) => item.role.name),
       },
     });
 

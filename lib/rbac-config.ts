@@ -84,6 +84,10 @@ export const SYSTEM_PERMISSIONS = [
     description: "Manage warehouse configuration.",
   },
   {
+    key: "settings.activitylog.read",
+    description: "Read admin activity logs based on allowed scope.",
+  },
+  {
     key: "chats.manage",
     description: "Read/respond/assign/close all support chats.",
   },
@@ -271,6 +275,7 @@ export const ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS: PermissionKey[] = [
   "settings.vat.manage",
   "settings.courier.manage",
   "settings.warehouse.manage",
+  "settings.activitylog.read",
   "chats.manage",
   "reports.read",
 ];

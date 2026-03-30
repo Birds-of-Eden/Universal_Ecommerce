@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 import {
   ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS,
   isPermissionKey,
@@ -165,6 +166,19 @@ export async function POST(request: NextRequest) {
             },
           },
         },
+      },
+    });
+
+    await logActivity({
+      action: "create",
+      entity: "rbac_role",
+      entityId: role.id,
+      access,
+      request,
+      metadata: {
+        name: role.name,
+        label: role.label,
+        permissionCount: role.rolePermissions.length,
       },
     });
 

@@ -1,8 +1,46 @@
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
+
+function toWarehouseLogSnapshot(warehouse: {
+  id?: number;
+  name: string;
+  code: string;
+  isDefault: boolean;
+  country?: string | null;
+  division?: string | null;
+  district?: string | null;
+  area?: string | null;
+  postCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  mapLabel?: string | null;
+  coverageRadiusKm?: number | null;
+  locationNote?: string | null;
+  isMapEnabled?: boolean | null;
+  address?: unknown;
+}) {
+  return {
+    name: warehouse.name,
+    code: warehouse.code,
+    isDefault: warehouse.isDefault,
+    country: warehouse.country ?? null,
+    division: warehouse.division ?? null,
+    district: warehouse.district ?? null,
+    area: warehouse.area ?? null,
+    postCode: warehouse.postCode ?? null,
+    latitude: warehouse.latitude ?? null,
+    longitude: warehouse.longitude ?? null,
+    mapLabel: warehouse.mapLabel ?? null,
+    coverageRadiusKm: warehouse.coverageRadiusKm ?? null,
+    locationNote: warehouse.locationNote ?? null,
+    isMapEnabled: warehouse.isMapEnabled ?? null,
+    address: warehouse.address ?? null,
+  };
+}
 
 /* =========================
    GET WAREHOUSES
@@ -111,6 +149,18 @@ export async function POST(req: Request) {
           isMapEnabled: body.isMapEnabled !== undefined ? Boolean(body.isMapEnabled) : true,
         },
       });
+    });
+
+    await logActivity({
+      action: "create",
+      entity: "warehouse",
+      entityId: created.id,
+      access,
+      request: req,
+      metadata: {
+        message: `Created warehouse ${created.name} (${created.code})`,
+      },
+      after: toWarehouseLogSnapshot(created),
     });
 
     return NextResponse.json(created, { status: 201 });

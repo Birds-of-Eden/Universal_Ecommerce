@@ -59,6 +59,7 @@ const menuItems: MenuItem[] = [
     name: "Analytics",
     href: "/admin/analytics",
     icon: BarChart3,
+    requiredPermissions: ["dashboard.read", "admin.panel.access"],
   },
   {
     name: "Reports",
@@ -179,6 +180,11 @@ const menuItems: MenuItem[] = [
         name: "RBAC",
         href: "/admin/settings/rbac",
         requiredPermissions: ["roles.manage"],
+      },
+      {
+        name: "Activity Log",
+        href: "/admin/settings/activitylog",
+        requiredPermissions: ["admin.panel.access"],
       },
     ],
   },
