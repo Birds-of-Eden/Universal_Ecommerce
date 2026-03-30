@@ -8,6 +8,1272 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                           String                 @id @default(cuid())
+  email                        String                 @unique
+  name                         String?
+  role                         String                 @default("user")
+  phone                        String?
+  passwordHash                 String?                @map("password")
+  emailVerified                DateTime?
+  image                        String?
+  createdAt                    DateTime               @default(now())
+  updatedAt                    DateTime               @updatedAt
+  banned                       Boolean?
+  banReason                    String?
+  banExpires                   Int?
+  note                         String?
+  activityLogs                 ActivityLog[]
+  cart                         CartItem[]
+  assignedChats                ChatConversation[]     @relation("AssignedChats")
+  userChats                    ChatConversation[]     @relation("UserChats")
+  chatMessages                 ChatMessage[]
+  deliveryProofs               DeliveryProof[]
+  inventoryReservations        InventoryReservation[]
+  orders                       Order[]
+  payrollEntries               PayrollEntry[]
+  payrollProfile               PayrollProfile?
+  refunds                      Refund[]
+  reviews                      Review[]
+  serviceBookings              ServiceBooking[]
+  assignedShipments            Shipment[]             @relation("AssignedShipments")
+  shipmentAssignmentsBy        ShipmentAssignment[]   @relation("ShipmentAssignmentBy")
+  shipmentAssignmentsTo        ShipmentAssignment[]   @relation("ShipmentAssignmentTo")
+  shipmentCostLogsCreated      ShipmentCostLog[]
+  addresses                    UserAddress[]
+  assignedUserRoles            UserRole[]             @relation("AssignedUserRoles")
+  userRoles                    UserRole[]             @relation("UserRoles")
+  assignedWarehouseMemberships WarehouseMembership[]  @relation("AssignedWarehouseMemberships")
+  warehouseMemberships         WarehouseMembership[]  @relation("WarehouseMemberships")
+  wishlist                     Wishlist[]
+  analyticsEvents              AnalyticsEvent[]
+  deliveryManProfile            DeliveryManProfile?
+  verifiedDeliveryMen           DeliveryManProfile[]   @relation("VerifiedDeliveryMen")
+  assignedDeliveryMen           DeliveryManProfile[]   @relation("AssignedDeliveryMen")
+  verifiedDeliveryManDocuments  DeliveryManDocument[]  @relation("VerifiedDeliveryManDocuments")
+}
+
+model UserAddress {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  label     String
+  country   String
+  district  String
+  area      String
+  details   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Permission {
+  id              String           @id @default(cuid())
+  key             String           @unique
+  description     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+}
+
+model Role {
+  id              String           @id @default(cuid())
+  name            String           @unique
+  label           String
+  description     String?
+  isSystem        Boolean          @default(false)
+  isImmutable     Boolean          @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@index([deletedAt])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model UserRole {
+  userId       String
+  roleId       String
+  assignedById String?
+  createdAt    DateTime        @default(now())
+  id           String          @id @default(cuid())
+  scopeType    AccessScopeType @default(GLOBAL)
+  updatedAt    DateTime        @updatedAt
+  warehouseId  Int?
+  assignedBy   User?           @relation("AssignedUserRoles", fields: [assignedById], references: [id])
+  role         Role            @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user         User            @relation("UserRoles", fields: [userId], references: [id], onDelete: Cascade)
+  warehouse    Warehouse?      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, scopeType, warehouseId])
+  @@index([roleId])
+  @@index([warehouseId])
+  @@index([assignedById])
+}
+
+model Writer {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  image     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deleted   Boolean   @default(false)
+  products  Product[]
+}
+
+model Publisher {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  image     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deleted   Boolean   @default(false)
+  products  Product[]
+}
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String
+  slug      String     @unique
+  image     String?
+  parentId  Int?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deleted   Boolean    @default(false)
+  parent    Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryToCategory")
+  products  Product[]
+
+  @@index([parentId])
+}
+
+model Brand {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  slug      String    @unique
+  logo      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deleted   Boolean   @default(false)
+  products  Product[]
+}
+
+model Product {
+  id                      Int                               @id @default(autoincrement())
+  name                    String
+  slug                    String                            @unique
+  type                    ProductType                       @default(PHYSICAL)
+  sku                     String?                           @unique
+  categoryId              Int
+  brandId                 Int?
+  writerId                Int?
+  publisherId             Int?
+  description             String
+  shortDesc               String?
+  basePrice               Decimal                           @db.Decimal(10, 2)
+  originalPrice           Decimal?                          @db.Decimal(10, 2)
+  currency                String                            @default("USD") @db.VarChar(3)
+  weight                  Float?
+  dimensions              Json?
+  VatClassId              Int?
+  digitalAssetId          Int?
+  serviceDurationMinutes  Int?
+  serviceLocation         String?
+  serviceOnlineLink       String?
+  available               Boolean                           @default(true)
+  featured                Boolean                           @default(false)
+  image                   String?
+  gallery                 String[]
+  videoUrl                String?
+  soldCount               Int                               @default(0)
+  ratingAvg               Float                             @default(0)
+  ratingCount             Int                               @default(0)
+  deleted                 Boolean                           @default(false)
+  createdAt               DateTime                          @default(now())
+  updatedAt               DateTime                          @updatedAt
+  lowStockThreshold       Int                               @default(10)
+  cartItems               CartItem[]
+  dailySnapshots          InventoryDailySnapshot[]
+  inventoryLogs           InventoryLog[]
+  warehouseDailySnapshots InventoryWarehouseDailySnapshot[]
+  orderItems              OrderItem[]
+  VatClass                VatClass?                         @relation(fields: [VatClassId], references: [id])
+  brand                   Brand?                            @relation(fields: [brandId], references: [id])
+  category                Category                          @relation(fields: [categoryId], references: [id])
+  digitalAsset            DigitalAsset?                     @relation("ProductDigitalAsset", fields: [digitalAssetId], references: [id])
+  publisher               Publisher?                        @relation(fields: [publisherId], references: [id])
+  writer                  Writer?                           @relation(fields: [writerId], references: [id])
+  attributes              ProductAttribute[]
+  codes                   ProductCode[]
+  variants                ProductVariant[]
+  variantOptions          ProductVariantOption[]
+  reviews                 Review[]
+  serviceSlots            ServiceSlot[]
+  wishlist                Wishlist[]
+}
+
+model ProductVariant {
+  id                      Int                               @id @default(autoincrement())
+  productId               Int
+  sku                     String                            @unique
+  price                   Decimal                           @db.Decimal(10, 2)
+  currency                String                            @default("USD") @db.VarChar(3)
+  stock                   Int                               @default(0)
+  digitalAssetId          Int?
+  options                 Json
+  createdAt               DateTime                          @default(now())
+  updatedAt               DateTime                          @updatedAt
+  isDefault               Boolean                           @default(false)
+  active                  Boolean                           @default(true)
+  lowStockThreshold       Int                               @default(10)
+  costPrice               Decimal?                          @db.Decimal(10, 2)
+  cartItems               CartItem[]
+  dailySnapshots          InventoryDailySnapshot[]
+  inventoryLogs           InventoryLog[]
+  warehouseDailySnapshots InventoryWarehouseDailySnapshot[]
+  orderItems              OrderItem[]
+  codes                   ProductCode[]
+  digitalAsset            DigitalAsset?                     @relation("VariantDigitalAsset", fields: [digitalAssetId], references: [id])
+  product                 Product                           @relation(fields: [productId], references: [id])
+  stockLevels             StockLevel[]
+}
+
+model ProductVariantOption {
+  id        Int                         @id @default(autoincrement())
+  productId Int
+  name      String
+  position  Int                         @default(0)
+  createdAt DateTime                    @default(now())
+  updatedAt DateTime                    @updatedAt
+  product   Product                     @relation(fields: [productId], references: [id])
+  values    ProductVariantOptionValue[]
+
+  @@unique([productId, name])
+  @@index([productId, position])
+}
+
+model ProductVariantOptionValue {
+  id        Int                  @id @default(autoincrement())
+  optionId  Int
+  value     String
+  position  Int                  @default(0)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  option    ProductVariantOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, value])
+  @@index([optionId, position])
+}
+
+model ProductCode {
+  id        Int                  @id @default(autoincrement())
+  productId Int?
+  variantId Int?
+  kind      ProductCodeKind
+  symbology ProductCodeSymbology
+  value     String
+  token     String?              @unique
+  imageUrl  String?
+  isPrimary Boolean              @default(true)
+  status    String               @default("ACTIVE")
+  metadata  Json?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  product   Product?             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant   ProductVariant?      @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([symbology, value])
+  @@index([productId])
+  @@index([variantId])
+  @@index([kind, status])
+}
+
+model DigitalAsset {
+  id              Int               @id @default(autoincrement())
+  title           String
+  fileUrl         String
+  storageProvider String?
+  fileSize        Int?
+  checksum        String?
+  mimeType        String?
+  maxDownloads    Int?
+  expiresAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deliveries      DigitalDelivery[]
+  products        Product[]         @relation("ProductDigitalAsset")
+  variants        ProductVariant[]  @relation("VariantDigitalAsset")
+}
+
+model DigitalDelivery {
+  id             Int           @id @default(autoincrement())
+  orderItemId    Int
+  digitalAssetId Int
+  downloadLimit  Int?
+  downloadCount  Int           @default(0)
+  expiresAt      DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  asset          DigitalAsset  @relation(fields: [digitalAssetId], references: [id])
+  orderItem      OrderItem     @relation(fields: [orderItemId], references: [id])
+  downloads      DownloadLog[]
+
+  @@unique([orderItemId, digitalAssetId])
+}
+
+model DownloadLog {
+  id                Int             @id @default(autoincrement())
+  digitalDeliveryId Int
+  ipAddress         String?
+  userAgent         String?
+  downloadedAt      DateTime        @default(now())
+  delivery          DigitalDelivery @relation(fields: [digitalDeliveryId], references: [id])
+}
+
+model Attribute {
+  id                Int                @id @default(autoincrement())
+  name              String
+  values            AttributeValue[]
+  productAttributes ProductAttribute[]
+}
+
+model AttributeValue {
+  id          Int       @id @default(autoincrement())
+  value       String
+  attributeId Int
+  attribute   Attribute @relation(fields: [attributeId], references: [id])
+}
+
+model ProductAttribute {
+  id          Int       @id @default(autoincrement())
+  productId   Int
+  attributeId Int
+  value       String
+  attribute   Attribute @relation(fields: [attributeId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id])
+}
+
+model VatClass {
+  id          Int       @id @default(autoincrement())
+  name        String
+  code        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+  rates       VatRate[]
+}
+
+model VatRate {
+  id          Int       @id @default(autoincrement())
+  VatClassId  Int
+  countryCode String    @db.VarChar(2)
+  regionCode  String?   @db.VarChar(10)
+  rate        Decimal   @db.Decimal(6, 4)
+  inclusive   Boolean   @default(false)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  VatClass    VatClass  @relation(fields: [VatClassId], references: [id])
+
+  @@index([countryCode, regionCode])
+}
+
+model Order {
+  id                    Int                    @id @default(autoincrement())
+  userId                String?
+  name                  String
+  email                 String?
+  phone_number          String
+  alt_phone_number      String?
+  country               String
+  district              String
+  area                  String
+  address_details       String
+  image                 String?
+  payment_method        String
+  order_date            DateTime               @default(now())
+  total                 Decimal                @db.Decimal(10, 2)
+  shipping_cost         Decimal                @db.Decimal(10, 2)
+  grand_total           Decimal                @db.Decimal(10, 2)
+  currency              String                 @default("BDT") @db.VarChar(3)
+  Vat_total             Decimal?               @db.Decimal(10, 2)
+  discount_total        Decimal?               @db.Decimal(10, 2)
+  status                OrderStatus            @default(PENDING)
+  paymentStatus         PaymentStatus          @default(UNPAID)
+  transactionId         String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  couponId              String?
+  taxSnapshot           Json?
+  deliveryProofs        DeliveryProof[]
+  inventoryReservations InventoryReservation[]
+  coupon                Coupon?                @relation(fields: [couponId], references: [id])
+  user                  User?                  @relation(fields: [userId], references: [id])
+  orderItems            OrderItem[]
+  payments              Payment[]
+  refunds               Refund[]
+  shipments             Shipment?
+}
+
+model Payment {
+  id                 Int          @id @default(autoincrement())
+  orderId            Int?
+  amount             Decimal?     @db.Decimal(10, 2)
+  currency           String       @default("BDT") @db.VarChar(3)
+  provider           String?
+  status             PaymentState @default(INITIATED)
+  externalId         String?      @unique
+  paymentGatewayData Json?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  order              Order?       @relation(fields: [orderId], references: [id])
+  refunds            Refund[]
+}
+
+model OrderItem {
+  id                Int               @id @default(autoincrement())
+  orderId           Int
+  productId         Int
+  variantId         Int?
+  quantity          Int               @default(1)
+  price             Decimal           @db.Decimal(10, 2)
+  currency          String            @default("BDT") @db.VarChar(3)
+  VatAmount         Decimal?          @db.Decimal(10, 2)
+  discountAmount    Decimal?          @db.Decimal(10, 2)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  costPriceSnapshot Decimal?          @db.Decimal(10, 2)
+  digitalDeliveries DigitalDelivery[]
+  order             Order             @relation(fields: [orderId], references: [id])
+  product           Product           @relation(fields: [productId], references: [id])
+  variant           ProductVariant?   @relation(fields: [variantId], references: [id])
+  refunds           Refund[]
+  serviceBooking    ServiceBooking?   @relation("OrderItemServiceBooking")
+  shipmentItems     ShipmentItem[]
+}
+
+model ServiceSlot {
+  id          Int              @id @default(autoincrement())
+  productId   Int
+  startsAt    DateTime
+  endsAt      DateTime
+  capacity    Int              @default(1)
+  bookedCount Int              @default(0)
+  timezone    String?
+  location    String?
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  bookings    ServiceBooking[]
+  product     Product          @relation(fields: [productId], references: [id])
+}
+
+model ServiceBooking {
+  id          Int           @id @default(autoincrement())
+  slotId      Int
+  orderItemId Int?          @unique
+  userId      String?
+  status      BookingStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  orderItem   OrderItem?    @relation("OrderItemServiceBooking", fields: [orderItemId], references: [id])
+  slot        ServiceSlot   @relation(fields: [slotId], references: [id])
+  user        User?         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  rating    Int
+  comment   String?
+  productId Int
+  userId    String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model CartItem {
+  id        Int             @id @default(autoincrement())
+  userId    String
+  productId Int
+  quantity  Int             @default(1)
+  variantId Int?
+  product   Product         @relation(fields: [productId], references: [id])
+  user      User            @relation(fields: [userId], references: [id])
+  variant   ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([userId, productId, variantId])
+  @@index([variantId])
+}
+
+model Wishlist {
+  id        Int     @id @default(autoincrement())
+  userId    String
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+model Blog {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  title     String
+  summary   String
+  content   String
+  date      DateTime
+  author    String
+  image     String
+  ads       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Shipment {
+  id                              Int                  @id @default(autoincrement())
+  orderId                         Int                  @unique
+  warehouseId                     Int?
+  courier                         String
+  courierId                       Int?
+  trackingNumber                  String?
+  externalId                      String?
+  trackingUrl                     String?
+  status                          ShipmentStatus       @default(PENDING)
+  courierStatus                   String?
+  lastSyncedAt                    DateTime?
+  shippedAt                       DateTime?
+  expectedDate                    DateTime?
+  deliveredAt                     DateTime?
+  createdAt                       DateTime             @default(now())
+  updatedAt                       DateTime             @updatedAt
+  deliveryConfirmationPin         String?
+  deliveryConfirmationRequestedAt DateTime?
+  deliveryConfirmationToken       String?              @unique
+  actualCost                      Decimal?             @db.Decimal(10, 2)
+  assignedAt                      DateTime?
+  assignedToUserId                String?
+  dispatchNote                    String?
+  estimatedCost                   Decimal?             @db.Decimal(10, 2)
+  fuelCost                        Decimal?             @db.Decimal(10, 2)
+  handlingCost                    Decimal?             @db.Decimal(10, 2)
+  outForDeliveryAt                DateTime?
+  packagingCost                   Decimal?             @db.Decimal(10, 2)
+  pickedAt                        DateTime?
+  priority                        Int                  @default(0)
+  shippingRateId                  Int?
+  thirdPartyCost                  Decimal?             @db.Decimal(10, 2)
+  deliveryProof                   DeliveryProof?
+  assignedTo                      User?                @relation("AssignedShipments", fields: [assignedToUserId], references: [id])
+  courierRef                      Courier?             @relation("ShipmentToCourier", fields: [courierId], references: [id])
+  order                           Order                @relation(fields: [orderId], references: [id])
+  shippingRate                    ShippingRate?        @relation(fields: [shippingRateId], references: [id])
+  warehouse                       Warehouse?           @relation(fields: [warehouseId], references: [id])
+  assignments                     ShipmentAssignment[]
+  costLogs                        ShipmentCostLog[]
+  items                           ShipmentItem[]
+  statusLogs                      ShipmentStatusLog[]
+
+  @@index([courierId])
+  @@index([shippingRateId])
+  @@index([assignedToUserId])
+  @@index([deliveryConfirmationRequestedAt])
+}
+
+model DeliveryProof {
+  id                Int      @id @default(autoincrement())
+  orderId           Int
+  shipmentId        Int      @unique
+  userId            String?
+  tickReceived      Boolean
+  tickCorrectItems  Boolean
+  tickGoodCondition Boolean
+  photoUrl          String?
+  note              String?
+  confirmedAt       DateTime @default(now())
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  order             Order    @relation(fields: [orderId], references: [id])
+  shipment          Shipment @relation(fields: [shipmentId], references: [id])
+  user              User?    @relation(fields: [userId], references: [id])
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([confirmedAt])
+}
+
+model Courier {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  type          CourierType
+  baseUrl       String
+  apiKey        String?
+  secretKey     String?
+  clientId      String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  shipments     Shipment[]     @relation("ShipmentToCourier")
+  shippingRates ShippingRate[]
+}
+
+model Warehouse {
+  id                               Int                               @id @default(autoincrement())
+  name                             String
+  code                             String                            @unique
+  address                          Json?
+  isDefault                        Boolean                           @default(false)
+  createdAt                        DateTime                          @default(now())
+  updatedAt                        DateTime                          @updatedAt
+  area                             String?
+  country                          String?                           @default("BD")
+  coverageRadiusKm                 Float?
+  district                         String?
+  division                         String?
+  geoFence                         Json?
+  isMapEnabled                     Boolean                           @default(true)
+  latitude                         Float?
+  locationNote                     String?
+  longitude                        Float?
+  mapLabel                         String?
+  postCode                         String?
+  inventoryDailySnapshots          InventoryDailySnapshot[]
+  inventoryLogs                    InventoryLog[]
+  inventoryWarehouseDailySnapshots InventoryWarehouseDailySnapshot[]
+  payrollEntries                   PayrollEntry[]
+  payrollProfiles                  PayrollProfile[]
+  shipments                        Shipment[]
+  shipmentAssignments              ShipmentAssignment[]
+  shippingRates                    ShippingRate[]
+  stockLevels                      StockLevel[]
+  userRoles                        UserRole[]
+  memberships                      WarehouseMembership[]
+  deliveryMen    DeliveryManProfile[]
+
+  @@index([country, division, district, area])
+  @@index([latitude, longitude])
+}
+
+model WarehouseMembership {
+  id           String    @id @default(cuid())
+  userId       String
+  warehouseId  Int
+  isPrimary    Boolean   @default(false)
+  status       String    @default("ACTIVE")
+  assignedById String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  assignedBy   User?     @relation("AssignedWarehouseMemberships", fields: [assignedById], references: [id])
+  user         User      @relation("WarehouseMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  warehouse    Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, warehouseId])
+  @@index([warehouseId])
+  @@index([assignedById])
+}
+
+model ShippingRate {
+  id            Int        @id @default(autoincrement())
+  country       String     @default("BD")
+  area          String
+  baseCost      Decimal    @db.Decimal(10, 2)
+  weightSlabs   Json?
+  freeMinOrder  Decimal?   @db.Decimal(10, 2)
+  isActive      Boolean    @default(true)
+  priority      Int        @default(1000)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  district      String?
+  courierId     Int?
+  deliveryType  String?
+  estimatedDays Int?
+  warehouseId   Int?
+  shipments     Shipment[]
+  courier       Courier?   @relation(fields: [courierId], references: [id])
+  warehouse     Warehouse? @relation(fields: [warehouseId], references: [id])
+
+  @@index([country, area])
+  @@index([isActive, priority])
+  @@index([warehouseId])
+  @@index([courierId])
+}
+
+model StockLevel {
+  id               Int                    @id @default(autoincrement())
+  warehouseId      Int
+  productVariantId Int
+  quantity         Int                    @default(0)
+  reserved         Int                    @default(0)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  reservations     InventoryReservation[]
+  variant          ProductVariant         @relation(fields: [productVariantId], references: [id])
+  warehouse        Warehouse              @relation(fields: [warehouseId], references: [id])
+
+  @@unique([warehouseId, productVariantId])
+}
+
+model InventoryReservation {
+  id           Int        @id @default(autoincrement())
+  stockLevelId Int
+  orderId      Int?
+  userId       String?
+  quantity     Int
+  reason       String?
+  expiresAt    DateTime?
+  createdAt    DateTime   @default(now())
+  order        Order?     @relation(fields: [orderId], references: [id])
+  stockLevel   StockLevel @relation(fields: [stockLevelId], references: [id])
+  user         User?      @relation(fields: [userId], references: [id])
+}
+
+model InventoryDailySnapshot {
+  id                Int            @id @default(autoincrement())
+  snapshotDate      DateTime       @db.Date
+  productId         Int
+  variantId         Int
+  stock             Int            @default(0)
+  lowStockThreshold Int            @default(10)
+  status            String         @db.VarChar(20)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  warehouseId       Int?
+  product           Product        @relation(fields: [productId], references: [id])
+  variant           ProductVariant @relation(fields: [variantId], references: [id])
+  warehouse         Warehouse?     @relation(fields: [warehouseId], references: [id])
+
+  @@unique([snapshotDate, variantId])
+  @@index([snapshotDate])
+}
+
+model InventoryWarehouseDailySnapshot {
+  id           Int            @id @default(autoincrement())
+  snapshotDate DateTime       @db.Date
+  productId    Int
+  variantId    Int
+  warehouseId  Int
+  quantity     Int            @default(0)
+  reserved     Int            @default(0)
+  available    Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  product      Product        @relation(fields: [productId], references: [id])
+  variant      ProductVariant @relation(fields: [variantId], references: [id])
+  warehouse    Warehouse      @relation(fields: [warehouseId], references: [id])
+
+  @@unique([snapshotDate, variantId, warehouseId])
+  @@index([snapshotDate, warehouseId])
+}
+
+model ShipmentItem {
+  id          Int       @id @default(autoincrement())
+  shipmentId  Int
+  orderItemId Int
+  quantity    Int       @default(1)
+  createdAt   DateTime  @default(now())
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id])
+  shipment    Shipment  @relation(fields: [shipmentId], references: [id])
+}
+
+model ShipmentStatusLog {
+  id         Int             @id @default(autoincrement())
+  shipmentId Int
+  fromStatus ShipmentStatus?
+  toStatus   ShipmentStatus
+  source     String          @default("SYSTEM")
+  note       String?
+  createdAt  DateTime        @default(now())
+  shipment   Shipment        @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, createdAt])
+  @@index([toStatus, createdAt])
+}
+
+model ShipmentCostLog {
+  id          Int      @id @default(autoincrement())
+  shipmentId  Int
+  costType    String
+  amount      Decimal  @db.Decimal(10, 2)
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  shipment    Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, createdAt])
+  @@index([createdById])
+}
+
+model ShipmentAssignment {
+  id           Int        @id @default(autoincrement())
+  shipmentId   Int
+  assignedToId String
+  assignedById String?
+  warehouseId  Int?
+  role         String?
+  note         String?
+  assignedAt   DateTime   @default(now())
+  completedAt  DateTime?
+  assignedBy   User?      @relation("ShipmentAssignmentBy", fields: [assignedById], references: [id])
+  assignedTo   User       @relation("ShipmentAssignmentTo", fields: [assignedToId], references: [id], onDelete: Cascade)
+  shipment     Shipment   @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
+
+  @@index([shipmentId])
+  @@index([assignedToId])
+  @@index([warehouseId])
+}
+
+model PayrollProfile {
+  id              Int            @id @default(autoincrement())
+  userId          String         @unique
+  warehouseId     Int?
+  employeeCode    String?        @unique
+  paymentType     String         @default("MONTHLY")
+  baseSalary      Decimal        @db.Decimal(10, 2)
+  bankName        String?
+  bankAccountNo   String?
+  accountHolder   String?
+  mobileBankingNo String?
+  paymentMethod   String?
+  joiningDate     DateTime?
+  isActive        Boolean        @default(true)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  entries         PayrollEntry[]
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouse       Warehouse?     @relation(fields: [warehouseId], references: [id])
+
+  @@index([warehouseId])
+}
+
+model PayrollPeriod {
+  id        Int            @id @default(autoincrement())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  status    String         @default("OPEN")
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  entries   PayrollEntry[]
+
+  @@unique([startDate, endDate])
+}
+
+model PayrollEntry {
+  id               Int                 @id @default(autoincrement())
+  payrollPeriodId  Int
+  payrollProfileId Int
+  userId           String
+  warehouseId      Int?
+  basicAmount      Decimal             @db.Decimal(10, 2)
+  overtimeAmount   Decimal             @default(0) @db.Decimal(10, 2)
+  bonusAmount      Decimal             @default(0) @db.Decimal(10, 2)
+  deductionAmount  Decimal             @default(0) @db.Decimal(10, 2)
+  netAmount        Decimal             @db.Decimal(10, 2)
+  paymentStatus    String              @default("PENDING")
+  paidAt           DateTime?
+  note             String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  adjustments      PayrollAdjustment[]
+  payrollPeriod    PayrollPeriod       @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  payrollProfile   PayrollProfile      @relation(fields: [payrollProfileId], references: [id], onDelete: Cascade)
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouse        Warehouse?          @relation(fields: [warehouseId], references: [id])
+
+  @@unique([payrollPeriodId, payrollProfileId])
+  @@index([payrollPeriodId])
+  @@index([userId])
+  @@index([warehouseId])
+}
+
+model PayrollAdjustment {
+  id             Int          @id @default(autoincrement())
+  payrollEntryId Int
+  type           String
+  amount         Decimal      @db.Decimal(10, 2)
+  reason         String?
+  createdAt      DateTime     @default(now())
+  payrollEntry   PayrollEntry @relation(fields: [payrollEntryId], references: [id], onDelete: Cascade)
+
+  @@index([payrollEntryId])
+}
+
+model Refund {
+  id          Int          @id @default(autoincrement())
+  orderId     Int
+  userId      String?
+  paymentId   Int?
+  orderItemId Int?
+  reason      String
+  status      RefundStatus @default(REQUESTED)
+  amount      Decimal      @db.Decimal(10, 2)
+  quantity    Int?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  order       Order        @relation(fields: [orderId], references: [id])
+  orderItem   OrderItem?   @relation(fields: [orderItemId], references: [id])
+  payment     Payment?     @relation(fields: [paymentId], references: [id])
+  user        User?        @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model InventoryLog {
+  id          Int             @id @default(autoincrement())
+  productId   Int
+  variantId   Int?
+  warehouseId Int?
+  change      Int
+  reason      String
+  createdAt   DateTime        @default(now())
+  product     Product         @relation(fields: [productId], references: [id])
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+  warehouse   Warehouse?      @relation(fields: [warehouseId], references: [id])
+}
+
+model NewsletterSubscriber {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  status         String    @default("subscribed")
+  unsubscribedAt DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model Newsletter {
+  id        String    @id @default(uuid())
+  title     String
+  subject   String
+  content   String
+  status    String    @default("draft")
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Coupon {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  discountType  String
+  discountValue Decimal   @db.Decimal(10, 2)
+  minOrderValue Decimal?  @db.Decimal(10, 2)
+  maxDiscount   Decimal?  @db.Decimal(10, 2)
+  usageLimit    Int?
+  usedCount     Int       @default(0)
+  isValid       Boolean   @default(true)
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  orders        Order[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String   @db.VarChar(255)
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+model sitesettings {
+  id                Int     @id @default(autoincrement())
+  logo              String?
+  siteTitle         String?
+  footerDescription String?
+  contactNumber     String?
+  contactEmail      String?
+  address           String?
+  facebookLink      String?
+  instagramLink     String?
+  twitterLink       String?
+  tiktokLink        String?
+  youtubeLink       String?
+}
+
+model Banner {
+  id          Int        @id @default(autoincrement())
+  title       String
+  subtitle    String?
+  description String?
+  image       String
+  mobileImage String?
+  buttonText  String?
+  buttonLink  String?
+  position    Int        @default(0)
+  isActive    Boolean    @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  type        BannerType @default(HERO)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+model DeliveryManProfile {
+  id                    String                    @id @default(cuid())
+  userId                String                    @unique
+  warehouseId           Int
+  employeeCode          String?                   @unique
+
+  // Personal info
+  fullName              String
+  phone                 String
+  alternatePhone        String?
+  email                 String?
+  dateOfBirth           DateTime?
+  gender                String?
+
+  presentAddress        String
+  permanentAddress      String
+
+  emergencyContactName     String?
+  emergencyContactPhone    String?
+  emergencyContactRelation String?
+
+  // Identity info (self)
+  identityType          IdentityType
+  identityNumber        String
+  passportExpiryDate    DateTime?
+
+  // Parents info
+  fatherName            String
+  fatherIdentityType    IdentityType?
+  fatherIdentityNumber  String?
+
+  motherName            String
+  motherIdentityType    IdentityType?
+  motherIdentityNumber  String?
+
+  // Bank / legal
+  bankName              String?
+  bankAccountName       String?
+  bankAccountNumber     String?
+  bankChequeNumber      String?
+
+  bondAmount            Decimal?                  @db.Decimal(10, 2)
+  bondSignedAt          DateTime?
+  bondExpiryDate        DateTime?
+
+  contractSignedAt      DateTime?
+  contractStartDate     DateTime?
+  contractEndDate       DateTime?
+  contractStatus        String?
+
+  joiningDate           DateTime
+  status                DeliveryManStatus         @default(PENDING)
+  applicationStatus     DeliveryApplicationStatus @default(DRAFT)
+
+  verifiedById          String?
+  verifiedAt            DateTime?
+  rejectionReason       String?
+  note                  String?
+
+  assignedById          String?
+
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  // Relations
+  user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouse             Warehouse                 @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  verifiedBy            User?                     @relation("VerifiedDeliveryMen", fields: [verifiedById], references: [id], onDelete: SetNull)
+  assignedBy            User?                     @relation("AssignedDeliveryMen", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  references            DeliveryManReference[]
+  documents             DeliveryManDocument[]
+
+  @@index([warehouseId])
+  @@index([status])
+  @@index([applicationStatus])
+  @@index([verifiedById])
+  @@index([assignedById])
+}
+model DeliveryManReference {
+  id                    String              @id @default(cuid())
+  deliveryManProfileId  String
+
+  name                  String
+  phone                 String
+  relation              String?
+  address               String?
+  occupation            String?
+
+  identityType          IdentityType        @default(NID)
+  identityNumber        String
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  profile               DeliveryManProfile  @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
+  documents             DeliveryManDocument[]
+
+  @@index([deliveryManProfileId])
+}
+model DeliveryManDocument {
+  id                    String                   @id @default(cuid())
+  deliveryManProfileId  String
+  referenceId           String?
+
+  type                  DeliveryManDocumentType
+  title                 String?
+  fileUrl               String
+  fileName              String?
+  mimeType              String?
+  fileSize              Int?
+  note                  String?
+
+  isVerified            Boolean                  @default(false)
+  verifiedAt            DateTime?
+  verifiedById          String?
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  profile               DeliveryManProfile       @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
+  reference             DeliveryManReference?    @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  verifiedBy            User?                    @relation("VerifiedDeliveryManDocuments", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([deliveryManProfileId])
+  @@index([referenceId])
+  @@index([type])
+  @@index([verifiedById])
+}
+model AnalyticsEvent {
+  id            BigInt             @id @default(autoincrement())
+  ts            DateTime           @default(now())
+  event         AnalyticsEventName
+  visitorId     String             @map("visitor_id")
+  sessionId     String             @map("session_id")
+  userId        String?            @map("user_id")
+  path          String             @default("/") @map("path")
+  title         String?            @map("title")
+  referrer      String?            @map("referrer")
+  utmSource     String?            @map("utm_source")
+  utmMedium     String?            @map("utm_medium")
+  utmCampaign   String?            @map("utm_campaign")
+  deviceType    String?            @map("device_type")
+  browser       String?            @map("browser")
+  os            String?            @map("os")
+  screen        String?            @map("screen")
+  lang          String?            @map("lang")
+  country       String?            @map("country")
+  city          String?            @map("city")
+  activeSeconds Int                @default(0) @map("active_seconds")
+  ipHash        String?            @map("ip_hash")
+  dayKey        String             @default("") @map("day_key")
+  user          User?              @relation(fields: [userId], references: [id])
+
+  @@index([dayKey])
+  @@index([ipHash, dayKey])
+  @@index([ts])
+  @@index([event, ts])
+  @@index([visitorId, ts])
+  @@index([sessionId, ts])
+  @@index([path, ts])
+  @@index([utmSource, ts])
+  @@index([deviceType, ts])
+  @@map("analytics_events")
+}
+
+model GeoIpCache {
+  id        Int      @id @default(autoincrement())
+  ip        String   @unique
+  country   String?
+  city      String?
+  region    String?
+  lat       Float?
+  lon       Float?
+  isp       String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([updatedAt])
+  @@map("geo_ip_cache")
+}
+
+model ChatConversation {
+  id            String        @id @default(cuid())
+  userId        String?
+  guestEmail    String?
+  guestName     String?
+  status        ChatStatus    @default(OPEN)
+  priority      ChatPriority  @default(NORMAL)
+  assignedToId  String?
+  lastMessageAt DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  assignedTo    User?         @relation("AssignedChats", fields: [assignedToId], references: [id])
+  user          User?         @relation("UserChats", fields: [userId], references: [id])
+  messages      ChatMessage[]
+
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  senderId       String?
+  senderRole     String
+  message        String
+  attachmentUrl  String?
+  isRead         Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id])
+  sender         User?            @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId])
+}
+
+model ActivityLog {
+  id        BigInt   @id @default(autoincrement())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ipHash    String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatetAt DateTime
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
 enum ProductType {
   PHYSICAL
   DIGITAL
@@ -108,1275 +1374,48 @@ enum AccessScopeType {
   GLOBAL
   WAREHOUSE
 }
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  role          String    @default("user")
-  phone         String?
-  passwordHash  String?   @map("password")
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  banned        Boolean?
-  banReason     String?
-  banExpires    Int?
-  note          String?
-
-  orders                       Order[]
-  wishlist                     Wishlist[]
-  cart                         CartItem[]
-  reviews                      Review[]
-  inventoryReservations        InventoryReservation[]
-  serviceBookings              ServiceBooking[]
-  refunds                      Refund[]
-  deliveryProofs               DeliveryProof[]
-  addresses                    UserAddress[]
-  analyticsEvents              AnalyticsEvent[]
-  assignedChats                ChatConversation[]     @relation("AssignedChats")
-  userChats                    ChatConversation[]     @relation("UserChats")
-  chatMessages                 ChatMessage[]
-  activityLogs                 ActivityLog[]
-  userRoles                    UserRole[]             @relation("UserRoles")
-  assignedUserRoles            UserRole[]             @relation("AssignedUserRoles")
-  warehouseMemberships         WarehouseMembership[]  @relation("WarehouseMemberships")
-  assignedWarehouseMemberships WarehouseMembership[]  @relation("AssignedWarehouseMemberships")
-  assignedShipments            Shipment[]             @relation("AssignedShipments")
-  shipmentAssignmentsTo        ShipmentAssignment[]    @relation("ShipmentAssignmentTo")
-  shipmentAssignmentsBy        ShipmentAssignment[]    @relation("ShipmentAssignmentBy")
-  payrollProfile               PayrollProfile?
-  payrollEntries               PayrollEntry[]
-  shipmentCostLogsCreated      ShipmentCostLog[]
+enum IdentityType {
+  NID
+  PASSPORT
 }
 
-model UserAddress {
-  id        Int     @id @default(autoincrement())
-  userId    String
-  label     String
-  country   String
-  district  String
-  area      String
-  details   String
-  isDefault Boolean @default(false)
-
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+enum DeliveryManStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  RESIGNED
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
+enum DeliveryApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
 }
 
-model Permission {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+enum DeliveryManDocumentType {
+  PROFILE_PHOTO
 
-  rolePermissions RolePermission[]
-}
+  IDENTITY_FRONT
+  IDENTITY_BACK
 
-model Role {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  label       String
-  description String?
-  isSystem    Boolean   @default(false)
-  isImmutable Boolean   @default(false)
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  FATHER_IDENTITY_FRONT
+  FATHER_IDENTITY_BACK
 
-  rolePermissions RolePermission[]
-  userRoles       UserRole[]
+  MOTHER_IDENTITY_FRONT
+  MOTHER_IDENTITY_BACK
 
-  @@index([deletedAt])
-}
+  REFERENCE_1_NID_FRONT
+  REFERENCE_1_NID_BACK
 
-model RolePermission {
-  roleId       String
-  permissionId String
-  createdAt    DateTime @default(now())
+  REFERENCE_2_NID_FRONT
+  REFERENCE_2_NID_BACK
 
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  BANK_CHEQUE
+  BOND
+  CONTRACT_PAPER
 
-  @@id([roleId, permissionId])
-  @@index([permissionId])
-}
-
-model UserRole {
-  id           String          @id @default(cuid())
-  userId       String
-  roleId       String
-  scopeType    AccessScopeType @default(GLOBAL)
-  warehouseId  Int?
-  assignedById String?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-
-  user       User       @relation("UserRoles", fields: [userId], references: [id], onDelete: Cascade)
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  warehouse  Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  assignedBy User?      @relation("AssignedUserRoles", fields: [assignedById], references: [id], onDelete: SetNull)
-
-  @@unique([userId, roleId, scopeType, warehouseId])
-  @@index([roleId])
-  @@index([warehouseId])
-  @@index([assignedById])
-}
-
-model Writer {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  image     String?
-  products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deleted   Boolean   @default(false)
-}
-
-model Publisher {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  image     String?
-  products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deleted   Boolean   @default(false)
-}
-
-model Category {
-  id       Int     @id @default(autoincrement())
-  name     String
-  slug     String  @unique
-  image    String?
-  parentId Int?
-
-  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryToCategory")
-
-  products Product[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deleted   Boolean  @default(false)
-
-  @@index([parentId])
-}
-
-model Brand {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  slug      String    @unique
-  logo      String?
-  products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deleted   Boolean   @default(false)
-}
-
-model Product {
-  id   Int    @id @default(autoincrement())
-  name String
-  slug String @unique
-
-  type ProductType @default(PHYSICAL)
-  sku  String?     @unique
-
-  categoryId Int
-  brandId    Int?
-
-  writerId    Int? // keep for book backward compatibility
-  publisherId Int?
-
-  description String  @db.Text
-  shortDesc   String?
-
-  basePrice     Decimal  @db.Decimal(10, 2)
-  originalPrice Decimal? @db.Decimal(10, 2)
-  currency      String   @default("USD") @db.VarChar(3)
-
-  weight     Float?
-  dimensions Json?
-  VatClassId Int?
-
-  // Digital & service specific
-  digitalAssetId         Int?
-  serviceDurationMinutes Int?
-  serviceLocation        String?
-  serviceOnlineLink      String?
-
-  available Boolean @default(true)
-  featured  Boolean @default(false)
-
-  image    String?
-  gallery  String[]
-  videoUrl String?
-
-  soldCount         Int   @default(0)
-  ratingAvg         Float @default(0)
-  ratingCount       Int   @default(0)
-  lowStockThreshold Int   @default(10)
-
-  deleted Boolean @default(false)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  category Category @relation(fields: [categoryId], references: [id])
-  brand    Brand?   @relation(fields: [brandId], references: [id])
-
-  writer       Writer?       @relation(fields: [writerId], references: [id])
-  publisher    Publisher?    @relation(fields: [publisherId], references: [id])
-  VatClass     VatClass?     @relation(fields: [VatClassId], references: [id])
-  digitalAsset DigitalAsset? @relation("ProductDigitalAsset", fields: [digitalAssetId], references: [id])
-
-  variants                ProductVariant[]
-  codes                   ProductCode[]
-  variantOptions          ProductVariantOption[]
-  attributes              ProductAttribute[]
-  serviceSlots            ServiceSlot[]
-  inventoryLogs           InventoryLog[]
-  dailySnapshots          InventoryDailySnapshot[]
-  warehouseDailySnapshots InventoryWarehouseDailySnapshot[]
-
-  orderItems OrderItem[]
-  wishlist   Wishlist[]
-  reviews    Review[]
-  cartItems  CartItem[]
-}
-
-model ProductVariant {
-  id                Int      @id @default(autoincrement())
-  productId         Int
-  sku               String   @unique
-  price             Decimal  @db.Decimal(10, 2)
-  costPrice         Decimal? @db.Decimal(10, 2)
-  currency          String   @default("USD") @db.VarChar(3)
-  stock             Int      @default(0) // derived available stock across warehouses
-  lowStockThreshold Int      @default(10)
-  isDefault         Boolean  @default(false)
-  active            Boolean  @default(true)
-  digitalAssetId    Int?
-
-  options Json // { size: "XL", color: "Red" }
-
-  product                 Product                           @relation(fields: [productId], references: [id])
-  digitalAsset            DigitalAsset?                     @relation("VariantDigitalAsset", fields: [digitalAssetId], references: [id])
-  codes                   ProductCode[]
-  stockLevels             StockLevel[]
-  dailySnapshots          InventoryDailySnapshot[]
-  warehouseDailySnapshots InventoryWarehouseDailySnapshot[]
-  orderItems              OrderItem[]
-  inventoryLogs           InventoryLog[]
-  cartItems               CartItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model ProductVariantOption {
-  id        Int    @id @default(autoincrement())
-  productId Int
-  name      String
-  position  Int    @default(0)
-
-  product Product                     @relation(fields: [productId], references: [id])
-  values  ProductVariantOptionValue[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([productId, name])
-  @@index([productId, position])
-}
-
-model ProductVariantOptionValue {
-  id       Int    @id @default(autoincrement())
-  optionId Int
-  value    String
-  position Int    @default(0)
-
-  option ProductVariantOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([optionId, value])
-  @@index([optionId, position])
-}
-
-model ProductCode {
-  id        Int                  @id @default(autoincrement())
-  productId Int?
-  variantId Int?
-  kind      ProductCodeKind
-  symbology ProductCodeSymbology
-  value     String
-  token     String?              @unique
-  imageUrl  String?
-  isPrimary Boolean              @default(true)
-  status    String               @default("ACTIVE")
-  metadata  Json?
-
-  product Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([symbology, value])
-  @@index([productId])
-  @@index([variantId])
-  @@index([kind, status])
-}
-
-model DigitalAsset {
-  id              Int       @id @default(autoincrement())
-  title           String
-  fileUrl         String
-  storageProvider String?
-  fileSize        Int?
-  checksum        String?
-  mimeType        String?
-  maxDownloads    Int?
-  expiresAt       DateTime?
-
-  products   Product[]         @relation("ProductDigitalAsset")
-  variants   ProductVariant[]  @relation("VariantDigitalAsset")
-  deliveries DigitalDelivery[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model DigitalDelivery {
-  id             Int       @id @default(autoincrement())
-  orderItemId    Int
-  digitalAssetId Int
-  downloadLimit  Int?
-  downloadCount  Int       @default(0)
-  expiresAt      DateTime?
-
-  orderItem OrderItem     @relation(fields: [orderItemId], references: [id])
-  asset     DigitalAsset  @relation(fields: [digitalAssetId], references: [id])
-  downloads DownloadLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([orderItemId, digitalAssetId])
-}
-
-model DownloadLog {
-  id                Int      @id @default(autoincrement())
-  digitalDeliveryId Int
-  ipAddress         String?
-  userAgent         String?
-  downloadedAt      DateTime @default(now())
-
-  delivery DigitalDelivery @relation(fields: [digitalDeliveryId], references: [id])
-}
-
-model Attribute {
-  id                Int                @id @default(autoincrement())
-  name              String
-  values            AttributeValue[]
-  productAttributes ProductAttribute[]
-}
-
-model AttributeValue {
-  id          Int       @id @default(autoincrement())
-  value       String
-  attributeId Int
-  attribute   Attribute @relation(fields: [attributeId], references: [id])
-}
-
-model ProductAttribute {
-  id          Int    @id @default(autoincrement())
-  productId   Int
-  attributeId Int
-  value       String
-
-  product   Product   @relation(fields: [productId], references: [id])
-  attribute Attribute @relation(fields: [attributeId], references: [id])
-}
-
-model VatClass {
-  id          Int     @id @default(autoincrement())
-  name        String
-  code        String  @unique
-  description String?
-
-  products Product[]
-  rates    VatRate[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model VatRate {
-  id          Int       @id @default(autoincrement())
-  VatClassId  Int
-  countryCode String    @db.VarChar(2)
-  regionCode  String?   @db.VarChar(10)
-  rate        Decimal   @db.Decimal(6, 4) // e.g., 0.0750 = 7.5%
-  inclusive   Boolean   @default(false)
-  startDate   DateTime?
-  endDate     DateTime?
-
-  VatClass VatClass @relation(fields: [VatClassId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([countryCode, regionCode])
-}
-
-model Order {
-  id               Int     @id @default(autoincrement())
-  userId           String?
-  name             String
-  email            String?
-  phone_number     String
-  alt_phone_number String?
-  country          String
-  district         String
-  area             String
-  address_details  String
-  image            String?
-
-  payment_method String
-  order_date     DateTime @default(now())
-  total          Decimal  @db.Decimal(10, 2)
-  shipping_cost  Decimal  @db.Decimal(10, 2)
-  grand_total    Decimal  @db.Decimal(10, 2)
-  currency       String   @default("BDT") @db.VarChar(3)
-  Vat_total      Decimal? @db.Decimal(10, 2)
-  taxSnapshot    Json?
-  discount_total Decimal? @db.Decimal(10, 2)
-  couponId       String?
-
-  status        OrderStatus   @default(PENDING)
-  paymentStatus PaymentStatus @default(UNPAID)
-  transactionId String?
-
-  user                  User?                  @relation(fields: [userId], references: [id])
-  coupon                Coupon?                @relation(fields: [couponId], references: [id])
-  orderItems            OrderItem[]
-  payments              Payment[]
-  refunds               Refund[]
-  deliveryProofs        DeliveryProof[]
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  shipments             Shipment[]
-  inventoryReservations InventoryReservation[]
-}
-
-model Payment {
-  id                 Int          @id @default(autoincrement())
-  orderId            Int?
-  amount             Decimal?     @db.Decimal(10, 2)
-  currency           String       @default("BDT") @db.VarChar(3)
-  provider           String?
-  status             PaymentState @default(INITIATED)
-  externalId         String?      @unique
-  paymentGatewayData Json?
-
-  order   Order?   @relation(fields: [orderId], references: [id])
-  refunds Refund[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model OrderItem {
-  id                Int      @id @default(autoincrement())
-  orderId           Int
-  productId         Int
-  variantId         Int?
-  quantity          Int      @default(1)
-  price             Decimal  @db.Decimal(10, 2)
-  costPriceSnapshot Decimal? @db.Decimal(10, 2)
-  currency          String   @default("BDT") @db.VarChar(3)
-  VatAmount         Decimal? @db.Decimal(10, 2)
-  discountAmount    Decimal? @db.Decimal(10, 2)
-
-  order             Order             @relation(fields: [orderId], references: [id])
-  product           Product           @relation(fields: [productId], references: [id])
-  variant           ProductVariant?   @relation(fields: [variantId], references: [id])
-  shipmentItems     ShipmentItem[]
-  digitalDeliveries DigitalDelivery[]
-  serviceBooking    ServiceBooking?   @relation("OrderItemServiceBooking")
-  refunds           Refund[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model ServiceSlot {
-  id          Int      @id @default(autoincrement())
-  productId   Int
-  startsAt    DateTime
-  endsAt      DateTime
-  capacity    Int      @default(1)
-  bookedCount Int      @default(0)
-  timezone    String?
-  location    String?
-  notes       String?
-
-  product  Product          @relation(fields: [productId], references: [id])
-  bookings ServiceBooking[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model ServiceBooking {
-  id          Int           @id @default(autoincrement())
-  slotId      Int
-  orderItemId Int?          @unique
-  userId      String?
-  status      BookingStatus @default(PENDING)
-  notes       String?
-
-  slot      ServiceSlot @relation(fields: [slotId], references: [id])
-  orderItem OrderItem?  @relation("OrderItemServiceBooking", fields: [orderItemId], references: [id])
-  user      User?       @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
-model Review {
-  id        Int     @id @default(autoincrement())
-  rating    Int
-  comment   String?
-  productId Int
-  userId    String
-
-  product Product @relation(fields: [productId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-}
-
-model CartItem {
-  id        Int    @id @default(autoincrement())
-  userId    String
-  productId Int
-  variantId Int?
-  quantity  Int    @default(1)
-
-  user    User            @relation(fields: [userId], references: [id])
-  product Product         @relation(fields: [productId], references: [id])
-  variant ProductVariant? @relation(fields: [variantId], references: [id])
-
-  @@unique([userId, productId, variantId])
-  @@index([variantId])
-}
-
-model Wishlist {
-  id        Int    @id @default(autoincrement())
-  userId    String
-  productId Int
-
-  user    User    @relation(fields: [userId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
-
-  @@unique([userId, productId])
-}
-
-model Blog {
-  id        Int      @id @default(autoincrement())
-  slug      String   @unique
-  title     String
-  summary   String
-  content   String   @db.Text
-  date      DateTime
-  author    String
-  image     String
-  ads       String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Shipment {
-  id                              Int            @id @default(autoincrement())
-  orderId                         Int            @unique
-  warehouseId                     Int?
-  courier                         String
-  courierId                       Int?
-  trackingNumber                  String?
-  externalId                      String? // courier consignment id
-  trackingUrl                     String? // courier tracking page
-  status                          ShipmentStatus @default(PENDING)
-  deliveryConfirmationToken       String?        @unique
-  deliveryConfirmationPin         String?
-  deliveryConfirmationRequestedAt DateTime?
-
-  courierStatus String? // raw courier status
-  lastSyncedAt  DateTime?
-
-  estimatedCost     Decimal? @db.Decimal(10, 2)
-  actualCost        Decimal? @db.Decimal(10, 2)
-  thirdPartyCost    Decimal? @db.Decimal(10, 2)
-  handlingCost      Decimal? @db.Decimal(10, 2)
-  packagingCost     Decimal? @db.Decimal(10, 2)
-  fuelCost          Decimal? @db.Decimal(10, 2)
-  dispatchNote      String?
-  assignedToUserId  String?
-  assignedAt        DateTime?
-  pickedAt          DateTime?
-  outForDeliveryAt  DateTime?
-  shippingRateId    Int?
-  priority          Int      @default(0)
-
-  shippedAt    DateTime?
-  expectedDate DateTime?
-  deliveredAt  DateTime?
-
-  order         Order               @relation(fields: [orderId], references: [id])
-  warehouse     Warehouse?          @relation(fields: [warehouseId], references: [id])
-  courierRef    Courier?            @relation("ShipmentToCourier", fields: [courierId], references: [id])
-  shippingRate  ShippingRate?       @relation(fields: [shippingRateId], references: [id])
-  assignedTo    User?               @relation("AssignedShipments", fields: [assignedToUserId], references: [id])
-  items         ShipmentItem[]
-  deliveryProof DeliveryProof?
-  statusLogs    ShipmentStatusLog[]
-  costLogs      ShipmentCostLog[]
-  assignments   ShipmentAssignment[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([courierId])
-  @@index([shippingRateId])
-  @@index([assignedToUserId])
-  @@index([deliveryConfirmationRequestedAt])
-}
-
-model DeliveryProof {
-  id                Int      @id @default(autoincrement())
-  orderId           Int
-  shipmentId        Int      @unique
-  userId            String?
-  tickReceived      Boolean
-  tickCorrectItems  Boolean
-  tickGoodCondition Boolean
-  photoUrl          String?
-  note              String?
-  confirmedAt       DateTime @default(now())
-  ipAddress         String?
-  userAgent         String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  order    Order    @relation(fields: [orderId], references: [id])
-  shipment Shipment @relation(fields: [shipmentId], references: [id])
-  user     User?    @relation(fields: [userId], references: [id])
-
-  @@index([orderId])
-  @@index([userId])
-  @@index([confirmedAt])
-}
-
-model Courier {
-  id        Int         @id @default(autoincrement())
-  name      String      @unique
-  type      CourierType
-  baseUrl   String
-  apiKey    String?
-  secretKey String?
-  clientId  String?
-  isActive  Boolean     @default(true)
-
-  shipments Shipment[] @relation("ShipmentToCourier")
-  shippingRates ShippingRate[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Warehouse {
-  id        Int     @id @default(autoincrement())
-  name      String
-  code      String  @unique
-  address   Json?
-  isDefault Boolean @default(false)
-
-  // NEW: location mapping
-  country          String? @default("BD")
-  division         String?
-  district         String?
-  area             String?
-  postCode         String?
-  latitude         Float?
-  longitude        Float?
-  mapLabel         String?
-  geoFence         Json? // polygon / boundary
-  coverageRadiusKm Float?
-  locationNote     String?
-  isMapEnabled     Boolean @default(true)
-
-  // existing
-  stockLevels                      StockLevel[]
-  inventoryWarehouseDailySnapshots InventoryWarehouseDailySnapshot[]
-  shipments                        Shipment[]
-  inventoryLogs                    InventoryLog[]
-  inventoryDailySnapshots          InventoryDailySnapshot[]
-  userRoles                        UserRole[]
-  memberships                      WarehouseMembership[]
-  shippingRates                    ShippingRate[]
-  payrollProfiles                  PayrollProfile[]
-  payrollEntries                   PayrollEntry[]
-  shipmentAssignments               ShipmentAssignment[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([country, division, district, area])
-  @@index([latitude, longitude])
-}
-
-model WarehouseMembership {
-  id           String   @id @default(cuid())
-  userId       String
-  warehouseId  Int
-  isPrimary    Boolean  @default(false)
-  status       String   @default("ACTIVE")
-  assignedById String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  user       User      @relation("WarehouseMemberships", fields: [userId], references: [id], onDelete: Cascade)
-  warehouse  Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  assignedBy User?     @relation("AssignedWarehouseMemberships", fields: [assignedById], references: [id], onDelete: SetNull)
-
-  @@unique([userId, warehouseId])
-  @@index([warehouseId])
-  @@index([assignedById])
-}
-
-model ShippingRate {
-  id Int @id @default(autoincrement())
-
-  // Location scope
-  country  String  @default("BD")
-  district String?
-  area     String
-  
-  // NEW: Warehouse and Courier scope
-  warehouseId   Int?
-  courierId     Int?
-  deliveryType  String?
-  estimatedDays Int?
-
-  // Pricing config
-  baseCost    Decimal @db.Decimal(10, 2)
-  weightSlabs Json?
-
-  // Free shipping
-  freeMinOrder Decimal? @db.Decimal(10, 2)
-
-  // Rule control
-  isActive Boolean @default(true)
-  priority Int     @default(1000)
-
-  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
-  courier     Courier?   @relation(fields: [courierId], references: [id])
-  shipments   Shipment[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([country, area])
-  @@index([isActive, priority])
-  @@index([warehouseId])
-  @@index([courierId])
-}
-
-model StockLevel {
-  id               Int @id @default(autoincrement())
-  warehouseId      Int
-  productVariantId Int
-  quantity         Int @default(0)
-  reserved         Int @default(0)
-
-  warehouse    Warehouse              @relation(fields: [warehouseId], references: [id])
-  variant      ProductVariant         @relation(fields: [productVariantId], references: [id])
-  reservations InventoryReservation[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([warehouseId, productVariantId])
-}
-
-model InventoryReservation {
-  id           Int       @id @default(autoincrement())
-  stockLevelId Int
-  orderId      Int?
-  userId       String?
-  quantity     Int
-  reason       String?
-  expiresAt    DateTime?
-
-  stockLevel StockLevel @relation(fields: [stockLevelId], references: [id])
-  order      Order?     @relation(fields: [orderId], references: [id])
-  user       User?      @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-}
-
-model InventoryDailySnapshot {
-  id                Int      @id @default(autoincrement())
-  snapshotDate      DateTime @db.Date
-  productId         Int
-  variantId         Int
-  warehouseId       Int?
-  stock             Int      @default(0)
-  lowStockThreshold Int      @default(10)
-  status            String   @db.VarChar(20)
-
-  product  Product        @relation(fields: [productId], references: [id])
-  variant  ProductVariant @relation(fields: [variantId], references: [id])
-  warehouse Warehouse?    @relation(fields: [warehouseId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([snapshotDate, variantId, warehouseId])
-  @@index([snapshotDate])
-}
-
-model InventoryWarehouseDailySnapshot {
-  id           Int      @id @default(autoincrement())
-  snapshotDate DateTime @db.Date
-  productId    Int
-  variantId    Int
-  warehouseId  Int
-  quantity     Int      @default(0)
-  reserved     Int      @default(0)
-  available    Int      @default(0)
-
-  product   Product        @relation(fields: [productId], references: [id])
-  variant   ProductVariant @relation(fields: [variantId], references: [id])
-  warehouse Warehouse      @relation(fields: [warehouseId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([snapshotDate, variantId, warehouseId])
-  @@index([snapshotDate, warehouseId])
-}
-
-model ShipmentItem {
-  id          Int @id @default(autoincrement())
-  shipmentId  Int
-  orderItemId Int
-  quantity    Int @default(1)
-
-  shipment  Shipment  @relation(fields: [shipmentId], references: [id])
-  orderItem OrderItem @relation(fields: [orderItemId], references: [id])
-
-  createdAt DateTime @default(now())
-}
-
-model ShipmentStatusLog {
-  id         Int             @id @default(autoincrement())
-  shipmentId Int
-  fromStatus ShipmentStatus?
-  toStatus   ShipmentStatus
-  source     String          @default("SYSTEM")
-  note       String?
-
-  shipment Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([shipmentId, createdAt])
-  @@index([toStatus, createdAt])
-}
-
-model ShipmentCostLog {
-  id          Int      @id @default(autoincrement())
-  shipmentId  Int
-  costType    String
-  amount      Decimal  @db.Decimal(10, 2)
-  note        String?
-  createdById String?
-  createdAt   DateTime @default(now())
-
-  shipment  Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
-
-  @@index([shipmentId, createdAt])
-  @@index([createdById])
-}
-
-model ShipmentAssignment {
-  id            Int      @id @default(autoincrement())
-  shipmentId    Int
-  assignedToId  String
-  assignedById  String?
-  warehouseId   Int?
-  role          String?
-  note          String?
-  assignedAt    DateTime @default(now())
-  completedAt   DateTime?
-
-  shipment    Shipment   @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  assignedTo  User       @relation("ShipmentAssignmentTo", fields: [assignedToId], references: [id], onDelete: Cascade)
-  assignedBy  User?      @relation("ShipmentAssignmentBy", fields: [assignedById], references: [id], onDelete: SetNull)
-  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
-
-  @@index([shipmentId])
-  @@index([assignedToId])
-  @@index([warehouseId])
-}
-
-model PayrollProfile {
-  id              Int       @id @default(autoincrement())
-  userId          String    @unique
-  warehouseId     Int?
-  employeeCode    String?   @unique
-  paymentType     String    @default("MONTHLY")
-  baseSalary      Decimal   @db.Decimal(10, 2)
-  bankName        String?
-  bankAccountNo   String?
-  accountHolder   String?
-  mobileBankingNo String?
-  paymentMethod   String?
-  joiningDate     DateTime?
-  isActive        Boolean   @default(true)
-  notes           String?
-
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  warehouse Warehouse?     @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
-  entries   PayrollEntry[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([warehouseId])
-}
-
-model PayrollPeriod {
-  id        Int      @id @default(autoincrement())
-  name      String
-  startDate DateTime
-  endDate   DateTime
-  status    String   @default("OPEN")
-  notes     String?
-
-  entries PayrollEntry[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([startDate, endDate])
-}
-
-model PayrollEntry {
-  id               Int       @id @default(autoincrement())
-  payrollPeriodId  Int
-  payrollProfileId Int
-  userId           String
-  warehouseId      Int?
-  basicAmount      Decimal   @db.Decimal(10, 2)
-  overtimeAmount   Decimal   @default(0) @db.Decimal(10, 2)
-  bonusAmount      Decimal   @default(0) @db.Decimal(10, 2)
-  deductionAmount  Decimal   @default(0) @db.Decimal(10, 2)
-  netAmount        Decimal   @db.Decimal(10, 2)
-  paymentStatus    String    @default("PENDING")
-  paidAt           DateTime?
-  note             String?
-
-  payrollPeriod  PayrollPeriod  @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
-  payrollProfile PayrollProfile @relation(fields: [payrollProfileId], references: [id], onDelete: Cascade)
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  warehouse      Warehouse?     @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
-  adjustments    PayrollAdjustment[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([payrollPeriodId, payrollProfileId])
-  @@index([payrollPeriodId])
-  @@index([userId])
-  @@index([warehouseId])
-}
-
-model PayrollAdjustment {
-  id             Int      @id @default(autoincrement())
-  payrollEntryId Int
-  type           String
-  amount         Decimal  @db.Decimal(10, 2)
-  reason         String?
-  createdAt      DateTime @default(now())
-
-  payrollEntry PayrollEntry @relation(fields: [payrollEntryId], references: [id], onDelete: Cascade)
-
-  @@index([payrollEntryId])
-}
-
-model Refund {
-  id          Int          @id @default(autoincrement())
-  orderId     Int
-  userId      String?
-  paymentId   Int?
-  orderItemId Int?
-  reason      String
-  status      RefundStatus @default(REQUESTED)
-  amount      Decimal      @db.Decimal(10, 2)
-  quantity    Int?
-
-  order     Order      @relation(fields: [orderId], references: [id])
-  user      User?      @relation(fields: [userId], references: [id])
-  payment   Payment?   @relation(fields: [paymentId], references: [id])
-  orderItem OrderItem? @relation(fields: [orderItemId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
-model InventoryLog {
-  id          Int    @id @default(autoincrement())
-  productId   Int
-  variantId   Int?
-  warehouseId Int?
-  change      Int
-  reason      String
-
-  product   Product         @relation(fields: [productId], references: [id])
-  variant   ProductVariant? @relation(fields: [variantId], references: [id])
-  warehouse Warehouse?      @relation(fields: [warehouseId], references: [id])
-
-  createdAt DateTime @default(now())
-}
-
-model NewsletterSubscriber {
-  id             String    @id @default(uuid())
-  email          String    @unique
-  status         String    @default("subscribed")
-  unsubscribedAt DateTime?
-  createdAt      DateTime  @default(now())
-}
-
-model Newsletter {
-  id        String    @id @default(uuid())
-  title     String
-  subject   String
-  content   String    @db.Text
-  status    String    @default("draft")
-  sentAt    DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
-
-model Coupon {
-  id            String    @id @default(uuid())
-  code          String    @unique
-  discountType  String // "percentage" or "fixed"
-  discountValue Decimal   @db.Decimal(10, 2)
-  minOrderValue Decimal?  @db.Decimal(10, 2)
-  maxDiscount   Decimal?  @db.Decimal(10, 2)
-  usageLimit    Int?
-  usedCount     Int       @default(0)
-  isValid       Boolean   @default(true)
-  expiresAt     DateTime?
-  orders        Order[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-
-model PasswordResetToken {
-  id        String   @id @default(uuid())
-  email     String   @db.VarChar(255)
-  token     String   @unique @db.VarChar(255)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@index([email])
-  @@index([token])
-}
-
-model sitesettings {
-  id        Int     @id @default(autoincrement())
-  logo      String?
-  siteTitle String?
-
-  footerDescription String?
-  contactNumber     String?
-  contactEmail      String?
-  address           String?
-
-  facebookLink  String?
-  instagramLink String?
-  twitterLink   String?
-  tiktokLink    String?
-  youtubeLink   String?
-}
-
-model Banner {
-  id Int @id @default(autoincrement())
-
-  title       String
-  subtitle    String?
-  description String?   @db.Text
-  image       String
-  mobileImage String?
-  buttonText  String?
-  buttonLink  String?
-  position    Int       @default(0)
-  isActive    Boolean   @default(true)
-  startDate   DateTime?
-  endDate     DateTime?
-
-  type BannerType @default(HERO)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model AnalyticsEvent {
-  id    BigInt             @id @default(autoincrement())
-  ts    DateTime           @default(now())
-  event AnalyticsEventName
-
-  // Identity
-  visitorId String  @map("visitor_id") // GA client_id like
-  sessionId String  @map("session_id") // GA session
-  userId    String? @map("user_id") // optional (logged in)
-  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  // Page
-  path     String  @default("/") @map("path")
-  title    String? @map("title")
-  referrer String? @map("referrer")
-
-  // UTM
-  utmSource   String? @map("utm_source")
-  utmMedium   String? @map("utm_medium")
-  utmCampaign String? @map("utm_campaign")
-
-  // Device
-  deviceType String? @map("device_type") // mobile/desktop/tablet
-  browser    String? @map("browser")
-  os         String? @map("os")
-  screen     String? @map("screen")
-  lang       String? @map("lang")
-
-  // Geo (optional)
-  country String? @map("country")
-  city    String? @map("city")
-
-  // Engagement (heartbeat only)
-  activeSeconds Int @default(0) @map("active_seconds")
-
-  ipHash String? @map("ip_hash")
-  dayKey String  @default("") @map("day_key")
-
-  @@index([dayKey])
-  @@index([ipHash, dayKey])
-  @@index([ts])
-  @@index([event, ts])
-  @@index([visitorId, ts])
-  @@index([sessionId, ts])
-  @@index([path, ts])
-  @@index([utmSource, ts])
-  @@index([deviceType, ts])
-  @@map("analytics_events")
-}
-
-model GeoIpCache {
-  id        Int      @id @default(autoincrement())
-  ip        String   @unique
-  country   String?
-  city      String?
-  region    String?
-  lat       Float?
-  lon       Float?
-  isp       String?
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-
-  @@index([updatedAt])
-  @@map("geo_ip_cache")
-}
-
-model ChatConversation {
-  id         String       @id @default(cuid())
-  userId     String?
-  guestEmail String?
-  guestName  String?
-  status     ChatStatus   @default(OPEN)
-  priority   ChatPriority @default(NORMAL)
-
-  assignedToId String?
-  assignedTo   User?   @relation("AssignedChats", fields: [assignedToId], references: [id])
-
-  user User? @relation("UserChats", fields: [userId], references: [id])
-
-  messages ChatMessage[]
-
-  lastMessageAt DateTime?
-  closedAt      DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status])
-  @@index([assignedToId])
-}
-
-model ChatMessage {
-  id             String  @id @default(cuid())
-  conversationId String
-  senderId       String?
-  senderRole     String // "user", "admin", "guest"
-  message        String  @db.Text
-  attachmentUrl  String?
-
-  conversation ChatConversation @relation(fields: [conversationId], references: [id])
-  sender       User?            @relation(fields: [senderId], references: [id])
-
-  isRead Boolean @default(false)
-
-  createdAt DateTime @default(now())
-
-  @@index([conversationId])
-}
-
-model ActivityLog {
-  id        BigInt  @id @default(autoincrement())
-  userId    String?
-  action    String
-  entity    String
-  entityId  String?
-  metadata  Json?
-  ipHash    String?
-  userAgent String?
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-
-  @@index([entity, entityId])
-  @@index([userId])
-  @@index([createdAt])
+  OTHER
 }

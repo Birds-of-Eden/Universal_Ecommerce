@@ -176,6 +176,10 @@ const OrderManagement = () => {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>("");
 
+  // error modal
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+
   // editable fields (order)
   const [editOrderStatus, setEditOrderStatus] =
     useState<OrderStatusType>("PENDING");
@@ -666,7 +670,8 @@ const OrderManagement = () => {
       setSuccessMessage("Order and shipment information updated successfully ✅");
       setSuccessOpen(true);
     } catch (err: any) {
-      alert(err?.message || "Problem updating information");
+      setErrorMessage(err?.message || "Problem updating information");
+      setErrorOpen(true);
     } finally {
       setSaving(false);
     }
@@ -1767,6 +1772,47 @@ const OrderManagement = () => {
             <div className="mt-4 flex justify-end">
               <button
                 onClick={() => setSuccessOpen(false)}
+                className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ❌ Error Modal */}
+      {errorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-xs rounded-2xl bg-card px-5 py-4 shadow-xl border-border">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/10 text-red-600">
+                <svg
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    d="M6 18L18 6M6 6l12 12"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Error
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {errorMessage || "An error occurred."}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setErrorOpen(false)}
                 className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
               >
                 OK
