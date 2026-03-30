@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 import {
   ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS,
   isPermissionKey,
@@ -181,6 +182,18 @@ export async function PATCH(
       });
     });
 
+    await logActivity({
+      action: "update",
+      entity: "rbac_role",
+      entityId: id,
+      access,
+      request,
+      metadata: {
+        label: updatedRole?.label ?? null,
+        permissionCount: updatedRole?.rolePermissions.length ?? 0,
+      },
+    });
+
     return NextResponse.json({
       id: updatedRole?.id,
       name: updatedRole?.name,
@@ -202,7 +215,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -248,6 +261,17 @@ export async function DELETE(
     await prisma.role.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+
+    await logActivity({
+      action: "delete",
+      entity: "rbac_role",
+      entityId: id,
+      access,
+      request,
+      metadata: {
+        name: role.name,
+      },
     });
 
     return NextResponse.json({ message: "Role deleted successfully." });

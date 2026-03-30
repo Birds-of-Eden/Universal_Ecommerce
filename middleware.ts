@@ -36,6 +36,7 @@ const adminPagePermissionRules: PermissionRule[] = [
   },
   { prefix: "/admin/analytics", permissions: ["dashboard.read", "admin.panel.access"] },
   { prefix: "/admin/reports", permissions: ["reports.read"] },
+   { prefix: "/admin/settings/activitylog", permissions: ["admin.panel.access"] },
   { prefix: "/admin/settings/payroll", permissions: ["payroll.manage"] },
   { prefix: "/admin/settings/rbac", permissions: ["roles.manage"] },
   { prefix: "/admin/settings/banner", permissions: ["settings.banner.manage", "settings.manage"] },
@@ -81,6 +82,10 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/admin/rbac/users",
     permissions: ["users.manage"],
+  },
+  {
+    prefix: "/api/admin/activity-log",
+    permissions: ["admin.panel.access"],
   },
   {
     prefix: "/api/admin/rbac",

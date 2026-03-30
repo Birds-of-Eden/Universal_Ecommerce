@@ -4,8 +4,29 @@ import { Prisma } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
 
 const db = prisma as any;
+
+function toShippingRateLogSnapshot(rate: {
+  country: string;
+  area: string;
+  baseCost?: unknown;
+  weightSlabs?: unknown;
+  freeMinOrder?: unknown;
+  isActive?: boolean;
+  priority?: number;
+}) {
+  return {
+    country: rate.country,
+    area: rate.area,
+    baseCost: rate.baseCost ?? null,
+    weightSlabs: rate.weightSlabs ?? null,
+    freeMinOrder: rate.freeMinOrder ?? null,
+    isActive: rate.isActive ?? null,
+    priority: rate.priority ?? null,
+  };
+}
 
 function toDecimal(value: unknown, field: string): Prisma.Decimal {
   if (value === null || value === undefined || value === "") {
@@ -62,17 +83,20 @@ function validateWeightSlabs(input: unknown) {
   return input;
 }
 
-async function ensureAdmin() {
+async function getAdminAccess() {
   const session = await getServerSession(authOptions);
   const access = await getAccessContext(
     session?.user as { id?: string; role?: string } | undefined,
   );
-  return access.has("settings.shipping.manage") || access.has("settings.manage");
+  return {
+    access,
+    canManage: access.has("settings.shipping.manage") || access.has("settings.manage"),
+  };
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const canManage = await ensureAdmin();
+    const { canManage } = await getAdminAccess();
 
     const { searchParams } = new URL(request.url);
     const country = searchParams.get("country");
@@ -110,7 +134,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!(await ensureAdmin())) {
+    const { access, canManage } = await getAdminAccess();
+    if (!canManage) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -135,6 +160,19 @@ export async function POST(request: NextRequest) {
     };
 
     const created = await db.shippingRate.create({ data });
+
+    await logActivity({
+      action: "create",
+      entity: "shipping_rate",
+      entityId: created.id,
+      access,
+      request,
+      metadata: {
+        message: `Created shipping rate for ${created.area}, ${created.country}`,
+      },
+      after: toShippingRateLogSnapshot(created),
+    });
+
     return NextResponse.json(created, { status: 201 });
   } catch (error: any) {
     console.error("POST SHIPPING RATE ERROR:", error);

@@ -181,6 +181,11 @@ const menuItems: MenuItem[] = [
         href: "/admin/settings/rbac",
         requiredPermissions: ["roles.manage"],
       },
+      {
+        name: "Activity Log",
+        href: "/admin/settings/activitylog",
+        requiredPermissions: ["admin.panel.access"],
+      },
     ],
   },
 ];
