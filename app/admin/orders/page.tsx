@@ -150,14 +150,14 @@ const OrderManagement = () => {
   const initialCachedOrders = orderListCache.get(initialCacheKey);
 
   const [orders, setOrders] = useState<Order[]>(
-    () => initialCachedOrders?.orders ?? []
+    () => initialCachedOrders?.orders ?? [],
   );
   const [pagination, setPagination] = useState<Pagination | null>(
-    () => initialCachedOrders?.pagination ?? null
+    () => initialCachedOrders?.pagination ?? null,
   );
   const [page, setPage] = useState(lastOrderListQueryState.page);
   const [statusFilter, setStatusFilter] = useState<string>(
-    lastOrderListQueryState.statusFilter
+    lastOrderListQueryState.statusFilter,
   );
   const [search, setSearch] = useState(lastOrderListQueryState.search);
   const [loading, setLoading] = useState(() => !initialCachedOrders);
@@ -350,13 +350,16 @@ const OrderManagement = () => {
     });
   }, []);
 
-  const formatMoney = useCallback((amount?: number | null, currency = "BDT") => {
-    const value = Number(amount ?? 0);
-    return `${currency} ${value.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  }, []);
+  const formatMoney = useCallback(
+    (amount?: number | null, currency = "BDT") => {
+      const value = Number(amount ?? 0);
+      return `${currency} ${value.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    },
+    [],
+  );
 
   const formatVariantLabel = useCallback((item?: OrderItem | null) => {
     if (!item?.variant) return "";
@@ -667,7 +670,9 @@ const OrderManagement = () => {
       }
 
       // 4) Show success modal
-      setSuccessMessage("Order and shipment information updated successfully ✅");
+      setSuccessMessage(
+        "Order and shipment information updated successfully ✅",
+      );
       setSuccessOpen(true);
     } catch (err: any) {
       setErrorMessage(err?.message || "Problem updating information");
@@ -924,7 +929,8 @@ const OrderManagement = () => {
                             Order #{order.id} • {order.name || "Guest Customer"}
                           </p>
                           <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                            {order.address_details}, {order.area}, {order.district}, {order.country}
+                            {order.address_details}, {order.area},{" "}
+                            {order.district}, {order.country}
                           </p>
                         </div>
                         <span
@@ -965,7 +971,8 @@ const OrderManagement = () => {
                       <p className="truncate text-xs text-muted-foreground">
                         {(() => {
                           const firstItem = order.orderItems?.[0];
-                          if (!firstItem?.product?.name) return "No product details";
+                          if (!firstItem?.product?.name)
+                            return "No product details";
 
                           const variantLabel = formatVariantLabel(firstItem);
                           return variantLabel
@@ -985,7 +992,9 @@ const OrderManagement = () => {
                       </span>
 
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Grand Total</p>
+                        <p className="text-xs text-muted-foreground">
+                          Grand Total
+                        </p>
                         <p className="text-xl font-semibold text-foreground">
                           {formatMoney(
                             Number(order.grand_total ?? 0),
@@ -1052,7 +1061,9 @@ const OrderManagement = () => {
                 {orderDetail && (
                   <p className="text-xs text-muted-foreground">
                     Order ID: {orderDetail.id} •{" "}
-                    {formatDate(orderDetail.order_date || orderDetail.createdAt)}
+                    {formatDate(
+                      orderDetail.order_date || orderDetail.createdAt,
+                    )}
                   </p>
                 )}
               </div>
@@ -1108,7 +1119,10 @@ const OrderManagement = () => {
                     <div className="mb-3 h-3 w-24 rounded bg-gray-200"></div>
                     <div className="space-y-2">
                       {[...Array(3)].map((_, index) => (
-                        <div key={index} className="flex items-center justify-between rounded-xl bg-card px-3 py-2">
+                        <div
+                          key={index}
+                          className="flex items-center justify-between rounded-xl bg-card px-3 py-2"
+                        >
                           <div>
                             <div className="h-3 w-32 rounded bg-gray-200 mb-1"></div>
                             <div className="h-3 w-20 rounded bg-gray-200"></div>
@@ -1255,7 +1269,9 @@ const OrderManagement = () => {
                       <p className="mt-1 text-xs text-muted-foreground">
                         Order Date:{" "}
                         <span className="font-medium">
-                          {formatDate(orderDetail.order_date || orderDetail.createdAt)}
+                          {formatDate(
+                            orderDetail.order_date || orderDetail.createdAt,
+                          )}
                         </span>
                       </p>
                     </div>
@@ -1379,7 +1395,12 @@ const OrderManagement = () => {
                     <div className="mt-3 border-t border-border pt-2 text-xs text-foreground">
                       <div className="flex justify-between">
                         <span>Subtotal</span>
-                        <span>{formatMoney(Number(orderDetail.total), orderDetail.currency || "BDT")}</span>
+                        <span>
+                          {formatMoney(
+                            Number(orderDetail.total),
+                            orderDetail.currency || "BDT",
+                          )}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Discount</span>
@@ -1401,11 +1422,21 @@ const OrderManagement = () => {
                       </div>
                       <div className="flex justify-between">
                         <span>Shipping</span>
-                        <span>{formatMoney(Number(orderDetail.shipping_cost), orderDetail.currency || "BDT")}</span>
+                        <span>
+                          {formatMoney(
+                            Number(orderDetail.shipping_cost),
+                            orderDetail.currency || "BDT",
+                          )}
+                        </span>
                       </div>
                       <div className="mt-1 flex justify-between font-semibold">
                         <span>Grand Total</span>
-                        <span>{formatMoney(Number(orderDetail.grand_total), orderDetail.currency || "BDT")}</span>
+                        <span>
+                          {formatMoney(
+                            Number(orderDetail.grand_total),
+                            orderDetail.currency || "BDT",
+                          )}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1491,6 +1522,23 @@ const OrderManagement = () => {
 
                     <div className="grid gap-3 md:grid-cols-4">
                       <div className="space-y-1 text-xs">
+                        <p className="text-muted-foreground">Warehouse</p>
+                        <select
+                          value={editWarehouseId}
+                          onChange={(e) => setEditWarehouseId(e.target.value)}
+                          className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
+                        >
+                          <option value="">Select Warehouse</option>
+                          {warehouses.map((warehouse) => (
+                            <option key={warehouse.id} value={warehouse.id}>
+                              {warehouse.name} ({warehouse.code})
+                              {warehouse.isDefault ? " - Default" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1 text-xs">
                         <p className="text-muted-foreground">Courier</p>
                         {couriers.length > 0 ? (
                           <select
@@ -1523,22 +1571,7 @@ const OrderManagement = () => {
                           />
                         )}
                       </div>
-                      <div className="space-y-1 text-xs">
-                        <p className="text-muted-foreground">Warehouse</p>
-                        <select
-                          value={editWarehouseId}
-                          onChange={(e) => setEditWarehouseId(e.target.value)}
-                          className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
-                        >
-                          <option value="">Select Warehouse</option>
-                          {warehouses.map((warehouse) => (
-                            <option key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name} ({warehouse.code})
-                              {warehouse.isDefault ? " - Default" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+
                       <div className="space-y-1 text-xs">
                         <p className="text-muted-foreground">Tracking Number</p>
                         <input
@@ -1608,7 +1641,8 @@ const OrderManagement = () => {
                           Courier Status: {shipment.courierStatus || "-"}
                         </div>
                         <div className="rounded-xl bg-card px-3 py-2">
-                          Last Synced: {formatDate(shipment.lastSyncedAt || "") || "-"}
+                          Last Synced:{" "}
+                          {formatDate(shipment.lastSyncedAt || "") || "-"}
                         </div>
                         <div className="rounded-xl bg-card px-3 py-2">
                           External ID: {shipment.externalId || "-"}
@@ -1639,9 +1673,9 @@ const OrderManagement = () => {
                               Delivery Proof Flow
                             </h4>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              When shipment reaches <strong>OUT_FOR_DELIVERY</strong>,
-                              customer can confirm with PIN + checklist + optional
-                              photo.
+                              When shipment reaches{" "}
+                              <strong>OUT_FOR_DELIVERY</strong>, customer can
+                              confirm with PIN + checklist + optional photo.
                             </p>
                           </div>
                           <div className="rounded-xl bg-white px-3 py-2 text-right shadow-sm">
@@ -1649,7 +1683,8 @@ const OrderManagement = () => {
                               Delivery PIN
                             </p>
                             <p className="mt-1 font-mono text-sm font-semibold text-foreground">
-                              {shipment.deliveryConfirmationPin || "Will generate on OFD"}
+                              {shipment.deliveryConfirmationPin ||
+                                "Will generate on OFD"}
                             </p>
                           </div>
                         </div>
@@ -1670,8 +1705,8 @@ const OrderManagement = () => {
                               </a>
                             ) : (
                               <p className="mt-1 text-xs text-muted-foreground">
-                                Link will appear automatically when the shipment is
-                                out for delivery.
+                                Link will appear automatically when the shipment
+                                is out for delivery.
                               </p>
                             )}
                           </div>
@@ -1683,10 +1718,14 @@ const OrderManagement = () => {
                             {shipment.deliveryProof ? (
                               <div className="mt-1 space-y-1 text-xs text-foreground">
                                 <p className="font-medium">
-                                  Confirmed on {formatDate(shipment.deliveryProof.confirmedAt)}
+                                  Confirmed on{" "}
+                                  {formatDate(
+                                    shipment.deliveryProof.confirmedAt,
+                                  )}
                                 </p>
                                 <p>
-                                  Checks: received / correct items / good condition
+                                  Checks: received / correct items / good
+                                  condition
                                 </p>
                                 {shipment.deliveryProof.photoUrl ? (
                                   <a
@@ -1802,9 +1841,7 @@ const OrderManagement = () => {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Error
-                </p>
+                <p className="text-sm font-semibold text-foreground">Error</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {errorMessage || "An error occurred."}
                 </p>
