@@ -99,6 +99,7 @@ export default function WarehouseLocationPicker({
 }: WarehouseLocationPickerProps) {
   const [isClient, setIsClient] = useState(false);
   const [leaflet, setLeaflet] = useState<any>(null);
+  const [selectedMarkerId, setSelectedMarkerId] = useState<number | string | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
 
   useEffect(() => {
@@ -135,9 +136,38 @@ export default function WarehouseLocationPicker({
     [markers],
   );
 
+  const selectedMarker = useMemo(
+    () =>
+      selectedMarkerId === null
+        ? null
+        : validMarkers.find((marker) => marker.id === selectedMarkerId) ?? null,
+    [selectedMarkerId, validMarkers],
+  );
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !leaflet) return;
+
+    if (selectedMarker) {
+      const radiusKm =
+        typeof selectedMarker.coverageRadiusKm === "number" &&
+        Number.isFinite(selectedMarker.coverageRadiusKm) &&
+        selectedMarker.coverageRadiusKm > 0
+          ? selectedMarker.coverageRadiusKm
+          : null;
+
+      if (radiusKm) {
+        const center = leaflet.latLng(
+          selectedMarker.latitude,
+          selectedMarker.longitude,
+        );
+        const bounds = center.toBounds(radiusKm * 2000);
+        map.fitBounds(bounds, { padding: [48, 48] });
+      } else {
+        map.setView([selectedMarker.latitude, selectedMarker.longitude], 15);
+      }
+      return;
+    }
 
     if (validMarkers.length > 1) {
       const bounds = leaflet.latLngBounds(
@@ -160,7 +190,21 @@ export default function WarehouseLocationPicker({
     }
 
     map.setView([23.8103, 90.4125], 7);
-  }, [hasSinglePoint, latitude, leaflet, longitude, validMarkers]);
+  }, [hasSinglePoint, latitude, leaflet, longitude, selectedMarker, validMarkers]);
+
+  useEffect(() => {
+    if (!readonly) {
+      setSelectedMarkerId(null);
+      return;
+    }
+
+    if (selectedMarkerId !== null) {
+      const stillExists = validMarkers.some((marker) => marker.id === selectedMarkerId);
+      if (!stillExists) {
+        setSelectedMarkerId(null);
+      }
+    }
+  }, [readonly, selectedMarkerId, validMarkers]);
 
   if (!isClient || !leaflet) {
     return (
@@ -220,13 +264,24 @@ export default function WarehouseLocationPicker({
           />
 
           {validMarkers.map((marker) => (
-            <Marker key={marker.id} position={[marker.latitude, marker.longitude]}>
+            <Marker
+              key={marker.id}
+              position={[marker.latitude, marker.longitude]}
+              eventHandlers={{
+                click: () => {
+                  setSelectedMarkerId(marker.id);
+                },
+              }}
+            >
               <Popup>
                 <div className="space-y-1 text-sm">
                   <div className="font-semibold">{marker.label || marker.name}</div>
                   {marker.code ? <div>Code: {marker.code}</div> : null}
                   {marker.district || marker.area ? (
                     <div>{[marker.area, marker.district].filter(Boolean).join(", ")}</div>
+                  ) : null}
+                  {marker.coverageRadiusKm && marker.coverageRadiusKm > 0 ? (
+                    <div>Coverage Radius: {marker.coverageRadiusKm} km</div>
                   ) : null}
                   <div>
                     {marker.latitude.toFixed(6)}, {marker.longitude.toFixed(6)}
@@ -235,6 +290,19 @@ export default function WarehouseLocationPicker({
               </Popup>
             </Marker>
           ))}
+
+          {readonly && selectedMarker && selectedMarker.coverageRadiusKm && selectedMarker.coverageRadiusKm > 0 ? (
+            <Circle
+              center={[selectedMarker.latitude, selectedMarker.longitude]}
+              radius={selectedMarker.coverageRadiusKm * 1000}
+              pathOptions={{
+                color: "#0f766e",
+                fillColor: "#14b8a6",
+                fillOpacity: 0.14,
+                weight: 2,
+              }}
+            />
+          ) : null}
 
           {hasSinglePoint ? (
             <>
