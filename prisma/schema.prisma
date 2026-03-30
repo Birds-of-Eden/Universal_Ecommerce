@@ -47,6 +47,10 @@ model User {
   warehouseMemberships         WarehouseMembership[]  @relation("WarehouseMemberships")
   wishlist                     Wishlist[]
   analyticsEvents              AnalyticsEvent[]
+  deliveryManProfile            DeliveryManProfile?
+  verifiedDeliveryMen           DeliveryManProfile[]   @relation("VerifiedDeliveryMen")
+  assignedDeliveryMen           DeliveryManProfile[]   @relation("AssignedDeliveryMen")
+  verifiedDeliveryManDocuments  DeliveryManDocument[]  @relation("VerifiedDeliveryManDocuments")
 }
 
 model UserAddress {
@@ -670,6 +674,7 @@ model Warehouse {
   stockLevels                      StockLevel[]
   userRoles                        UserRole[]
   memberships                      WarehouseMembership[]
+  deliveryMen    DeliveryManProfile[]
 
   @@index([country, division, district, area])
   @@index([latitude, longitude])
@@ -1034,7 +1039,135 @@ model Banner {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 }
+model DeliveryManProfile {
+  id                    String                    @id @default(cuid())
+  userId                String                    @unique
+  warehouseId           Int
+  employeeCode          String?                   @unique
 
+  // Personal info
+  fullName              String
+  phone                 String
+  alternatePhone        String?
+  email                 String?
+  dateOfBirth           DateTime?
+  gender                String?
+
+  presentAddress        String
+  permanentAddress      String
+
+  emergencyContactName     String?
+  emergencyContactPhone    String?
+  emergencyContactRelation String?
+
+  // Identity info (self)
+  identityType          IdentityType
+  identityNumber        String
+  passportExpiryDate    DateTime?
+
+  // Parents info
+  fatherName            String
+  fatherIdentityType    IdentityType?
+  fatherIdentityNumber  String?
+
+  motherName            String
+  motherIdentityType    IdentityType?
+  motherIdentityNumber  String?
+
+  // Bank / legal
+  bankName              String?
+  bankAccountName       String?
+  bankAccountNumber     String?
+  bankChequeNumber      String?
+
+  bondAmount            Decimal?                  @db.Decimal(10, 2)
+  bondSignedAt          DateTime?
+  bondExpiryDate        DateTime?
+
+  contractSignedAt      DateTime?
+  contractStartDate     DateTime?
+  contractEndDate       DateTime?
+  contractStatus        String?
+
+  joiningDate           DateTime
+  status                DeliveryManStatus         @default(PENDING)
+  applicationStatus     DeliveryApplicationStatus @default(DRAFT)
+
+  verifiedById          String?
+  verifiedAt            DateTime?
+  rejectionReason       String?
+  note                  String?
+
+  assignedById          String?
+
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  // Relations
+  user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouse             Warehouse                 @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  verifiedBy            User?                     @relation("VerifiedDeliveryMen", fields: [verifiedById], references: [id], onDelete: SetNull)
+  assignedBy            User?                     @relation("AssignedDeliveryMen", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  references            DeliveryManReference[]
+  documents             DeliveryManDocument[]
+
+  @@index([warehouseId])
+  @@index([status])
+  @@index([applicationStatus])
+  @@index([verifiedById])
+  @@index([assignedById])
+}
+model DeliveryManReference {
+  id                    String              @id @default(cuid())
+  deliveryManProfileId  String
+
+  name                  String
+  phone                 String
+  relation              String?
+  address               String?
+  occupation            String?
+
+  identityType          IdentityType        @default(NID)
+  identityNumber        String
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  profile               DeliveryManProfile  @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
+  documents             DeliveryManDocument[]
+
+  @@index([deliveryManProfileId])
+}
+model DeliveryManDocument {
+  id                    String                   @id @default(cuid())
+  deliveryManProfileId  String
+  referenceId           String?
+
+  type                  DeliveryManDocumentType
+  title                 String?
+  fileUrl               String
+  fileName              String?
+  mimeType              String?
+  fileSize              Int?
+  note                  String?
+
+  isVerified            Boolean                  @default(false)
+  verifiedAt            DateTime?
+  verifiedById          String?
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  profile               DeliveryManProfile       @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
+  reference             DeliveryManReference?    @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  verifiedBy            User?                    @relation("VerifiedDeliveryManDocuments", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([deliveryManProfileId])
+  @@index([referenceId])
+  @@index([type])
+  @@index([verifiedById])
+}
 model AnalyticsEvent {
   id            BigInt             @id @default(autoincrement())
   ts            DateTime           @default(now())
@@ -1240,4 +1373,49 @@ enum ChatPriority {
 enum AccessScopeType {
   GLOBAL
   WAREHOUSE
+}
+enum IdentityType {
+  NID
+  PASSPORT
+}
+
+enum DeliveryManStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  RESIGNED
+}
+
+enum DeliveryApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum DeliveryManDocumentType {
+  PROFILE_PHOTO
+
+  IDENTITY_FRONT
+  IDENTITY_BACK
+
+  FATHER_IDENTITY_FRONT
+  FATHER_IDENTITY_BACK
+
+  MOTHER_IDENTITY_FRONT
+  MOTHER_IDENTITY_BACK
+
+  REFERENCE_1_NID_FRONT
+  REFERENCE_1_NID_BACK
+
+  REFERENCE_2_NID_FRONT
+  REFERENCE_2_NID_BACK
+
+  BANK_CHEQUE
+  BOND
+  CONTRACT_PAPER
+
+  OTHER
 }
