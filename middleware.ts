@@ -64,6 +64,7 @@ const adminPagePermissionRules: PermissionRule[] = [
   { prefix: "/admin/chats", permissions: ["chats.manage"] },
   { prefix: "/admin/shipments", permissions: ["shipments.manage", "orders.read_all"] },
   { prefix: "/admin/logistics", permissions: ["logistics.manage"] },
+  { prefix: "/admin/delivery-men", permissions: ["delivery-men.manage", "logistics.manage"] },
   { prefix: "/admin/payroll", permissions: ["payroll.manage"] },
   { prefix: "/admin/management/categories", permissions: ["products.manage"] },
   { prefix: "/admin/management/brands", permissions: ["products.manage"] },
@@ -210,7 +211,6 @@ const apiPermissionRules: PermissionRule[] = [
   },
   {
     prefix: "/api/delivery-men",
-    methods: ["POST", "PUT", "PATCH", "DELETE"],
     permissions: ["delivery-men.manage", "logistics.manage"],
   },
   {

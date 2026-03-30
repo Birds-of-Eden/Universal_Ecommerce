@@ -160,7 +160,7 @@ const menuItems: MenuItem[] = [
       {
         name: "Deliveryman",
         href: "/admin/delivery-men",
-        requiredPermissions: ["delivery-men.manage"],
+        requiredPermissions: ["delivery-men.manage", "logistics.manage"],
       },
       
       {
