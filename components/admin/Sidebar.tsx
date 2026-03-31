@@ -45,7 +45,7 @@ const menuItems: MenuItem[] = [
     requiredPermissions: ["dashboard.read", "admin.panel.access"],
   },
   {
-    name: "Warehouse Ops",
+    name: "Dashboard",
     href: "/admin/warehouse",
     icon: Warehouse,
     requiredPermissions: [

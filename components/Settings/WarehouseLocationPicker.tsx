@@ -99,6 +99,7 @@ export default function WarehouseLocationPicker({
 }: WarehouseLocationPickerProps) {
   const [isClient, setIsClient] = useState(false);
   const [leaflet, setLeaflet] = useState<any>(null);
+  const [mapReady, setMapReady] = useState(false);
   const [selectedMarkerId, setSelectedMarkerId] = useState<number | string | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
 
@@ -115,6 +116,10 @@ export default function WarehouseLocationPicker({
           "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
       });
       setLeaflet(leafletModule);
+      // Add a small delay to ensure Leaflet is fully initialized
+      setTimeout(() => setMapReady(true), 100);
+    }).catch((error) => {
+      console.error("Failed to load Leaflet:", error);
     });
   }, []);
 
@@ -206,7 +211,7 @@ export default function WarehouseLocationPicker({
     }
   }, [readonly, selectedMarkerId, validMarkers]);
 
-  if (!isClient || !leaflet) {
+  if (!isClient || !leaflet || !mapReady) {
     return (
       <div
         className={`w-full ${heightClassName} flex items-center justify-center rounded-xl border border-border bg-muted/30`}
@@ -254,9 +259,14 @@ export default function WarehouseLocationPicker({
           style={{ height: "100%", width: "100%" }}
           zoomControl
           ref={(map) => {
-            mapRef.current = map;
+            if (map && !mapRef.current) {
+              mapRef.current = map;
+            }
           }}
           className="z-10"
+          whenReady={() => {
+            // Map is fully ready
+          }}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -290,6 +300,29 @@ export default function WarehouseLocationPicker({
               </Popup>
             </Marker>
           ))}
+
+          {validMarkers.map((marker) => {
+            const radiusKm =
+              typeof marker.coverageRadiusKm === "number" &&
+              Number.isFinite(marker.coverageRadiusKm) &&
+              marker.coverageRadiusKm > 0
+                ? marker.coverageRadiusKm
+                : null;
+
+            return radiusKm ? (
+              <Circle
+                key={`circle-${marker.id}`}
+                center={[marker.latitude, marker.longitude]}
+                radius={radiusKm * 1000}
+                pathOptions={{
+                  color: "#3b82f6",
+                  fillColor: "#3b82f6",
+                  fillOpacity: 0.1,
+                  weight: 2,
+                }}
+              />
+            ) : null;
+          })}
 
           {readonly && selectedMarker && selectedMarker.coverageRadiusKm && selectedMarker.coverageRadiusKm > 0 ? (
             <Circle
