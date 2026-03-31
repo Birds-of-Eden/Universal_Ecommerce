@@ -53,6 +53,7 @@ interface WarehouseLocationPickerProps {
   description?: string;
   emptyMessage?: string;
   coverageRadiusKm?: number | null;
+  onError?: () => void;
 }
 
 function MapClickHandler({
@@ -96,6 +97,7 @@ export default function WarehouseLocationPicker({
   description,
   emptyMessage = "No valid warehouse coordinates found for the map.",
   coverageRadiusKm = null,
+  onError,
 }: WarehouseLocationPickerProps) {
   const [isClient, setIsClient] = useState(false);
   const [leaflet, setLeaflet] = useState<any>(null);
@@ -120,6 +122,9 @@ export default function WarehouseLocationPicker({
       setTimeout(() => setMapReady(true), 100);
     }).catch((error) => {
       console.error("Failed to load Leaflet:", error);
+      if (onError) {
+        onError();
+      }
     });
   }, []);
 
