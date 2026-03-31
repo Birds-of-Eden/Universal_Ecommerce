@@ -28,6 +28,7 @@ export interface DeliveryManFormData {
   mobileNumber: string;
   alternateMobileNumber: string;
   email: string;
+  password: string;
   dateOfBirth: string;
   gender: Gender;
   bloodGroup: string;

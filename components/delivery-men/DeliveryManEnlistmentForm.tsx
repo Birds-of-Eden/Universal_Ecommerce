@@ -340,6 +340,8 @@ export default function DeliveryManEnlistmentForm() {
       if (!formData.fullName.trim()) nextErrors.fullName = "Full name is required";
       if (!formData.mobileNumber.trim())
         nextErrors.mobileNumber = "Mobile number is required";
+      if (!formData.password.trim())
+        nextErrors.password = "Password is required";
       if (!formData.dateOfBirth)
         nextErrors.dateOfBirth = "Date of birth is required";
       if (!formData.gender) nextErrors.gender = "Gender is required";
@@ -501,6 +503,7 @@ export default function DeliveryManEnlistmentForm() {
         phone: formData.mobileNumber,
         alternatePhone: formData.alternateMobileNumber || "",
         email: formData.email || "",
+        password: formData.password,
         dateOfBirth: formData.dateOfBirth || "",
         gender: formData.gender || "",
 
@@ -771,15 +774,18 @@ export default function DeliveryManEnlistmentForm() {
                 error={errors.mobileNumber}
               />
               <Input
-                label="Alternate Mobile Number"
-                value={formData.alternateMobileNumber}
-                onChange={(v) => updateField("alternateMobileNumber", v)}
-              />
-              <Input
                 label="Email Address"
                 type="email"
                 value={formData.email}
                 onChange={(v) => updateField("email", v)}
+              />
+              <Input
+                label="Password *"
+                type="password"
+                value={formData.password}
+                onChange={(v) => updateField("password", v)}
+                error={errors.password}
+                placeholder="Create a password for delivery man account"
               />
               <Input
                 label="Date of Birth *"
