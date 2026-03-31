@@ -16,7 +16,7 @@ async function ensureReportAccess() {
     return { ok: false as const, status: 401, error: "Unauthorized" };
   }
 
-  if (!access.hasAny(["reports.read", "dashboard.read"])) {
+  if (!access.has("reports.read")) {
     return { ok: false as const, status: 403, error: "Forbidden" };
   }
 

@@ -29,6 +29,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (!access.hasAny(["settings.activitylog.read", "settings.manage"])) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const url = new URL(request.url);
     const page = toPositiveInt(url.searchParams.get("page"), 1);
     const pageSize = Math.min(toPositiveInt(url.searchParams.get("pageSize"), 20), 100);
