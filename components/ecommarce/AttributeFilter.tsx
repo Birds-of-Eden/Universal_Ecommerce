@@ -19,7 +19,7 @@ type AttributeFilterProps = {
   attributes: Attribute[];
   loading: boolean;
   selectedValues: Set<string>;
-  setSelectedValues: (values: Set<string>) => void;
+  setSelectedValues: React.Dispatch<React.SetStateAction<Set<string>>>;
 };
 
 export default function AttributeFilter({

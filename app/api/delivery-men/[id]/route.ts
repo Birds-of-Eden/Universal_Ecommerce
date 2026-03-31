@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { syncDeliveryManWarehouseAccess } from "@/lib/delivery-man-access";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let idParam: string | undefined;
+
   try {
-    const { id: idParam } = await params;
+    ({ id: idParam } = await params);
     
     if (!idParam) {
       return NextResponse.json(
@@ -88,8 +91,10 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let idParam: string | undefined;
+
   try {
-    const { id: idParam } = await params;
+    ({ id: idParam } = await params);
     
     if (!idParam) {
       return NextResponse.json(
@@ -111,49 +116,74 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    
-    // Convert string values to numbers where needed
+
     const updateData: any = {};
-    
+    const nextWarehouseId =
+      body.warehouseId !== undefined ? parseInt(body.warehouseId, 10) : undefined;
+
     if (body.warehouseId !== undefined) {
-      updateData.warehouseId = parseInt(body.warehouseId);
+      if (
+        nextWarehouseId === undefined ||
+        Number.isNaN(nextWarehouseId) ||
+        nextWarehouseId <= 0
+      ) {
+        return NextResponse.json(
+          { success: false, message: "Invalid warehouseId" },
+          { status: 400 }
+        );
+      }
+      updateData.warehouseId = nextWarehouseId;
     }
-    
-    // Add other fields as-is
-    Object.keys(body).forEach(key => {
-      if (key !== 'warehouseId') {
+
+    Object.keys(body).forEach((key) => {
+      if (key !== "warehouseId") {
         updateData[key] = body[key];
       }
     });
 
-    const deliveryMan = await prisma.deliveryManProfile.update({
-      where: { id: idParam },
-      data: updateData,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            role: true,
-            createdAt: true,
+    const deliveryMan = await prisma.$transaction(async (tx) => {
+      const updatedDeliveryMan = await tx.deliveryManProfile.update({
+        where: { id: idParam },
+        data: updateData,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              role: true,
+              createdAt: true,
+            },
+          },
+          warehouse: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          references: {
+            orderBy: { createdAt: "desc" },
+          },
+          documents: {
+            orderBy: { createdAt: "desc" },
           },
         },
-        warehouse: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
-        },
-        references: {
-          orderBy: { createdAt: "desc" },
-        },
-        documents: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
+      });
+
+      if (
+        body.warehouseId !== undefined &&
+        updatedDeliveryMan.userId &&
+        updatedDeliveryMan.warehouseId
+      ) {
+        await syncDeliveryManWarehouseAccess(tx, {
+          userId: updatedDeliveryMan.userId,
+          warehouseId: updatedDeliveryMan.warehouseId,
+        });
+      }
+
+      return updatedDeliveryMan;
     });
 
     return NextResponse.json({

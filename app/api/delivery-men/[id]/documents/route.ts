@@ -7,7 +7,6 @@ export async function POST(
 ) {
   try {
     const { id: idParam } = await params;
-    const deliveryManId = parseInt(idParam);
 
     if (!idParam) {
       return NextResponse.json(
@@ -40,7 +39,7 @@ export async function POST(
 
     const document = await prisma.deliveryManDocument.create({
       data: {
-        deliveryManProfileId: deliveryManId,
+        deliveryManProfileId: idParam,
         type,
         fileUrl,
         fileName: fileName || null,

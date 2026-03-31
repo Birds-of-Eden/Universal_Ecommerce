@@ -8,6 +8,7 @@ import {
   buildDeliveryConfirmationUrl,
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
+import { shipmentDeliveryAssignmentSummaryInclude } from "@/lib/delivery-assignments";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
@@ -65,6 +66,16 @@ function buildShipmentInclude() {
         createdAt: true,
         userId: true,
       },
+    },
+    deliveryAssignments: {
+      where: {
+        isCurrent: true,
+      },
+      orderBy: {
+        assignedAt: "desc",
+      },
+      take: 1,
+      include: shipmentDeliveryAssignmentSummaryInclude,
     },
   } as const;
 }
@@ -382,9 +393,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (status !== undefined) {
       const validShipmentStatuses = [
         "PENDING",
+        "ASSIGNED",
         "IN_TRANSIT",
         "OUT_FOR_DELIVERY",
         "DELIVERED",
+        "FAILED",
         "RETURNED",
         "CANCELLED",
       ] as const;
@@ -397,10 +410,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
 
       const allowedTransitions: Record<string, string[]> = {
-        PENDING: ["IN_TRANSIT", "CANCELLED"],
-        IN_TRANSIT: ["OUT_FOR_DELIVERY", "RETURNED", "CANCELLED"],
-        OUT_FOR_DELIVERY: ["DELIVERED", "RETURNED", "CANCELLED"],
+        PENDING: ["ASSIGNED", "CANCELLED"],
+        ASSIGNED: ["IN_TRANSIT", "OUT_FOR_DELIVERY", "FAILED", "CANCELLED"],
+        IN_TRANSIT: ["OUT_FOR_DELIVERY", "DELIVERED", "FAILED", "RETURNED", "CANCELLED"],
+        OUT_FOR_DELIVERY: ["DELIVERED", "FAILED", "RETURNED", "CANCELLED"],
         DELIVERED: [],
+        FAILED: ["ASSIGNED", "CANCELLED"],
         RETURNED: [],
         CANCELLED: [],
       };
@@ -433,6 +448,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
     if (deliveredAt !== undefined) {
       data.deliveredAt = deliveredAt ? new Date(deliveredAt) : null;
+    }
+    if (data.status === "ASSIGNED" && data.assignedAt === undefined) {
+      data.assignedAt = new Date();
     }
     if (data.status === "IN_TRANSIT" && data.pickedAt === undefined) {
       data.pickedAt = new Date();

@@ -340,6 +340,8 @@ export default function DeliveryManEnlistmentForm() {
       if (!formData.fullName.trim()) nextErrors.fullName = "Full name is required";
       if (!formData.mobileNumber.trim())
         nextErrors.mobileNumber = "Mobile number is required";
+      if (!formData.password.trim())
+        nextErrors.password = "Password is required";
       if (!formData.dateOfBirth)
         nextErrors.dateOfBirth = "Date of birth is required";
       if (!formData.gender) nextErrors.gender = "Gender is required";
@@ -501,6 +503,7 @@ export default function DeliveryManEnlistmentForm() {
         phone: formData.mobileNumber,
         alternatePhone: formData.alternateMobileNumber || "",
         email: formData.email || "",
+        password: formData.password,
         dateOfBirth: formData.dateOfBirth || "",
         gender: formData.gender || "",
 
@@ -771,15 +774,18 @@ export default function DeliveryManEnlistmentForm() {
                 error={errors.mobileNumber}
               />
               <Input
-                label="Alternate Mobile Number"
-                value={formData.alternateMobileNumber}
-                onChange={(v) => updateField("alternateMobileNumber", v)}
-              />
-              <Input
                 label="Email Address"
                 type="email"
                 value={formData.email}
                 onChange={(v) => updateField("email", v)}
+              />
+              <Input
+                label="Password *"
+                type="password"
+                value={formData.password}
+                onChange={(v) => updateField("password", v)}
+                error={errors.password}
+                placeholder="Create a password for delivery man account"
               />
               <Input
                 label="Date of Birth *"
@@ -1504,12 +1510,14 @@ function Input({
   onChange,
   error,
   type = "text",
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
   type?: string;
+  placeholder?: string;
 }) {
   return (
     <div>
@@ -1517,6 +1525,7 @@ function Input({
       <input
         type={type}
         value={value}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={`input-theme w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-ring ${
           error ? "border-destructive" : ""

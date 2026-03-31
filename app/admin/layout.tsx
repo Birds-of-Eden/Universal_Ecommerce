@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Sidebar from "@/components/admin/Sidebar";
 import Header from "@/components/admin/Header";
+import { getDashboardRoute } from "@/lib/dashboard-route";
 
 // Client component that uses the Sidebar context
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
@@ -13,6 +14,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+  const dashboardRoute = getDashboardRoute(
+    (session?.user ?? null) as {
+      role?: string | null;
+      permissions?: string[];
+      defaultAdminRoute?: "/admin" | "/admin/warehouse";
+    } | null,
+  );
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -21,15 +29,15 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       status === "authenticated" &&
       !(session?.user?.permissions || []).includes("admin.panel.access")
     ) {
-      router.push("/ecommerce/user");
+      router.push(dashboardRoute);
     } else if (
       status === "authenticated" &&
       pathname === "/admin" &&
-      session?.user?.defaultAdminRoute === "/admin/warehouse"
+      dashboardRoute !== "/admin"
     ) {
-      router.push("/admin/warehouse");
+      router.push(dashboardRoute);
     }
-  }, [pathname, status, session, router]);
+  }, [dashboardRoute, pathname, status, session, router]);
 
   if (status === "loading") {
     return (

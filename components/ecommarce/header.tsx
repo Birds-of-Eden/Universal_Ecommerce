@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { isDarkLikeTheme } from "@/lib/theme";
 import { useSession, signOut } from "@/lib/auth-client";
+import { getDashboardRoute } from "@/lib/dashboard-route";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
@@ -606,16 +607,7 @@ export default function Header({
     Array.isArray(sessionUser?.roleNames) && sessionUser.roleNames.length > 0
       ? sessionUser.roleNames.join(", ")
       : userRole;
-  const permissionKeys = Array.isArray(sessionUser?.permissions)
-    ? sessionUser.permissions
-    : [];
-  const defaultAdminRoute =
-    sessionUser?.defaultAdminRoute === "/admin/warehouse"
-      ? "/admin/warehouse"
-      : "/admin";
-  const canAccessAdminPanel =
-    permissionKeys.includes("admin.panel.access") ||
-    userRole.toLowerCase() === "admin";
+  const dashboardHref = getDashboardRoute(sessionUser);
 
   const topBtnClass =
     "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent";
@@ -835,7 +827,7 @@ export default function Header({
                         </div>
 
                         <Link
-                          href={canAccessAdminPanel ? defaultAdminRoute : "/ecommerce/user/"}
+                          href={dashboardHref}
                           onClick={() => setProfileOpen(false)}
                           className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                         >
@@ -1013,7 +1005,7 @@ export default function Header({
                     </div>
 
                     <Link
-                      href={canAccessAdminPanel ? defaultAdminRoute : "/ecommerce/user/"}
+                      href={dashboardHref}
                       onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
                     >

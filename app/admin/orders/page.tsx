@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import {
+  AssignDeliveryManModal,
+  type DeliveryManAssignmentOption,
+  type ShipmentAssignmentOption,
+} from "@/components/admin/shipments/AssignDeliveryManModal";
+import {
+  AssignmentStatusBadge,
+  ASSIGNMENT_STATUS_LABELS,
+} from "@/components/delivery/AssignmentStatusBadge";
 
 type OrderStatusType =
   | "PENDING"
@@ -14,11 +23,26 @@ type PaymentStatusType = "PAID" | "UNPAID";
 
 type ShipmentStatusType =
   | "PENDING"
+  | "ASSIGNED"
   | "IN_TRANSIT"
   | "OUT_FOR_DELIVERY"
   | "DELIVERED"
+  | "FAILED"
   | "RETURNED"
   | "CANCELLED";
+
+type DeliveryAssignmentStatusType =
+  | "ASSIGNED"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "PICKUP_CONFIRMED"
+  | "IN_TRANSIT"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "FAILED"
+  | "RETURNED";
+
+type PickupProofStatusType = "PENDING" | "CONFIRMED";
 
 interface OrderItem {
   id: number;
@@ -94,6 +118,54 @@ interface Shipment {
     confirmedAt: string;
     userId?: string | null;
   } | null;
+  deliveryAssignments?: DeliveryAssignment[];
+}
+
+interface DeliveryAssignmentLog {
+  id: string;
+  fromStatus?: DeliveryAssignmentStatusType | null;
+  toStatus: DeliveryAssignmentStatusType;
+  note?: string | null;
+  createdAt: string;
+  actor?: {
+    id: string;
+    name?: string | null;
+  } | null;
+}
+
+interface DeliveryAssignmentPickupProof {
+  id: string;
+  status: PickupProofStatusType;
+  imageUrl?: string | null;
+  confirmedAt?: string | null;
+}
+
+interface DeliveryAssignment {
+  id: string;
+  status: DeliveryAssignmentStatusType;
+  pickupProofStatus: PickupProofStatusType;
+  note?: string | null;
+  latestNote?: string | null;
+  rejectionReason?: string | null;
+  assignedAt: string;
+  respondedAt?: string | null;
+  acceptedAt?: string | null;
+  rejectedAt?: string | null;
+  pickupConfirmedAt?: string | null;
+  inTransitAt?: string | null;
+  outForDeliveryAt?: string | null;
+  deliveredAt?: string | null;
+  failedAt?: string | null;
+  returnedAt?: string | null;
+  deliveryMan: {
+    id: string;
+    userId: string;
+    fullName: string;
+    phone: string;
+    employeeCode?: string | null;
+  };
+  pickupProof?: DeliveryAssignmentPickupProof | null;
+  logs: DeliveryAssignmentLog[];
 }
 
 interface Pagination {
@@ -190,6 +262,9 @@ const OrderManagement = () => {
   // editable fields (shipment)
   const [couriers, setCouriers] = useState<CourierOption[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
+  const [deliveryMen, setDeliveryMen] = useState<DeliveryManAssignmentOption[]>(
+    [],
+  );
   const [editCourierId, setEditCourierId] = useState<string>("");
   const [editWarehouseId, setEditWarehouseId] = useState<string>("");
   const [editCourier, setEditCourier] = useState("");
@@ -198,6 +273,7 @@ const OrderManagement = () => {
     useState<ShipmentStatusType>("PENDING");
   const [editExpectedDate, setEditExpectedDate] = useState<string>("");
   const [editDeliveredDate, setEditDeliveredDate] = useState<string>("");
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
 
   // ------------------- ORDER LIST -------------------
 
@@ -327,11 +403,14 @@ const OrderManagement = () => {
     switch (status) {
       case "PENDING":
         return "bg-amber-500/10 text-amber-600 border-amber-500/20 dark:bg-amber-400/10 dark:text-amber-400 dark:border-amber-400/20";
+      case "ASSIGNED":
+        return "bg-sky-500/10 text-sky-600 border-sky-500/20 dark:bg-sky-400/10 dark:text-sky-400 dark:border-sky-400/20";
       case "IN_TRANSIT":
       case "OUT_FOR_DELIVERY":
         return "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20";
       case "DELIVERED":
         return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20";
+      case "FAILED":
       case "RETURNED":
       case "CANCELLED":
         return "bg-destructive/10 text-destructive border-destructive/20";
@@ -350,16 +429,25 @@ const OrderManagement = () => {
     });
   }, []);
 
-  const formatMoney = useCallback(
-    (amount?: number | null, currency = "BDT") => {
-      const value = Number(amount ?? 0);
-      return `${currency} ${value.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
-    },
-    [],
-  );
+  const formatDateTime = useCallback((dateStr?: string | null) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    return d.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }, []);
+
+  const formatMoney = useCallback((amount?: number | null, currency = "BDT") => {
+    const value = Number(amount ?? 0);
+    return `${currency} ${value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }, []);
 
   const formatVariantLabel = useCallback((item?: OrderItem | null) => {
     if (!item?.variant) return "";
@@ -384,6 +472,66 @@ const OrderManagement = () => {
     return item.variant.sku || "";
   }, []);
 
+  const applyShipmentState = useCallback((nextShipment: Shipment | null) => {
+    if (nextShipment) {
+      setShipment(nextShipment);
+      setEditCourierId(
+        nextShipment.courierId ? String(nextShipment.courierId) : "",
+      );
+      setEditWarehouseId(
+        nextShipment.warehouseId ? String(nextShipment.warehouseId) : "",
+      );
+      setEditCourier(nextShipment.courier || "");
+      setEditTrackingNumber(nextShipment.trackingNumber || "");
+      setEditShipmentStatus(nextShipment.status);
+      setEditExpectedDate(
+        nextShipment.expectedDate
+          ? new Date(nextShipment.expectedDate).toISOString().substring(0, 10)
+          : "",
+      );
+      setEditDeliveredDate(
+        nextShipment.deliveredAt
+          ? new Date(nextShipment.deliveredAt).toISOString().substring(0, 10)
+          : "",
+      );
+      return;
+    }
+
+    setShipment(null);
+    setEditCourierId("");
+    setEditWarehouseId("");
+    setEditCourier("");
+    setEditTrackingNumber("");
+    setEditShipmentStatus("PENDING");
+    setEditExpectedDate("");
+    setEditDeliveredDate("");
+  }, []);
+
+  const loadShipmentDetails = useCallback(
+    async (orderId: number) => {
+      const shipRes = await fetch(`/api/shipments?orderId=${orderId}&limit=1&page=1`, {
+        cache: "no-store",
+      });
+
+      if (shipRes.ok) {
+        const shipmentData = await shipRes.json().catch(() => ({}));
+        const nextShipment = Array.isArray(shipmentData.shipments)
+          ? (shipmentData.shipments[0] as Shipment | undefined)
+          : undefined;
+        applyShipmentState(nextShipment ?? null);
+        return;
+      }
+
+      if (shipRes.status === 404) {
+        applyShipmentState(null);
+        return;
+      }
+
+      throw new Error("Shipment load failed");
+    },
+    [applyShipmentState],
+  );
+
   // ------------------- DETAILS MODAL LOGIC -------------------
 
   // Memoize handler functions
@@ -396,13 +544,13 @@ const OrderManagement = () => {
     setDetailOpen(false);
     setSelectedOrderId(null);
     setOrderDetail(null);
-    setShipment(null);
+    applyShipmentState(null);
     setCouriers([]);
     setWarehouses([]);
-    setEditCourierId("");
-    setEditWarehouseId("");
+    setDeliveryMen([]);
     setDetailError(null);
-  }, []);
+    setAssignModalOpen(false);
+  }, [applyShipmentState]);
 
   useEffect(() => {
     if (!detailOpen || !selectedOrderId) return;
@@ -429,10 +577,10 @@ const OrderManagement = () => {
         setEditTransactionId(orderData.transactionId || "");
 
         // 2) Supporting options + Shipment (if any)
-        const [courierRes, warehouseRes, shipRes] = await Promise.all([
+        const [courierRes, warehouseRes, deliveryManRes] = await Promise.all([
           fetch("/api/couriers", { cache: "no-store" }),
           fetch("/api/warehouses", { cache: "no-store" }),
-          fetch(`/api/shipments?orderId=${selectedOrderId}&limit=1&page=1`, {
+          fetch("/api/delivery-men?status=ACTIVE&limit=200&page=1", {
             cache: "no-store",
           }),
         ]);
@@ -451,50 +599,33 @@ const OrderManagement = () => {
           setWarehouses([]);
         }
 
-        if (shipRes.ok) {
-          const sd = await shipRes.json();
-          const found: Shipment | undefined = sd.shipments?.[0];
-          if (found) {
-            setShipment(found);
-            setEditCourierId(found.courierId ? String(found.courierId) : "");
-            setEditWarehouseId(
-              found.warehouseId ? String(found.warehouseId) : "",
-            );
-            setEditCourier(found.courier || "");
-            setEditTrackingNumber(found.trackingNumber || "");
-            setEditShipmentStatus(found.status);
-            setEditExpectedDate(
-              found.expectedDate
-                ? new Date(found.expectedDate).toISOString().substring(0, 10)
-                : "",
-            );
-            setEditDeliveredDate(
-              found.deliveredAt
-                ? new Date(found.deliveredAt).toISOString().substring(0, 10)
-                : "",
-            );
-          } else {
-            setShipment(null);
-            setEditCourierId("");
-            setEditWarehouseId("");
-            setEditCourier("");
-            setEditTrackingNumber("");
-            setEditShipmentStatus("PENDING");
-            setEditExpectedDate("");
-            setEditDeliveredDate("");
-          }
-        } else if (shipRes.status === 404) {
-          setShipment(null);
-          setEditCourierId("");
-          setEditWarehouseId("");
-          setEditCourier("");
-          setEditTrackingNumber("");
-          setEditShipmentStatus("PENDING");
-          setEditExpectedDate("");
-          setEditDeliveredDate("");
+        if (deliveryManRes.ok) {
+          const deliveryManData = await deliveryManRes.json().catch(() => ({}));
+          const nextDeliveryMen = Array.isArray(deliveryManData?.data?.deliveryMen)
+            ? (deliveryManData.data.deliveryMen as Array<{
+                id: string;
+                fullName: string;
+                phone: string;
+                employeeCode?: string | null;
+                warehouse?: {
+                  id: number;
+                  name: string;
+                  code: string;
+                } | null;
+              }>).map((deliveryMan) => ({
+                id: deliveryMan.id,
+                fullName: deliveryMan.fullName,
+                phone: deliveryMan.phone,
+                employeeCode: deliveryMan.employeeCode ?? null,
+                warehouse: deliveryMan.warehouse ?? null,
+              }))
+            : [];
+          setDeliveryMen(nextDeliveryMen);
         } else {
-          setShipment(null);
+          setDeliveryMen([]);
         }
+
+        await loadShipmentDetails(selectedOrderId);
       } catch (err: unknown) {
         const message =
           err instanceof Error && err.message
@@ -507,7 +638,7 @@ const OrderManagement = () => {
     };
 
     loadDetails();
-  }, [detailOpen, selectedOrderId]);
+  }, [detailOpen, loadShipmentDetails, selectedOrderId]);
 
   // ---- UNIFIED SAVE: ORDER + SHIPMENT ----
   const handleSaveAll = useCallback(async () => {
@@ -561,8 +692,6 @@ const OrderManagement = () => {
       orderListCache.clear();
 
       // 2) Create / Update Shipment
-      let savedShipment: Shipment | null = shipment;
-
       const hasShipmentInput =
         editCourierId ||
         editWarehouseId ||
@@ -595,17 +724,7 @@ const OrderManagement = () => {
           throw new Error(data?.error || "Shipment update failed");
         }
 
-        savedShipment = {
-          ...shipment,
-          courierId: editCourierId ? Number(editCourierId) : shipment.courierId,
-          warehouseId: editWarehouseId ? Number(editWarehouseId) : null,
-          courier: editCourier,
-          trackingNumber: editTrackingNumber || null,
-          status: editShipmentStatus,
-          expectedDate: editExpectedDate || null,
-          deliveredAt: editDeliveredDate || null,
-        };
-        setShipment(savedShipment);
+        applyShipmentState(data as Shipment);
       } else if (hasShipmentInput) {
         if (!editCourierId && !editCourier) {
           throw new Error("Please select a courier before creating shipment");
@@ -633,8 +752,7 @@ const OrderManagement = () => {
           throw new Error(data?.error || "Shipment create failed");
         }
 
-        savedShipment = data as Shipment;
-        setShipment(savedShipment);
+        applyShipmentState(data as Shipment);
       }
 
       // 3) Auto: if shipment DELIVERED, set order.status = DELIVERED
@@ -693,7 +811,46 @@ const OrderManagement = () => {
     editShipmentStatus,
     editExpectedDate,
     editDeliveredDate,
+    applyShipmentState,
   ]);
+
+  const currentAssignment = shipment?.deliveryAssignments?.[0] ?? null;
+  const selectedShipmentForAssignment = useMemo<ShipmentAssignmentOption[]>(
+    () =>
+      shipment
+        ? [
+            {
+              id: shipment.id,
+              orderId: shipment.orderId,
+              courier: shipment.courier,
+              warehouseId: shipment.warehouseId ?? null,
+            },
+          ]
+        : [],
+    [shipment],
+  );
+
+  const handleAssigned = useCallback(
+    async (message: string) => {
+      if (!selectedOrderId) {
+        return;
+      }
+
+      try {
+        await loadShipmentDetails(selectedOrderId);
+        setSuccessMessage(message);
+        setSuccessOpen(true);
+      } catch (assignError) {
+        setErrorMessage(
+          assignError instanceof Error
+            ? assignError.message
+            : "Assigned successfully, but refresh failed",
+        );
+        setErrorOpen(true);
+      }
+    },
+    [loadShipmentDetails, selectedOrderId],
+  );
 
   // ------------------- RENDER -------------------
 
@@ -1010,7 +1167,7 @@ const OrderManagement = () => {
                         className="w-full rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
                         onClick={() => openDetails(order.id)}
                       >
-                        View Details
+                        View / Assign Delivery
                       </button>
                     </div>
                   </div>
@@ -1595,11 +1752,13 @@ const OrderManagement = () => {
                           className="w-full rounded-xl border border-border bg-card px-2 py-2 text-xs"
                         >
                           <option value="PENDING">PENDING</option>
+                          <option value="ASSIGNED">ASSIGNED</option>
                           <option value="IN_TRANSIT">IN_TRANSIT</option>
                           <option value="OUT_FOR_DELIVERY">
                             OUT_FOR_DELIVERY
                           </option>
                           <option value="DELIVERED">DELIVERED</option>
+                          <option value="FAILED">FAILED</option>
                           <option value="RETURNED">RETURNED</option>
                           <option value="CANCELLED">CANCELLED</option>
                         </select>
@@ -1665,11 +1824,159 @@ const OrderManagement = () => {
                       </div>
                     )}
 
+                    <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            Delivery Man Assignment
+                          </h4>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Assign or reassign this shipment to an active delivery
+                            man directly from order management.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAssignModalOpen(true)}
+                          disabled={!shipment}
+                          className="btn-primary rounded-full px-4 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {currentAssignment
+                            ? "Reassign Delivery Man"
+                            : "Assign Delivery Man"}
+                        </button>
+                      </div>
+
+                      {!shipment ? (
+                        <div className="mt-4 rounded-xl border border-dashed border-border bg-background px-4 py-4 text-xs text-muted-foreground">
+                          Create and save a shipment first. Once a shipment exists,
+                          you can assign a delivery man from here.
+                        </div>
+                      ) : currentAssignment ? (
+                        <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
+                          <div className="rounded-xl border border-border bg-background p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-foreground">
+                                  {currentAssignment.deliveryMan.fullName}
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {currentAssignment.deliveryMan.phone}
+                                  {currentAssignment.deliveryMan.employeeCode
+                                    ? ` - ${currentAssignment.deliveryMan.employeeCode}`
+                                    : ""}
+                                </p>
+                              </div>
+                              <AssignmentStatusBadge status={currentAssignment.status} />
+                            </div>
+
+                            <div className="mt-4 grid gap-3 md:grid-cols-2">
+                              <div className="rounded-xl border border-border bg-card px-3 py-3 text-xs text-muted-foreground">
+                                <p className="font-medium text-foreground">
+                                  Assigned at
+                                </p>
+                                <p className="mt-1">
+                                  {formatDateTime(currentAssignment.assignedAt)}
+                                </p>
+                              </div>
+                              <div className="rounded-xl border border-border bg-card px-3 py-3 text-xs text-muted-foreground">
+                                <p className="font-medium text-foreground">
+                                  Pickup proof
+                                </p>
+                                <p className="mt-1">
+                                  {currentAssignment.pickupProof
+                                    ? currentAssignment.pickupProof.status
+                                    : currentAssignment.pickupProofStatus}
+                                </p>
+                                {currentAssignment.pickupProof?.confirmedAt ? (
+                                  <p className="mt-1">
+                                    Confirmed on{" "}
+                                    {formatDateTime(
+                                      currentAssignment.pickupProof.confirmedAt,
+                                    )}
+                                  </p>
+                                ) : null}
+                                {currentAssignment.pickupProof?.imageUrl ? (
+                                  <a
+                                    href={currentAssignment.pickupProof.imageUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-2 inline-flex text-primary underline"
+                                  >
+                                    View pickup image
+                                  </a>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            {currentAssignment.note ? (
+                              <div className="mt-3 rounded-xl border border-border bg-card px-3 py-3 text-xs text-muted-foreground">
+                                <p className="font-medium text-foreground">
+                                  Assignment note
+                                </p>
+                                <p className="mt-1">{currentAssignment.note}</p>
+                              </div>
+                            ) : null}
+
+                            {currentAssignment.rejectionReason ? (
+                              <div className="mt-3 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-3 text-xs text-destructive">
+                                <p className="font-medium">Rejection reason</p>
+                                <p className="mt-1">
+                                  {currentAssignment.rejectionReason}
+                                </p>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <div className="rounded-xl border border-border bg-background p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                              Recent Assignment Logs
+                            </p>
+                            {currentAssignment.logs.length > 0 ? (
+                              <div className="mt-3 space-y-3">
+                                {currentAssignment.logs.map((log) => (
+                                  <div
+                                    key={log.id}
+                                    className="rounded-xl border border-border bg-card px-3 py-3 text-xs text-muted-foreground"
+                                  >
+                                    <div className="flex items-center justify-between gap-3">
+                                      <p className="font-medium text-foreground">
+                                        {log.fromStatus
+                                          ? `${ASSIGNMENT_STATUS_LABELS[log.fromStatus]} -> ${ASSIGNMENT_STATUS_LABELS[log.toStatus]}`
+                                          : ASSIGNMENT_STATUS_LABELS[log.toStatus]}
+                                      </p>
+                                      <span>{formatDateTime(log.createdAt)}</span>
+                                    </div>
+                                    {log.actor?.name ? (
+                                      <p className="mt-1">By {log.actor.name}</p>
+                                    ) : null}
+                                    {log.note ? (
+                                      <p className="mt-2 rounded-lg border border-border bg-background px-2 py-2">
+                                        {log.note}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="mt-3 text-xs text-muted-foreground">
+                                No assignment history recorded yet.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-4 rounded-xl border border-dashed border-border bg-background px-4 py-4 text-xs text-muted-foreground">
+                          No delivery man assigned yet for this shipment.
+                        </div>
+                      )}
+                    </div>
+
                     {shipment && (
-                      <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+                      <div className="mt-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
                         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                           <div>
-                            <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                            <h4 className="delivery-proof-header text-xs font-semibold uppercase tracking-[0.18em]">
                               Delivery Proof Flow
                             </h4>
                             <p className="mt-1 text-xs text-muted-foreground">
@@ -1678,20 +1985,19 @@ const OrderManagement = () => {
                               confirm with PIN + checklist + optional photo.
                             </p>
                           </div>
-                          <div className="rounded-xl bg-white px-3 py-2 text-right shadow-sm">
-                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                          <div className="delivery-pin-container rounded-xl border border-border px-3 py-2 text-right shadow-sm">
+                            <p className="delivery-pin-label text-[10px] uppercase tracking-[0.18em]">
                               Delivery PIN
                             </p>
-                            <p className="mt-1 font-mono text-sm font-semibold text-foreground">
-                              {shipment.deliveryConfirmationPin ||
-                                "Will generate on OFD"}
+                            <p className="delivery-pin-value mt-1 font-mono text-sm font-semibold">
+                              {shipment.deliveryConfirmationPin || "Will generate on OFD"}
                             </p>
                           </div>
                         </div>
 
                         <div className="mt-3 grid gap-3 md:grid-cols-2">
-                          <div className="rounded-xl bg-white px-3 py-3">
-                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                          <div className="delivery-link-container rounded-xl border border-border px-3 py-3 shadow-sm">
+                            <p className="delivery-link-label text-[10px] uppercase tracking-[0.18em]">
                               Confirmation Link
                             </p>
                             {shipment.deliveryConfirmationUrl ? (
@@ -1699,24 +2005,24 @@ const OrderManagement = () => {
                                 href={shipment.deliveryConfirmationUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="mt-1 block break-all text-xs font-medium text-primary underline"
+                                className="delivery-link-value mt-1 block break-all text-xs font-medium underline"
                               >
                                 {shipment.deliveryConfirmationUrl}
                               </a>
                             ) : (
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Link will appear automatically when the shipment
-                                is out for delivery.
+                              <p className="delivery-status-value mt-1 text-xs">
+                                Link will appear automatically when shipment is
+                                out for delivery.
                               </p>
                             )}
                           </div>
 
-                          <div className="rounded-xl bg-white px-3 py-3">
-                            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                          <div className="delivery-status-container rounded-xl border border-border px-3 py-3 shadow-sm">
+                            <p className="delivery-status-label text-[10px] uppercase tracking-[0.18em]">
                               Customer Proof Status
                             </p>
                             {shipment.deliveryProof ? (
-                              <div className="mt-1 space-y-1 text-xs text-foreground">
+                              <div className="delivery-status-value mt-1 space-y-1 text-xs">
                                 <p className="font-medium">
                                   Confirmed on{" "}
                                   {formatDate(
@@ -1738,7 +2044,7 @@ const OrderManagement = () => {
                                   </a>
                                 ) : null}
                                 {shipment.deliveryProof.note ? (
-                                  <p className="rounded-lg border border-border bg-muted/40 px-2 py-1 text-muted-foreground">
+                                  <p className="rounded-lg border border-border bg-card px-2 py-1 text-muted-foreground">
                                     {shipment.deliveryProof.note}
                                   </p>
                                 ) : null}
@@ -1780,6 +2086,14 @@ const OrderManagement = () => {
       )}
 
       {/* ✅ Success Modal */}
+      <AssignDeliveryManModal
+        open={assignModalOpen}
+        onOpenChange={setAssignModalOpen}
+        shipments={selectedShipmentForAssignment}
+        deliveryMen={deliveryMen}
+        onAssigned={handleAssigned}
+      />
+
       {successOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-xs rounded-2xl bg-card px-5 py-4 shadow-xl border-border">

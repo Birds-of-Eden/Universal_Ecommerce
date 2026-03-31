@@ -25,6 +25,10 @@ import { Input } from "../../../../components/ui/input";
 import { Button } from "../../../../components/ui/button";
 
 import { signIn, useSession } from "@/lib/auth-client";
+import {
+  getDashboardRoute,
+  resolvePostAuthRoute,
+} from "@/lib/dashboard-route";
 import { FormError } from "../../../../components/FormError";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -39,7 +43,7 @@ const SigninForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const search = useSearchParams();
-  const callbackUrl = search.get("callbackUrl") || "/admin";
+  const returnUrl = search.get("returnUrl") || search.get("callbackUrl");
   const { status } = useSession();
 
   const form = useForm<SignInValues>({
@@ -59,7 +63,14 @@ const SigninForm = () => {
       toast.dismiss(dismiss);
       if (res?.ok) {
         toast.success("Login successful");
-        router.push(callbackUrl);
+        const sessionResponse = await fetch("/api/auth/session", {
+          cache: "no-store",
+        });
+        const sessionData = sessionResponse.ok
+          ? await sessionResponse.json().catch(() => null)
+          : null;
+        const nextRoute = resolvePostAuthRoute(sessionData?.user ?? null, returnUrl);
+        router.replace(nextRoute || getDashboardRoute(null));
         return;
       }
       const message =

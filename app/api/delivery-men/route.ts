@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
+import { syncDeliveryManWarehouseAccess } from "@/lib/delivery-man-access";
+import bcrypt from "bcryptjs";
 
 type ReferencePayload = {
   name: string;
@@ -190,6 +192,7 @@ export async function POST(req: NextRequest) {
       phone,
       alternatePhone,
       email,
+      password,
       dateOfBirth,
       gender,
       presentAddress,
@@ -241,11 +244,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!fullName || !phone || !presentAddress || !permanentAddress) {
+    if (!fullName || !phone || !presentAddress || !permanentAddress || !password) {
       return NextResponse.json(
         {
           success: false,
-          message: "fullName, phone, presentAddress, permanentAddress are required",
+          message: "fullName, phone, presentAddress, permanentAddress, password are required",
         },
         { status: 400 }
       );
@@ -317,13 +320,23 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      // Hash the password before creating user
+      const passwordHash = await bcrypt.hash(password, 10);
+      
       const user = await tx.user.create({
         data: {
           name: fullName,
           email: finalEmail,
           phone,
           role: "delivery_man",
+          passwordHash, // Use passwordHash instead of password
         },
+      });
+
+      await syncDeliveryManWarehouseAccess(tx, {
+        userId: user.id,
+        warehouseId: Number(warehouseId),
+        assignedById: access.userId,
       });
 
       const profile = await tx.deliveryManProfile.create({

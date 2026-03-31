@@ -9,48 +9,51 @@ datasource db {
 }
 
 model User {
-  id                           String                 @id @default(cuid())
-  email                        String                 @unique
-  name                         String?
-  role                         String                 @default("user")
-  phone                        String?
-  passwordHash                 String?                @map("password")
-  emailVerified                DateTime?
-  image                        String?
-  createdAt                    DateTime               @default(now())
-  updatedAt                    DateTime               @updatedAt
-  banned                       Boolean?
-  banReason                    String?
-  banExpires                   Int?
-  note                         String?
-  activityLogs                 ActivityLog[]
-  cart                         CartItem[]
-  assignedChats                ChatConversation[]     @relation("AssignedChats")
-  userChats                    ChatConversation[]     @relation("UserChats")
-  chatMessages                 ChatMessage[]
-  deliveryProofs               DeliveryProof[]
-  inventoryReservations        InventoryReservation[]
-  orders                       Order[]
-  payrollEntries               PayrollEntry[]
-  payrollProfile               PayrollProfile?
-  refunds                      Refund[]
-  reviews                      Review[]
-  serviceBookings              ServiceBooking[]
-  assignedShipments            Shipment[]             @relation("AssignedShipments")
-  shipmentAssignmentsBy        ShipmentAssignment[]   @relation("ShipmentAssignmentBy")
-  shipmentAssignmentsTo        ShipmentAssignment[]   @relation("ShipmentAssignmentTo")
-  shipmentCostLogsCreated      ShipmentCostLog[]
-  addresses                    UserAddress[]
-  assignedUserRoles            UserRole[]             @relation("AssignedUserRoles")
-  userRoles                    UserRole[]             @relation("UserRoles")
-  assignedWarehouseMemberships WarehouseMembership[]  @relation("AssignedWarehouseMemberships")
-  warehouseMemberships         WarehouseMembership[]  @relation("WarehouseMemberships")
-  wishlist                     Wishlist[]
-  analyticsEvents              AnalyticsEvent[]
+  id                            String                  @id @default(cuid())
+  email                         String                  @unique
+  name                          String?
+  role                          String                  @default("user")
+  phone                         String?
+  passwordHash                  String?                 @map("password")
+  emailVerified                 DateTime?
+  image                         String?
+  createdAt                     DateTime                @default(now())
+  updatedAt                     DateTime                @updatedAt
+  banned                        Boolean?
+  banReason                     String?
+  banExpires                    Int?
+  note                          String?
+  activityLogs                  ActivityLog[]
+  cart                          CartItem[]
+  assignedChats                 ChatConversation[]      @relation("AssignedChats")
+  userChats                     ChatConversation[]      @relation("UserChats")
+  chatMessages                  ChatMessage[]
+  deliveryProofs                DeliveryProof[]
+  inventoryReservations         InventoryReservation[]
+  orders                        Order[]
+  payrollEntries                PayrollEntry[]
+  payrollProfile                PayrollProfile?
+  refunds                       Refund[]
+  reviews                       Review[]
+  serviceBookings               ServiceBooking[]
+  assignedShipments             Shipment[]              @relation("AssignedShipments")
+  shipmentAssignmentsBy         ShipmentAssignment[]    @relation("ShipmentAssignmentBy")
+  shipmentAssignmentsTo         ShipmentAssignment[]    @relation("ShipmentAssignmentTo")
+  shipmentCostLogsCreated       ShipmentCostLog[]
+  addresses                     UserAddress[]
+  assignedUserRoles             UserRole[]              @relation("AssignedUserRoles")
+  userRoles                     UserRole[]              @relation("UserRoles")
+  assignedWarehouseMemberships  WarehouseMembership[]   @relation("AssignedWarehouseMemberships")
+  warehouseMemberships          WarehouseMembership[]   @relation("WarehouseMemberships")
+  wishlist                      Wishlist[]
+  analyticsEvents               AnalyticsEvent[]
   deliveryManProfile            DeliveryManProfile?
-  verifiedDeliveryMen           DeliveryManProfile[]   @relation("VerifiedDeliveryMen")
-  assignedDeliveryMen           DeliveryManProfile[]   @relation("AssignedDeliveryMen")
-  verifiedDeliveryManDocuments  DeliveryManDocument[]  @relation("VerifiedDeliveryManDocuments")
+  verifiedDeliveryMen           DeliveryManProfile[]    @relation("VerifiedDeliveryMen")
+  assignedDeliveryMen           DeliveryManProfile[]    @relation("AssignedDeliveryMen")
+  verifiedDeliveryManDocuments  DeliveryManDocument[]   @relation("VerifiedDeliveryManDocuments")
+  createdDeliveryAssignments    DeliveryAssignment[]    @relation("CreatedDeliveryAssignments")
+  deliveryAssignmentLogsCreated DeliveryAssignmentLog[] @relation("DeliveryAssignmentLogsCreated")
+  pickupProofsCreated           WarehousePickupProof[]  @relation("WarehousePickupProofsCreated")
 }
 
 model UserAddress {
@@ -434,6 +437,7 @@ model Order {
   payments              Payment[]
   refunds               Refund[]
   shipments             Shipment?
+  deliveryAssignments   DeliveryAssignment[]
 }
 
 model Payment {
@@ -595,6 +599,7 @@ model Shipment {
   warehouse                       Warehouse?           @relation(fields: [warehouseId], references: [id])
   assignments                     ShipmentAssignment[]
   costLogs                        ShipmentCostLog[]
+  deliveryAssignments             DeliveryAssignment[]
   items                           ShipmentItem[]
   statusLogs                      ShipmentStatusLog[]
 
@@ -674,7 +679,8 @@ model Warehouse {
   stockLevels                      StockLevel[]
   userRoles                        UserRole[]
   memberships                      WarehouseMembership[]
-  deliveryMen    DeliveryManProfile[]
+  deliveryMen                      DeliveryManProfile[]
+  deliveryAssignments              DeliveryAssignment[]
 
   @@index([country, division, district, area])
   @@index([latitude, longitude])
@@ -1039,78 +1045,80 @@ model Banner {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 }
+
 model DeliveryManProfile {
-  id                    String                    @id @default(cuid())
-  userId                String                    @unique
-  warehouseId           Int
-  employeeCode          String?                   @unique
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  warehouseId  Int
+  employeeCode String? @unique
 
   // Personal info
-  fullName              String
-  phone                 String
-  alternatePhone        String?
-  email                 String?
-  dateOfBirth           DateTime?
-  gender                String?
+  fullName       String
+  phone          String
+  alternatePhone String?
+  email          String?
+  dateOfBirth    DateTime?
+  gender         String?
 
-  presentAddress        String
-  permanentAddress      String
+  presentAddress   String
+  permanentAddress String
 
   emergencyContactName     String?
   emergencyContactPhone    String?
   emergencyContactRelation String?
 
   // Identity info (self)
-  identityType          IdentityType
-  identityNumber        String
-  passportExpiryDate    DateTime?
+  identityType       IdentityType
+  identityNumber     String
+  passportExpiryDate DateTime?
 
   // Parents info
-  fatherName            String
-  fatherIdentityType    IdentityType?
-  fatherIdentityNumber  String?
+  fatherName           String
+  fatherIdentityType   IdentityType?
+  fatherIdentityNumber String?
 
-  motherName            String
-  motherIdentityType    IdentityType?
-  motherIdentityNumber  String?
+  motherName           String
+  motherIdentityType   IdentityType?
+  motherIdentityNumber String?
 
   // Bank / legal
-  bankName              String?
-  bankAccountName       String?
-  bankAccountNumber     String?
-  bankChequeNumber      String?
+  bankName          String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankChequeNumber  String?
 
-  bondAmount            Decimal?                  @db.Decimal(10, 2)
-  bondSignedAt          DateTime?
-  bondExpiryDate        DateTime?
+  bondAmount     Decimal?  @db.Decimal(10, 2)
+  bondSignedAt   DateTime?
+  bondExpiryDate DateTime?
 
-  contractSignedAt      DateTime?
-  contractStartDate     DateTime?
-  contractEndDate       DateTime?
-  contractStatus        String?
+  contractSignedAt  DateTime?
+  contractStartDate DateTime?
+  contractEndDate   DateTime?
+  contractStatus    String?
 
-  joiningDate           DateTime
-  status                DeliveryManStatus         @default(PENDING)
-  applicationStatus     DeliveryApplicationStatus @default(DRAFT)
+  joiningDate       DateTime
+  status            DeliveryManStatus         @default(PENDING)
+  applicationStatus DeliveryApplicationStatus @default(DRAFT)
 
-  verifiedById          String?
-  verifiedAt            DateTime?
-  rejectionReason       String?
-  note                  String?
+  verifiedById    String?
+  verifiedAt      DateTime?
+  rejectionReason String?
+  note            String?
 
-  assignedById          String?
+  assignedById String?
 
-  createdAt             DateTime                  @default(now())
-  updatedAt             DateTime                  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  warehouse             Warehouse                 @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  verifiedBy            User?                     @relation("VerifiedDeliveryMen", fields: [verifiedById], references: [id], onDelete: SetNull)
-  assignedBy            User?                     @relation("AssignedDeliveryMen", fields: [assignedById], references: [id], onDelete: SetNull)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouse  Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  verifiedBy User?     @relation("VerifiedDeliveryMen", fields: [verifiedById], references: [id], onDelete: SetNull)
+  assignedBy User?     @relation("AssignedDeliveryMen", fields: [assignedById], references: [id], onDelete: SetNull)
 
-  references            DeliveryManReference[]
-  documents             DeliveryManDocument[]
+  references          DeliveryManReference[]
+  documents           DeliveryManDocument[]
+  deliveryAssignments DeliveryAssignment[]
 
   @@index([warehouseId])
   @@index([status])
@@ -1118,56 +1126,137 @@ model DeliveryManProfile {
   @@index([verifiedById])
   @@index([assignedById])
 }
+
 model DeliveryManReference {
-  id                    String              @id @default(cuid())
-  deliveryManProfileId  String
+  id                   String @id @default(cuid())
+  deliveryManProfileId String
 
-  name                  String
-  phone                 String
-  relation              String?
-  address               String?
-  occupation            String?
+  name       String
+  phone      String
+  relation   String?
+  address    String?
+  occupation String?
 
-  identityType          IdentityType        @default(NID)
-  identityNumber        String
+  identityType   IdentityType @default(NID)
+  identityNumber String
 
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  profile               DeliveryManProfile  @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
-  documents             DeliveryManDocument[]
+  profile   DeliveryManProfile    @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
+  documents DeliveryManDocument[]
 
   @@index([deliveryManProfileId])
 }
+
 model DeliveryManDocument {
-  id                    String                   @id @default(cuid())
-  deliveryManProfileId  String
-  referenceId           String?
+  id                   String  @id @default(cuid())
+  deliveryManProfileId String
+  referenceId          String?
 
-  type                  DeliveryManDocumentType
-  title                 String?
-  fileUrl               String
-  fileName              String?
-  mimeType              String?
-  fileSize              Int?
-  note                  String?
+  type     DeliveryManDocumentType
+  title    String?
+  fileUrl  String
+  fileName String?
+  mimeType String?
+  fileSize Int?
+  note     String?
 
-  isVerified            Boolean                  @default(false)
-  verifiedAt            DateTime?
-  verifiedById          String?
+  isVerified   Boolean   @default(false)
+  verifiedAt   DateTime?
+  verifiedById String?
 
-  createdAt             DateTime                 @default(now())
-  updatedAt             DateTime                 @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  profile               DeliveryManProfile       @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
-  reference             DeliveryManReference?    @relation(fields: [referenceId], references: [id], onDelete: Cascade)
-  verifiedBy            User?                    @relation("VerifiedDeliveryManDocuments", fields: [verifiedById], references: [id], onDelete: SetNull)
+  profile    DeliveryManProfile    @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
+  reference  DeliveryManReference? @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  verifiedBy User?                 @relation("VerifiedDeliveryManDocuments", fields: [verifiedById], references: [id], onDelete: SetNull)
 
   @@index([deliveryManProfileId])
   @@index([referenceId])
   @@index([type])
   @@index([verifiedById])
 }
+
+model DeliveryAssignment {
+  id                   String                   @id @default(cuid())
+  orderId              Int
+  shipmentId           Int
+  deliveryManProfileId String
+  warehouseId          Int
+  assignedById         String?
+  status               DeliveryAssignmentStatus @default(ASSIGNED)
+  pickupProofStatus    PickupProofStatus        @default(PENDING)
+  isCurrent            Boolean                  @default(true)
+  rejectionReason      String?
+  note                 String?
+  latestNote           String?
+  assignedAt           DateTime                 @default(now())
+  respondedAt          DateTime?
+  acceptedAt           DateTime?
+  rejectedAt           DateTime?
+  pickupConfirmedAt    DateTime?
+  inTransitAt          DateTime?
+  outForDeliveryAt     DateTime?
+  deliveredAt          DateTime?
+  failedAt             DateTime?
+  returnedAt           DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  assignedBy           User?                    @relation("CreatedDeliveryAssignments", fields: [assignedById], references: [id], onDelete: SetNull)
+  deliveryMan          DeliveryManProfile       @relation(fields: [deliveryManProfileId], references: [id], onDelete: Cascade)
+  order                Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  pickupProof          WarehousePickupProof?
+  shipment             Shipment                 @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  warehouse            Warehouse                @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  logs                 DeliveryAssignmentLog[]
+
+  @@index([orderId])
+  @@index([shipmentId])
+  @@index([deliveryManProfileId, status])
+  @@index([deliveryManProfileId, isCurrent])
+  @@index([warehouseId, status])
+  @@index([assignedById])
+  @@index([shipmentId, isCurrent])
+}
+
+model DeliveryAssignmentLog {
+  id                   String                    @id @default(cuid())
+  deliveryAssignmentId String
+  fromStatus           DeliveryAssignmentStatus?
+  toStatus             DeliveryAssignmentStatus
+  note                 String?
+  actorUserId          String?
+  createdAt            DateTime                  @default(now())
+  actor                User?                     @relation("DeliveryAssignmentLogsCreated", fields: [actorUserId], references: [id], onDelete: SetNull)
+  deliveryAssignment   DeliveryAssignment        @relation(fields: [deliveryAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryAssignmentId, createdAt])
+  @@index([actorUserId])
+}
+
+model WarehousePickupProof {
+  id                     String             @id @default(cuid())
+  deliveryAssignmentId   String             @unique
+  actorUserId            String?
+  status                 PickupProofStatus  @default(PENDING)
+  productReceived        Boolean
+  packagingOk            Boolean
+  productInGoodCondition Boolean
+  imageUrl               String?
+  note                   String?
+  confirmedAt            DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  actor                  User?              @relation("WarehousePickupProofsCreated", fields: [actorUserId], references: [id], onDelete: SetNull)
+  deliveryAssignment     DeliveryAssignment @relation(fields: [deliveryAssignmentId], references: [id], onDelete: Cascade)
+
+  @@index([actorUserId])
+  @@index([confirmedAt])
+}
+
 model AnalyticsEvent {
   id            BigInt             @id @default(autoincrement())
   ts            DateTime           @default(now())
@@ -1323,9 +1412,11 @@ enum BookingStatus {
 
 enum ShipmentStatus {
   PENDING
+  ASSIGNED
   IN_TRANSIT
   OUT_FOR_DELIVERY
   DELIVERED
+  FAILED
   RETURNED
   CANCELLED
 }
@@ -1374,6 +1465,7 @@ enum AccessScopeType {
   GLOBAL
   WAREHOUSE
 }
+
 enum IdentityType {
   NID
   PASSPORT
@@ -1415,4 +1507,21 @@ enum DeliveryManDocumentType {
   CONTRACT_PAPER
 
   OTHER
+}
+
+enum DeliveryAssignmentStatus {
+  ASSIGNED
+  ACCEPTED
+  REJECTED
+  PICKUP_CONFIRMED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+  RETURNED
+}
+
+enum PickupProofStatus {
+  PENDING
+  CONFIRMED
 }

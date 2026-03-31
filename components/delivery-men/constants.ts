@@ -23,6 +23,7 @@ export const initialFormData: DeliveryManFormData = {
   mobileNumber: "",
   alternateMobileNumber: "",
   email: "",
+  password: "",
   dateOfBirth: "",
   gender: "",
   bloodGroup: "",

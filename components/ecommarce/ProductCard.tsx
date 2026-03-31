@@ -29,6 +29,9 @@ export type ProductCardData = {
 type Props = {
   product: ProductCardData;
   wishlisted?: boolean;
+  wishlistMode?: string;
+  showMeta?: boolean;
+  addToCartLabel?: string;
   onWishlistClick?: () => void | Promise<void>;
   onAddToCart?: () => void | Promise<void>;
   formatPrice?: (value: number) => string;
@@ -71,6 +74,7 @@ export default function ProductCardCompact({
   onWishlistClick,
   onAddToCart,
   formatPrice = defaultFormatPrice,
+  addToCartLabel = "Add To Cart",
   className,
 }: Props) {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -218,7 +222,7 @@ export default function ProductCardCompact({
                   ) : (
                     <>
                       <span className="absolute transition-all duration-300 ease-out group-hover/cart:-translate-y-4 group-hover/cart:opacity-0">
-                        Add To Cart
+                        {addToCartLabel}
                       </span>
 
                       <ShoppingCart className="absolute h-[18px] w-[18px] translate-y-4 opacity-0 transition-all duration-300 ease-out group-hover/cart:translate-y-0 group-hover/cart:opacity-100" />

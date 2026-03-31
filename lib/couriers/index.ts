@@ -6,6 +6,14 @@ import { redxProvider } from "./redx";
 const providerMap: Record<CourierType, CourierProvider> = {
   PATHAO: pathaoProvider,
   REDX: redxProvider,
+  STEADFAST: {
+    async createShipment() {
+      throw new Error("STEADFAST courier provider is not implemented");
+    },
+    async getTracking() {
+      throw new Error("STEADFAST courier provider is not implemented");
+    },
+  },
   CUSTOM: {
     async createShipment() {
       throw new Error("CUSTOM courier provider is not implemented");

@@ -9,6 +9,7 @@ import {
   buildDeliveryConfirmationUrl,
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
+import { shipmentDeliveryAssignmentSummaryInclude } from "@/lib/delivery-assignments";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission, resolveWarehouseScope } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
@@ -92,6 +93,16 @@ function buildShipmentInclude() {
         createdAt: true,
         userId: true,
       },
+    },
+    deliveryAssignments: {
+      where: {
+        isCurrent: true,
+      },
+      orderBy: {
+        assignedAt: "desc",
+      },
+      take: 1,
+      include: shipmentDeliveryAssignmentSummaryInclude,
     },
   } as const;
 }
