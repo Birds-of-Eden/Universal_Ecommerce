@@ -14,6 +14,38 @@ type WarehouseRoleInput = {
   roleIds: string[];
 };
 
+function resolveLegacyRoleName(params: {
+  globalRoleIds: string[];
+  scopedRoles: Array<{ warehouseId: number; roleId: string }>;
+  memberships: Array<{ warehouseId: number; isPrimary: boolean }>;
+  validRoleMap: Map<string, { id: string; name: string }>;
+}): string {
+  const { globalRoleIds, scopedRoles, memberships, validRoleMap } = params;
+
+  const globalRoleName = globalRoleIds
+    .map((roleId) => validRoleMap.get(roleId)?.name ?? null)
+    .find((roleName): roleName is string => Boolean(roleName));
+  if (globalRoleName) {
+    return globalRoleName;
+  }
+
+  const primaryWarehouseId =
+    memberships.find((membership) => membership.isPrimary)?.warehouseId ??
+    memberships[0]?.warehouseId ??
+    null;
+
+  const primaryScopedRole =
+    scopedRoles.find((assignment) => assignment.warehouseId === primaryWarehouseId) ??
+    scopedRoles[0] ??
+    null;
+
+  if (primaryScopedRole) {
+    return validRoleMap.get(primaryScopedRole.roleId)?.name ?? "user";
+  }
+
+  return "user";
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -321,6 +353,12 @@ export async function PUT(
         warehouseId: assignment.warehouseId,
       })),
     );
+    const nextLegacyRole = resolveLegacyRoleName({
+      globalRoleIds,
+      scopedRoles: nextScopedRoles,
+      memberships: nextMemberships,
+      validRoleMap,
+    });
 
     await prisma.$transaction(async (tx) => {
       const existingMemberships = await tx.warehouseMembership.findMany({
@@ -426,6 +464,13 @@ export async function PUT(
           },
         });
       }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          role: nextLegacyRole,
+        },
+      });
     });
 
     return NextResponse.json({ message: "Warehouse access updated successfully." });

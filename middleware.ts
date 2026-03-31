@@ -388,6 +388,9 @@ export default async function authMiddleware(request: NextRequest) {
       const matchedPageRule = findMatchedRule(pathname, method, adminPagePermissionRules);
       if (matchedPageRule && !hasAnyPermission(permissionKeys, matchedPageRule.permissions)) {
         if (pathname !== "/admin") {
+          if (pathname === defaultAdminRoute) {
+            return NextResponse.redirect(new URL("/ecommerce/user/", request.url));
+          }
           return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
         }
         return NextResponse.redirect(new URL("/ecommerce/user/", request.url));

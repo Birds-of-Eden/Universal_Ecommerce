@@ -79,7 +79,11 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const darkLikeActiveTheme = isDarkLikeTheme(activeTheme);
 
   const userName = (session?.user as any)?.name || "User";
-  const userRole = (session?.user as any)?.role || "admin";
+  const userRole =
+    Array.isArray((session?.user as any)?.roleNames) &&
+    ((session?.user as any).roleNames as string[]).length > 0
+      ? ((session?.user as any).roleNames as string[]).join(", ")
+      : (session?.user as any)?.role || "admin";
 
   return (
     <header className="w-full h-20 bg-background border-border border-b flex items-center justify-between px-4 sm:px-6 sticky top-0 z-20 shadow-sm">
