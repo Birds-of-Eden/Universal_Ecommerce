@@ -36,7 +36,7 @@ const adminPagePermissionRules: PermissionRule[] = [
   },
   { prefix: "/admin/analytics", permissions: ["dashboard.read", "admin.panel.access"] },
   { prefix: "/admin/reports", permissions: ["reports.read"] },
-   { prefix: "/admin/settings/activitylog", permissions: ["admin.panel.access"] },
+   { prefix: "/admin/settings/activitylog", permissions: ["settings.activitylog.read", "settings.manage"] },
   { prefix: "/admin/settings/payroll", permissions: ["payroll.manage"] },
   { prefix: "/admin/settings/rbac", permissions: ["roles.manage"] },
   { prefix: "/admin/settings/banner", permissions: ["settings.banner.manage", "settings.manage"] },
@@ -86,7 +86,7 @@ const apiPermissionRules: PermissionRule[] = [
   },
   {
     prefix: "/api/admin/activity-log",
-    permissions: ["admin.panel.access"],
+    permissions: ["settings.activitylog.read", "settings.manage"],
   },
   {
     prefix: "/api/admin/rbac",
@@ -111,6 +111,30 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/reports",
     permissions: ["reports.read"],
+  },
+  {
+    prefix: "/api/payroll",
+    permissions: ["payroll.manage"],
+  },
+  {
+    prefix: "/api/orders",
+    methods: ["GET"],
+    permissions: ["orders.read_all", "orders.read_own"],
+  },
+  {
+    prefix: "/api/orders",
+    methods: ["PATCH"],
+    permissions: ["orders.update"],
+  },
+  {
+    prefix: "/api/shipments",
+    methods: ["GET"],
+    permissions: ["shipments.manage", "logistics.manage", "orders.read_all", "orders.read_own"],
+  },
+  {
+    prefix: "/api/shipments",
+    methods: ["POST", "PATCH", "DELETE"],
+    permissions: ["shipments.manage", "logistics.manage"],
   },
   {
     prefix: "/api/admin/warehouse-dashboard",

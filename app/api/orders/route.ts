@@ -39,6 +39,16 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: any = {};
+    const emptyOrderListResponse = () =>
+      NextResponse.json({
+        orders: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          pages: 0,
+        },
+      });
 
     // normal user -> only his/her orders
     if (!canReadAll) {
@@ -46,20 +56,12 @@ export async function GET(request: NextRequest) {
     } else if (!access.hasGlobal("orders.read_all")) {
       const warehouseScope = resolveWarehouseScope(access, "orders.read_all");
       if (warehouseScope.mode === "none") {
-        return NextResponse.json({
-          orders: [],
-          pagination: {
-            page,
-            limit,
-            total: 0,
-            pages: 0,
-          },
-        });
+        return emptyOrderListResponse();
       }
 
       if (warehouseScope.mode === "assigned") {
         where.shipments = {
-          some: {
+          is: {
             warehouseId: { in: warehouseScope.warehouseIds },
           },
         };
@@ -88,12 +90,16 @@ export async function GET(request: NextRequest) {
 
     // Admin helper filter for shipment flow
     if (hasShipmentParam === "true") {
-      const existingShipmentFilter = where.shipments?.some;
-      where.shipments = {
-        some: existingShipmentFilter ?? {},
-      };
+      const existingShipmentFilter = where.shipments?.is;
+      where.shipments = existingShipmentFilter
+        ? { is: existingShipmentFilter }
+        : { isNot: null };
     } else if (hasShipmentParam === "false") {
-      where.shipments = { none: {} };
+      if (where.shipments?.is) {
+        return emptyOrderListResponse();
+      }
+
+      where.shipments = { is: null };
     }
 
     const [orders, total] = await Promise.all([

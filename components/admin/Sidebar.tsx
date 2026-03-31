@@ -191,7 +191,7 @@ const menuItems: MenuItem[] = [
       {
         name: "Activity Log",
         href: "/admin/settings/activitylog",
-        requiredPermissions: ["admin.panel.access"],
+        requiredPermissions: ["settings.activitylog.read", "settings.manage"],
       },
     ],
   },
