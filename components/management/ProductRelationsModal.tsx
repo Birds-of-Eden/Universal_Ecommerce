@@ -196,11 +196,11 @@ export default function ProductRelationsModal({ open, onClose, product }: Props)
         ssRes ? ssRes.json() : Promise.resolve([]),
       ]);
 
-      setVariants(v || []);
-      setWarehouses(w || []);
-      setAttributes(a || []);
-      setProductAttributes(pa || []);
-      setLogs(l || []);
+      setVariants(Array.isArray(v) ? v : []);
+      setWarehouses(Array.isArray(w) ? w : []);
+      setAttributes(Array.isArray(a) ? a : []);
+      setProductAttributes(Array.isArray(pa) ? pa : []);
+      setLogs(Array.isArray(l) ? l : []);
       setDigitalAssets(da || []);
       setServiceSlots(ss || []);
 
