@@ -26,13 +26,19 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const requestedWarehouseId = Number(searchParams.get("warehouseId") || "");
-    const hasRequestedWarehouse = Number.isInteger(requestedWarehouseId) && requestedWarehouseId > 0;
+    const requestedWarehouseIds = [...new Set(
+      searchParams
+        .getAll("warehouseId")
+        .flatMap((value) => value.split(","))
+        .map((value) => Number(value.trim()))
+        .filter((value) => Number.isInteger(value) && value > 0),
+    )];
+    const hasRequestedWarehouses = requestedWarehouseIds.length > 0;
     const hasGlobalScope =
       access.isSuperAdmin ||
       GLOBAL_WAREHOUSE_DASHBOARD_PERMISSIONS.some((permission) => access.hasGlobal(permission));
 
-    let allowedWarehouseIds = hasGlobalScope
+    const accessibleWarehouseIds = hasGlobalScope
       ? (
           await prisma.warehouse.findMany({
             select: { id: true },
@@ -41,16 +47,23 @@ export async function GET(request: NextRequest) {
         ).map((warehouse) => warehouse.id)
       : access.warehouseIds;
 
-    if (hasRequestedWarehouse) {
-      if (!hasGlobalScope && !access.warehouseIds.includes(requestedWarehouseId)) {
+    let allowedWarehouseIds = accessibleWarehouseIds;
+
+    if (hasRequestedWarehouses) {
+      if (
+        !hasGlobalScope &&
+        requestedWarehouseIds.some((warehouseId) => !access.warehouseIds.includes(warehouseId))
+      ) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
-      allowedWarehouseIds = allowedWarehouseIds.filter((warehouseId) => warehouseId === requestedWarehouseId);
+      allowedWarehouseIds = allowedWarehouseIds.filter((warehouseId) =>
+        requestedWarehouseIds.includes(warehouseId),
+      );
     }
 
     if (allowedWarehouseIds.length === 0) {
       return NextResponse.json({
-        selectedWarehouseId: null,
+        selectedWarehouseIds: [],
         warehouses: [],
         summary: {
           totalWarehouses: 0,
@@ -70,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     const [warehouses, stockLevels, shipments, recentLogs] = await Promise.all([
       prisma.warehouse.findMany({
-        where: { id: { in: allowedWarehouseIds } },
+        where: { id: { in: accessibleWarehouseIds } },
         orderBy: [{ isDefault: "desc" }, { name: "asc" }],
         select: {
           id: true,
@@ -138,10 +151,14 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const scopedWarehouses = warehouses.filter((warehouse) =>
+      allowedWarehouseIds.includes(warehouse.id),
+    );
+
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const warehouseCards = warehouses.map((warehouse) => {
+    const warehouseCards = scopedWarehouses.map((warehouse) => {
       const warehouseStockLevels = stockLevels.filter((level) => level.warehouseId === warehouse.id);
       const warehouseShipments = shipments.filter((shipment) => shipment.warehouseId === warehouse.id);
       const totalUnits = warehouseStockLevels.reduce((sum, level) => sum + Number(level.quantity), 0);
@@ -172,11 +189,6 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const selectedWarehouseId =
-      (hasRequestedWarehouse ? requestedWarehouseId : access.primaryWarehouseId) ??
-      warehouses[0]?.id ??
-      null;
-
     const lowStock = stockLevels
       .map((level) => {
         const available = Number(level.quantity) - Number(level.reserved);
@@ -195,10 +207,10 @@ export async function GET(request: NextRequest) {
       .slice(0, 10);
 
     return NextResponse.json({
-      selectedWarehouseId,
+      selectedWarehouseIds: hasRequestedWarehouses ? allowedWarehouseIds : [],
       warehouses,
       summary: {
-        totalWarehouses: warehouses.length,
+        totalWarehouses: scopedWarehouses.length,
         totalUnits: warehouseCards.reduce((sum, card) => sum + card.totalUnits, 0),
         reservedUnits: warehouseCards.reduce((sum, card) => sum + card.reservedUnits, 0),
         lowStockItems: lowStock.length,
