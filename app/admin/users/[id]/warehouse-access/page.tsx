@@ -54,44 +54,44 @@ export default function UserWarehouseAccessPage() {
   const [globalRoleIds, setGlobalRoleIds] = useState<string[]>([]);
   const [warehouseRoleMap, setWarehouseRoleMap] = useState<Record<number, string[]>>({});
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/admin/rbac/users/${params.id}/warehouse-access`, {
-          cache: "no-store",
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload?.error || "Failed to load warehouse access");
-        }
-
-        setData(payload);
-        setMemberships(
-          (payload.memberships || []).map((membership: { warehouseId: number; isPrimary: boolean }) => ({
-            warehouseId: membership.warehouseId,
-            isPrimary: membership.isPrimary,
-          })),
-        );
-        setGlobalRoleIds(payload.globalRoleIds || []);
-        setWarehouseRoleMap(
-          (payload.warehouseRoleAssignments || []).reduce(
-            (acc: Record<number, string[]>, assignment: { warehouseId: number; roleIds: string[] }) => {
-              acc[assignment.warehouseId] = assignment.roleIds;
-              return acc;
-            },
-            {},
-          ),
-        );
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to load warehouse access");
-      } finally {
-        setLoading(false);
+  const loadWarehouseAccess = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/admin/rbac/users/${params.id}/warehouse-access`, {
+        cache: "no-store",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to load warehouse access");
       }
-    };
 
+      setData(payload);
+      setMemberships(
+        (payload.memberships || []).map((membership: { warehouseId: number; isPrimary: boolean }) => ({
+          warehouseId: membership.warehouseId,
+          isPrimary: membership.isPrimary,
+        })),
+      );
+      setGlobalRoleIds(payload.globalRoleIds || []);
+      setWarehouseRoleMap(
+        (payload.warehouseRoleAssignments || []).reduce(
+          (acc: Record<number, string[]>, assignment: { warehouseId: number; roleIds: string[] }) => {
+            acc[assignment.warehouseId] = assignment.roleIds;
+            return acc;
+          },
+          {},
+        ),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to load warehouse access");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (params.id) {
-      void load();
+      void loadWarehouseAccess();
     }
   }, [params.id]);
 
@@ -110,6 +110,22 @@ export default function UserWarehouseAccessPage() {
     () => (data?.roles ?? []).filter((role) => role.name !== "superadmin"),
     [data?.roles],
   );
+  const selectedGlobalRoleLabels = useMemo(
+    () =>
+      (data?.roles ?? [])
+        .filter((role) => globalRoleIds.includes(role.id))
+        .map((role) => role.label),
+    [data?.roles, globalRoleIds],
+  );
+  const selectedScopedRoleLabels = useMemo(() => {
+    const roleMap = new Map((data?.roles ?? []).map((role) => [role.id, role.label]));
+    return selectedWarehouses.flatMap((warehouse) =>
+      (warehouseRoleMap[warehouse.id] ?? []).map((roleId) => ({
+        warehouseName: warehouse.name,
+        roleLabel: roleMap.get(roleId) ?? roleId,
+      })),
+    );
+  }, [data?.roles, selectedWarehouses, warehouseRoleMap]);
   const canManageGlobalRoles = Array.isArray((session?.user as any)?.globalPermissions)
     ? ((session?.user as any).globalPermissions as string[]).includes("users.manage")
     : false;
@@ -201,6 +217,7 @@ export default function UserWarehouseAccessPage() {
       }
 
       toast.success("Warehouse access updated.");
+      await loadWarehouseAccess();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save warehouse access");
     } finally {
@@ -333,6 +350,16 @@ export default function UserWarehouseAccessPage() {
                 Global roles apply across the whole admin system. Use these for HQ, super admin, or
                 cross-warehouse staff.
               </p>
+              {selectedGlobalRoleLabels.length > 0 ? (
+                <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+                  <p className="font-medium text-foreground">Active global roles</p>
+                  <p className="mt-1 text-muted-foreground">{selectedGlobalRoleLabels.join(", ")}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Global roles still apply everywhere. If you want warehouse-only access, remove
+                    the old global role from here as well.
+                  </p>
+                </div>
+              ) : null}
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 {data.roles.map((role) => (
@@ -381,6 +408,18 @@ export default function UserWarehouseAccessPage() {
             These roles apply only inside the selected warehouse. They do not grant global
             cross-warehouse access.
           </p>
+          {selectedScopedRoleLabels.length > 0 ? (
+            <div className="mt-4 rounded-2xl border bg-background p-4 text-sm">
+              <p className="font-medium text-foreground">Current scoped assignments</p>
+              <div className="mt-2 space-y-1 text-muted-foreground">
+                {selectedScopedRoleLabels.map((assignment) => (
+                  <p key={`${assignment.warehouseName}:${assignment.roleLabel}`}>
+                    {assignment.warehouseName}: {assignment.roleLabel}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-4 space-y-4">
             {selectedWarehouses.length ? (

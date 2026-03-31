@@ -101,6 +101,13 @@ function dedupeWarehouseIds(rawIds: Array<number | null | undefined>): number[] 
   return [...unique].sort((left, right) => left - right);
 }
 
+const WAREHOUSE_DASHBOARD_PERMISSIONS: PermissionKey[] = [
+  "dashboard.read",
+  "inventory.manage",
+  "orders.read_all",
+  "shipments.manage",
+];
+
 async function getUserAccessProfile(userId: string) {
   return prisma.user.findUnique({
     where: { id: userId },
@@ -293,6 +300,11 @@ function buildAccessContext(
       ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS.some((permission) => permissionKeys.has(permission))
     );
   });
+  const hasWarehouseDashboardScope = warehouseIds.some((warehouseId) => {
+    const permissionKeys = scopedPermissionMap.get(warehouseId);
+    if (!permissionKeys) return false;
+    return WAREHOUSE_DASHBOARD_PERMISSIONS.some((permission) => permissionKeys.has(permission));
+  });
 
   return {
     userId,
@@ -305,7 +317,9 @@ function buildAccessContext(
     warehouseMemberships,
     scopedRoleAssignments,
     defaultAdminRoute:
-      !hasGlobalAdminScope && hasWarehouseAdminScope ? "/admin/warehouse" : "/admin",
+      !hasGlobalAdminScope && hasWarehouseAdminScope && hasWarehouseDashboardScope
+        ? "/admin/warehouse"
+        : "/admin",
     isAuthenticated: true,
     isSuperAdmin,
     has: (permission) => permissionSet.has(permission),
