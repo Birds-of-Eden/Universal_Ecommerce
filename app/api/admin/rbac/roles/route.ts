@@ -5,9 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import {
-  ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS,
   isPermissionKey,
-  type PermissionKey,
 } from "@/lib/rbac-config";
 
 function toCleanText(value: unknown, max = 120): string {
@@ -21,20 +19,7 @@ function normalizeRoleName(value: unknown): string {
 }
 
 function normalizePermissionKeys(rawKeys: string[]): string[] {
-  const unique = [...new Set(rawKeys)];
-  if (unique.includes("admin.panel.access")) {
-    return unique;
-  }
-
-  const hasAdminScopedPermission = unique.some((key) =>
-    ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS.includes(key as PermissionKey),
-  );
-
-  if (!hasAdminScopedPermission) {
-    return unique;
-  }
-
-  return [...unique, "admin.panel.access"];
+  return [...new Set(rawKeys)];
 }
 
 function toRoleLogSnapshot(role: {

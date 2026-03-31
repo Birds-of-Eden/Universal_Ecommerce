@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import {
-  ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS,
   getAllPermissionKeys,
   isPermissionKey,
   LEGACY_ROLE_FALLBACKS,
@@ -61,6 +60,10 @@ function normalizeRoleName(raw: unknown): string | null {
 function getLegacyFallbackPermissions(legacyRole: string | null): PermissionKey[] {
   if (!legacyRole) return [];
   const normalized = legacyRole.toLowerCase();
+  // Keep legacy fallback only for storefront users; staff access must come from RBAC role assignments.
+  if (normalized !== "user") {
+    return [];
+  }
   const direct = LEGACY_ROLE_FALLBACKS[normalized];
   return direct ? [...direct] : [];
 }
@@ -73,22 +76,6 @@ function dedupePermissions(rawKeys: string[]): PermissionKey[] {
     }
   }
   return [...unique];
-}
-
-function ensureAdminPanelAccessFallback(permissionKeys: PermissionKey[]): PermissionKey[] {
-  if (permissionKeys.includes("admin.panel.access")) {
-    return permissionKeys;
-  }
-
-  const hasAdminScopedPermission = ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS.some((permission) =>
-    permissionKeys.includes(permission),
-  );
-
-  if (!hasAdminScopedPermission) {
-    return permissionKeys;
-  }
-
-  return [...permissionKeys, "admin.panel.access"];
 }
 
 function dedupeWarehouseIds(rawIds: Array<number | null | undefined>): number[] {
@@ -233,11 +220,11 @@ function buildAccessContext(
       ? getLegacyFallbackPermissions(effectiveLegacyRole)
       : [];
 
-  const globalPermissions = ensureAdminPanelAccessFallback(
-    dedupePermissions(isSuperAdmin ? getAllPermissionKeys() : [...globalRawKeys, ...fallbackKeys]),
+  const globalPermissions = dedupePermissions(
+    isSuperAdmin ? getAllPermissionKeys() : [...globalRawKeys, ...fallbackKeys],
   );
-  const permissions = ensureAdminPanelAccessFallback(
-    dedupePermissions(isSuperAdmin ? getAllPermissionKeys() : [...globalPermissions, ...scopedRawKeys]),
+  const permissions = dedupePermissions(
+    isSuperAdmin ? getAllPermissionKeys() : [...globalPermissions, ...scopedRawKeys],
   );
 
   const permissionSet = new Set<PermissionKey>(permissions);
@@ -287,18 +274,11 @@ function buildAccessContext(
     warehouseMemberships[0]?.id ??
     null;
 
-  const hasGlobalAdminScope = globalPermissions.some(
-    (permission) =>
-      permission === "admin.panel.access" ||
-      ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS.includes(permission),
-  );
+  const hasGlobalAdminScope = globalPermissionSet.has("admin.panel.access");
   const hasWarehouseAdminScope = warehouseIds.some((warehouseId) => {
     const permissionKeys = scopedPermissionMap.get(warehouseId);
     if (!permissionKeys) return false;
-    return (
-      permissionKeys.has("admin.panel.access") ||
-      ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS.some((permission) => permissionKeys.has(permission))
-    );
+    return permissionKeys.has("admin.panel.access");
   });
   const hasWarehouseDashboardScope = warehouseIds.some((warehouseId) => {
     const permissionKeys = scopedPermissionMap.get(warehouseId);

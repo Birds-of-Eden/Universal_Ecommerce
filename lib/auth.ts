@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
+import { syncDeliveryManWarehouseAccess } from "@/lib/delivery-man-access";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db as never),
@@ -27,6 +28,25 @@ export const authOptions: NextAuthOptions = {
 
         const ok = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!ok) return null;
+
+        if (user.role === "delivery_man") {
+          const deliveryProfile = await db.deliveryManProfile.findFirst({
+            where: {
+              userId: user.id,
+            },
+            select: {
+              warehouseId: true,
+            },
+          });
+
+          if (deliveryProfile?.warehouseId) {
+            await syncDeliveryManWarehouseAccess(db, {
+              userId: user.id,
+              warehouseId: deliveryProfile.warehouseId,
+              assignedById: null,
+            });
+          }
+        }
 
         await logActivity({
           action: "login",

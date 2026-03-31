@@ -2,6 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   getDashboardRoute,
   hasDeliveryDashboardAccess,
+  isAdminDeliveryRoute,
+  isDeliveryAdminShellRoute,
+  isLegacyDeliveryDashboardRoute,
 } from "@/lib/dashboard-route";
 
 // List of public paths that don't require authentication
@@ -79,6 +82,7 @@ const adminPagePermissionRules: PermissionRule[] = [
   { prefix: "/admin/blogs", permissions: ["blogs.manage"] },
   { prefix: "/admin/newsletter", permissions: ["newsletter.manage"] },
   { prefix: "/admin/coupons", permissions: ["coupons.manage"] },
+  { prefix: "/admin/delivery", permissions: ["delivery.dashboard.access"] },
   { prefix: "/admin/profile", permissions: ["profile.manage"] },
   { prefix: "/admin", permissions: ["dashboard.read", "admin.panel.access"] },
 ];
@@ -355,6 +359,10 @@ export default async function authMiddleware(request: NextRequest) {
   const defaultAdminRoute = getDefaultAdminRoute(session);
   const dashboardRoute = getDashboardRoute(session?.user);
   const deliveryDashboardAccess = hasDeliveryDashboardAccess(session?.user);
+  const isAdminDeliveryDashboardRoute = isAdminDeliveryRoute(pathname);
+  const isLegacyDeliveryRoute = isLegacyDeliveryDashboardRoute(pathname);
+  const canUseDeliveryAdminShell =
+    deliveryDashboardAccess && isDeliveryAdminShellRoute(pathname);
 
   // API permission checks
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")) {
@@ -380,7 +388,7 @@ export default async function authMiddleware(request: NextRequest) {
   const isUserDashboardRoute =
     pathname === "/ecommerce/user" || pathname.startsWith("/ecommerce/user/");
   const isDeliveryDashboardRoute =
-    pathname === "/delivery" || pathname.startsWith("/delivery/");
+    isAdminDeliveryDashboardRoute || isLegacyDeliveryRoute;
   const isProtectedRoute =
     pathname.startsWith("/admin") ||
     isUserDashboardRoute ||
@@ -388,11 +396,11 @@ export default async function authMiddleware(request: NextRequest) {
 
   // Handle permission-aware redirection
   if (session?.user) {
-    if (adminAccess && (isUserDashboardRoute || isDeliveryDashboardRoute)) {
+    if (adminAccess && (isUserDashboardRoute || isLegacyDeliveryRoute)) {
       return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
     }
 
-    if (!adminAccess && pathname.startsWith("/admin")) {
+    if (!adminAccess && pathname.startsWith("/admin") && !canUseDeliveryAdminShell) {
       return NextResponse.redirect(new URL(dashboardRoute, request.url));
     }
 
@@ -400,11 +408,15 @@ export default async function authMiddleware(request: NextRequest) {
       return NextResponse.redirect(new URL(dashboardRoute, request.url));
     }
 
+    if (deliveryDashboardAccess && isLegacyDeliveryRoute) {
+      return NextResponse.redirect(new URL(dashboardRoute, request.url));
+    }
+
     if (!deliveryDashboardAccess && isDeliveryDashboardRoute) {
       return NextResponse.redirect(new URL(dashboardRoute, request.url));
     }
 
-    if (adminAccess && pathname.startsWith("/admin")) {
+    if ((adminAccess || canUseDeliveryAdminShell) && pathname.startsWith("/admin")) {
       if (pathname === "/admin" && defaultAdminRoute !== "/admin") {
         return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
       }
