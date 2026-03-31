@@ -7,6 +7,5 @@ type AccessUserLike = {
 
 export function isAdmin(user?: AccessUserLike) {
   const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  if (permissions.includes("admin.panel.access")) return true;
-  return user?.role?.toLowerCase() === "admin";
+  return permissions.includes("admin.panel.access");
 }

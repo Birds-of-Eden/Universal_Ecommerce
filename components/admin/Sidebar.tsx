@@ -93,6 +93,12 @@ const menuItems: MenuItem[] = [
     requiredPermissions: ["shipments.manage", "orders.read_all"],
   },
   {
+    name: "Delivery",
+    href: "/admin/delivery/dashboard",
+    icon: Truck,
+    requiredPermissions: ["delivery.dashboard.access"],
+  },
+  {
     name: "Logistics",
     href: "/admin/logistics",
     icon: Forklift,
@@ -350,7 +356,7 @@ const SidebarContent = ({
   <nav className="mt-8 pb-8 space-y-2 px-4">
     {items.map((item) => (
       <MenuItem
-        key={item.name}
+        key={`${item.name}:${item.href ?? "group"}`}
         item={item}
         pathname={pathname}
         onClose={onClose}

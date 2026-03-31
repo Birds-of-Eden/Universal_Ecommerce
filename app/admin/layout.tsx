@@ -6,7 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Sidebar from "@/components/admin/Sidebar";
 import Header from "@/components/admin/Header";
-import { getDashboardRoute } from "@/lib/dashboard-route";
+import {
+  getDashboardRoute,
+  isDeliveryAdminShellRoute,
+} from "@/lib/dashboard-route";
 
 // Client component that uses the Sidebar context
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
@@ -14,6 +17,16 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
+  const permissionKeys = Array.isArray((session?.user as any)?.permissions)
+    ? (((session?.user as any).permissions as string[]) ?? [])
+    : [];
+  const hasAdminPanelAccess = permissionKeys.includes("admin.panel.access");
+  const hasDeliveryDashboardAccess = permissionKeys.includes(
+    "delivery.dashboard.access",
+  );
+  const canUseAdminLayout =
+    hasAdminPanelAccess ||
+    (hasDeliveryDashboardAccess && isDeliveryAdminShellRoute(pathname));
   const dashboardRoute = getDashboardRoute(
     (session?.user ?? null) as {
       role?: string | null;
@@ -25,19 +38,24 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/signin");
-    } else if (
-      status === "authenticated" &&
-      !(session?.user?.permissions || []).includes("admin.panel.access")
-    ) {
+    } else if (status === "authenticated" && !canUseAdminLayout) {
       router.push(dashboardRoute);
     } else if (
       status === "authenticated" &&
       pathname === "/admin" &&
-      dashboardRoute !== "/admin"
+      dashboardRoute !== "/admin" &&
+      hasAdminPanelAccess
     ) {
       router.push(dashboardRoute);
     }
-  }, [dashboardRoute, pathname, status, session, router]);
+  }, [
+    canUseAdminLayout,
+    dashboardRoute,
+    hasAdminPanelAccess,
+    pathname,
+    router,
+    status,
+  ]);
 
   if (status === "loading") {
     return (

@@ -5,32 +5,27 @@ type DashboardUserLike = {
 } | null | undefined;
 
 export const USER_DASHBOARD_ROUTE = "/ecommerce/user/";
-export const DELIVERY_DASHBOARD_ROUTE = "/delivery/dashboard";
+export const DELIVERY_DASHBOARD_ROUTE = "/admin/delivery/dashboard";
+
+const ADMIN_DELIVERY_ROUTE = "/admin/delivery";
+const ADMIN_PROFILE_ROUTE = "/admin/profile";
+const LEGACY_DELIVERY_ENTRY_ROUTE = "/delivery";
+const LEGACY_DELIVERY_DASHBOARD_ROUTE = "/delivery/dashboard";
 
 const AUTH_ROUTES = ["/signin", "/sign-up"];
 
-function normalizeRole(role?: string | null) {
-  return String(role || "")
-    .trim()
-    .toLowerCase();
+function isRoutePrefix(pathname: string, route: string) {
+  return pathname === route || pathname.startsWith(`${route}/`);
 }
 
 export function hasAdminDashboardAccess(user?: DashboardUserLike) {
   const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  return (
-    permissions.includes("admin.panel.access") ||
-    normalizeRole(user?.role) === "admin"
-  );
+  return permissions.includes("admin.panel.access");
 }
 
 export function hasDeliveryDashboardAccess(user?: DashboardUserLike) {
   const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
-  const role = normalizeRole(user?.role);
-  return (
-    permissions.includes("delivery.dashboard.access") ||
-    role === "delivery_man" ||
-    role === "deliveryman"
-  );
+  return permissions.includes("delivery.dashboard.access");
 }
 
 export function getDashboardRoute(user?: DashboardUserLike) {
@@ -45,6 +40,24 @@ export function getDashboardRoute(user?: DashboardUserLike) {
   }
 
   return USER_DASHBOARD_ROUTE;
+}
+
+export function isAdminDeliveryRoute(pathname: string) {
+  return isRoutePrefix(pathname, ADMIN_DELIVERY_ROUTE);
+}
+
+export function isLegacyDeliveryDashboardRoute(pathname: string) {
+  return (
+    pathname === LEGACY_DELIVERY_ENTRY_ROUTE ||
+    isRoutePrefix(pathname, LEGACY_DELIVERY_DASHBOARD_ROUTE)
+  );
+}
+
+export function isDeliveryAdminShellRoute(pathname: string) {
+  return (
+    isAdminDeliveryRoute(pathname) ||
+    isRoutePrefix(pathname, ADMIN_PROFILE_ROUTE)
+  );
 }
 
 export function sanitizeReturnUrl(returnUrl?: string | null) {
