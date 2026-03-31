@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
+import { getDashboardRoute } from "@/lib/dashboard-route";
 
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
@@ -16,8 +17,26 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/signin");
+      return;
     }
-  }, [status, router]);
+
+    if (status === "authenticated") {
+      const dashboardRoute = getDashboardRoute(
+        (session?.user ?? null) as {
+          role?: string | null;
+          permissions?: string[];
+          defaultAdminRoute?: "/admin" | "/admin/warehouse";
+        } | null,
+      );
+
+      if (
+        dashboardRoute !== "/ecommerce/user/" &&
+        (pathname === "/ecommerce/user" || pathname.startsWith("/ecommerce/user/"))
+      ) {
+        router.replace(dashboardRoute);
+      }
+    }
+  }, [pathname, router, session, status]);
 
   // সর্বশেষ প্রোফাইল ইমেজ লোড করি, যেন sidebar সব সময় আপডেট থাকে
   useEffect(() => {

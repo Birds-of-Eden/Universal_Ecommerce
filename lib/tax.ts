@@ -114,7 +114,12 @@ export async function calculateTaxForItems(
     new Set(
       input.items
         .map((item) => item.vatClassId ?? null)
-        .filter((value): value is number => Number.isInteger(value) && value > 0),
+        .filter(
+          (value): value is number =>
+            typeof value === "number" &&
+            Number.isInteger(value) &&
+            value > 0,
+        ),
     ),
   );
 

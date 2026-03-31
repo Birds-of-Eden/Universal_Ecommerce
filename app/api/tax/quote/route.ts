@@ -2,6 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateTaxForItems } from "@/lib/tax";
 
+type QuoteRequestItem = {
+  productId: number;
+  variantId: number | null;
+  quantity: number;
+};
+
+type ProductTaxLookup = {
+  id: number;
+  basePrice: unknown;
+  currency: string;
+  VatClass: {
+    id: number;
+    name: string;
+    code: string;
+  } | null;
+  variants: Array<{
+    id: number;
+    productId: number;
+    price: unknown;
+    currency: string;
+    isDefault: boolean;
+    active: boolean;
+  }>;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -16,7 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const normalizedItems = items
+    const normalizedItems: QuoteRequestItem[] = items
       .map((item: any) => ({
         productId: Number(item?.productId),
         variantId:
@@ -26,7 +51,7 @@ export async function POST(request: NextRequest) {
         quantity: Number(item?.quantity || 0),
       }))
       .filter(
-        (item) =>
+        (item: QuoteRequestItem) =>
           Number.isInteger(item.productId) &&
           item.productId > 0 &&
           Number.isInteger(item.quantity) &&
@@ -41,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     const productIds = Array.from(new Set(normalizedItems.map((item) => item.productId)));
-    const products = await prisma.product.findMany({
+    const products = (await prisma.product.findMany({
       where: { id: { in: productIds }, deleted: false },
       include: {
         VatClass: true,
@@ -57,7 +82,7 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-    });
+    })) as ProductTaxLookup[];
 
     const quoteItems = normalizedItems
       .map((item) => {

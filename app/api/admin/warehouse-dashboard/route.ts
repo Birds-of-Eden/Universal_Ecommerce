@@ -161,7 +161,9 @@ export async function GET(request: NextRequest) {
         reservedUnits,
         lowStockItems,
         pendingShipments: warehouseShipments.filter((shipment) =>
-          ["PENDING", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(shipment.status),
+          ["PENDING", "ASSIGNED", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(
+            shipment.status,
+          ),
         ).length,
         deliveredToday: warehouseShipments.filter(
           (shipment) =>
@@ -204,7 +206,9 @@ export async function GET(request: NextRequest) {
         lowStockItems: lowStock.length,
         pendingShipments: warehouseCards.reduce((sum, card) => sum + card.pendingShipments, 0),
         deliveredToday: warehouseCards.reduce((sum, card) => sum + card.deliveredToday, 0),
-        ordersInQueue: shipments.filter((shipment) => shipment.status === "PENDING").length,
+        ordersInQueue: shipments.filter((shipment) =>
+          ["PENDING", "ASSIGNED"].includes(shipment.status),
+        ).length,
       },
       warehouseCards,
       lowStock,

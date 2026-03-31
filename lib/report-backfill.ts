@@ -3,7 +3,15 @@ import { appendShipmentStatusLog, captureVariantInventoryDailySnapshots } from "
 
 type ShipmentBackfillRow = {
   id: number;
-  status: "PENDING" | "IN_TRANSIT" | "OUT_FOR_DELIVERY" | "DELIVERED" | "RETURNED" | "CANCELLED";
+  status:
+    | "PENDING"
+    | "ASSIGNED"
+    | "IN_TRANSIT"
+    | "OUT_FOR_DELIVERY"
+    | "DELIVERED"
+    | "FAILED"
+    | "RETURNED"
+    | "CANCELLED";
   createdAt: Date;
   updatedAt: Date;
   shippedAt: Date | null;

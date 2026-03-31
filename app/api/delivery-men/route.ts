@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
+import { syncDeliveryManWarehouseAccess } from "@/lib/delivery-man-access";
 import bcrypt from "bcryptjs";
 
 type ReferencePayload = {
@@ -330,6 +331,12 @@ export async function POST(req: NextRequest) {
           role: "delivery_man",
           passwordHash, // Use passwordHash instead of password
         },
+      });
+
+      await syncDeliveryManWarehouseAccess(tx, {
+        userId: user.id,
+        warehouseId: Number(warehouseId),
+        assignedById: access.userId,
       });
 
       const profile = await tx.deliveryManProfile.create({

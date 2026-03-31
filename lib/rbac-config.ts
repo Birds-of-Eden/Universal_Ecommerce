@@ -127,6 +127,10 @@ export const SYSTEM_PERMISSIONS = [
     key: "delivery-men.manage",
     description: "Onboard and manage delivery personnel.",
   },
+  {
+    key: "delivery.dashboard.access",
+    description: "Access delivery-man assignment and operational dashboard flows.",
+  },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];
@@ -241,6 +245,16 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "profile.manage",
     ],
   },
+  {
+    name: "delivery_man",
+    label: "Delivery Man",
+    description: "Delivery execution role for assigned shipment handling.",
+    immutable: false,
+    permissions: [
+      "delivery.dashboard.access",
+      "profile.manage",
+    ],
+  },
 ];
 
 const ROLE_TEMPLATE_FALLBACKS = Object.fromEntries(
@@ -256,6 +270,10 @@ export const LEGACY_ROLE_FALLBACKS: Record<string, PermissionKey[]> = {
     "cart.manage",
     "wishlist.manage",
     "chats.respond",
+  ],
+  delivery_man: [
+    "delivery.dashboard.access",
+    "profile.manage",
   ],
 };
 

@@ -1,4 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  getDashboardRoute,
+  hasDeliveryDashboardAccess,
+} from "@/lib/dashboard-route";
 
 // List of public paths that don't require authentication
 const publicPaths = [
@@ -287,9 +291,13 @@ function findMatchedRule(
 export default async function authMiddleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method.toUpperCase();
+  const isAuthRoute = ["/signin", "/sign-up"].includes(pathname);
 
   // Skip middleware for public paths
-  if (publicPaths.some(path => pathname === path || pathname.startsWith(`${path}/`))) {
+  if (
+    !isAuthRoute &&
+    publicPaths.some(path => pathname === path || pathname.startsWith(`${path}/`))
+  ) {
     return NextResponse.next();
   }
 
@@ -310,7 +318,8 @@ export default async function authMiddleware(request: NextRequest) {
     if (response.ok) {
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
-        session = await response.json();
+        const parsedSession = await response.json();
+        session = parsedSession?.user ? parsedSession : null;
       }
     }
   } catch (error) {
@@ -320,6 +329,8 @@ export default async function authMiddleware(request: NextRequest) {
   const permissionKeys = getPermissionKeys(session);
   const adminAccess = hasAdminPanelAccess(session);
   const defaultAdminRoute = getDefaultAdminRoute(session);
+  const dashboardRoute = getDashboardRoute(session?.user);
+  const deliveryDashboardAccess = hasDeliveryDashboardAccess(session?.user);
 
   // API permission checks
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")) {
@@ -342,18 +353,31 @@ export default async function authMiddleware(request: NextRequest) {
   }
 
   // Handle protected routes (admin and dashboard)
-  const isProtectedRoute = pathname.startsWith('/admin') || pathname.startsWith('/ecommerce/user/');
+  const isUserDashboardRoute =
+    pathname === "/ecommerce/user" || pathname.startsWith("/ecommerce/user/");
+  const isDeliveryDashboardRoute =
+    pathname === "/delivery" || pathname.startsWith("/delivery/");
+  const isProtectedRoute =
+    pathname.startsWith("/admin") ||
+    isUserDashboardRoute ||
+    isDeliveryDashboardRoute;
 
   // Handle permission-aware redirection
   if (session?.user) {
-    // If user has admin panel access and trying to access user dashboard, redirect to admin
-    if (adminAccess && pathname.startsWith('/ecommerce/user/')) {
+    if (adminAccess && (isUserDashboardRoute || isDeliveryDashboardRoute)) {
       return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
     }
-    
-    // If user does not have admin panel access and trying to access admin, redirect to dashboard
-    if (!adminAccess && pathname.startsWith('/admin')) {
-      return NextResponse.redirect(new URL('/ecommerce/user/', request.url));
+
+    if (!adminAccess && pathname.startsWith("/admin")) {
+      return NextResponse.redirect(new URL(dashboardRoute, request.url));
+    }
+
+    if (deliveryDashboardAccess && isUserDashboardRoute) {
+      return NextResponse.redirect(new URL(dashboardRoute, request.url));
+    }
+
+    if (!deliveryDashboardAccess && isDeliveryDashboardRoute) {
+      return NextResponse.redirect(new URL(dashboardRoute, request.url));
     }
 
     if (adminAccess && pathname.startsWith("/admin")) {
@@ -366,21 +390,19 @@ export default async function authMiddleware(request: NextRequest) {
         if (pathname !== "/admin") {
           return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
         }
-        return NextResponse.redirect(new URL("/ecommerce/user/", request.url));
+        return NextResponse.redirect(new URL(dashboardRoute, request.url));
       }
     }
   }
 
-  if (isProtectedRoute && !session) {
+  if (isProtectedRoute && !session?.user) {
     const signInUrl = new URL('/signin', request.url);
-    signInUrl.searchParams.set('returnUrl', pathname);
+    signInUrl.searchParams.set('returnUrl', `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(signInUrl);
   }
 
-  // Redirect authenticated users away from auth pages -> to /home
-  const isAuthRoute = ['/signin', '/sign-up'].includes(pathname);
-  if (session && isAuthRoute) {
-    return NextResponse.redirect(new URL('/', request.url));
+  if (session?.user && isAuthRoute) {
+    return NextResponse.redirect(new URL(dashboardRoute, request.url));
   }
 
   return NextResponse.next();

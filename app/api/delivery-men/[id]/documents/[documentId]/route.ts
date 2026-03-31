@@ -32,7 +32,7 @@ export async function DELETE(
 
     // Delete the document
     await prisma.deliveryManDocument.delete({
-      where: { id: documentId },
+      where: { id: documentIdParam },
     });
 
     return NextResponse.json({

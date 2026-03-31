@@ -70,6 +70,16 @@ body {
     --sold-count-bg: 0 0% 20%; /* Use foreground color */
     --sold-count-text: 0 0% 100%;
     --badge-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+
+    /* Delivery Proof Theme */
+    --delivery-proof-bg: 214 44% 14%; /* Use primary color */
+    --delivery-proof-text: 0 0% 100%;
+    --delivery-pin-bg: 0 0% 96%; /* Use muted background */
+    --delivery-pin-text: 0 0% 20%; /* Use foreground */
+    --delivery-link-bg: 0 0% 96%; /* Use muted background */
+    --delivery-link-text: 214 44% 14%; /* Use primary color */
+    --delivery-status-bg: 0 0% 100%; /* Use card background */
+    --delivery-status-text: 0 0% 40%; /* Use muted-foreground */
   }
 
   /* ========================
@@ -132,6 +142,16 @@ body {
     --sold-count-bg: 0 0% 95%; /* Use foreground color */
     --sold-count-text: 0 0% 8%;
     --badge-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+
+    /* Delivery Proof Theme - Dark Mode */
+    --delivery-proof-bg: 0 0% 95%; /* Use primary color */
+    --delivery-proof-text: 0 0% 8%;
+    --delivery-pin-bg: 0 0% 15%; /* Use muted background */
+    --delivery-pin-text: 0 0% 95%; /* Use primary text */
+    --delivery-link-bg: 0 0% 15%; /* Use muted background */
+    --delivery-link-text: 0 0% 95%; /* Use primary text */
+    --delivery-status-bg: 0 0% 5%; /* Use card background */
+    --delivery-status-text: 0 0% 70%; /* Use muted-foreground */
   }
 
   /* ========================
@@ -441,6 +461,51 @@ body {
     background: hsl(var(--sold-count-bg));
     color: hsl(var(--sold-count-text));
     box-shadow: var(--badge-shadow);
+  }
+
+  /* Delivery Proof Utilities */
+  .delivery-proof-header {
+    background: hsl(var(--delivery-proof-bg));
+    color: hsl(var(--delivery-proof-text));
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .delivery-pin-container {
+    background: hsl(var(--delivery-pin-bg));
+  }
+
+  .delivery-pin-label {
+    color: hsl(var(--delivery-pin-text));
+  }
+
+  .delivery-pin-value {
+    color: hsl(var(--delivery-pin-text));
+  }
+
+  .delivery-link-container {
+    background: hsl(var(--delivery-link-bg));
+  }
+
+  .delivery-link-label {
+    color: hsl(var(--delivery-link-text));
+  }
+
+  .delivery-link-value {
+    color: hsl(var(--delivery-link-text));
+  }
+
+  .delivery-status-container {
+    background: hsl(var(--delivery-status-bg));
+  }
+
+  .delivery-status-label {
+    color: hsl(var(--delivery-status-text));
+  }
+
+  .delivery-status-value {
+    color: hsl(var(--delivery-status-text));
   }
 
   /* Global Scrollbar Styles */

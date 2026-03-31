@@ -1510,12 +1510,14 @@ function Input({
   onChange,
   error,
   type = "text",
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
   type?: string;
+  placeholder?: string;
 }) {
   return (
     <div>
@@ -1523,6 +1525,7 @@ function Input({
       <input
         type={type}
         value={value}
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         className={`input-theme w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-ring ${
           error ? "border-destructive" : ""
