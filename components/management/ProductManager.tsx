@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { getInventoryStatus } from "@/lib/stock-status";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,22 @@ import {
   Search,
   Layers,
   Image as ImageIcon,
+  ChevronDown,
+  RefreshCw,
+  Warehouse,
+  Boxes,
+  Package,
+  AlertTriangle,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import ProductAddModal from "./ProductAddModal";
 import ProductRelationsModal from "./ProductRelationsModal";
@@ -31,6 +46,21 @@ import AttributesManagerModal from "./AttributesManagerModal";
 import DigitalAssetManagerModal from "./DigitalAssetManagerModal";
 import SpotlightCard from "../SpotlightCard";
 import type { InventoryStatus } from "@/lib/stock-status";
+
+type WarehouseOption = {
+  id: number;
+  name: string;
+  code: string;
+  isDefault: boolean;
+};
+
+type WarehouseStats = {
+  totalProducts: number;
+  totalStock: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  reservedUnits: number;
+};
 
 export default function ProductManager({
   products,
@@ -55,10 +85,146 @@ export default function ProductManager({
   const [isDeleting, setIsDeleting] = useState(false);
   const [attributesOpen, setAttributesOpen] = useState(false);
   const [digitalAssetsOpen, setDigitalAssetsOpen] = useState(false);
+  const [warehouseId, setWarehouseId] = useState<string>("");
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
+  const [warehouseStats, setWarehouseStats] = useState<WarehouseStats | null>(
+    null,
+  );
+  const [warehouseLoading, setWarehouseLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const filtered = products
-    ?.filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()))
-    .filter((p: any) => p.category !== null);
+  const filtered = useMemo(() => {
+    let result = products
+      ?.filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()))
+      .filter((p: any) => p.category !== null);
+
+    if (warehouses.length > 0) {
+      const accessibleWarehouseIds = new Set(warehouses.map((w) => w.id));
+      const selectedWarehouseId = warehouseId ? Number(warehouseId) : null;
+
+      result = result.filter((p: any) => {
+        if (p.type !== "PHYSICAL") {
+          return true;
+        }
+
+        const variants = Array.isArray(p?.variants) ? p.variants : [];
+        return variants.some((variant: any) => {
+          const stockLevels = Array.isArray(variant?.stockLevels)
+            ? variant.stockLevels
+            : [];
+
+          return stockLevels.some((stockLevel: any) => {
+            const warehouseIdValue = Number(stockLevel?.warehouseId);
+            const quantityValue = Number(stockLevel?.quantity);
+
+            if (!Number.isFinite(warehouseIdValue)) return false;
+            if (!accessibleWarehouseIds.has(warehouseIdValue)) return false;
+            if (
+              selectedWarehouseId !== null &&
+              warehouseIdValue !== selectedWarehouseId
+            ) {
+              return false;
+            }
+            return Number.isFinite(quantityValue) && quantityValue > 0;
+          });
+        });
+      });
+    }
+
+    return result;
+  }, [products, search, warehouseId, warehouses]);
+
+  const fetchWarehouseData = useCallback(
+    async (nextWarehouseId?: string, showRefresh = false) => {
+      try {
+        if (showRefresh) {
+          setRefreshing(true);
+        } else {
+          setWarehouseLoading(true);
+        }
+
+        const params = new URLSearchParams();
+        const resolvedWarehouseId =
+          nextWarehouseId !== undefined ? nextWarehouseId : warehouseId;
+        if (resolvedWarehouseId) {
+          params.set("warehouseId", resolvedWarehouseId);
+        }
+
+        const response = await fetch(
+          `/api/admin/warehouse-product-stats${params.size > 0 ? `?${params}` : ""}`,
+          {
+            cache: "no-store",
+          },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to load warehouse data");
+        }
+
+        setWarehouses(payload.warehouses || []);
+        setWarehouseStats(payload.stats || null);
+      } catch (error) {
+        console.error("Failed to load warehouse data:", error);
+        setWarehouses([]);
+        setWarehouseStats(null);
+      } finally {
+        setWarehouseLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [warehouseId],
+  );
+
+  useEffect(() => {
+    fetchWarehouseData();
+  }, [fetchWarehouseData]);
+
+  const selectedWarehouseLabel = useMemo(() => {
+    if (!warehouses.length) return "All warehouses";
+
+    if (!warehouseId) {
+      return "All warehouses";
+    }
+
+    const selected = warehouses.find(
+      (warehouse) => String(warehouse.id) === warehouseId,
+    );
+    if (selected) {
+      return `${selected.name} (${selected.code})`;
+    }
+
+    return "All warehouses";
+  }, [warehouses, warehouseId]);
+
+  const warehouseStatsCards = useMemo(
+    () => [
+      {
+        title: "Total Products",
+        value: String(warehouseStats?.totalProducts ?? 0),
+        note: "In selected warehouse",
+        icon: Package,
+      },
+      {
+        title: "Total Stock",
+        value: String(warehouseStats?.totalStock ?? 0),
+        note: `${warehouseStats?.reservedUnits ?? 0} reserved units`,
+        icon: Boxes,
+      },
+      {
+        title: "Low Stock Items",
+        value: String(warehouseStats?.lowStockItems ?? 0),
+        note: "Below threshold",
+        icon: AlertTriangle,
+      },
+      {
+        title: "Out of Stock",
+        value: String(warehouseStats?.outOfStockItems ?? 0),
+        note: "Need restocking",
+        icon: AlertTriangle,
+      },
+    ],
+    [warehouseStats],
+  );
 
   const openAdd = () => {
     setEditing(null);
@@ -111,18 +277,34 @@ export default function ProductManager({
   const getProductInventorySummary = (product: any) => {
     const variants = Array.isArray(product?.variants) ? product.variants : [];
     if (product?.type !== "PHYSICAL" || variants.length === 0) {
-      return { totalStock: 0, status: "IN_STOCK" as const, lowCount: 0, outCount: 0 };
+      return {
+        totalStock: 0,
+        status: "IN_STOCK" as const,
+        lowCount: 0,
+        outCount: 0,
+      };
     }
 
     const totalStock = calculateStock(product);
     const statuses = variants.map((variant: any) =>
-      getInventoryStatus(variant?.stock, variant?.lowStockThreshold ?? product?.lowStockThreshold),
+      getInventoryStatus(
+        variant?.stock,
+        variant?.lowStockThreshold ?? product?.lowStockThreshold,
+      ),
     );
-    const lowCount = statuses.filter((status: InventoryStatus) => status === "LOW_STOCK").length;
-    const outCount = statuses.filter((status: InventoryStatus) => status === "OUT_OF_STOCK").length;
+    const lowCount = statuses.filter(
+      (status: InventoryStatus) => status === "LOW_STOCK",
+    ).length;
+    const outCount = statuses.filter(
+      (status: InventoryStatus) => status === "OUT_OF_STOCK",
+    ).length;
 
     const status: InventoryStatus =
-      totalStock <= 0 ? "OUT_OF_STOCK" : lowCount > 0 || outCount > 0 ? "LOW_STOCK" : "IN_STOCK";
+      totalStock <= 0
+        ? "OUT_OF_STOCK"
+        : lowCount > 0 || outCount > 0
+          ? "LOW_STOCK"
+          : "IN_STOCK";
 
     return {
       totalStock,
@@ -132,20 +314,26 @@ export default function ProductManager({
     };
   };
 
-  const getStatusBadgeClasses = (status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK") => {
-    if (status === "OUT_OF_STOCK") return "border-destructive/20 bg-destructive/10 text-destructive";
-    if (status === "LOW_STOCK") return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400";
+  const getStatusBadgeClasses = (
+    status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK",
+  ) => {
+    if (status === "OUT_OF_STOCK")
+      return "border-destructive/20 bg-destructive/10 text-destructive";
+    if (status === "LOW_STOCK")
+      return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400";
     return "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
   };
 
-  const getStatusLabel = (status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK") => {
+  const getStatusLabel = (
+    status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK",
+  ) => {
     if (status === "OUT_OF_STOCK") return "Out of Stock";
     if (status === "LOW_STOCK") return "Low Stock";
     return "In Stock";
   };
 
   return (
-    <div className="min-h-screen p-6 bg-background">
+    <div className="min-h-screen p-0 bg-background">
       {/* DELETE MODAL */}
       <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <AlertDialogContent>
@@ -168,21 +356,113 @@ export default function ProductManager({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* HEADER */}
-      <div className="mb-4">
-        <h1 className="text-3xl font-bold">Product Management</h1>
-        <p className="text-muted-foreground">
-          Manage all products in one place
-        </p>
+      {/* WAREHOUSE CONTROLS */}
+      {/* Page Header */}
+      <div className="border-b bg-card mb-4">
+        <div className="px-6 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">
+                Product Management
+              </h1>
+              <p className="mt-2 text-muted-foreground">
+                Manage all products with warehouse-specific insights
+              </p>
+            </div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap gap-3 sm:flex-row sm:items-center">
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-w-[240px] justify-between rounded-2xl px-4 py-3 text-sm font-medium"
+                    >
+                      <span className="truncate">{selectedWarehouseLabel}</span>
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-[280px] rounded-2xl"
+                  >
+                    <DropdownMenuLabel>Warehouse scope</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={warehouseId || "all"}
+                      onValueChange={(value) => {
+                        const nextWarehouseId = value === "all" ? "" : value;
+                        setWarehouseId(nextWarehouseId);
+                        void fetchWarehouseData(nextWarehouseId);
+                      }}
+                    >
+                      <DropdownMenuRadioItem value="all">
+                        All warehouses
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuSeparator />
+                      {warehouses.map((warehouse) => (
+                        <DropdownMenuRadioItem
+                          key={warehouse.id}
+                          value={String(warehouse.id)}
+                        >
+                          {warehouse.name} ({warehouse.code})
+                          {warehouse.isDefault ? " - Default" : ""}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <button
+                  type="button"
+                  onClick={() => void fetchWarehouseData(undefined, true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground transition hover:bg-accent"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                  />
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
+      {/* WAREHOUSE STATISTICS */}
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6 px-6">
+        {warehouseStatsCards.map((card) => (
+          <article
+            key={card.title}
+            className="rounded-3xl border bg-card p-5 shadow-sm"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">{card.title}</p>
+                <p className="mt-2 text-3xl font-semibold text-foreground">
+                  {card.value}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-primary/10 p-3 text-primary">
+                <card.icon className="h-5 w-5" />
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">{card.note}</p>
+          </article>
+        ))}
+      </section>
+
       {/* SEARCH + ADD */}
-      <Card className="mb-2 bg-card flex justify-between shadow-sm border">
+      <Card className="mb-2 bg-card flex justify-between shadow-sm border mx-6">
         <CardContent className="p-6 flex gap-4 justify-between items-center">
           <Layers className="h-8 w-8 text-muted-foreground" />
           <div>
             <p className="text-sm text-muted-foreground">Total Products</p>
             <h3 className="text-2xl font-bold">{filtered.length}</h3>
+            {warehouseId && (
+              <p className="text-xs text-muted-foreground mt-1">
+                In {selectedWarehouseLabel}
+              </p>
+            )}
           </div>
         </CardContent>
         <CardContent className="p-6 flex flex-col md:flex-row gap-4 md:items-center">
@@ -219,7 +499,7 @@ export default function ProductManager({
 
       {/* LOADING */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-6">
           {[...Array(8)].map((_, index) => (
             <Card
               key={`skeleton-${index}`}
@@ -258,15 +538,13 @@ export default function ProductManager({
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-6 pb-6">
           {filtered.map((p: any) => (
             <Card
               key={p.id}
               className="bg-card shadow-sm hover:shadow-lg transition-all duration-200 rounded-2xl overflow-hidden border hover:border-primary/50"
             >
-              <div
-                className="!p-0 !border-border !bg-card !rounded-xl overflow-hidden"
-              >
+              <div className="!p-0 !border-border !bg-card !rounded-xl overflow-hidden">
                 <div className="relative h-60 bg-muted">
                   {p.image ? (
                     <Image
@@ -292,20 +570,29 @@ export default function ProductManager({
                     <p>SKU: {p.sku || "-"}</p>
                     <p>Available: {p.available ? "Yes" : "No"}</p>
                     <p>Featured: {p.featured ? "Yes" : "No"}</p>
-                    {p.type === "PHYSICAL" && <p>Stock: {getProductInventorySummary(p).totalStock}</p>}
-                    {p.type === "PHYSICAL" && <p>Threshold: {p.lowStockThreshold ?? 10}</p>}
+                    {p.type === "PHYSICAL" && (
+                      <p>Stock: {getProductInventorySummary(p).totalStock}</p>
+                    )}
+                    {p.type === "PHYSICAL" && (
+                      <p>Threshold: {p.lowStockThreshold ?? 10}</p>
+                    )}
                   </div>
 
                   <p className="font-semibold text-lg mb-4">৳{p.basePrice}</p>
 
                   {p.type === "PHYSICAL" && (
                     <div className="mb-4 flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusBadgeClasses(getProductInventorySummary(p).status)}`}>
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusBadgeClasses(getProductInventorySummary(p).status)}`}
+                      >
                         {getStatusLabel(getProductInventorySummary(p).status)}
                       </span>
                       {getProductInventorySummary(p).lowCount > 0 && (
                         <span className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                          {getProductInventorySummary(p).lowCount} low variant{getProductInventorySummary(p).lowCount > 1 ? "s" : ""}
+                          {getProductInventorySummary(p).lowCount} low variant
+                          {getProductInventorySummary(p).lowCount > 1
+                            ? "s"
+                            : ""}
                         </span>
                       )}
                       {getProductInventorySummary(p).outCount > 0 && (
@@ -347,8 +634,17 @@ export default function ProductManager({
       )}
 
       {!loading && filtered.length === 0 && (
-        <Card className="p-10 text-center bg-card shadow-sm border">
-          <h3 className="text-xl font-bold mb-2">No products found</h3>
+        <Card className="p-10 text-center bg-card shadow-sm border mx-6 mb-6">
+          <h3 className="text-xl font-bold mb-2">
+            {warehouseId
+              ? `No products found in ${selectedWarehouseLabel}`
+              : "No products found"}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            {warehouseId
+              ? "Try selecting a different warehouse or add products to this warehouse."
+              : "Try adjusting your search or add your first product."}
+          </p>
           <Button onClick={openAdd}>
             <Plus className="h-4 w-4 mr-1" /> Add Product
           </Button>

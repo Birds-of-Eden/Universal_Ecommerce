@@ -36,6 +36,17 @@ const productInclude = {
         where: { isPrimary: true, status: "ACTIVE" },
         orderBy: { id: "asc" },
       },
+      stockLevels: {
+        include: {
+          warehouse: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+        },
+      },
     },
   },
   attributes: {

@@ -81,25 +81,25 @@ let productsPageCache: ProductsPageCache | null = null;
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>(
-    () => productsPageCache?.products ?? []
+    () => productsPageCache?.products ?? [],
   );
   const [categories, setCategories] = useState<Category[]>(
-    () => productsPageCache?.categories ?? []
+    () => productsPageCache?.categories ?? [],
   );
   const [brands, setBrands] = useState<Brand[]>(
-    () => productsPageCache?.brands ?? []
+    () => productsPageCache?.brands ?? [],
   );
   const [writers, setWriters] = useState<Writer[]>(
-    () => productsPageCache?.writers ?? []
+    () => productsPageCache?.writers ?? [],
   );
   const [publishers, setPublishers] = useState<Publisher[]>(
-    () => productsPageCache?.publishers ?? []
+    () => productsPageCache?.publishers ?? [],
   );
   const [vatClasses, setVatClasses] = useState<VatClass[]>(
-    () => productsPageCache?.vatClasses ?? []
+    () => productsPageCache?.vatClasses ?? [],
   );
   const [digitalAssets, setDigitalAssets] = useState<DigitalAsset[]>(
-    () => productsPageCache?.digitalAssets ?? []
+    () => productsPageCache?.digitalAssets ?? [],
   );
   const [loading, setLoading] = useState(() => !productsPageCache);
 
@@ -193,14 +193,12 @@ export default function ProductsPage() {
 
     const updated = await res.json();
 
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? updated : p))
-    );
+    setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)));
     if (productsPageCache) {
       productsPageCache = {
         ...productsPageCache,
         products: productsPageCache.products.map((p) =>
-          p.id === id ? updated : p
+          p.id === id ? updated : p,
         ),
       };
     }
@@ -229,18 +227,20 @@ export default function ProductsPage() {
   const memoizedDigitalAssets = useMemo(() => digitalAssets, [digitalAssets]);
 
   return (
-    <ProductManager
-      products={memoizedProducts}
-      categories={memoizedCategories}
-      brands={memoizedBrands}
-      writers={memoizedWriters}
-      publishers={memoizedPublishers}
-      vatClasses={memoizedVatClasses}
-      digitalAssets={memoizedDigitalAssets}
-      loading={loading}
-      onCreate={createProduct}
-      onUpdate={updateProduct}
-      onDelete={deleteProduct}
-    />
+    <div className="min-h-screen bg-background">
+      <ProductManager
+        products={memoizedProducts}
+        categories={memoizedCategories}
+        brands={memoizedBrands}
+        writers={memoizedWriters}
+        publishers={memoizedPublishers}
+        vatClasses={memoizedVatClasses}
+        digitalAssets={memoizedDigitalAssets}
+        loading={loading}
+        onCreate={createProduct}
+        onUpdate={updateProduct}
+        onDelete={deleteProduct}
+      />
+    </div>
   );
 }

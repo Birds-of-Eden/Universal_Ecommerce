@@ -319,8 +319,8 @@ export default function AdminShipmentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 sm:p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <div className="h-screen bg-background p-4 sm:p-6">
+      <div className="space-y-6">
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
