@@ -109,6 +109,18 @@ export async function GET() {
       orderBy: { id: "desc" },
       include: {
         ...productInclude,
+        bundleItems: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              }
+            }
+          },
+          orderBy: { sortOrder: "asc" }
+        },
         _count: {
           select: {
             reviews: true,
@@ -117,7 +129,7 @@ export async function GET() {
       },
     });
 
-    // Calculate rating averages for each product
+    // Calculate rating averages and bundle stats for each product
     const productsWithRatings = await Promise.all(
       products.map(async (product) => {
         const ratingAggregation = await prisma.review.aggregate({
@@ -125,10 +137,28 @@ export async function GET() {
           where: { productId: product.id },
         });
 
+        // Calculate bundle-specific stats
+        let bundleStats = null;
+        if (product.type === "BUNDLE" && product.bundleItems.length > 0) {
+          const regularTotal = product.bundleItems.reduce((total, item) => {
+            return total + (Number(item.product.basePrice) * item.quantity);
+          }, 0);
+          
+          const discountAmount = regularTotal - Number(product.basePrice);
+          const discountPercentage = regularTotal > 0 ? (discountAmount / regularTotal) * 100 : 0;
+
+          bundleStats = {
+            bundleItemCount: product.bundleItems.length,
+            bundleItems: product.bundleItems,
+            bundleSavings: discountPercentage > 0 ? `${discountPercentage.toFixed(1)}%` : 'No discount',
+          };
+        }
+
         return {
           ...product,
           ratingAvg: ratingAggregation._avg.rating || 0,
           ratingCount: product._count.reviews,
+          ...bundleStats,
         };
       })
     );
