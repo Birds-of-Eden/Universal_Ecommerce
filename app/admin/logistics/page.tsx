@@ -73,6 +73,16 @@ type ShipmentRow = {
   } | null;
 };
 
+type Warehouse = {
+  id: number;
+  name: string;
+  code: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  mapLabel?: string | null;
+  isMapEnabled?: boolean | null;
+};
+
 const STATUS_OPTIONS: Array<"ALL" | ShipmentStatusType> = [
   "ALL",
   "PENDING",
@@ -90,6 +100,25 @@ const NEXT_STATUS_MAP: Record<ShipmentStatusType, ShipmentStatusType[]> = {
   DELIVERED: [],
   RETURNED: [],
   CANCELLED: [],
+};
+
+const STATUS_LABELS: Record<"ALL" | ShipmentStatusType, string> = {
+  ALL: "All statuses",
+  PENDING: "Pending",
+  IN_TRANSIT: "In transit",
+  OUT_FOR_DELIVERY: "Out for delivery",
+  DELIVERED: "Delivered",
+  RETURNED: "Returned",
+  CANCELLED: "Cancelled",
+};
+
+const NEXT_STATUS_LABELS: Record<ShipmentStatusType, string> = {
+  PENDING: "Mark as pending",
+  IN_TRANSIT: "Mark as in transit",
+  OUT_FOR_DELIVERY: "Mark as out for delivery",
+  DELIVERED: "Mark as delivered",
+  RETURNED: "Mark as returned",
+  CANCELLED: "Cancel shipment",
 };
 
 const currency = new Intl.NumberFormat("en-BD", {
@@ -137,10 +166,137 @@ function formatShortDate(value?: string | null) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function formatStatusLabel(status: "ALL" | ShipmentStatusType) {
+  return STATUS_LABELS[status];
+}
+
+function MultiShipmentsMap({ shipments }: { shipments: ShipmentRow[] }) {
+  // Group shipments by warehouse and get unique warehouses
+  const warehouseMap = new Map<
+    number,
+    { warehouse: Warehouse; shipments: ShipmentRow[] }
+  >();
+
+  shipments.forEach((shipment) => {
+    if (
+      shipment.warehouse &&
+      shipment.warehouse.latitude &&
+      shipment.warehouse.longitude
+    ) {
+      if (!warehouseMap.has(shipment.warehouse.id)) {
+        warehouseMap.set(shipment.warehouse.id, {
+          warehouse: shipment.warehouse,
+          shipments: [],
+        });
+      }
+      warehouseMap.get(shipment.warehouse.id)!.shipments.push(shipment);
+    }
+  });
+
+  const warehouseData = Array.from(warehouseMap.values());
+
+  if (warehouseData.length === 0) {
+    return (
+      <div className="h-full w-full rounded-[22px] overflow-hidden border border-border/60 bg-card flex items-center justify-center">
+        <p className="text-muted-foreground">
+          No warehouse locations are available yet.
+        </p>
+      </div>
+    );
+  }
+
+  // Calculate center point for map
+  const avgLat =
+    warehouseData.reduce(
+      (sum, item) => sum + (item.warehouse.latitude || 0),
+      0,
+    ) / warehouseData.length;
+  const avgLng =
+    warehouseData.reduce(
+      (sum, item) => sum + (item.warehouse.longitude || 0),
+      0,
+    ) / warehouseData.length;
+
+  return (
+    <div className="h-[530px] w-full rounded-[22px] overflow-hidden border border-border/60 bg-card">
+      <MapContainer
+        center={[avgLat, avgLng]}
+        zoom={8}
+        style={{ height: "100%", width: "100%" }}
+        zoomControl={false}
+        attributionControl={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+
+        {warehouseData.map(({ warehouse, shipments: warehouseShipments }) => {
+          const activeCount = warehouseShipments.filter(
+            (s) =>
+              s.status === "PENDING" ||
+              s.status === "IN_TRANSIT" ||
+              s.status === "OUT_FOR_DELIVERY",
+          ).length;
+          const deliveredCount = warehouseShipments.filter(
+            (s) => s.status === "DELIVERED",
+          ).length;
+
+          return (
+            <Marker
+              key={warehouse.id}
+              position={[warehouse.latitude!, warehouse.longitude!]}
+              icon={L.divIcon({
+                className: "custom-div-icon",
+                html: `
+                  <div class="relative flex items-center justify-center">
+                    <div class="absolute inset-0 bg-primary rounded-full opacity-30 animate-ping"></div>
+                    <div class="relative w-8 h-8 bg-primary rounded-full border-2 border-primary-foreground flex items-center justify-center">
+                      <div class="w-2 h-2 bg-primary-foreground rounded-full"></div>
+                    </div>
+                  </div>
+                `,
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
+              })}
+            >
+              <Popup className="min-w-[200px]">
+                <div className="text-sm">
+                  <div className="font-semibold mb-2">{warehouse.name}</div>
+                  <div className="space-y-1 text-muted-foreground">
+                    <div>Code: {warehouse.code}</div>
+                    <div>Active shipments: {activeCount}</div>
+                    <div>Delivered shipments: {deliveredCount}</div>
+                    <div>Total shipments: {warehouseShipments.length}</div>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
+
+      <style jsx>{`
+        .custom-div-icon {
+          background: transparent;
+          border: none;
+        }
+        :global(.leaflet-popup-content-wrapper) {
+          border-radius: 8px;
+        }
+        :global(.leaflet-popup-content) {
+          margin: 0;
+          line-height: 1.4;
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
   if (!shipment) return null;
 
-  // Mock coordinates for demonstration - in real app, these would come from the shipment data
+  // Fallback route coordinates are used when shipment map data is incomplete.
   const originLat = shipment.warehouse?.latitude;
   const originLng = shipment.warehouse?.longitude;
   const hasOrigin =
@@ -265,19 +421,19 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
               <Popup className="min-w-[200px]">
                 <div className="text-sm">
                   <div className="font-semibold mb-1">
-                    {index === 0 && "Origin Hub"}
+                    {index === 0 && "Origin warehouse"}
                     {index === routeCoordinates.length - 1 && "Destination"}
                     {index > 0 &&
                       index < routeCoordinates.length - 1 &&
                       `Checkpoint ${index}`}
                   </div>
                   <div className="text-muted-foreground">
-                    Status:{" "}
+                    Route status:{" "}
                     {isCompleted
                       ? "Completed"
                       : isCurrent
-                        ? "Current"
-                        : "Pending"}
+                        ? "Current position"
+                        : "Upcoming"}
                   </div>
                 </div>
               </Popup>
@@ -303,12 +459,12 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
           >
             <Popup>
               <div className="text-sm">
-                <div className="font-semibold mb-1">Current Position</div>
+                <div className="font-semibold mb-1">Current location</div>
                 <div className="text-muted-foreground">
                   Shipment #{shipment.id}
                 </div>
                 <div className="text-muted-foreground">
-                  Status: {shipment.status.replace(/_/g, " ")}
+                  Status: {formatStatusLabel(shipment.status)}
                 </div>
               </div>
             </Popup>
@@ -350,7 +506,7 @@ function statusPill(status: ShipmentStatusType) {
     <span
       className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${cls}`}
     >
-      {status.replaceAll("_", " ")}
+      {formatStatusLabel(status)}
     </span>
   );
 }
@@ -389,19 +545,39 @@ export default function LogisticsPage() {
   const [filter, setFilter] = useState<"ALL" | ShipmentStatusType>("ALL");
   const [search, setSearch] = useState("");
   const [shipments, setShipments] = useState<ShipmentRow[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<number | "ALL">(
+    "ALL",
+  );
   const [loading, setLoading] = useState(true);
+  const [warehousesLoading, setWarehousesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [selectedShipmentId, setSelectedShipmentId] = useState<number | null>(
     null,
   );
 
+  const loadWarehouses = useCallback(async () => {
+    try {
+      setWarehousesLoading(true);
+      const res = await fetch("/api/warehouses", {
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to load warehouses");
+      setWarehouses(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Failed to load warehouses:", e);
+    } finally {
+      setWarehousesLoading(false);
+    }
+  }, []);
+
   const loadShipments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const query = filter === "ALL" ? "" : `&status=${filter}`;
-      const res = await fetch(`/api/shipments?page=1&limit=200${query}`, {
+      const res = await fetch(`/api/shipments?page=1&limit=200`, {
         cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
@@ -415,26 +591,69 @@ export default function LogisticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
+    loadWarehouses();
     loadShipments();
-  }, [loadShipments]);
+  }, [loadWarehouses, loadShipments]);
 
   const filteredShipments = useMemo(() => {
-    if (!search.trim()) return shipments;
     const term = search.trim().toLowerCase();
+
     return shipments.filter((shipment) => {
-      return (
-        String(shipment.id).includes(term) ||
-        String(shipment.orderId).includes(term) ||
-        (shipment.courier || "").toLowerCase().includes(term) ||
-        (shipment.trackingNumber || "").toLowerCase().includes(term) ||
-        (shipment.order?.name || "").toLowerCase().includes(term) ||
-        (shipment.assignedTo?.name || "").toLowerCase().includes(term)
+      if (filter !== "ALL" && shipment.status !== filter) {
+        return false;
+      }
+
+      if (
+        selectedWarehouse !== "ALL" &&
+        shipment.warehouseId !== selectedWarehouse
+      ) {
+        return false;
+      }
+
+      if (!term) {
+        return true;
+      }
+
+      const searchFields = [
+        shipment.id,
+        shipment.orderId,
+        shipment.status,
+        shipment.courier,
+        shipment.courierStatus,
+        shipment.trackingNumber,
+        shipment.dispatchNote,
+        shipment.priority,
+        shipment.order?.name,
+        shipment.order?.phone_number,
+        shipment.order?.status,
+        shipment.order?.paymentStatus,
+        shipment.assignedTo?.name,
+        shipment.assignedTo?.email,
+        shipment.warehouse?.name,
+        shipment.warehouse?.code,
+        shipment.shippingRate?.area,
+        shipment.shippingRate?.district,
+      ];
+
+      return searchFields.some((value) =>
+        String(value || "")
+          .toLowerCase()
+          .includes(term),
       );
     });
-  }, [search, shipments]);
+  }, [filter, search, selectedWarehouse, shipments]);
+
+  useEffect(() => {
+    if (
+      selectedShipmentId &&
+      !filteredShipments.some((shipment) => shipment.id === selectedShipmentId)
+    ) {
+      setSelectedShipmentId(null);
+    }
+  }, [filteredShipments, selectedShipmentId]);
 
   const deliveredCount = filteredShipments.filter(
     (item) => item.status === "DELIVERED",
@@ -562,34 +781,33 @@ export default function LogisticsPage() {
             <div>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
-                  Logistics Command
+                  Logistics Operations
                 </span>
                 <span className="rounded-full border border-border/70 bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
-                  Live shipment monitoring
+                  Live shipment overview
                 </span>
               </div>
 
               <div className="mt-4 max-w-3xl">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                  Logistics dashboard rebuilt with a cleaner, more modern
-                  operations view.
+                  Manage shipment activity, delivery performance, and dispatch
+                  workload from one place.
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
-                  Track cost, dispatch pressure, delivery momentum, and route
-                  execution in one surface. The layout mirrors the design
-                  direction you shared, but stays grounded in your shipment
-                  data.
+                  Review shipment progress, warehouse activity, delivery costs,
+                  and operational exceptions in a clear and structured
+                  dashboard.
                 </p>
               </div>
 
               <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-[24px] bg-primary px-4 py-4 text-primary-foreground shadow-sm">
                   <p className="text-xs uppercase tracking-[0.24em] text-primary-foreground/80">
-                    Active load
+                    Active shipments
                   </p>
                   <p className="mt-3 text-3xl font-semibold">{activeCount}</p>
                   <p className="mt-2 text-sm text-primary-foreground/70">
-                    Pending and moving shipments
+                    Pending, in transit, and out-for-delivery shipments
                   </p>
                 </div>
                 <div className="rounded-[24px] border border-border/60 bg-card px-4 py-4">
@@ -600,29 +818,29 @@ export default function LogisticsPage() {
                     {successRate}%
                   </p>
                   <p className="mt-2 text-sm text-emerald-600">
-                    {deliveredCount} delivered from current selection
+                    {deliveredCount} delivered in the current view
                   </p>
                 </div>
                 <div className="rounded-[24px] border border-border/60 bg-card px-4 py-4">
                   <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                    Assigned team
+                    Assigned shipments
                   </p>
                   <p className="mt-3 text-3xl font-semibold text-foreground">
                     {assignedCount}
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Shipment owners on dispatch board
+                    Shipments currently assigned to a team member
                   </p>
                 </div>
                 <div className="rounded-[24px] border border-amber-200 bg-amber-50/80 px-4 py-4">
                   <p className="text-xs uppercase tracking-[0.24em] text-amber-700">
-                    Needs attention
+                    Attention required
                   </p>
                   <p className="mt-3 text-3xl font-semibold text-foreground">
                     {atRiskCount}
                   </p>
                   <p className="mt-2 text-sm text-amber-700">
-                    Late or unscheduled deliveries
+                    Overdue or unscheduled shipments
                   </p>
                 </div>
               </div>
@@ -632,10 +850,10 @@ export default function LogisticsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground/70">
-                    Control center
+                    Cost overview
                   </p>
                   <h2 className="mt-1 text-xl font-semibold">
-                    Operations pulse
+                    Financial summary
                   </h2>
                 </div>
                 <div className="rounded-full border border-border/70 px-3 py-1 text-xs text-muted-foreground/70">
@@ -677,20 +895,20 @@ export default function LogisticsPage() {
                       <div>
                         <p className="text-2xl font-semibold">{successRate}%</p>
                         <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground/55">
-                          Success
+                          Delivered
                         </p>
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground/70">
-                      Route completion is stabilizing with stronger delivered
-                      volume and fewer idle legs.
+                      Delivery performance for the current selection based on
+                      completed shipments.
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-[24px] bg-card p-4">
                   <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/55">
-                    Capacity
+                    Team capacity
                   </p>
                   <div className="mt-3 space-y-3">
                     {capacityRows.map((row) => (
@@ -721,8 +939,8 @@ export default function LogisticsPage() {
 
         <section className="grid gap-6 xl:grid-cols-[1.05fr,1.05fr,0.9fr]">
           <DashboardCard
-            title="This month order"
-            subtitle="Shipment demand trend"
+            title="Monthly order trend"
+            subtitle="Estimated shipment demand"
           >
             <div className="flex items-end justify-between gap-2">
               {monthlyOrderBars.map((bar) => (
@@ -744,17 +962,17 @@ export default function LogisticsPage() {
             </div>
             <div className="mt-5 flex items-center justify-between rounded-2xl bg-muted px-4 py-3 text-sm">
               <span className="text-muted-foreground">
-                Projected dispatch this month
+                Projected dispatch volume
               </span>
               <span className="font-semibold text-emerald-700">
-                {filteredShipments.length} loads
+                {filteredShipments.length} shipments
               </span>
             </div>
           </DashboardCard>
 
           <DashboardCard
-            title="Shipment success"
-            subtitle="Delivery conversion pattern"
+            title="Delivery performance"
+            subtitle="Completion rate overview"
           >
             <div className="grid gap-5 md:grid-cols-[120px,1fr] md:items-center">
               <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-primary border-r-primary/20 border-t-primary/40">
@@ -763,7 +981,7 @@ export default function LogisticsPage() {
                     {successRate}%
                   </p>
                   <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                    Success
+                    Delivered
                   </p>
                 </div>
               </div>
@@ -780,16 +998,19 @@ export default function LogisticsPage() {
             <div className="mt-5 flex flex-wrap gap-4 text-sm">
               <span className="inline-flex items-center gap-2 text-muted-foreground">
                 <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-                Delivered {deliveredCount}
+                Delivered: {deliveredCount}
               </span>
               <span className="inline-flex items-center gap-2 text-muted-foreground">
                 <span className="h-2.5 w-2.5 rounded-full bg-muted" />
-                Open {activeCount}
+                Active: {activeCount}
               </span>
             </div>
           </DashboardCard>
 
-          <DashboardCard title="Capacity" subtitle="Dispatcher workload split">
+          <DashboardCard
+            title="Capacity overview"
+            subtitle="Dispatcher workload distribution"
+          >
             <div className="space-y-4">
               {capacityRows.map((row, index) => (
                 <div
@@ -814,7 +1035,7 @@ export default function LogisticsPage() {
               ))}
             </div>
             <div className="mt-5 rounded-2xl border border-border/60 bg-muted p-4 text-sm text-muted-foreground">
-              Internal handling:{" "}
+              Internal handling cost:{" "}
               <span className="font-semibold text-foreground">
                 {formatAmount(costSummary.handling)}
               </span>
@@ -824,15 +1045,15 @@ export default function LogisticsPage() {
 
         <section className="grid gap-6 xl:grid-cols-[1.1fr,1fr]">
           <DashboardCard
-            title="Shipment operations queue"
-            subtitle="Search, filter, and advance status"
+            title="Shipment Operations"
+            subtitle="Search shipments, apply filters, and update status"
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-1 flex-col gap-3 sm:flex-row">
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search shipment, order, assignee, courier..."
+                  placeholder="Search by shipment, order, customer, courier, or assignee"
                   className="h-12 w-full rounded-full border border-border bg-background px-5 text-sm text-foreground outline-none transition focus:border-primary"
                 />
                 <select
@@ -844,13 +1065,30 @@ export default function LogisticsPage() {
                 >
                   {STATUS_OPTIONS.map((status) => (
                     <option key={status} value={status}>
-                      {status}
+                      {formatStatusLabel(status)}
                     </option>
                   ))}
                 </select>
-              </div>
-              <div className="rounded-full bg-muted px-4 py-2 text-sm font-medium text-muted-foreground">
-                {filteredShipments.length} shipments
+                <select
+                  value={selectedWarehouse}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setSelectedWarehouse(
+                      value === "ALL" ? "ALL" : Number(value),
+                    );
+                  }}
+                  className="h-12 rounded-full border border-border bg-background px-5 text-sm text-foreground outline-none transition focus:border-primary"
+                  disabled={warehousesLoading}
+                >
+                  <option value="ALL">
+                    {warehousesLoading ? "Loading warehouses..." : "All warehouses"}
+                  </option>
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name} ({warehouse.code})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -866,11 +1104,11 @@ export default function LogisticsPage() {
               ) : !filteredShipments.length ? (
                 <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-16 text-center text-sm text-muted-foreground">
                   <p className="text-base font-medium text-foreground">
-                    No logistics shipment found.
+                    No shipments match the current filters.
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Try another filter or create shipments from the shipment
-                    admin page.
+                    Adjust the filters or add new shipments from the shipment
+                    administration page.
                   </p>
                 </div>
               ) : (
@@ -904,13 +1142,13 @@ export default function LogisticsPage() {
                                 Shipment
                               </p>
                               <p className="mt-2 text-base font-semibold text-foreground">
-                                #{shipment.id} - Order #{shipment.orderId}
+                                Shipment #{shipment.id} | Order #{shipment.orderId}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                {shipment.order?.name || "Unknown customer"}
+                                {shipment.order?.name || "Customer not available"}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                {shipment.trackingNumber || "Tracking pending"}
+                                {shipment.trackingNumber || "Tracking number not assigned"}
                               </p>
                             </div>
 
@@ -919,14 +1157,14 @@ export default function LogisticsPage() {
                                 Management
                               </p>
                               <p className="mt-2 text-sm font-semibold text-foreground">
-                                {shipment.assignedTo?.name || "Unassigned"}
+                                {shipment.assignedTo?.name || "Not assigned"}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                Warehouse {shipment.warehouseId || "-"} - P
+                                Warehouse {shipment.warehouseId || "-"} | Priority{" "}
                                 {shipment.priority || 0}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                {shipment.dispatchNote || "No dispatch note"}
+                                {shipment.dispatchNote || "No dispatch notes available"}
                               </p>
                             </div>
 
@@ -935,7 +1173,7 @@ export default function LogisticsPage() {
                                 Cost
                               </p>
                               <p className="mt-2 text-sm font-semibold text-foreground">
-                                Est.{" "}
+                                Estimated{" "}
                                 {formatAmount(toAmount(shipment.estimatedCost))}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
@@ -957,13 +1195,13 @@ export default function LogisticsPage() {
                                 Timeline
                               </p>
                               <p className="mt-2 text-sm text-muted-foreground">
-                                Assigned {formatShortDate(shipment.assignedAt)}
+                                Assigned: {formatShortDate(shipment.assignedAt)}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                ETA {formatShortDate(shipment.expectedDate)}
+                                Expected delivery: {formatShortDate(shipment.expectedDate)}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                Delivered{" "}
+                                Delivered:{" "}
                                 {formatShortDate(shipment.deliveredAt)}
                               </p>
                             </div>
@@ -975,7 +1213,7 @@ export default function LogisticsPage() {
                               <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                                 {shipment.courier}
                                 {shipment.courierStatus
-                                  ? ` - ${shipment.courierStatus}` 
+                                  ? ` - ${shipment.courierStatus}`
                                   : ""}
                               </span>
                             </div>
@@ -998,12 +1236,12 @@ export default function LogisticsPage() {
                                   >
                                     {updatingId === shipment.id
                                       ? "Updating..."
-                                      : nextStatus}
+                                      : NEXT_STATUS_LABELS[nextStatus]}
                                   </button>
                                 ))
                               ) : (
                                 <span className="rounded-full bg-muted px-4 py-2 text-xs font-medium text-muted-foreground">
-                                  No next action
+                                  No further action available
                                 </span>
                               )}
 
@@ -1015,7 +1253,7 @@ export default function LogisticsPage() {
                                   onClick={(event) => event.stopPropagation()}
                                   className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
                                 >
-                                  Track
+                                  Open tracking
                                 </a>
                               ) : null}
                             </div>
@@ -1030,24 +1268,49 @@ export default function LogisticsPage() {
           </DashboardCard>
 
           <DashboardCard
-            title="Tracking delivery"
-            subtitle="Highlighted shipment journey"
+            title="Shipment tracking"
+            subtitle={
+              selectedWarehouse === "ALL"
+                ? "Warehouse-level shipment visibility"
+                : "Detailed route view for the selected shipment"
+            }
           >
             <div className="max-h-[600px] overflow-y-auto">
-              {highlightedShipment ? (
+              {selectedWarehouse === "ALL" ? (
+                <>
+                  <MultiShipmentsMap shipments={filteredShipments} />
+                  <div className="mt-5">
+                    <p className="text-sm text-muted-foreground">
+                      Showing warehouse activity for {filteredShipments.length}{" "}
+                      shipments
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Select a warehouse to review route progress for an
+                      individual shipment.
+                    </p>
+                  </div>
+                </>
+              ) : highlightedShipment ? (
                 <>
                   <ShipmentTrackingMap shipment={highlightedShipment} />
 
                   <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Tracking id #
+                        Tracking reference #
                         {highlightedShipment.trackingNumber ||
                           highlightedShipment.id}
                       </p>
                       <p className="mt-2 text-xl font-semibold text-foreground">
                         {highlightedShipment.order?.name || "Customer shipment"}
                       </p>
+                      {typeof selectedWarehouse === "number" && (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Warehouse:{" "}
+                          {highlightedShipment.warehouse?.name ||
+                            `Warehouse ${highlightedShipment.warehouseId}`}
+                        </p>
+                      )}
                     </div>
                     <div>{statusPill(highlightedShipment.status)}</div>
                   </div>
@@ -1055,7 +1318,7 @@ export default function LogisticsPage() {
                   <div className="mt-5 space-y-4">
                     {[
                       {
-                        label: "Picked",
+                        label: "Picked up",
                         value: formatDateTime(highlightedShipment.pickedAt),
                         tone: "bg-amber-500",
                       },
@@ -1086,7 +1349,7 @@ export default function LogisticsPage() {
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {highlightedShipment.dispatchNote ||
-                              "Shipment event recorded in dispatch timeline"}
+                              "Shipment activity recorded in the dispatch timeline"}
                           </p>
                         </div>
                         <div className="text-right text-sm font-medium text-muted-foreground">
@@ -1098,7 +1361,9 @@ export default function LogisticsPage() {
                 </>
               ) : (
                 <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-16 text-center text-sm text-muted-foreground">
-                  No shipment available to visualize yet.
+                  {typeof selectedWarehouse === "number"
+                    ? "No shipments are available for the selected warehouse."
+                    : "No shipment data is available for the map view yet."}
                 </div>
               )}
             </div>
@@ -1107,15 +1372,15 @@ export default function LogisticsPage() {
 
         <section className="grid gap-6 xl:grid-cols-[0.92fr,1.08fr]">
           <DashboardCard
-            title="Delivery vehicle"
-            subtitle="Top priority dispatch board"
+            title="Priority dispatch"
+            subtitle="Highest-priority shipments in the current view"
           >
             <div className="grid gap-5 lg:grid-cols-[1fr,240px]">
               <div>
                 <div className="flex flex-wrap items-end justify-between gap-3 rounded-[24px] bg-muted px-5 py-5 text-muted-foreground">
                   <div>
                     <p className="text-sm text-muted-foreground/70">
-                      Vehicles operating on the road
+                      Active delivery workload
                     </p>
                     <p className="mt-2 text-4xl font-semibold">{activeCount}</p>
                   </div>
@@ -1139,8 +1404,8 @@ export default function LogisticsPage() {
                             {shipment.courier || "Courier pending"}
                           </p>
                           <p className="mt-1 text-sm text-muted-foreground">
-                            Order #{shipment.orderId} -{" "}
-                            {shipment.order?.name || "Unknown customer"}
+                            Order #{shipment.orderId} |{" "}
+                            {shipment.order?.name || "Customer not available"}
                           </p>
                         </div>
                         <div className="text-right">
@@ -1156,7 +1421,7 @@ export default function LogisticsPage() {
                     ))
                   ) : (
                     <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
-                      No priority shipments in the current filter.
+                      No priority shipments are available in the current view.
                     </div>
                   )}
                 </div>
@@ -1167,12 +1432,12 @@ export default function LogisticsPage() {
                 <div className="absolute left-8 top-8 h-20 w-20 rounded-full bg-primary-foreground/10 blur-xl" />
                 <div className="relative">
                   <p className="text-xs uppercase tracking-[0.24em] text-primary-foreground/70">
-                    Featured route
+                    Featured shipment
                   </p>
                   <div className="mt-6 rounded-[24px] border border-border/60 bg-muted px-4 py-5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-primary-foreground/80">
-                        Priority lane
+                        Priority level
                       </span>
                       <span className="rounded-full bg-muted px-3 py-1 text-xs">
                         P{highlightedShipment?.priority || 0}
@@ -1183,13 +1448,13 @@ export default function LogisticsPage() {
                     </p>
                     <p className="mt-2 text-sm text-primary-foreground/80">
                       {highlightedShipment?.trackingNumber ||
-                        "Tracking number pending"}
+                        "Tracking number not assigned"}
                     </p>
                     <div className="mt-8 flex items-center gap-2">
                       <span className="h-3 w-3 rounded-full bg-emerald-500" />
                       <span className="text-sm text-primary-foreground/80">
                         {highlightedShipment?.assignedTo?.name ||
-                          "Awaiting assignment"}
+                          "Assignment pending"}
                       </span>
                     </div>
                   </div>
@@ -1200,7 +1465,7 @@ export default function LogisticsPage() {
 
           <DashboardCard
             title="Operations summary"
-            subtitle="Recent movement and spend"
+            subtitle="Recent shipment activity and costs"
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-[22px] bg-muted p-4">
@@ -1234,7 +1499,7 @@ export default function LogisticsPage() {
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {shipment.courier} -{" "}
-                        {shipment.assignedTo?.name || "Unassigned"}
+                        {shipment.assignedTo?.name || "Not assigned"}
                       </p>
                     </div>
                     <div className="text-right">
@@ -1252,7 +1517,7 @@ export default function LogisticsPage() {
                 ))
               ) : (
                 <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
-                  No recent shipment activity found.
+                  No recent shipment activity was found.
                 </div>
               )}
             </div>

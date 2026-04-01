@@ -56,6 +56,24 @@ export async function GET(
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
+    // First, get all product IDs from stock levels to filter sold units correctly
+    const stockLevelsForProducts = await prisma.stockLevel.findMany({
+      where: { warehouseId },
+      select: { variant: { select: { product: { select: { id: true } } } } },
+    });
+    
+    const productIds = [...new Set(stockLevelsForProducts.map(l => l.variant.product.id))];
+    
+    // Get order items for these products
+    const orderItemsForSold = await prisma.orderItem.findMany({
+      where: { productId: { in: productIds } },
+      select: { id: true, variantId: true, productId: true },
+    });
+    
+    const orderItemMapForSold = new Map<number, { variantId: number | null; productId: number }>(
+      orderItemsForSold.map(oi => [oi.id, { variantId: oi.variantId, productId: oi.productId }])
+    );
+
     const [warehouse, shipmentCounts, shipmentDeliveredToday, sold, deliveryMenCount, assignmentCounts, staffCount, categories] =
       await Promise.all([
         prisma.warehouse.findUnique({
@@ -87,7 +105,8 @@ export async function GET(
             } : {}),
           },
         }),
-        prisma.shipmentItem.aggregate({
+        // Calculate sold units correctly - only for products that are in stock
+        prisma.shipmentItem.findMany({
           where: {
             shipment: {
               warehouseId,
@@ -99,10 +118,28 @@ export async function GET(
                 },
               } : {}),
             },
+            orderItem: {
+              productId: { in: productIds },
+            },
           },
-          _sum: {
+          select: {
+            orderItemId: true,
             quantity: true,
           },
+        }).then((items) => {
+          // Aggregate by product
+          const soldUnitsMap = new Map<number, number>();
+          for (const item of items) {
+            const orderItemInfo = orderItemMapForSold.get(item.orderItemId);
+            if (orderItemInfo) {
+              soldUnitsMap.set(
+                orderItemInfo.productId, 
+                (soldUnitsMap.get(orderItemInfo.productId) || 0) + Number(item.quantity || 0)
+              );
+            }
+          }
+          // Return total sum
+          return Array.from(soldUnitsMap.values()).reduce((sum, qty) => sum + qty, 0);
         }),
         prisma.deliveryManProfile.count({
           where: { warehouseId },
@@ -469,7 +506,7 @@ export async function GET(
         outOfStockItems,
         shipments: shipmentStats,
         deliveredToday: shipmentDeliveredToday,
-        soldUnits: Number(sold._sum.quantity ?? 0),
+        soldUnits: Number(sold ?? 0),
         deliveryMen: {
           count: deliveryMenCount,
         },
