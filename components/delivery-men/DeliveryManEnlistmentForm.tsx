@@ -1610,6 +1610,18 @@ function FileUpload({
   accept?: string;
   error?: string;
 }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (file && file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [file]);
+
   return (
     <div>
       <label className="mb-2 block text-sm rubik-medium">{label}</label>
@@ -1620,6 +1632,19 @@ function FileUpload({
             : "border-border bg-muted hover:bg-accent"
         }`}
       >
+        {previewUrl ? (
+          <div className="mb-3 w-full">
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="h-full w-full object-cover rounded-lg border border-border"
+            />
+          </div>
+        ) : (
+          <div className="mb-3 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+            <span className="text-primary text-xl">📄</span>
+          </div>
+        )}
         <span className="text-sm rubik-medium">
           {file ? file.name : "Click to upload file"}
         </span>
