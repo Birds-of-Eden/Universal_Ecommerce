@@ -238,21 +238,33 @@ export async function GET(
       },
     });
 
+    const variantIdsByProduct = new Map<number, number[]>();
+    for (const level of stockLevels) {
+      const productId = level.variant.product.id;
+      const existing = variantIdsByProduct.get(productId) ?? [];
+      existing.push(level.variant.id);
+      variantIdsByProduct.set(productId, existing);
+    }
+
     const soldUnitsByVariant = new Map<number, number>();
-    const soldUnitsByProduct = new Map<number, number>();
 
     for (const shipment of deliveredOrders) {
       for (const item of shipment.order.orderItems) {
-        if (item.variantId) {
-          soldUnitsByVariant.set(
-            item.variantId,
-            (soldUnitsByVariant.get(item.variantId) || 0) + Number(item.quantity || 0),
-          );
+        const matchedVariantId =
+          item.variantId ??
+          (() => {
+            const variants = variantIdsByProduct.get(item.productId) ?? [];
+            return variants.length === 1 ? variants[0] : null;
+          })();
+
+        if (!matchedVariantId) {
+          continue;
         }
 
-        soldUnitsByProduct.set(
-          item.productId,
-          (soldUnitsByProduct.get(item.productId) || 0) + Number(item.quantity || 0),
+        soldUnitsByVariant.set(
+          matchedVariantId,
+          (soldUnitsByVariant.get(matchedVariantId) || 0) +
+            Number(item.quantity || 0),
         );
       }
     }
@@ -368,10 +380,7 @@ export async function GET(
         available: Number(level.quantity) - Number(level.reserved),
         updatedAt: level.updatedAt,
         variant: level.variant,
-        soldUnits:
-          soldUnitsByVariant.get(level.variant.id) ||
-          soldUnitsByProduct.get(level.variant.product.id) ||
-          0,
+        soldUnits: soldUnitsByVariant.get(level.variant.id) || 0,
       })),
       pagination: {
         page,
