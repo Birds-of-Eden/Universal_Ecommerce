@@ -152,7 +152,10 @@ export default function WarehousePage() {
             warehouses.map((warehouse) => (
               <div
                 key={warehouse.id}
-                className="flex justify-between items-center border-b py-3"
+                className="flex justify-between items-center border-b py-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => {
+                  window.location.href = `/admin/settings/warehouses/${warehouse.id}`;
+                }}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -190,7 +193,15 @@ export default function WarehousePage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => {
+                      window.location.href = `/admin/settings/warehouses/${warehouse.id}`;
+                    }}
+                    className="btn-secondary px-3 py-1 rounded text-sm"
+                  >
+                    Details
+                  </button>
                   {warehouse.latitude && warehouse.longitude && warehouse.isMapEnabled ? (
                     <button
                       onClick={() => {
