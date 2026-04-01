@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "cross-env USERPROFILE=C:\\temp next build",
+    "build:prod": "cross-env USERPROFILE=C:\\temp NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
     "email": "email dev",
@@ -115,6 +116,7 @@
     "@types/react-big-calendar": "^1.16.1",
     "@types/react-dom": "^18.3.0",
     "copyfiles": "^2.4.1",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.1.4",
     "postcss": "^8",

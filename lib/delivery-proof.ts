@@ -23,7 +23,7 @@ export function buildDeliveryConfirmationPin() {
 }
 
 export function buildDeliveryConfirmationUrl(token: string) {
-  return `${getAppBaseUrl()}/delivery/confirm/${token}`;
+  return `${getAppBaseUrl()}/customer/confirm/${token}`;
 }
 
 export function isDeliveryConfirmationStatus(status: string | null | undefined) {
