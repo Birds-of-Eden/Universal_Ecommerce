@@ -1081,7 +1081,9 @@ export default function LogisticsPage() {
                   disabled={warehousesLoading}
                 >
                   <option value="ALL">
-                    {warehousesLoading ? "Loading warehouses..." : "All warehouses"}
+                    {warehousesLoading
+                      ? "Loading warehouses..."
+                      : "All warehouses"}
                   </option>
                   {warehouses.map((warehouse) => (
                     <option key={warehouse.id} value={warehouse.id}>
@@ -1142,13 +1144,16 @@ export default function LogisticsPage() {
                                 Shipment
                               </p>
                               <p className="mt-2 text-base font-semibold text-foreground">
-                                Shipment #{shipment.id} | Order #{shipment.orderId}
+                                Shipment #{shipment.id} | Order #
+                                {shipment.orderId}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                {shipment.order?.name || "Customer not available"}
+                                {shipment.order?.name ||
+                                  "Customer not available"}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                {shipment.trackingNumber || "Tracking number not assigned"}
+                                {shipment.trackingNumber ||
+                                  "Tracking number not assigned"}
                               </p>
                             </div>
 
@@ -1160,11 +1165,12 @@ export default function LogisticsPage() {
                                 {shipment.assignedTo?.name || "Not assigned"}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                Warehouse {shipment.warehouseId || "-"} | Priority{" "}
-                                {shipment.priority || 0}
+                                Warehouse {shipment.warehouseId || "-"} |
+                                Priority {shipment.priority || 0}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                {shipment.dispatchNote || "No dispatch notes available"}
+                                {shipment.dispatchNote ||
+                                  "No dispatch notes available"}
                               </p>
                             </div>
 
@@ -1198,7 +1204,8 @@ export default function LogisticsPage() {
                                 Assigned: {formatShortDate(shipment.assignedAt)}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
-                                Expected delivery: {formatShortDate(shipment.expectedDate)}
+                                Expected delivery:{" "}
+                                {formatShortDate(shipment.expectedDate)}
                               </p>
                               <p className="mt-1 text-sm text-muted-foreground">
                                 Delivered:{" "}

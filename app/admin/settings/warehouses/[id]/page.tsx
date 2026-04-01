@@ -125,7 +125,12 @@ export default function WarehouseDetailsPage() {
         const queryParams = new URLSearchParams();
         queryParams.set("limit", "1000");
 
-        // Add date range parameters if they exist
+        if (search) queryParams.set("search", search);
+        if (category) queryParams.set("category", category);
+        if (productType) queryParams.set("productType", productType);
+        if (soldFilter) queryParams.set("soldFilter", soldFilter);
+        if (sortBy) queryParams.set("sortBy", sortBy);
+        if (sortOrder) queryParams.set("sortOrder", sortOrder);
         if (dateFrom) queryParams.set("dateFrom", dateFrom);
         if (dateTo) queryParams.set("dateTo", dateTo);
 
@@ -156,7 +161,7 @@ export default function WarehouseDetailsPage() {
     if (id) {
       void run();
     }
-  }, [id, dateFrom, dateTo]);
+  }, [id, search, category, productType, soldFilter, sortBy, sortOrder, dateFrom, dateTo]);
 
   const warehouseFields = useMemo(() => {
     const warehouse = data?.warehouse;
@@ -204,65 +209,6 @@ export default function WarehouseDetailsPage() {
   const processedStockLevels = useMemo(() => {
     let filtered = [...allStockLevels];
 
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter((level) => {
-        const productName = level.variant.product.name.toLowerCase();
-        const sku = level.variant.sku?.toLowerCase() || "";
-        return productName.includes(q) || sku.includes(q);
-      });
-    }
-
-    if (category) {
-      filtered = filtered.filter(
-        (level) => level.variant.product.categoryId?.toString() === category,
-      );
-    }
-
-    if (productType) {
-      filtered = filtered.filter(
-        (level) => level.variant.product.type === productType,
-      );
-    }
-
-    if (dateFrom) {
-      const from = new Date(dateFrom);
-      from.setHours(0, 0, 0, 0);
-
-      filtered = filtered.filter((level) => {
-        const updatedAt = new Date(level.updatedAt);
-        return updatedAt >= from;
-      });
-    }
-
-    if (dateTo) {
-      const to = new Date(dateTo);
-      to.setHours(23, 59, 59, 999);
-
-      filtered = filtered.filter((level) => {
-        const updatedAt = new Date(level.updatedAt);
-        return updatedAt <= to;
-      });
-    }
-
-    if (soldFilter === "best-selling" && filtered.length > 0) {
-      const sortedBySold = [...filtered].sort(
-        (a, b) => (b.soldUnits || 0) - (a.soldUnits || 0),
-      );
-      const count = Math.max(1, Math.ceil(sortedBySold.length * 0.2));
-      const ids = new Set(sortedBySold.slice(0, count).map((item) => item.id));
-      filtered = filtered.filter((item) => ids.has(item.id));
-    }
-
-    if (soldFilter === "low-selling" && filtered.length > 0) {
-      const sortedBySold = [...filtered].sort(
-        (a, b) => (a.soldUnits || 0) - (b.soldUnits || 0),
-      );
-      const count = Math.max(1, Math.ceil(sortedBySold.length * 0.2));
-      const ids = new Set(sortedBySold.slice(0, count).map((item) => item.id));
-      filtered = filtered.filter((item) => ids.has(item.id));
-    }
-
     filtered.sort((a, b) => {
       let aValue: string | number = "";
       let bValue: string | number = "";
@@ -303,14 +249,8 @@ export default function WarehouseDetailsPage() {
     return filtered;
   }, [
     allStockLevels,
-    search,
-    category,
-    productType,
-    soldFilter,
     sortBy,
     sortOrder,
-    dateFrom,
-    dateTo,
   ]);
 
   const filteredAndPaginatedStockLevels = useMemo(() => {
