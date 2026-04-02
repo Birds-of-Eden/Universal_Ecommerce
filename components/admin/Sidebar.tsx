@@ -175,7 +175,7 @@ const menuItems: MenuItem[] = [
         requiredPermissions: ["settings.warehouse.manage", "settings.manage"],
       },
       {
-        name: "VAT Settings",
+        name: "VAT Management",
         href: "/admin/settings/vatclasses",
         requiredPermissions: ["settings.vat.manage", "settings.manage"],
       },

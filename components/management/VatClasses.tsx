@@ -83,7 +83,7 @@ export default function VatClasses() {
       vatClassesCache = nextVatClasses;
       setVatClasses(nextVatClasses);
     } catch (err) {
-      toast.error("Failed to load VAT classes");
+      toast.error("Failed to load VAT Management");
     } finally {
       setLoading(false);
     }
@@ -304,7 +304,7 @@ export default function VatClasses() {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-2">
-        <h1 className="text-2xl font-bold">VAT Classes</h1>
+        <h1 className="text-2xl font-bold">VAT Management</h1>
         <Button onClick={openAdd}>
           <Plus size={16} className="mr-2" />
           Add VAT Class
