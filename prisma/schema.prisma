@@ -1884,11 +1884,14 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+  RETURNED
+  FAILED
 }
 
 enum PaymentStatus {
   UNPAID
   PAID
+  REFUNDED
 }
 
 enum PaymentState {
