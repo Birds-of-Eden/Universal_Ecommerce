@@ -20,7 +20,7 @@ function toVatClassLogSnapshot(vatClass: {
 }
 
 /* =========================
-   GET VAT CLASSES
+   GET VAT Management
 ========================= */
 export async function GET() {
   try {
@@ -37,7 +37,7 @@ export async function GET() {
   } catch (error) {
     console.error("GET VAT CLASS ERROR:", error);
     return NextResponse.json(
-      { error: "Failed to fetch vat classes" },
+      { error: "Failed to fetch VAT Management" },
       { status: 500 }
     );
   }

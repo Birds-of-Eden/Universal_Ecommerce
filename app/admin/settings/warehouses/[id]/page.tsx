@@ -123,15 +123,23 @@ export default function WarehouseDetailsPage() {
 
         // Build query parameters for API call
         const queryParams = new URLSearchParams();
-        queryParams.set('limit', '1000');
-        
-        // Add date range parameters if they exist
-        if (dateFrom) queryParams.set('dateFrom', dateFrom);
-        if (dateTo) queryParams.set('dateTo', dateTo);
+        queryParams.set("limit", "1000");
 
-        const res = await fetch(`/api/warehouses/${id}/details?${queryParams.toString()}`, {
-          cache: "no-store",
-        });
+        if (search) queryParams.set("search", search);
+        if (category) queryParams.set("category", category);
+        if (productType) queryParams.set("productType", productType);
+        if (soldFilter) queryParams.set("soldFilter", soldFilter);
+        if (sortBy) queryParams.set("sortBy", sortBy);
+        if (sortOrder) queryParams.set("sortOrder", sortOrder);
+        if (dateFrom) queryParams.set("dateFrom", dateFrom);
+        if (dateTo) queryParams.set("dateTo", dateTo);
+
+        const res = await fetch(
+          `/api/warehouses/${id}/details?${queryParams.toString()}`,
+          {
+            cache: "no-store",
+          },
+        );
 
         const payload = await res.json().catch(() => ({}));
 
@@ -153,7 +161,7 @@ export default function WarehouseDetailsPage() {
     if (id) {
       void run();
     }
-  }, [id, dateFrom, dateTo]);
+  }, [id, search, category, productType, soldFilter, sortBy, sortOrder, dateFrom, dateTo]);
 
   const warehouseFields = useMemo(() => {
     const warehouse = data?.warehouse;
@@ -201,65 +209,6 @@ export default function WarehouseDetailsPage() {
   const processedStockLevels = useMemo(() => {
     let filtered = [...allStockLevels];
 
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter((level) => {
-        const productName = level.variant.product.name.toLowerCase();
-        const sku = level.variant.sku?.toLowerCase() || "";
-        return productName.includes(q) || sku.includes(q);
-      });
-    }
-
-    if (category) {
-      filtered = filtered.filter(
-        (level) => level.variant.product.categoryId?.toString() === category,
-      );
-    }
-
-    if (productType) {
-      filtered = filtered.filter(
-        (level) => level.variant.product.type === productType,
-      );
-    }
-
-    if (dateFrom) {
-      const from = new Date(dateFrom);
-      from.setHours(0, 0, 0, 0);
-
-      filtered = filtered.filter((level) => {
-        const updatedAt = new Date(level.updatedAt);
-        return updatedAt >= from;
-      });
-    }
-
-    if (dateTo) {
-      const to = new Date(dateTo);
-      to.setHours(23, 59, 59, 999);
-
-      filtered = filtered.filter((level) => {
-        const updatedAt = new Date(level.updatedAt);
-        return updatedAt <= to;
-      });
-    }
-
-    if (soldFilter === "best-selling" && filtered.length > 0) {
-      const sortedBySold = [...filtered].sort(
-        (a, b) => (b.soldUnits || 0) - (a.soldUnits || 0),
-      );
-      const count = Math.max(1, Math.ceil(sortedBySold.length * 0.2));
-      const ids = new Set(sortedBySold.slice(0, count).map((item) => item.id));
-      filtered = filtered.filter((item) => ids.has(item.id));
-    }
-
-    if (soldFilter === "low-selling" && filtered.length > 0) {
-      const sortedBySold = [...filtered].sort(
-        (a, b) => (a.soldUnits || 0) - (b.soldUnits || 0),
-      );
-      const count = Math.max(1, Math.ceil(sortedBySold.length * 0.2));
-      const ids = new Set(sortedBySold.slice(0, count).map((item) => item.id));
-      filtered = filtered.filter((item) => ids.has(item.id));
-    }
-
     filtered.sort((a, b) => {
       let aValue: string | number = "";
       let bValue: string | number = "";
@@ -300,14 +249,8 @@ export default function WarehouseDetailsPage() {
     return filtered;
   }, [
     allStockLevels,
-    search,
-    category,
-    productType,
-    soldFilter,
     sortBy,
     sortOrder,
-    dateFrom,
-    dateTo,
   ]);
 
   const filteredAndPaginatedStockLevels = useMemo(() => {
@@ -423,7 +366,7 @@ export default function WarehouseDetailsPage() {
           {/* Global Filters Section */}
           <div className="card-theme rounded-lg border p-4 space-y-4">
             <h2 className="text-lg font-semibold">Filters</h2>
-            
+
             <div className="flex flex-wrap gap-4">
               {/* Search */}
               <div className="relative flex-1 min-w-[200px] max-w-md">
@@ -519,12 +462,8 @@ export default function WarehouseDetailsPage() {
                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary dark:border-border/50 dark:bg-background dark:focus:ring-primary/50"
               >
                 <option value="">All Products</option>
-                <option value="best-selling">
-                  🔥 Best Selling (Top 20%)
-                </option>
-                <option value="low-selling">
-                  📉 Low Selling (Bottom 20%)
-                </option>
+                <option value="best-selling">🔥 Best Selling (Top 20%)</option>
+                <option value="low-selling">📉 Low Selling (Bottom 20%)</option>
               </select>
 
               {/* Sort */}
@@ -545,9 +484,7 @@ export default function WarehouseDetailsPage() {
                 <option value="quantity-asc">Quantity (Low to High)</option>
                 <option value="quantity-desc">Quantity (High to Low)</option>
                 <option value="available-asc">Available (Low to High)</option>
-                <option value="available-desc">
-                  Available (High to Low)
-                </option>
+                <option value="available-desc">Available (High to Low)</option>
                 <option value="sold-desc">Best Selling</option>
                 <option value="sold-asc">Low Selling</option>
                 <option value="updatedAt-desc">Recently Updated</option>
@@ -562,7 +499,9 @@ export default function WarehouseDetailsPage() {
               dateFrom ||
               dateTo) && (
               <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
-                <span className="text-sm text-muted-foreground">Active filters:</span>
+                <span className="text-sm text-muted-foreground">
+                  Active filters:
+                </span>
                 {search && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary dark:bg-primary/20">
                     Search: {search}
@@ -594,9 +533,7 @@ export default function WarehouseDetailsPage() {
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary dark:bg-primary/20">
                     Type: {productType}
                     <button
-                      onClick={() =>
-                        updateURL({ productType: null, page: 1 })
-                      }
+                      onClick={() => updateURL({ productType: null, page: 1 })}
                       className="ml-1 hover:text-primary/80 dark:hover:text-primary/70"
                     >
                       ×
@@ -620,12 +557,12 @@ export default function WarehouseDetailsPage() {
 
                 {(dateFrom || dateTo) && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary dark:bg-primary/20">
-                    Date: {dateFrom && dateTo 
+                    Date:{" "}
+                    {dateFrom && dateTo
                       ? `${dateFrom} to ${dateTo}`
-                      : dateFrom 
+                      : dateFrom
                         ? `From ${dateFrom}`
-                        : `Until ${dateTo}`
-                    }
+                        : `Until ${dateTo}`}
                     <button
                       onClick={() =>
                         updateURL({ dateFrom: null, dateTo: null, page: 1 })
@@ -648,12 +585,11 @@ export default function WarehouseDetailsPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     <span>
-                      {dateFrom && dateTo 
+                      {dateFrom && dateTo
                         ? `${dateFrom} to ${dateTo}`
-                        : dateFrom 
+                        : dateFrom
                           ? `From ${dateFrom}`
-                          : `Until ${dateTo}`
-                      }
+                          : `Until ${dateTo}`}
                     </span>
                   </div>
                 )}
@@ -693,12 +629,11 @@ export default function WarehouseDetailsPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     <span>
-                      {dateFrom && dateTo 
+                      {dateFrom && dateTo
                         ? `${dateFrom} to ${dateTo}`
-                        : dateFrom 
+                        : dateFrom
                           ? `From ${dateFrom}`
-                          : `Until ${dateTo}`
-                      }
+                          : `Until ${dateTo}`}
                     </span>
                   </div>
                 )}
@@ -725,12 +660,11 @@ export default function WarehouseDetailsPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     <span>
-                      {dateFrom && dateTo 
+                      {dateFrom && dateTo
                         ? `${dateFrom} to ${dateTo}`
-                        : dateFrom 
+                        : dateFrom
                           ? `From ${dateFrom}`
-                          : `Until ${dateTo}`
-                      }
+                          : `Until ${dateTo}`}
                     </span>
                   </div>
                 )}
@@ -792,12 +726,11 @@ export default function WarehouseDetailsPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     <span>
-                      {dateFrom && dateTo 
+                      {dateFrom && dateTo
                         ? `${dateFrom} to ${dateTo}`
-                        : dateFrom 
+                        : dateFrom
                           ? `From ${dateFrom}`
-                          : `Until ${dateTo}`
-                      }
+                          : `Until ${dateTo}`}
                     </span>
                   </div>
                 )}
