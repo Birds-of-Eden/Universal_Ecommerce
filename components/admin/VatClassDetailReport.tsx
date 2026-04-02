@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PdfExportButton } from "@/components/admin/PdfExportButton";
 import {
   Table,
   TableBody,
@@ -128,6 +129,10 @@ export async function VatClassDetailSection({
                 Back to VAT Management
               </Link>
             </Button>
+            <PdfExportButton
+              targetId="vat-class-export"
+              filename={`vat-class-${report.vatClass.code.toLowerCase()}${dateFrom || dateTo ? `-${dateFrom || "all"}-${dateTo || "all"}` : ""}.pdf`}
+            />
           </div>
         </div>
 
@@ -174,7 +179,8 @@ export async function VatClassDetailSection({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div id="vat-class-export" className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard
           title="Collected VAT"
           value={fmtMoney(report.summary.totalVatAmount)}
@@ -205,10 +211,10 @@ export async function VatClassDetailSection({
           hint="Added VAT where prices are exclusive"
           className="bg-card/90"
         />
-      </div>
+        </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_1.8fr]">
-        <Card className="border-border/70">
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_1.8fr]">
+          <Card className="border-border/70">
           <CardHeader>
             <CardTitle>Configured Rates</CardTitle>
             <CardDescription>
@@ -260,9 +266,9 @@ export async function VatClassDetailSection({
               </Table>
             </div>
           </CardContent>
-        </Card>
+          </Card>
 
-        <Card className="border-border/70">
+          <Card className="border-border/70">
           <CardHeader>
             <CardTitle>Product-wise VAT Report</CardTitle>
             <CardDescription>
@@ -322,66 +328,67 @@ export async function VatClassDetailSection({
               </Table>
             </div>
           </CardContent>
-        </Card>
-      </div>
+          </Card>
+        </div>
 
-      <Card className="border-border/70">
-        <CardHeader>
-          <CardTitle>Order-wise VAT Report</CardTitle>
-          <CardDescription>
-            Output VAT and taxable value by order for this class.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Country</TableHead>
-                  <TableHead className="text-right">Taxable Value</TableHead>
-                  <TableHead className="text-right">VAT Amount</TableHead>
-                  <TableHead className="text-right">Tax Charge</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report.orders.length === 0 ? (
+        <Card className="border-border/70">
+          <CardHeader>
+            <CardTitle>Order-wise VAT Report</CardTitle>
+            <CardDescription>
+              Output VAT and taxable value by order for this class.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="py-8 text-center text-muted-foreground"
-                    >
-                      No taxed orders found for this class.
-                    </TableCell>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Country</TableHead>
+                    <TableHead className="text-right">Taxable Value</TableHead>
+                    <TableHead className="text-right">VAT Amount</TableHead>
+                    <TableHead className="text-right">Tax Charge</TableHead>
                   </TableRow>
-                ) : (
-                  report.orders.map((order) => (
-                    <TableRow key={order.orderId}>
-                      <TableCell className="font-medium">
-                        #{order.orderId}
-                      </TableCell>
-                      <TableCell>{order.orderDate}</TableCell>
-                      <TableCell>{order.customerName}</TableCell>
-                      <TableCell>{order.country}</TableCell>
-                      <TableCell className="text-right">
-                        {fmtMoney(order.taxableValue)}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {fmtMoney(order.vatAmount)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {fmtMoney(order.taxCharge)}
+                </TableHeader>
+                <TableBody>
+                  {report.orders.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={7}
+                        className="py-8 text-center text-muted-foreground"
+                      >
+                        No taxed orders found for this class.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                  ) : (
+                    report.orders.map((order) => (
+                      <TableRow key={order.orderId}>
+                        <TableCell className="font-medium">
+                          #{order.orderId}
+                        </TableCell>
+                        <TableCell>{order.orderDate}</TableCell>
+                        <TableCell>{order.customerName}</TableCell>
+                        <TableCell>{order.country}</TableCell>
+                        <TableCell className="text-right">
+                          {fmtMoney(order.taxableValue)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {fmtMoney(order.vatAmount)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {fmtMoney(order.taxCharge)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </section>
   );
 }

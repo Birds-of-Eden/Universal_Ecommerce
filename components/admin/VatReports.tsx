@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { Plus, Edit3, Trash2, X, RefreshCw } from "lucide-react";
 import type { VatClassOverviewRow, VatOverviewReport } from "@/lib/vat-report";
+import { PdfExportButton } from "@/components/admin/PdfExportButton";
 
 interface VatRate {
   id: number;
@@ -412,6 +413,10 @@ export default function VatReports() {
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
+            <PdfExportButton
+              targetId="vat-overview-export"
+              filename={`vat-overview${dateFrom || dateTo ? `-${dateFrom || "all"}-${dateTo || "all"}` : ""}.pdf`}
+            />
             <Button onClick={openAdd}>
               <Plus className="mr-2 h-4 w-4" />
               Add VAT Class
@@ -488,7 +493,7 @@ export default function VatReports() {
           </Card>
         </div>
       ) : (
-        <>
+        <div id="vat-overview-export" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               title="Total VAT Collected"
@@ -728,7 +733,7 @@ export default function VatReports() {
               </Card>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {modalOpen && (
