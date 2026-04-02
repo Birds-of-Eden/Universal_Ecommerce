@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       description,
       shortDesc,
       categoryId,
-      brandId,
+      brandIds,
       image,
       gallery,
       discountType,
@@ -131,7 +131,9 @@ export async function POST(request: NextRequest) {
       items,
       available = true,
       featured = false,
-      currency = 'USD'
+      currency = 'USD',
+      warehouseId,
+      vatClassId
     } = body;
 
     // Validate required fields
@@ -212,7 +214,6 @@ export async function POST(request: NextRequest) {
           shortDesc,
           type: 'BUNDLE',
           categoryId,
-          brandId,
           basePrice: pricing.discountedPrice,
           originalPrice: pricing.regularTotal,
           currency,
@@ -220,7 +221,7 @@ export async function POST(request: NextRequest) {
           gallery: gallery || [],
           available,
           featured,
-          VatClassId: null, // Bundles might use VAT from included products
+          VatClassId: vatClassId || null, // Use provided VAT class or null
         }
       });
 
@@ -229,7 +230,9 @@ export async function POST(request: NextRequest) {
         bundleId: bundle.id,
         productId: item.product.id,
         quantity: item.quantity,
-        sortOrder: index
+        sortOrder: index,
+        // Store warehouse info in metadata or as a separate field if needed
+        // For now, we'll handle warehouse validation at creation time
       }));
 
       await tx.productBundleItem.createMany({
@@ -249,6 +252,146 @@ export async function POST(request: NextRequest) {
     console.error('Error creating bundle:', error);
     return NextResponse.json(
       { error: 'Failed to create bundle' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { id } = request.query;
+    const bundleId = parseInt(id as string);
+    
+    if (!bundleId || isNaN(bundleId)) {
+      return NextResponse.json(
+        { error: 'Invalid bundle ID' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    
+    const {
+      name,
+      description,
+      shortDesc,
+      categoryId,
+      brandIds,
+      image,
+      gallery,
+      discountType,
+      discountValue,
+      manualPrice,
+      items,
+      available = true,
+      featured = false,
+      currency = 'USD',
+      warehouseId,
+      vatClassId
+    } = body;
+
+    // Validate required fields
+    if (!name || !description || !categoryId || !items || items.length < 2) {
+      return NextResponse.json(
+        { error: 'Missing required fields. Bundle must have at least 2 items.' },
+        { status: 400 }
+      );
+    }
+
+    // Validate discount type
+    if (!['PERCENTAGE', 'FIXED', 'MANUAL'].includes(discountType)) {
+      return NextResponse.json(
+        { error: 'Invalid discount type' },
+        { status: 400 }
+      );
+    }
+
+    // Convert items to BundleItem format
+    const bundleItems: BundleItem[] = items.map((item: any) => ({
+      product: item.product,
+      variant: item.variant,
+      quantity: item.quantity
+    }));
+
+    // Merge duplicate items
+    const mergedItems = mergeDuplicateBundleItems(bundleItems);
+
+    // Validate bundle configuration
+    const validation = validateBundleConfiguration(
+      mergedItems,
+      discountType as DiscountType,
+      discountValue,
+      manualPrice
+    );
+
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { error: 'Invalid bundle configuration', details: validation.errors },
+        { status: 400 }
+      );
+    }
+
+    // Calculate pricing
+    const pricing = calculateBundlePricing({
+      items: mergedItems,
+      discountType: discountType as DiscountType,
+      discountValue,
+      manualPrice
+    });
+
+    // Generate slug from name
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
+    // Update bundle product and items in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update bundle product
+      const bundle = await tx.product.update({
+        where: { id: bundleId },
+        data: {
+          name,
+          slug,
+          description,
+          shortDesc,
+          categoryId,
+          basePrice: pricing.discountedPrice,
+          originalPrice: pricing.regularTotal,
+          currency,
+          image,
+          gallery: gallery || [],
+          available,
+          featured,
+          VatClassId: vatClassId || null, // Use provided VAT class or null
+        }
+      });
+
+      // Delete existing bundle items
+      await tx.productBundleItem.deleteMany({
+        where: { bundleId }
+      });
+
+      // Create new bundle items
+      const bundleItemsData = mergedItems.map((item, index) => ({
+        bundleId: bundle.id,
+        productId: item.product.id,
+        quantity: item.quantity,
+        sortOrder: index,
+        // Store warehouse info in metadata or as a separate field if needed
+        // For now, we'll handle warehouse validation at creation time
+      }));
+
+      await tx.productBundleItem.createMany({
+        data: bundleItemsData
+      });
+
+      return bundle;
+    });
+  } catch (error) {
+    console.error('Error updating bundle:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to update bundle' },
       { status: 500 }
     );
   }

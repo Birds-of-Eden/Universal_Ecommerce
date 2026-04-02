@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const limit = parseInt(searchParams.get('limit') || '20');
     const excludeBundleId = searchParams.get('excludeBundleId'); // Exclude products already in this bundle
+    const categoryIds = searchParams.get('categoryIds'); // Filter by selected categories
 
     // Build where clause
     const where: any = {
@@ -22,6 +23,14 @@ export async function GET(request: NextRequest) {
         { sku: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
       ];
+    }
+
+    // Filter by categories if provided
+    if (categoryIds) {
+      const categoryIdArray = categoryIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      if (categoryIdArray.length > 0) {
+        where.categoryId = { in: categoryIdArray };
+      }
     }
 
     // Get products with variants and basic info

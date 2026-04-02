@@ -116,6 +116,8 @@ export async function GET() {
                 id: true,
                 name: true,
                 image: true,
+                basePrice: true,
+                originalPrice: true,
               }
             }
           },

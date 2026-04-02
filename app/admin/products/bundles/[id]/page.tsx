@@ -445,15 +445,15 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
                   Edit Bundle
                 </Button>
                 
-                <Button
+                {/* <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => router.push(`/products/${bundle.slug}`)}
-                  target="_blank"
+                  onClick={() => router.push(`ecommerce/products/${bundle.id}`)}
+                  target=""
                 >
                   <Package className="h-4 w-4 mr-2" />
                   View on Store
-                </Button>
+                </Button> */}
               </div>
             </CardContent>
           </Card>

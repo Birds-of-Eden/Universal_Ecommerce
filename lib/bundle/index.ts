@@ -173,7 +173,7 @@ export function validateBundleConfiguration(
   items: BundleItem[],
   discountType: DiscountType,
   discountValue: number,
-  manualPrice?: number
+  manualPrice?: number | string
 ): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -223,7 +223,8 @@ export function validateBundleConfiguration(
       break;
 
     case 'MANUAL':
-      if (!manualPrice || manualPrice < 0) {
+      const manualPriceNum = parseFloat(String(manualPrice || '0'));
+      if (!manualPrice || manualPriceNum < 0) {
         errors.push('Manual price must be greater than 0');
       }
       
@@ -232,7 +233,7 @@ export function validateBundleConfiguration(
         return total + Number(price) * item.quantity;
       }, 0);
       
-      if (manualPrice > regularTotalForManual) {
+      if (manualPriceNum > regularTotalForManual) {
         errors.push('Manual price cannot exceed regular total');
       }
       break;
@@ -289,19 +290,49 @@ export function isProductAvailableForBundling(product: Product): boolean {
  * Merge duplicate products in bundle items (combines quantities)
  */
 export function mergeDuplicateBundleItems(items: BundleItem[]): BundleItem[] {
-  const merged = new Map<number, BundleItem>();
+  console.log('mergeDuplicateBundleItems input:', items);
+  
+  // Filter out any invalid items first
+  const validItems = items.filter(item => {
+    const isValid = item && item.product && item.product.id;
+    if (!isValid) {
+      console.warn('Filtering out invalid item:', item);
+    }
+    return isValid;
+  });
+  
+  console.log('mergeDuplicateBundleItems valid items:', validItems);
+  
+  if (validItems.length === 0) {
+    console.log('No valid items to merge');
+    return [];
+  }
+  
+  const merged = new Map<string, BundleItem>();
 
-  for (const item of items) {
-    const existing = merged.get(item.product.id);
+  for (const item of validItems) {
+    // Create a unique key based on product ID and variant ID
+    const key = `${item.product.id}-${item.variant?.id || 'default'}`;
+    
+    const existing = merged.get(key);
     
     if (existing) {
       // Merge quantities
       existing.quantity += item.quantity;
+      console.log(`Merged item ${key}: new quantity ${existing.quantity}`);
     } else {
-      // Add new item
-      merged.set(item.product.id, { ...item });
+      // Add new item with a clean copy
+      const cleanItem: BundleItem = {
+        product: { ...item.product },
+        variant: item.variant ? { ...item.variant } : undefined,
+        quantity: item.quantity
+      };
+      merged.set(key, cleanItem);
+      console.log(`Added new item ${key}:`, cleanItem);
     }
   }
 
-  return Array.from(merged.values());
+  const result = Array.from(merged.values());
+  console.log('mergeDuplicateBundleItems result:', result);
+  return result;
 }

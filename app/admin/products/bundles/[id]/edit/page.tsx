@@ -640,7 +640,7 @@ export default function EditBundlePage({ params }: { params: { id: string } }) {
                   
                   {/* For now, just a simple URL input - in production you'd integrate with actual file upload */}
                   <Input
-                    type="url"
+                    type="text"
                     placeholder="Enter image URL"
                     value={formData.image}
                     onChange={(e) => handleImageUpload(e.target.value)}

@@ -753,7 +753,12 @@ export default function BookDetail() {
                             </div>
                           </div>
                           <div className="text-sm font-medium text-foreground">
-                            {moneyBDT(item.product.basePrice * item.quantity)}
+                            {moneyBDT(
+                              toNumber(
+                                item?.product?.basePrice ??
+                                  (item?.product as any)?.price
+                              ) * toNumber(item?.quantity)
+                            )}
                           </div>
                         </div>
                       ))}
@@ -764,8 +769,18 @@ export default function BookDetail() {
                           Regular Total:
                         </span>
                         <span className="font-medium line-through text-purple-900 dark:text-purple-100">
-                          {moneyBDT((product as any).bundleItems.reduce((total: number, item: any) => 
-                            total + (item.product.basePrice * item.quantity), 0))}
+                          {moneyBDT(
+                            (product as any).bundleItems.reduce(
+                              (total: number, item: any) =>
+                                total +
+                                toNumber(
+                                  item?.product?.basePrice ??
+                                    (item?.product as any)?.price
+                                ) *
+                                  toNumber(item?.quantity),
+                              0
+                            )
+                          )}
                         </span>
                       </div>
                       <div className="flex justify-between items-center mt-2">
