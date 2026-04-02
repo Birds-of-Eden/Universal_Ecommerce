@@ -54,6 +54,11 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/scm/supplier-intelligence",
+    permissions: ["supplier_performance.read"],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/scm/purchase-requisitions",
     permissions: [
       "purchase_requisitions.read",
@@ -114,6 +119,7 @@ const adminPagePermissionRules: PermissionRule[] = [
       "scm.access",
       "suppliers.read",
       "suppliers.manage",
+      "supplier_performance.read",
       "purchase_requisitions.read",
       "purchase_requisitions.manage",
       "purchase_requisitions.approve",
@@ -219,6 +225,12 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/suppliers",
     methods: ["GET", "POST", "PUT", "PATCH"],
     permissions: ["suppliers.read", "suppliers.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/supplier-intelligence",
+    methods: ["GET"],
+    permissions: ["supplier_performance.read"],
     globalOnly: true,
   },
   {
