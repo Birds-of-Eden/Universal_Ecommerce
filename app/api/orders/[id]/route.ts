@@ -52,6 +52,20 @@ export async function GET(
             },
           },
         },
+        refunds: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          include: {
+            orderItem: {
+              select: {
+                id: true,
+                productId: true,
+                quantity: true,
+              },
+            },
+          },
+        },
         user: true,
         coupon: true,
       },
@@ -157,6 +171,8 @@ export async function PATCH(
         "SHIPPED",
         "DELIVERED",
         "CANCELLED",
+        "FAILED",
+        "RETURNED",
       ] as const;
 
       if (!validOrderStatuses.includes(status)) {
@@ -167,11 +183,13 @@ export async function PATCH(
       }
 
       const allowedTransitions: Record<string, string[]> = {
-        PENDING: ["CONFIRMED", "CANCELLED"],
-        CONFIRMED: ["PROCESSING", "CANCELLED"],
-        PROCESSING: ["SHIPPED", "CANCELLED"],
-        SHIPPED: ["DELIVERED"],
-        DELIVERED: [],
+        PENDING: ["CONFIRMED", "PROCESSING", "SHIPPED", "FAILED", "CANCELLED"],
+        CONFIRMED: ["PROCESSING", "SHIPPED", "FAILED", "CANCELLED"],
+        PROCESSING: ["SHIPPED", "DELIVERED", "FAILED", "CANCELLED"],
+        SHIPPED: ["DELIVERED", "FAILED"],
+        DELIVERED: ["RETURNED"],
+        FAILED: [],
+        RETURNED: [],
         CANCELLED: [],
       };
 
@@ -190,7 +208,7 @@ export async function PATCH(
     }
 
     if (paymentStatus) {
-      const validPaymentStatuses = ["UNPAID", "PAID"] as const;
+      const validPaymentStatuses = ["UNPAID", "PAID", "REFUNDED"] as const;
 
       if (!validPaymentStatuses.includes(paymentStatus)) {
         return NextResponse.json(
@@ -235,6 +253,30 @@ export async function PATCH(
             where: { id: productId },
             data: {
               soldCount: Math.max((product?.soldCount ?? 0) + qty, 0),
+            },
+          });
+        }
+      } else if (nextStatus === "RETURNED" && existingOrder.status === "DELIVERED") {
+        const items = await tx.orderItem.findMany({
+          where: { orderId },
+          select: { productId: true, quantity: true },
+        });
+
+        const qtyByProduct = new Map<number, number>();
+        for (const it of items) {
+          qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + it.quantity);
+        }
+
+        for (const [productId, qty] of qtyByProduct.entries()) {
+          const product = await tx.product.findUnique({
+            where: { id: productId },
+            select: { soldCount: true },
+          });
+
+          await tx.product.update({
+            where: { id: productId },
+            data: {
+              soldCount: Math.max((product?.soldCount ?? 0) - qty, 0),
             },
           });
         }

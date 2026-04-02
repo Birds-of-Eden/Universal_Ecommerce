@@ -296,7 +296,9 @@ export async function getReportsOverview(input: DateRangeInput = {}) {
     }),
   ]);
 
-  const activeOrders = orders.filter((order) => order.status !== "CANCELLED");
+  const activeOrders = orders.filter(
+    (order) => !["CANCELLED", "FAILED", "RETURNED"].includes(order.status),
+  );
   const salesDailyMap = new Map<string, { orders: number; revenue: number; vat: number }>();
   const topProductMap = new Map<
     number,

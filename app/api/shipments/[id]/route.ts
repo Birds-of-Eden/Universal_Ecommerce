@@ -414,7 +414,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ASSIGNED: ["IN_TRANSIT", "OUT_FOR_DELIVERY", "FAILED", "CANCELLED"],
         IN_TRANSIT: ["OUT_FOR_DELIVERY", "DELIVERED", "FAILED", "RETURNED", "CANCELLED"],
         OUT_FOR_DELIVERY: ["DELIVERED", "FAILED", "RETURNED", "CANCELLED"],
-        DELIVERED: [],
+        DELIVERED: ["RETURNED"],
         FAILED: ["ASSIGNED", "CANCELLED"],
         RETURNED: [],
         CANCELLED: [],
@@ -498,6 +498,26 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             data: {
               soldCount: Math.max(next, 0),
             },
+          });
+        }
+      }
+
+      if (nextStatus && nextStatus !== prevStatus) {
+        const nextOrderStatus =
+          nextStatus === "DELIVERED"
+            ? "DELIVERED"
+            : nextStatus === "RETURNED"
+              ? "RETURNED"
+              : nextStatus === "FAILED"
+                ? "FAILED"
+                : nextStatus === "CANCELLED"
+                  ? "CANCELLED"
+                  : null;
+
+        if (nextOrderStatus) {
+          await tx.order.update({
+            where: { id: existingShipment.orderId },
+            data: { status: nextOrderStatus },
           });
         }
       }

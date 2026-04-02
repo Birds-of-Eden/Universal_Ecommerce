@@ -77,6 +77,8 @@ export async function GET(request: NextRequest) {
         "SHIPPED",
         "DELIVERED",
         "CANCELLED",
+        "FAILED",
+        "RETURNED",
       ] as const;
 
       if (!validOrderStatuses.includes(statusParam as (typeof validOrderStatuses)[number])) {
