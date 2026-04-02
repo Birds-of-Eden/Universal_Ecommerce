@@ -66,6 +66,9 @@ export async function GET() {
         "purchase_orders.approve",
         "goods_receipts.read",
         "goods_receipts.manage",
+        "warehouse_transfers.read",
+        "warehouse_transfers.manage",
+        "warehouse_transfers.approve",
       ])
     ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -83,7 +86,10 @@ export async function GET() {
         access.hasGlobal("purchase_orders.manage") ||
         access.hasGlobal("purchase_orders.approve") ||
         access.hasGlobal("goods_receipts.read") ||
-        access.hasGlobal("goods_receipts.manage")
+        access.hasGlobal("goods_receipts.manage") ||
+        access.hasGlobal("warehouse_transfers.read") ||
+        access.hasGlobal("warehouse_transfers.manage") ||
+        access.hasGlobal("warehouse_transfers.approve")
           ? undefined
           : access.warehouseIds.length > 0
             ? { id: { in: access.warehouseIds } }

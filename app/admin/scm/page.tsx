@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { BookOpen, PackageCheck, ShoppingCart } from "lucide-react";
+import { ArrowRightLeft, BookOpen, PackageCheck, ShoppingCart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const cards = [
@@ -28,6 +28,13 @@ const cards = [
     description: "Post inbound stock against approved purchase orders.",
     icon: PackageCheck,
     permission: "goods_receipts.read",
+  },
+  {
+    title: "Warehouse Transfers",
+    href: "/admin/scm/warehouse-transfers",
+    description: "Approve, dispatch, and receive internal stock movement between warehouses.",
+    icon: ArrowRightLeft,
+    permission: "warehouse_transfers.read",
   },
   {
     title: "Supplier Ledger",

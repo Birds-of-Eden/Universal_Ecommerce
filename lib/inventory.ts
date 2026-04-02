@@ -255,3 +255,79 @@ export async function receiveVariantInventory(params: {
   await captureVariantInventoryDailySnapshots(tx, productVariantId);
   return { stock };
 }
+
+export async function dispatchVariantInventory(params: {
+  tx: TransactionClient;
+  productId: number;
+  productVariantId: number;
+  warehouseId: number;
+  quantity: number;
+  reason: string;
+}) {
+  const {
+    tx,
+    productId,
+    productVariantId,
+    warehouseId,
+    quantity,
+    reason,
+  } = params;
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    throw new Error("Dispatch quantity must be greater than 0");
+  }
+
+  const sourceLevel = await tx.stockLevel.findUnique({
+    where: {
+      warehouseId_productVariantId: {
+        warehouseId,
+        productVariantId,
+      },
+    },
+    select: {
+      quantity: true,
+      reserved: true,
+    },
+  });
+
+  const sourceAvailable = Math.max(
+    0,
+    Number(sourceLevel?.quantity ?? 0) - Number(sourceLevel?.reserved ?? 0),
+  );
+  if (sourceAvailable < quantity) {
+    throw new Error("Insufficient source warehouse stock for transfer");
+  }
+
+  const updated = await tx.stockLevel.updateMany({
+    where: {
+      warehouseId,
+      productVariantId,
+      quantity: {
+        gte: Number(sourceLevel?.reserved ?? 0) + quantity,
+      },
+    },
+    data: {
+      quantity: {
+        decrement: quantity,
+      },
+    },
+  });
+
+  if (updated.count !== 1) {
+    throw new Error("Warehouse stock changed during dispatch. Please try again.");
+  }
+
+  await tx.inventoryLog.create({
+    data: {
+      productId,
+      variantId: productVariantId,
+      warehouseId,
+      change: -quantity,
+      reason,
+    },
+  });
+
+  const stock = await refreshVariantStock(tx, productVariantId);
+  await captureVariantInventoryDailySnapshots(tx, productVariantId);
+  return { stock };
+}
