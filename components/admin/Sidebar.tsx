@@ -187,6 +187,11 @@ const menuItems: MenuItem[] = [
         ],
       },
       {
+        name: "Replenishment",
+        href: "/admin/scm/replenishment",
+        requiredPermissions: ["replenishment.read", "replenishment.manage"],
+      },
+      {
         name: "Warehouse Transfers",
         href: "/admin/scm/warehouse-transfers",
         requiredPermissions: [

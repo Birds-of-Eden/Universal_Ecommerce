@@ -83,6 +83,10 @@ const adminPagePermissionRules: PermissionRule[] = [
     ],
   },
   {
+    prefix: "/admin/scm/replenishment",
+    permissions: ["replenishment.read", "replenishment.manage"],
+  },
+  {
     prefix: "/admin/scm/warehouse-transfers",
     permissions: [
       "warehouse_transfers.read",
@@ -121,6 +125,8 @@ const adminPagePermissionRules: PermissionRule[] = [
       "supplier_returns.read",
       "supplier_returns.manage",
       "supplier_returns.approve",
+      "replenishment.read",
+      "replenishment.manage",
       "warehouse_transfers.read",
       "warehouse_transfers.manage",
       "warehouse_transfers.approve",
@@ -286,6 +292,26 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/supplier-returns",
     methods: ["PATCH", "PUT"],
     permissions: ["supplier_returns.manage", "supplier_returns.approve"],
+  },
+  {
+    prefix: "/api/scm/replenishment/rules",
+    methods: ["GET"],
+    permissions: ["replenishment.read", "replenishment.manage"],
+  },
+  {
+    prefix: "/api/scm/replenishment/rules",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["replenishment.manage"],
+  },
+  {
+    prefix: "/api/scm/replenishment/suggestions",
+    methods: ["GET"],
+    permissions: ["replenishment.read", "replenishment.manage"],
+  },
+  {
+    prefix: "/api/scm/replenishment/suggestions",
+    methods: ["POST"],
+    permissions: ["replenishment.manage", "purchase_requisitions.manage"],
   },
   {
     prefix: "/api/scm/warehouse-transfers",
