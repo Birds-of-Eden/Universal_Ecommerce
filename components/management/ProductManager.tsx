@@ -493,6 +493,13 @@ export default function ProductManager({
             <Button onClick={openAdd}>
               <Plus className="h-4 w-4 mr-1" /> New Product
             </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.href = '/admin/products/bundles'}
+              className="border-primary/20 text-primary hover:bg-primary/10"
+            >
+              <Package className="h-4 w-4 mr-1" /> Bundles
+            </Button>
           </div>
         </CardContent>
       </Card>
