@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowLeft, Loader2, Save, Shield, Warehouse } from "lucide-react";
 import { toast } from "sonner";
+import UserWarehouseAccessSkeleton from "@/components/ui/UserWarehouseAccessSkeleton";
 
 type Role = {
   id: string;
@@ -226,16 +227,7 @@ export default function UserWarehouseAccessPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen p-6">
-        <div className="flex h-80 items-center justify-center">
-          <div className="flex items-center gap-3 rounded-2xl border bg-card px-6 py-4 shadow-sm">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">Loading warehouse access...</span>
-          </div>
-        </div>
-      </div>
-    );
+    return <UserWarehouseAccessSkeleton />;
   }
 
   if (!data) {

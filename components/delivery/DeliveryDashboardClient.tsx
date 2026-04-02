@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeliveryAssignmentCard } from "@/components/delivery/DeliveryAssignmentCard";
+import { DeliveryDashboardSkeleton } from "@/components/ui/DeliveryDashboardSkeleton";
 import type {
   DeliveryAssignmentData,
   DeliveryAssignmentsApiResponse,
@@ -118,13 +119,7 @@ export function DeliveryDashboardClient() {
   ];
 
   if (loading) {
-    return (
-      <div className="flex min-h-[70vh] items-center justify-center">
-        <div className="rounded-2xl border border-border bg-card px-6 py-4 text-sm text-muted-foreground shadow-sm">
-          Loading delivery dashboard...
-        </div>
-      </div>
-    );
+    return <DeliveryDashboardSkeleton />;
   }
 
   return (

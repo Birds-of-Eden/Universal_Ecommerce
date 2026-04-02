@@ -12,6 +12,25 @@ const DETAILS_PERMISSIONS = [
   "dashboard.read",
 ] as const;
 
+function buildDeliveredShipmentWhere(
+  warehouseId: number,
+  dateFrom: string | null,
+  dateTo: string | null,
+) {
+  return {
+    warehouseId,
+    status: "DELIVERED" as const,
+    ...(dateFrom || dateTo
+      ? {
+          deliveredAt: {
+            ...(dateFrom && { gte: new Date(dateFrom) }),
+            ...(dateTo && { lte: new Date(dateTo) }),
+          },
+        }
+      : {}),
+  };
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -56,7 +75,13 @@ export async function GET(
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const [warehouse, shipmentCounts, shipmentDeliveredToday, sold, deliveryMenCount, assignmentCounts, staffCount, categories] =
+    const deliveredShipmentWhere = buildDeliveredShipmentWhere(
+      warehouseId,
+      dateFrom,
+      dateTo,
+    );
+
+    const [warehouse, shipmentCounts, shipmentDeliveredToday, deliveredOrders, deliveryMenCount, assignmentCounts, staffCount, categories] =
       await Promise.all([
         prisma.warehouse.findUnique({
           where: { id: warehouseId },
@@ -79,29 +104,32 @@ export async function GET(
             warehouseId,
             status: "DELIVERED",
             deliveredAt: { gte: todayStart },
-            ...(dateFrom || dateTo ? {
-              createdAt: {
-                ...(dateFrom && { gte: new Date(dateFrom) }),
-                ...(dateTo && { lte: new Date(dateTo) }),
-              },
-            } : {}),
+            ...(dateFrom || dateTo
+              ? {
+                  deliveredAt: {
+                    gte: new Date(
+                      new Date(dateFrom ?? todayStart).setHours(0, 0, 0, 0),
+                    ),
+                    ...(dateTo && { lte: new Date(dateTo) }),
+                  },
+                }
+              : {}),
           },
         }),
-        prisma.shipmentItem.aggregate({
-          where: {
-            shipment: {
-              warehouseId,
-              status: "DELIVERED",
-              ...(dateFrom || dateTo ? {
-                createdAt: {
-                  ...(dateFrom && { gte: new Date(dateFrom) }),
-                  ...(dateTo && { lte: new Date(dateTo) }),
+        prisma.shipment.findMany({
+          where: deliveredShipmentWhere,
+          select: {
+            order: {
+              select: {
+                orderItems: {
+                  select: {
+                    quantity: true,
+                    productId: true,
+                    variantId: true,
+                  },
                 },
-              } : {}),
+              },
             },
-          },
-          _sum: {
-            quantity: true,
           },
         }),
         prisma.deliveryManProfile.count({
@@ -210,57 +238,34 @@ export async function GET(
       },
     });
 
-    // Calculate sold units per product for filtering and sorting
-    const soldUnitsMap = new Map<number, number>();
-    
-    // First, get all order items to map orderItemId to variantId and productId
-    const orderItems = await prisma.orderItem.findMany({
-      where: {
-        productId: { in: stockLevels.map(l => l.variant.product.id) },
-      },
-      select: {
-        id: true,
-        variantId: true,
-        productId: true,
-      },
-    });
+    const variantIdsByProduct = new Map<number, number[]>();
+    for (const level of stockLevels) {
+      const productId = level.variant.product.id;
+      const existing = variantIdsByProduct.get(productId) ?? [];
+      existing.push(level.variant.id);
+      variantIdsByProduct.set(productId, existing);
+    }
 
-    // Create mapping from orderItemId to variantId and productId
-    const orderItemMap = new Map<number, { variantId: number | null; productId: number }>(
-      orderItems.map(oi => [oi.id, { variantId: oi.variantId, productId: oi.productId }])
-    );
-    
-    if (sortBy === "sold" || searchParams.get("soldFilter")) {
-      // Get shipment items and aggregate manually to avoid SQL ambiguity
-      const shipmentItems = await prisma.shipmentItem.findMany({
-        where: {
-          shipment: {
-            warehouseId,
-            status: "DELIVERED",
-            ...(dateFrom || dateTo ? {
-              createdAt: {
-                ...(dateFrom && { gte: new Date(dateFrom) }),
-                ...(dateTo && { lte: new Date(dateTo) }),
-              },
-            } : {}),
-          },
-          orderItem: {
-            productId: { in: stockLevels.map(l => l.variant.product.id) },
-          },
-        },
-        select: {
-          orderItemId: true,
-          quantity: true,
-        },
-      });
+    const soldUnitsByVariant = new Map<number, number>();
 
-      // Aggregate by product
-      for (const item of shipmentItems) {
-        // Get the variantId and productId from the orderItem mapping
-        const orderItemInfo = orderItemMap.get(item.orderItemId);
-        if (orderItemInfo) {
-          soldUnitsMap.set(orderItemInfo.productId, (soldUnitsMap.get(orderItemInfo.productId) || 0) + Number(item.quantity || 0));
+    for (const shipment of deliveredOrders) {
+      for (const item of shipment.order.orderItems) {
+        const matchedVariantId =
+          item.variantId ??
+          (() => {
+            const variants = variantIdsByProduct.get(item.productId) ?? [];
+            return variants.length === 1 ? variants[0] : null;
+          })();
+
+        if (!matchedVariantId) {
+          continue;
         }
+
+        soldUnitsByVariant.set(
+          matchedVariantId,
+          (soldUnitsByVariant.get(matchedVariantId) || 0) +
+            Number(item.quantity || 0),
+        );
       }
     }
 
@@ -269,102 +274,37 @@ export async function GET(
     let filteredStockLevels = stockLevels;
     
     if (soldFilter === "best-selling") {
-      // Get all sold units for this warehouse
-      const allShipmentItems = await prisma.shipmentItem.findMany({
-        where: {
-          shipment: {
-            warehouseId,
-            status: "DELIVERED",
-            ...(dateFrom || dateTo ? {
-              createdAt: {
-                ...(dateFrom && { gte: new Date(dateFrom) }),
-                ...(dateTo && { lte: new Date(dateTo) }),
-              },
-            } : {}),
-          },
-          orderItem: {
-            productId: { in: stockLevels.map(l => l.variant.product.id) },
-          },
-        },
-        select: {
-          orderItemId: true,
-          quantity: true,
-        },
-      });
-
-      const allSoldUnitsMap = new Map<number, number>();
-      for (const item of allShipmentItems) {
-        // Get the variantId and productId from the orderItem mapping
-        const orderItemInfo = orderItemMap.get(item.orderItemId);
-        if (orderItemInfo) {
-          allSoldUnitsMap.set(orderItemInfo.productId, (allSoldUnitsMap.get(orderItemInfo.productId) || 0) + Number(item.quantity || 0));
-        }
-      }
-
-      // Sort by sold units and take top 20%
       const sortedBySold = [...stockLevels].sort((a, b) => {
-        const soldA = allSoldUnitsMap.get(a.variant.product.id) || 0;
-        const soldB = allSoldUnitsMap.get(b.variant.product.id) || 0;
+        const soldA = soldUnitsByVariant.get(a.variant.id) || 0;
+        const soldB = soldUnitsByVariant.get(b.variant.id) || 0;
         return soldB - soldA;
       });
       
       const topCount = Math.max(1, Math.floor(sortedBySold.length * 0.2));
-      const topProductIds = new Set(sortedBySold.slice(0, topCount).map(l => l.variant.product.id));
-      filteredStockLevels = stockLevels.filter(l => topProductIds.has(l.variant.product.id));
+      const topVariantIds = new Set(sortedBySold.slice(0, topCount).map((level) => level.variant.id));
+      filteredStockLevels = stockLevels.filter((level) => topVariantIds.has(level.variant.id));
       
     } else if (soldFilter === "low-selling") {
-      // Get all sold units for this warehouse
-      const allShipmentItems = await prisma.shipmentItem.findMany({
-        where: {
-          shipment: {
-            warehouseId,
-            status: "DELIVERED",
-            ...(dateFrom || dateTo ? {
-              createdAt: {
-                ...(dateFrom && { gte: new Date(dateFrom) }),
-                ...(dateTo && { lte: new Date(dateTo) }),
-              },
-            } : {}),
-          },
-          orderItem: {
-            productId: { in: stockLevels.map(l => l.variant.product.id) },
-          },
-        },
-        select: {
-          orderItemId: true,
-          quantity: true,
-        },
-      });
-
-      const allSoldUnitsMap = new Map<number, number>();
-      for (const item of allShipmentItems) {
-        // Get the variantId and productId from the orderItem mapping
-        const orderItemInfo = orderItemMap.get(item.orderItemId);
-        if (orderItemInfo) {
-          allSoldUnitsMap.set(orderItemInfo.productId, (allSoldUnitsMap.get(orderItemInfo.productId) || 0) + Number(item.quantity || 0));
-        }
-      }
-
-      // Sort by sold units and take bottom 20% (excluding zero sales)
       const sortedBySold = [...stockLevels].sort((a, b) => {
-        const soldA = allSoldUnitsMap.get(a.variant.product.id) || 0;
-        const soldB = allSoldUnitsMap.get(b.variant.product.id) || 0;
+        const soldA = soldUnitsByVariant.get(a.variant.id) || 0;
+        const soldB = soldUnitsByVariant.get(b.variant.id) || 0;
         return soldA - soldB;
       });
       
-      // Filter out products with zero sales, then take bottom 20%
-      const withSales = sortedBySold.filter(l => (allSoldUnitsMap.get(l.variant.product.id) || 0) > 0);
+      const withSales = sortedBySold.filter(
+        (level) => (soldUnitsByVariant.get(level.variant.id) || 0) > 0,
+      );
       const bottomCount = Math.max(1, Math.floor(withSales.length * 0.2));
-      const bottomProductIds = new Set(withSales.slice(0, bottomCount).map(l => l.variant.product.id));
-      filteredStockLevels = stockLevels.filter(l => bottomProductIds.has(l.variant.product.id));
+      const bottomVariantIds = new Set(withSales.slice(0, bottomCount).map((level) => level.variant.id));
+      filteredStockLevels = stockLevels.filter((level) => bottomVariantIds.has(level.variant.id));
     }
 
     // Sort by sold units if needed
     let sortedStockLevels = filteredStockLevels;
     if (sortBy === "sold") {
       sortedStockLevels = [...filteredStockLevels].sort((a, b) => {
-        const soldA = soldUnitsMap.get(a.variant.product.id) || 0;
-        const soldB = soldUnitsMap.get(b.variant.product.id) || 0;
+        const soldA = soldUnitsByVariant.get(a.variant.id) || 0;
+        const soldB = soldUnitsByVariant.get(b.variant.id) || 0;
         return sortOrder === "desc" ? soldB - soldA : soldA - soldB;
       });
     }
@@ -407,55 +347,10 @@ export async function GET(
       (level) => Number(level.quantity) - Number(level.reserved) <= 0,
     ).length;
 
-    // Get total sold units for all filtered products
-    const finalSoldUnitsMap = new Map<number, number>();
-    
-    // Get order items for the final calculation
-    const finalOrderItems = await prisma.orderItem.findMany({
-      where: {
-        productId: { in: sortedStockLevels.map(l => l.variant.product.id) },
-      },
-      select: {
-        id: true,
-        variantId: true,
-        productId: true,
-      },
-    });
-
-    // Create mapping from orderItemId to variantId and productId
-    const finalOrderItemMap = new Map<number, { variantId: number | null; productId: number }>(
-      finalOrderItems.map(oi => [oi.id, { variantId: oi.variantId, productId: oi.productId }])
+    const soldUnits = sortedStockLevels.reduce(
+      (sum, level) => sum + (soldUnitsByVariant.get(level.variant.id) || 0),
+      0,
     );
-
-    const finalSoldData = await prisma.shipmentItem.findMany({
-      where: {
-        shipment: {
-          warehouseId,
-          status: "DELIVERED",
-          ...(dateFrom || dateTo ? {
-            createdAt: {
-              ...(dateFrom && { gte: new Date(dateFrom) }),
-              ...(dateTo && { lte: new Date(dateTo) }),
-            },
-          } : {}),
-        },
-        orderItem: {
-          productId: { in: sortedStockLevels.map(l => l.variant.product.id) },
-        },
-      },
-      select: {
-        orderItemId: true,
-        quantity: true,
-      },
-    });
-
-    for (const item of finalSoldData) {
-    // Get the variantId and productId from the orderItem mapping
-    const orderItemInfo = finalOrderItemMap.get(item.orderItemId);
-    if (orderItemInfo) {
-      finalSoldUnitsMap.set(orderItemInfo.productId, (finalSoldUnitsMap.get(orderItemInfo.productId) || 0) + Number(item.quantity || 0));
-    }
-  }
 
     return NextResponse.json({
       warehouse,
@@ -469,7 +364,7 @@ export async function GET(
         outOfStockItems,
         shipments: shipmentStats,
         deliveredToday: shipmentDeliveredToday,
-        soldUnits: Number(sold._sum.quantity ?? 0),
+        soldUnits,
         deliveryMen: {
           count: deliveryMenCount,
         },
@@ -485,7 +380,7 @@ export async function GET(
         available: Number(level.quantity) - Number(level.reserved),
         updatedAt: level.updatedAt,
         variant: level.variant,
-        soldUnits: finalSoldUnitsMap.get(level.variant.product.id) || 0,
+        soldUnits: soldUnitsByVariant.get(level.variant.id) || 0,
       })),
       pagination: {
         page,

@@ -104,7 +104,7 @@ const menuItems: MenuItem[] = [
     icon: Forklift,
     requiredPermissions: ["logistics.manage"],
   },
-  
+
   {
     name: "Management",
     icon: ClipboardList,
@@ -168,15 +168,15 @@ const menuItems: MenuItem[] = [
         href: "/admin/delivery-men",
         requiredPermissions: ["delivery-men.manage", "logistics.manage"],
       },
-      
+
       {
         name: "Warehouses",
         href: "/admin/settings/warehouses",
         requiredPermissions: ["settings.warehouse.manage", "settings.manage"],
       },
       {
-        name: "VAT Settings",
-        href: "/admin/settings/vatclasses",
+        name: "VAT Management",
+        href: "/admin/settings/vatmanagent",
         requiredPermissions: ["settings.vat.manage", "settings.manage"],
       },
       {
@@ -374,6 +374,7 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [siteSettings, setSiteSettings] = useState<any>(null);
   const permissionKeys = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
     : [];
@@ -386,6 +387,30 @@ export default function Sidebar({
     | undefined;
   const isWarehouseScopedOnly =
     defaultAdminRoute === "/admin/warehouse" && warehouseIds.length > 0;
+
+  const roleNames =
+    Array.isArray((session?.user as any)?.roleNames) &&
+    ((session?.user as any).roleNames as string[]).length > 0
+      ? ((session?.user as any).roleNames as string[])
+      : [];
+  const userRoleLabel =
+    roleNames.length > 0
+      ? roleNames.join(", ")
+      : ((session?.user as any)?.role as string) || "Admin";
+
+  useEffect(() => {
+    const fetchSiteSettings = async () => {
+      try {
+        const response = await fetch("/api/site");
+        const data = await response.json();
+        setSiteSettings(data);
+      } catch (error) {
+        console.error("Failed to fetch site settings:", error);
+      }
+    };
+
+    fetchSiteSettings();
+  }, []);
 
   const hasPermission = useCallback(
     (required?: string[]) => {
@@ -433,6 +458,9 @@ export default function Sidebar({
   // Using CSS variables from global.css
   const themeBg = "bg-background";
   const themeBorder = "border-border";
+  const siteTitle = siteSettings?.siteTitle?.trim() || "BOED";
+  const headerTitle = userRoleLabel || siteTitle;
+  const adminSubtitle = siteTitle ? `${siteTitle}` : "Admin Panel";
 
   if (isMobile) {
     return (
@@ -440,8 +468,12 @@ export default function Sidebar({
         {/* Modern Header */}
         <div className="h-20 flex flex-col items-center justify-center border-b border-border px-4">
           <div className="text-center">
-            <h2 className={cn("font-bold text-lg text-foreground")}>BOED</h2>
-            <p className="text-xs text-muted-foreground">Admin Panel</p>
+            <h2 className={cn("font-bold text-lg text-foreground")}>
+              {headerTitle
+                ? headerTitle.charAt(0).toUpperCase() + headerTitle.slice(1)
+                : ""}
+            </h2>
+            <p className="text-xs text-muted-foreground">{adminSubtitle}</p>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto" onClick={onClose}>
@@ -466,7 +498,12 @@ export default function Sidebar({
     >
       {/* Modern Desktop Header */}
       <div className="h-20 flex flex-col items-center justify-center border-b border-border sticky top-0 z-10 bg-background flex-shrink-0">
-        <h2 className={cn("font-bold text-xl text-foreground")}>Admin Panel</h2>
+        <div className="text-center">
+          <h2 className={cn("font-bold text-xl text-foreground")}>
+            {headerTitle}
+          </h2>
+          <p className="text-xs text-muted-foreground">{adminSubtitle}</p>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto">
         <SidebarContent pathname={pathname} items={visibleMenuItems} />
@@ -475,7 +512,7 @@ export default function Sidebar({
       {/* Footer */}
       <div className="p-4 border-t border-border flex-shrink-0">
         <div className="text-center text-xs text-muted-foreground">
-          <p>BOED Soft.</p>
+          <p>{siteTitle}</p>
           <p className="mt-1">V1.1.0</p>
         </div>
       </div>

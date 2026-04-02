@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import UserDetailSkeleton from "@/components/ui/UserDetailSkeleton";
 import {
   ArrowLeft,
   Edit,
@@ -390,29 +391,7 @@ export default function UserDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div>
-          <div className="flex flex-col justify-center items-center h-96 space-y-4">
-            <div className="relative">
-              <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-lg">
-                <UserIcon className="h-8 w-8 text-primary-foreground" />
-              </div>
-              <div className="absolute -inset-2 bg-primary/20 rounded-2xl animate-pulse"></div>
-            </div>
-            <div className="text-center space-y-2">
-              <div className="text-xl font-semibold text-foreground">
-                Loading user data...
-              </div>
-              <div className="text-muted-foreground text-sm">
-                Please wait a moment
-              </div>
-            </div>
-            <RefreshCw className="h-6 w-6 text-muted-foreground animate-spin" />
-          </div>
-        </div>
-      </div>
-    );
+    return <UserDetailSkeleton />;
   }
 
   if (!user) {
