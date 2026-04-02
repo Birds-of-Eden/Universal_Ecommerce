@@ -1,8 +1,9 @@
+//app/ecommerce/products/%5Bid%5D/page.tsx
 "use client";
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Heart,
   Minus,
@@ -82,7 +83,11 @@ function getVariantOptionGroups(variant: Variant) {
 }
 
 function getDefaultVariant(product: Product | null): Variant | null {
-  if (!product || !Array.isArray(product.variants) || product.variants.length === 0) {
+  if (
+    !product ||
+    !Array.isArray(product.variants) ||
+    product.variants.length === 0
+  ) {
     return null;
   }
 
@@ -91,7 +96,7 @@ function getDefaultVariant(product: Product | null): Variant | null {
   const activeInStock =
     variants.find(
       (variant: any) =>
-        variant?.active !== false && toNumber(variant?.stock) > 0
+        variant?.active !== false && toNumber(variant?.stock) > 0,
     ) ?? null;
 
   if (activeInStock) return activeInStock;
@@ -107,6 +112,7 @@ function getDefaultVariant(product: Product | null): Variant | null {
 export default function BookDetail() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { addToCart, getQuantityByProductId, incProductQty, decProductQty } =
     useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -122,6 +128,12 @@ export default function BookDetail() {
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isZooming, setIsZooming] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "reviews") {
+      setTab("reviews");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!id) return;
@@ -141,7 +153,8 @@ export default function BookDetail() {
         const list: Product[] = Array.isArray(data) ? (data as Product[]) : [];
         setAll(list);
 
-        const found = list.find((item) => String(item.id) === String(id)) ?? null;
+        const found =
+          list.find((item) => String(item.id) === String(id)) ?? null;
         if (!found) {
           setProduct(null);
           setErr("Product not found");
@@ -351,7 +364,10 @@ export default function BookDetail() {
       ? "text-green-600 dark:text-green-400"
       : "text-destructive";
 
-  const cartQty = getQuantityByProductId(product.id, selectedVariant?.id ?? null);
+  const cartQty = getQuantityByProductId(
+    product.id,
+    selectedVariant?.id ?? null,
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -439,7 +455,8 @@ export default function BookDetail() {
                       {Array.from({ length: 5 }).map((_, i) => {
                         const rating = Number(product.ratingAvg ?? 0);
                         const isFull = i < Math.floor(rating);
-                        const isHalf = i === Math.floor(rating) && rating % 1 >= 0.5;
+                        const isHalf =
+                          i === Math.floor(rating) && rating % 1 >= 0.5;
                         return (
                           <Star
                             key={i}
@@ -479,7 +496,9 @@ export default function BookDetail() {
                       : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
                   ].join(" ")}
                 >
-                  <Heart className={`h-5 w-5 ${isInWishlist(product.id) ? 'fill-current' : ''}`} />
+                  <Heart
+                    className={`h-5 w-5 ${isInWishlist(product.id) ? "fill-current" : ""}`}
+                  />
                 </button>
               </div>
 
@@ -547,7 +566,9 @@ export default function BookDetail() {
                   <VariantSelector
                     variants={product.variants ?? []}
                     value={selectedVariant}
-                    onChange={(variant) => setSelectedVariant(variant as Variant | null)}
+                    onChange={(variant) =>
+                      setSelectedVariant(variant as Variant | null)
+                    }
                   />
 
                   {!hasMultipleVariants &&
@@ -595,7 +616,11 @@ export default function BookDetail() {
                       type="button"
                       className="inline-flex h-8 w-8 items-center justify-center rounded-md transition hover:bg-accent disabled:opacity-50"
                       onClick={() =>
-                        decProductQty(product.id, 1, selectedVariant?.id ?? null)
+                        decProductQty(
+                          product.id,
+                          1,
+                          selectedVariant?.id ?? null,
+                        )
                       }
                       disabled={purchaseDisabled || cartQty <= 0}
                     >
@@ -608,7 +633,11 @@ export default function BookDetail() {
                       type="button"
                       className="inline-flex h-8 w-8 items-center justify-center rounded-md transition hover:bg-accent disabled:opacity-50"
                       onClick={() =>
-                        incProductQty(product.id, 1, selectedVariant?.id ?? null)
+                        incProductQty(
+                          product.id,
+                          1,
+                          selectedVariant?.id ?? null,
+                        )
                       }
                       disabled={purchaseDisabled}
                     >
@@ -632,30 +661,34 @@ export default function BookDetail() {
                     </div>
                     <div className=" w-full">
                       <button
-                      type="button"
-                      className="btn-primary h-11 w-full rounded-lg font-semibold transition hover:opacity-95 disabled:opacity-50"
-                      disabled={purchaseDisabled}
-                      onClick={() => {
-                        if (
-                          getQuantityByProductId(
-                            product.id,
-                            selectedVariant?.id ?? null
-                          ) <= 0
-                        ) {
-                          addToCart(product.id, 1, selectedVariant?.id ?? null);
-                        }
-                        router.push("/ecommerce/checkout");
-                      }}
-                    >
-                      Buy Now
-                    </button>
+                        type="button"
+                        className="btn-primary h-11 w-full rounded-lg font-semibold transition hover:opacity-95 disabled:opacity-50"
+                        disabled={purchaseDisabled}
+                        onClick={() => {
+                          if (
+                            getQuantityByProductId(
+                              product.id,
+                              selectedVariant?.id ?? null,
+                            ) <= 0
+                          ) {
+                            addToCart(
+                              product.id,
+                              1,
+                              selectedVariant?.id ?? null,
+                            );
+                          }
+                          router.push("/ecommerce/checkout");
+                        }}
+                      >
+                        Buy Now
+                      </button>
                     </div>
-                    
                   </div>
 
                   <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
                     <span className="rounded-full border border-border bg-muted/30 px-3 py-1.5">
-                      Stock: <span className={stockClassName}>{stockLabel}</span>
+                      Stock:{" "}
+                      <span className={stockClassName}>{stockLabel}</span>
                     </span>
 
                     {product.brand?.name ? (
@@ -782,7 +815,9 @@ export default function BookDetail() {
                         <div className="flex justify-between border-b border-border pb-2">
                           <span>SKU</span>
                           <span className="text-foreground">
-                            {(selectedVariant as any)?.sku ?? product.sku ?? "—"}
+                            {(selectedVariant as any)?.sku ??
+                              product.sku ??
+                              "—"}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -804,8 +839,8 @@ export default function BookDetail() {
                         Refund / Replacement
                       </div>
                       <div className="mt-1">
-                        Replacement policy applies as per store rules and product
-                        eligibility.
+                        Replacement policy applies as per store rules and
+                        product eligibility.
                       </div>
                     </div>
                   </div>
@@ -813,7 +848,9 @@ export default function BookDetail() {
               </div>
             )}
 
-            {tab === "reviews" && <ProductReviews productId={Number(product.id)} />}
+            {tab === "reviews" && (
+              <ProductReviews productId={Number(product.id)} />
+            )}
           </div>
         </div>
 
