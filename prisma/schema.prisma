@@ -250,6 +250,25 @@ model Product {
   reviews                 Review[]
   serviceSlots            ServiceSlot[]
   wishlist                Wishlist[]
+  bundleItems             ProductBundleItem[] @relation("BundleProducts")
+  includedInBundles       ProductBundleItem[] @relation("IncludedProducts")
+}
+
+model ProductBundleItem {
+  id         Int     @id @default(autoincrement())
+  bundleId   Int
+  productId  Int
+  quantity   Int     @default(1)
+  sortOrder  Int     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  bundle    Product @relation("BundleProducts", fields: [bundleId], references: [id], onDelete: Cascade)
+  product   Product @relation("IncludedProducts", fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([bundleId, productId])
+  @@index([bundleId])
+  @@index([productId])
 }
 
 model ProductVariant {
@@ -1811,6 +1830,7 @@ enum ProductType {
   PHYSICAL
   DIGITAL
   SERVICE
+  BUNDLE
 }
 
 enum ProductCodeKind {

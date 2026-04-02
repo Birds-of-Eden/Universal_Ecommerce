@@ -608,6 +608,20 @@ export default function BookDetail() {
                         </div>
                       )}
                   </div>
+
+                  {/* Bundle-specific info */}
+                  {product.type === "BUNDLE" && (product as any).bundleItemCount && (
+                    <div className="mt-2 text-sm opacity-90">
+                      <div className="font-medium">
+                        {(product as any).bundleItemCount} items included
+                      </div>
+                      {(product as any).bundleSavings && (
+                        <div className="text-green-300">
+                          Save {(product as any).bundleSavings}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-5">
@@ -750,27 +764,100 @@ export default function BookDetail() {
 
           <div className="p-4 sm:p-6">
             {tab === "desc" && (
-              <div
-                className="
-                  prose prose-sm max-w-none dark:prose-invert
-                  [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto
-                  [&_thead]:bg-muted
-                  [&_th]:border [&_th]:border-border [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
-                  [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2
-                  [&_img]:max-w-full [&_img]:h-auto
-                "
-              >
-                {product.description ? (
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: sanitizeHtml(product.description),
-                    }}
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No description available.
-                  </p>
+              <div>
+                {/* Bundle items section */}
+                {product.type === "BUNDLE" && (product as any).bundleItems && (product as any).bundleItems.length > 0 && (
+                  <div className="mb-6 rounded-xl border border-purple-200 bg-purple-50 p-4 dark:border-purple-800 dark:bg-purple-950">
+                    <h3 className="mb-4 text-lg font-semibold text-purple-900 dark:text-purple-100">
+                      What's Included in This Bundle
+                    </h3>
+                    <div className="space-y-3">
+                      {(product as any).bundleItems.map((item: any, index: number) => (
+                        <div key={item.id} className="flex items-center gap-3 rounded-lg bg-white p-3 dark:bg-purple-900/50">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-sm font-medium text-purple-600 dark:bg-purple-800 dark:text-purple-200">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium text-foreground">
+                              {item.product.name}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Quantity: {item.quantity}
+                            </div>
+                          </div>
+                          <div className="text-sm font-medium text-foreground">
+                            {moneyBDT(
+                              toNumber(
+                                item?.product?.basePrice ??
+                                  (item?.product as any)?.price
+                              ) * toNumber(item?.quantity)
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-purple-200 dark:border-purple-800">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium text-purple-900 dark:text-purple-100">
+                          Regular Total:
+                        </span>
+                        <span className="font-medium line-through text-purple-900 dark:text-purple-100">
+                          {moneyBDT(
+                            (product as any).bundleItems.reduce(
+                              (total: number, item: any) =>
+                                total +
+                                toNumber(
+                                  item?.product?.basePrice ??
+                                    (item?.product as any)?.price
+                                ) *
+                                  toNumber(item?.quantity),
+                              0
+                            )
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="font-semibold text-purple-900 dark:text-purple-100">
+                          Bundle Price:
+                        </span>
+                        <span className="font-bold text-lg text-green-600">
+                          {moneyBDT(displayPrice)}
+                        </span>
+                      </div>
+                      {(product as any).bundleSavings && (
+                        <div className="mt-2 text-center">
+                          <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
+                            You Save {(product as any).bundleSavings}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
+
+                {/* Regular product description */}
+                <div
+                  className="
+                    prose prose-sm max-w-none dark:prose-invert
+                    [&_table]:block [&_table]:w-full [&_table]:overflow-x-auto
+                    [&_thead]:bg-muted
+                    [&_th]:border [&_th]:border-border [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
+                    [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2
+                    [&_img]:max-w-full [&_img]:h-auto
+                  "
+                >
+                  {product.description ? (
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeHtml(product.description),
+                      }}
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No description available.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 

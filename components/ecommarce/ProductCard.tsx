@@ -24,6 +24,17 @@ export type ProductCardData = {
   available?: boolean;
   totalSold?: number | null;
   rank?: number | null;
+  // Bundle-specific fields
+  bundleItems?: Array<{
+    product: {
+      id: number;
+      name: string;
+      image?: string;
+    };
+    quantity: number;
+  }>;
+  bundleItemCount?: number;
+  bundleSavings?: string;
 };
 
 type Props = {
@@ -116,6 +127,10 @@ export default function ProductCardCompact({
               <span className="absolute left-3 top-3 z-10 rounded-md bg-red-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm">
                 Out of Stock
               </span>
+            ) : product.type === "BUNDLE" ? (
+              <span className="absolute left-3 top-3 z-10 rounded-md bg-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm">
+                Bundle
+              </span>
             ) : product.discountPct && product.discountPct > 0 ? (
               <span className="absolute left-3 top-3 z-10 rounded-md bg-orange-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm">
                 {product.discountPct}%
@@ -184,6 +199,26 @@ export default function ProductCardCompact({
             <p className="mt-2 min-h-[36px] line-clamp-2 text-[13px] leading-snug text-foreground">
               {product.name}
             </p>
+
+            {/* Bundle-specific info */}
+            {product.type === "BUNDLE" && (
+              <div className="mt-2 space-y-1">
+                <div className="text-xs text-purple-600 font-medium">
+                  {product.bundleItemCount || product.bundleItems?.length || 0} items included
+                </div>
+                {product.bundleSavings && (
+                  <div className="text-xs text-green-600 font-medium">
+                    Save {product.bundleSavings}
+                  </div>
+                )}
+                {product.bundleItems && product.bundleItems.length > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    Includes: {product.bundleItems.slice(0, 2).map(item => item.product.name).join(", ")}
+                    {product.bundleItems.length > 2 && ` +${product.bundleItems.length - 2} more`}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Bottom Section */}
             <div className="relative mt-4 h-[64px] overflow-hidden">
