@@ -108,6 +108,8 @@ interface DashboardStats {
   outOfStockVariants?: number;
   reservedStock?: number;
   refundRequests?: number;
+  failedOrders?: number;
+  returnedOrders?: number;
   openChats?: number;
   activeBanners?: number;
   totalBlogs?: number;
@@ -149,6 +151,8 @@ interface DashboardStats {
     shipped?: number;
     delivered?: number;
     cancelled?: number;
+    failed?: number;
+    returned?: number;
     paid?: number;
     unpaid?: number;
     queuedFulfillment?: number;
@@ -205,6 +209,8 @@ interface AdminDashboardViewModel {
   inventoryHealthScore: number;
   openChats: number;
   refundRequests: number;
+  failedOrders: number;
+  returnedOrders: number;
   activeBanners: number;
   totalBlogs: number;
   newsletterSubscribers: number;
@@ -447,11 +453,15 @@ function StatCard({
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium text-foreground">{label}</p>
             {tone !== "default" && (
-              <div className={`h-2 w-2 rounded-full ${
-                tone === "good" ? "bg-emerald-500" :
-                tone === "warn" ? "bg-amber-500" :
-                "bg-destructive"
-              }`} />
+              <div
+                className={`h-2 w-2 rounded-full ${
+                  tone === "good"
+                    ? "bg-emerald-500"
+                    : tone === "warn"
+                      ? "bg-amber-500"
+                      : "bg-destructive"
+                }`}
+              />
             )}
           </div>
           <p className="mt-3 text-2xl font-bold tracking-tight text-foreground md:text-[30px]">
@@ -467,7 +477,9 @@ function StatCard({
             )}
           </div>
         </div>
-        <div className={`rounded-2xl border border-border/70 bg-background/80 p-3 shadow-sm ${statusColor}`}>
+        <div
+          className={`rounded-2xl border border-border/70 bg-background/80 p-3 shadow-sm ${statusColor}`}
+        >
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -913,7 +925,7 @@ function AdminDashboard({
 
       <section className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard
-          label="Total Revenue"
+          label="Net Revenue"
           value={formatCurrency(stats.totalRevenue)}
           icon={CircleDollarSign}
           trend={stats.revenueGrowth}
@@ -1001,7 +1013,7 @@ function AdminDashboard({
                 <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <BadgeDollarSign className="h-4 w-4" />
-                    Gross revenue
+                    Net revenue
                   </div>
                   <p className="mt-2 text-xl font-semibold text-foreground">
                     {formatCurrency(stats.totalRevenue)}
@@ -1040,7 +1052,7 @@ function AdminDashboard({
                   formatter={formatNumber}
                 />
               </div>
-              <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
+              {/* <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                   <h3 className="text-sm font-semibold text-foreground">
@@ -1051,7 +1063,7 @@ function AdminDashboard({
                   items={dashboard.orderStatusBreakdown}
                   formatter={formatNumber}
                 />
-              </div>
+              </div> */}
             </div>
           </div>
         </SectionShell>

@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle,
   Truck,
@@ -25,6 +27,17 @@ interface CartItem {
   price: number;
   quantity: number;
   image: string;
+}
+
+interface OrderRefund {
+  id: number;
+  orderItemId: number | null;
+  status: string;
+  reason: string;
+  amount: number;
+  quantity: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Customer {
@@ -54,6 +67,7 @@ interface Order {
     discountType: string;
     discountValue: number;
   } | null;
+  refunds?: OrderRefund[];
 }
 
 interface Shipment {
@@ -95,6 +109,18 @@ const getOrderStatusConfig = (status: string) => {
       className: "bg-emerald-100 text-emerald-800 border border-emerald-200",
     };
   }
+  if (s === "RETURNED") {
+    return {
+      label: "Returned",
+      className: "bg-violet-100 text-violet-800 border border-violet-200",
+    };
+  }
+  if (s === "FAILED") {
+    return {
+      label: "Failed",
+      className: "bg-rose-100 text-rose-800 border border-rose-200",
+    };
+  }
   if (s === "SHIPPED" || s === "PROCESSING" || s === "CONFIRMED") {
     return {
       label:
@@ -124,6 +150,12 @@ const getPaymentStatusConfig = (paymentStatus: string) => {
     return {
       label: "Paid",
       className: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    };
+  }
+  if (s === "REFUNDED") {
+    return {
+      label: "Refunded",
+      className: "bg-violet-50 text-violet-700 border border-violet-200",
     };
   }
   return {
@@ -323,6 +355,17 @@ export default function OrderDetailsPage() {
     productId: number;
     name: string;
   } | null>(null);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundItem, setRefundItem] = useState<{
+    orderItemId: number;
+    productId: number;
+    name: string;
+    quantity: number;
+  } | null>(null);
+  const [refundQuantity, setRefundQuantity] = useState(1);
+  const [refundReason, setRefundReason] = useState("");
+  const [refundSubmitting, setRefundSubmitting] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!invoiceId) {
@@ -445,6 +488,24 @@ export default function OrderDetailsPage() {
                 discountValue: Number(o.coupon.discountValue),
               }
             : null,
+          refunds: Array.isArray(o.refunds)
+            ? o.refunds.map((refund: any) => ({
+                id: Number(refund.id),
+                orderItemId:
+                  refund.orderItemId === null || refund.orderItemId === undefined
+                    ? null
+                    : Number(refund.orderItemId),
+                status: String(refund.status ?? "REQUESTED"),
+                reason: String(refund.reason ?? ""),
+                amount: Number(refund.amount ?? 0),
+                quantity:
+                  refund.quantity === null || refund.quantity === undefined
+                    ? null
+                    : Number(refund.quantity),
+                createdAt: refund.createdAt ?? new Date().toISOString(),
+                updatedAt: refund.updatedAt ?? refund.createdAt ?? new Date().toISOString(),
+              }))
+            : [],
         };
 
         setOrder(mapped);
@@ -619,8 +680,14 @@ export default function OrderDetailsPage() {
     const sStatus = shipment?.status?.toUpperCase() ?? "PENDING";
     const oStatus = order.status?.toUpperCase();
 
-    if (sStatus === "DELIVERED" || oStatus === "DELIVERED") {
+        if (sStatus === "DELIVERED" || oStatus === "DELIVERED") {
       return stages.length - 1;
+    }
+    if (sStatus === "RETURNED" || oStatus === "RETURNED") {
+      return stages.length - 1;
+    }
+    if (sStatus === "FAILED" || oStatus === "FAILED") {
+      return Math.min(1, stages.length - 1);
     }
     if (sStatus === "OUT_FOR_DELIVERY") return Math.min(2, stages.length - 1);
     if (sStatus === "IN_TRANSIT") return Math.min(1, stages.length - 1);
@@ -685,6 +752,143 @@ export default function OrderDetailsPage() {
   const closeReviewModal = () => {
     setReviewModalOpen(false);
     setReviewProduct(null);
+  };
+
+  const getRefundedQuantity = (orderItemId: number) =>
+    (order?.refunds || []).reduce((sum, refund) => {
+      const activeStatuses = new Set(["REQUESTED", "APPROVED", "COMPLETED"]);
+      if (refund.orderItemId !== orderItemId) return sum;
+      if (!activeStatuses.has(String(refund.status).toUpperCase())) return sum;
+      return sum + Math.max(0, Number(refund.quantity) || 0);
+    }, 0);
+
+  const refundDeadline = shipment?.deliveredAt
+    ? new Date(shipment.deliveredAt)
+    : null;
+  if (refundDeadline) {
+    refundDeadline.setDate(refundDeadline.getDate() + 7);
+  }
+  const canRequestRefund =
+    Boolean(refundDeadline) && Date.now() <= refundDeadline!.getTime();
+
+  const openRefundModal = (item: CartItem) => {
+    const availableQuantity = Math.max(item.quantity - getRefundedQuantity(Number(item.id)), 0);
+    setRefundItem({
+      orderItemId: Number(item.id),
+      productId: item.productId,
+      name: item.name,
+      quantity: item.quantity,
+    });
+    setRefundQuantity(Math.max(1, availableQuantity || 1));
+    setRefundReason("");
+    setRefundError(null);
+    setRefundModalOpen(true);
+  };
+
+  const closeRefundModal = () => {
+    setRefundModalOpen(false);
+    setRefundItem(null);
+    setRefundQuantity(1);
+    setRefundReason("");
+    setRefundError(null);
+    setRefundSubmitting(false);
+  };
+
+  const submitRefundRequest = async () => {
+    if (!refundItem) return;
+
+    const itemRefundedQuantity = getRefundedQuantity(refundItem.orderItemId);
+    const availableQuantity = Math.max(
+      refundItem.quantity - itemRefundedQuantity,
+      0,
+    );
+
+    if (!canRequestRefund || !refundDeadline) {
+      setRefundError("Refunds are available only within 7 days of delivery.");
+      return;
+    }
+
+    if (!refundReason.trim() || refundReason.trim().length < 10) {
+      setRefundError("Please add a clear reason for the refund.");
+      return;
+    }
+
+    const nextQuantity = Math.min(
+      Math.max(1, Math.floor(refundQuantity || 1)),
+      availableQuantity,
+    );
+
+    if (nextQuantity <= 0) {
+      setRefundError("No refundable quantity is left for this item.");
+      return;
+    }
+
+    try {
+      setRefundSubmitting(true);
+      setRefundError(null);
+
+      const res = await fetch("/api/refunds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          orderItemId: refundItem.orderItemId,
+          quantity: nextQuantity,
+          reason: refundReason.trim(),
+        }),
+      });
+
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setRefundError(payload?.error || "Failed to submit refund request.");
+        return;
+      }
+
+      const createdRefund = payload?.refund;
+      if (createdRefund) {
+        setOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                refunds: [
+                  ...(prev.refunds || []),
+                  {
+                    id: Number(createdRefund.id),
+                    orderItemId:
+                      createdRefund.orderItemId === null ||
+                      createdRefund.orderItemId === undefined
+                        ? null
+                        : Number(createdRefund.orderItemId),
+                    status: String(createdRefund.status ?? "REQUESTED"),
+                    reason: String(createdRefund.reason ?? ""),
+                    amount: Number(createdRefund.amount ?? 0),
+                    quantity:
+                      createdRefund.quantity === null ||
+                      createdRefund.quantity === undefined
+                        ? null
+                        : Number(createdRefund.quantity),
+                    createdAt:
+                      createdRefund.createdAt ?? new Date().toISOString(),
+                    updatedAt:
+                      createdRefund.updatedAt ??
+                      createdRefund.createdAt ??
+                      new Date().toISOString(),
+                  },
+                ],
+              }
+            : prev,
+        );
+      }
+
+      closeRefundModal();
+    } catch (error) {
+      console.error("Failed to submit refund request:", error);
+      setRefundError("Failed to submit refund request.");
+      setRefundSubmitting(false);
+    } finally {
+      setRefundSubmitting(false);
+    }
   };
 
   return (
@@ -821,12 +1025,21 @@ export default function OrderDetailsPage() {
                   const isDeliveredFinal =
                     shipmentStatus === "DELIVERED" ||
                     orderStatus === "DELIVERED";
+                  const isReturnedFinal =
+                    shipmentStatus === "RETURNED" ||
+                    orderStatus === "RETURNED";
 
                   let badgeText = "Pending";
                   let badgeClass =
                     "bg-muted text-muted-foreground border-border";
 
-                  if (isCompleted || (isDeliveredStage && isDeliveredFinal)) {
+                  if (isReturnedFinal && isDeliveredStage) {
+                    badgeText = "Returned";
+                    badgeClass = "bg-red-50 text-red-700 border-red-200";
+                  } else if (
+                    isCompleted ||
+                    (isDeliveredStage && isDeliveredFinal)
+                  ) {
                     badgeText = "Completed";
                     badgeClass =
                       "bg-emerald-50 text-emerald-700 border-emerald-200";
@@ -932,7 +1145,9 @@ export default function OrderDetailsPage() {
                       {canLeaveReview && (
                         <button
                           type="button"
-                          onClick={() => openReviewModal(item.productId, item.name)}
+                          onClick={() =>
+                            openReviewModal(item.productId, item.name)
+                          }
                           className="mt-3 inline-flex text-sm font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary/80"
                         >
                           Leave a review
@@ -1063,7 +1278,7 @@ export default function OrderDetailsPage() {
                     <p className="text-sm text-muted-foreground">
                       Delivery was confirmed on{" "}
                       <span className="font-medium text-foreground">
-                        {formatDate(shipment.deliveryProof.confirmedAt)}
+                        {formatDate(shipment?.deliveryProof?.confirmedAt)}
                       </span>
                       .
                     </p>
@@ -1102,14 +1317,11 @@ export default function OrderDetailsPage() {
               {canLeaveReview && items.length > 0 && (
                 <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
                   <div className="mb-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                      Review New Product
-                    </p>
-                    <h3 className="mt-1 text-base font-semibold text-foreground">
-                      Write a review for delivered products
+                    <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-amber-700 shadow-md">
+                      Review This Product
                     </h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Open the review form in a modal without leaving this page.
+                    <p className="text-sm mt-2 text-muted-foreground">
+                      Write a review for delivered products
                     </p>
                   </div>
 
@@ -1118,11 +1330,76 @@ export default function OrderDetailsPage() {
                       <button
                         type="button"
                         key={item.id}
-                        onClick={() => openReviewModal(item.productId, item.name)}
+                        onClick={() =>
+                          openReviewModal(item.productId, item.name)
+                        }
                         className="inline-flex w-full items-center justify-center rounded-full bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700"
                       >
                         Review {item.name}
                       </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            <Card>
+              {canLeaveReview && items.length > 0 && (
+                <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold uppercase tracking-[0.18em] text-red-700 shadow-md">
+                      Refund
+                    </h3>
+                    <p className="text-sm mt-2 text-muted-foreground">
+                      Request a refund for any product in this order within 7 days
+                      after delivery.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {items.map((item) => (
+                      (() => {
+                        const refundedQuantity = getRefundedQuantity(
+                          Number(item.id),
+                        );
+                        const remainingQuantity = Math.max(
+                          item.quantity - refundedQuantity,
+                          0,
+                        );
+
+                        if (!canRequestRefund) {
+                          return (
+                            <div
+                              key={item.id}
+                              className="inline-flex w-full items-center justify-center rounded-full border border-border bg-muted px-5 py-3 text-sm font-semibold text-muted-foreground"
+                            >
+                              Refund window closed for {item.name}
+                            </div>
+                          );
+                        }
+
+                        if (remainingQuantity <= 0) {
+                          return (
+                            <div
+                              key={item.id}
+                              className="inline-flex w-full items-center justify-center rounded-full border border-border bg-muted px-5 py-3 text-sm font-semibold text-muted-foreground"
+                            >
+                              {item.name} already refunded
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <button
+                            type="button"
+                            key={item.id}
+                            onClick={() => openRefundModal(item)}
+                            className="inline-flex w-full items-center justify-center rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+                          >
+                            Refund {item.name}
+                          </button>
+                        );
+                      })()
                     ))}
                   </div>
                 </div>
@@ -1222,6 +1499,145 @@ export default function OrderDetailsPage() {
 
             <div className="mt-6 max-h-[80vh] overflow-y-auto rounded-2xl border border-border bg-background p-4">
               <ProductReviews productId={reviewProduct.productId} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {refundModalOpen && refundItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeRefundModal}
+        >
+          <div
+            className="w-full max-w-3xl rounded-3xl border border-border bg-card p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-700">
+                  Refund Request
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-foreground">
+                  {refundItem.name}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Refunds are allowed only within 7 days after delivery.
+                  {refundDeadline ? (
+                    <>
+                      {" "}
+                      Deadline: {formatDate(refundDeadline.toISOString())}
+                    </>
+                  ) : null}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeRefundModal}
+                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-6 max-h-[80vh] overflow-y-auto rounded-2xl border border-border bg-background p-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Refund details
+                  </p>
+                  <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                    <p>
+                      Quantity ordered:{" "}
+                      <span className="font-semibold text-foreground">
+                        {refundItem.quantity}
+                      </span>
+                    </p>
+                    <p>
+                      Refundable quantity:{" "}
+                      <span className="font-semibold text-foreground">
+                        {Math.max(
+                          refundItem.quantity -
+                            getRefundedQuantity(refundItem.orderItemId),
+                          0,
+                        )}
+                      </span>
+                    </p>
+                    <p>
+                      Status:{" "}
+                      <span className="font-semibold text-foreground">
+                        {canRequestRefund ? "Eligible" : "Refund window closed"}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="refund-quantity"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Quantity
+                    </label>
+                    <Input
+                      id="refund-quantity"
+                      type="number"
+                      min={1}
+                      max={Math.max(
+                        refundItem.quantity -
+                          getRefundedQuantity(refundItem.orderItemId),
+                        1,
+                      )}
+                      value={refundQuantity}
+                      onChange={(e) =>
+                        setRefundQuantity(Number(e.target.value || 1))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <label
+                  htmlFor="refund-reason"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Reason
+                </label>
+                <Textarea
+                  id="refund-reason"
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  placeholder="Tell us why you need a refund..."
+                  className="min-h-[140px]"
+                />
+              </div>
+
+              {refundError ? (
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {refundError}
+                </div>
+              ) : null}
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeRefundModal}
+                  className="inline-flex items-center justify-center rounded-full border border-border px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={refundSubmitting || !canRequestRefund}
+                  onClick={submitRefundRequest}
+                  className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {refundSubmitting ? "Submitting..." : "Submit Refund"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

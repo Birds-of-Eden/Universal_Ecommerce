@@ -1,3 +1,5 @@
+//app/admin/orders/page.tsx
+
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -17,9 +19,11 @@ type OrderStatusType =
   | "PROCESSING"
   | "SHIPPED"
   | "DELIVERED"
+  | "FAILED"
+  | "RETURNED"
   | "CANCELLED";
 
-type PaymentStatusType = "PAID" | "UNPAID";
+type PaymentStatusType = "PAID" | "UNPAID" | "REFUNDED";
 
 type ShipmentStatusType =
   | "PENDING"
@@ -386,6 +390,10 @@ const OrderManagement = () => {
         return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20 dark:bg-indigo-400/10 dark:text-indigo-400 dark:border-indigo-400/20";
       case "DELIVERED":
         return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20";
+      case "FAILED":
+        return "bg-rose-500/10 text-rose-600 border-rose-500/20 dark:bg-rose-400/10 dark:text-rose-400 dark:border-rose-400/20";
+      case "RETURNED":
+        return "bg-violet-500/10 text-violet-600 border-violet-500/20 dark:bg-violet-400/10 dark:text-violet-400 dark:border-violet-400/20";
       case "CANCELLED":
         return "bg-destructive/10 text-destructive border-destructive/20";
       default:
@@ -394,9 +402,13 @@ const OrderManagement = () => {
   }, []);
 
   const paymentBadgeClass = useCallback((status: string) => {
-    return status === "PAID"
-      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20"
-      : "bg-destructive/10 text-destructive border-destructive/20";
+    if (status === "PAID") {
+      return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:bg-emerald-400/10 dark:text-emerald-400 dark:border-emerald-400/20";
+    }
+    if (status === "REFUNDED") {
+      return "bg-violet-500/10 text-violet-600 border-violet-500/20 dark:bg-violet-400/10 dark:text-violet-400 dark:border-violet-400/20";
+    }
+    return "bg-destructive/10 text-destructive border-destructive/20";
   }, []);
 
   const shipmentBadgeClass = useCallback((status: ShipmentStatusType) => {
@@ -441,13 +453,16 @@ const OrderManagement = () => {
     });
   }, []);
 
-  const formatMoney = useCallback((amount?: number | null, currency = "BDT") => {
-    const value = Number(amount ?? 0);
-    return `${currency} ${value.toLocaleString("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  }, []);
+  const formatMoney = useCallback(
+    (amount?: number | null, currency = "BDT") => {
+      const value = Number(amount ?? 0);
+      return `${currency} ${value.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    },
+    [],
+  );
 
   const formatVariantLabel = useCallback((item?: OrderItem | null) => {
     if (!item?.variant) return "";
@@ -509,9 +524,12 @@ const OrderManagement = () => {
 
   const loadShipmentDetails = useCallback(
     async (orderId: number) => {
-      const shipRes = await fetch(`/api/shipments?orderId=${orderId}&limit=1&page=1`, {
-        cache: "no-store",
-      });
+      const shipRes = await fetch(
+        `/api/shipments?orderId=${orderId}&limit=1&page=1`,
+        {
+          cache: "no-store",
+        },
+      );
 
       if (shipRes.ok) {
         const shipmentData = await shipRes.json().catch(() => ({}));
@@ -601,18 +619,22 @@ const OrderManagement = () => {
 
         if (deliveryManRes.ok) {
           const deliveryManData = await deliveryManRes.json().catch(() => ({}));
-          const nextDeliveryMen = Array.isArray(deliveryManData?.data?.deliveryMen)
-            ? (deliveryManData.data.deliveryMen as Array<{
-                id: string;
-                fullName: string;
-                phone: string;
-                employeeCode?: string | null;
-                warehouse?: {
-                  id: number;
-                  name: string;
-                  code: string;
-                } | null;
-              }>).map((deliveryMan) => ({
+          const nextDeliveryMen = Array.isArray(
+            deliveryManData?.data?.deliveryMen,
+          )
+            ? (
+                deliveryManData.data.deliveryMen as Array<{
+                  id: string;
+                  fullName: string;
+                  phone: string;
+                  employeeCode?: string | null;
+                  warehouse?: {
+                    id: number;
+                    name: string;
+                    code: string;
+                  } | null;
+                }>
+              ).map((deliveryMan) => ({
                 id: deliveryMan.id,
                 fullName: deliveryMan.fullName,
                 phone: deliveryMan.phone,
@@ -755,8 +777,21 @@ const OrderManagement = () => {
         applyShipmentState(data as Shipment);
       }
 
-      // 3) Auto: if shipment DELIVERED, set order.status = DELIVERED
-      if (editShipmentStatus === "DELIVERED" && editOrderStatus === "SHIPPED") {
+      const shipmentToOrderStatus =
+        editShipmentStatus === "DELIVERED"
+          ? "DELIVERED"
+          : editShipmentStatus === "RETURNED"
+            ? "RETURNED"
+            : editShipmentStatus === "FAILED"
+              ? "FAILED"
+              : editShipmentStatus === "CANCELLED"
+                ? "CANCELLED"
+                : null;
+
+      if (
+        shipmentToOrderStatus &&
+        shipmentToOrderStatus !== editOrderStatus
+      ) {
         try {
           const autoRes = await fetch(`/api/orders/${orderDetail.id}`, {
             method: "PATCH",
@@ -764,7 +799,7 @@ const OrderManagement = () => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              status: "DELIVERED",
+              status: shipmentToOrderStatus,
             }),
           });
 
@@ -772,15 +807,17 @@ const OrderManagement = () => {
 
           if (autoRes.ok) {
             setOrderDetail((prev) =>
-              prev ? { ...prev, status: "DELIVERED" } : prev,
+              prev ? { ...prev, status: shipmentToOrderStatus } : prev,
             );
             setOrders((prev) =>
               prev.map((o) =>
-                o.id === orderDetail.id ? { ...o, status: "DELIVERED" } : o,
+                o.id === orderDetail.id
+                  ? { ...o, status: shipmentToOrderStatus }
+                  : o,
               ),
             );
           } else {
-            console.warn("Order auto DELIVERED failed:", autoData);
+            console.warn("Order auto status sync failed:", autoData);
           }
         } catch (e) {
           console.warn("Order auto-update error:", e);
@@ -975,6 +1012,8 @@ const OrderManagement = () => {
               <option value="PROCESSING">Processing</option>
               <option value="SHIPPED">Shipped</option>
               <option value="DELIVERED">Delivered</option>
+              <option value="FAILED">Failed</option>
+              <option value="RETURNED">Returned</option>
               <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
@@ -1620,6 +1659,8 @@ const OrderManagement = () => {
                           <option value="PROCESSING">PROCESSING</option>
                           <option value="SHIPPED">SHIPPED</option>
                           <option value="DELIVERED">DELIVERED</option>
+                          <option value="FAILED">FAILED</option>
+                          <option value="RETURNED">RETURNED</option>
                           <option value="CANCELLED">CANCELLED</option>
                         </select>
                       </div>
@@ -1636,6 +1677,7 @@ const OrderManagement = () => {
                         >
                           <option value="PAID">PAID</option>
                           <option value="UNPAID">UNPAID</option>
+                          <option value="REFUNDED">REFUNDED</option>
                         </select>
                       </div>
                       <div className="space-y-1 text-xs">
@@ -1831,8 +1873,8 @@ const OrderManagement = () => {
                             Delivery Man Assignment
                           </h4>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Assign or reassign this shipment to an active delivery
-                            man directly from order management.
+                            Assign or reassign this shipment to an active
+                            delivery man directly from order management.
                           </p>
                         </div>
                         <button
@@ -1849,8 +1891,8 @@ const OrderManagement = () => {
 
                       {!shipment ? (
                         <div className="mt-4 rounded-xl border border-dashed border-border bg-background px-4 py-4 text-xs text-muted-foreground">
-                          Create and save a shipment first. Once a shipment exists,
-                          you can assign a delivery man from here.
+                          Create and save a shipment first. Once a shipment
+                          exists, you can assign a delivery man from here.
                         </div>
                       ) : currentAssignment ? (
                         <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
@@ -1867,7 +1909,9 @@ const OrderManagement = () => {
                                     : ""}
                                 </p>
                               </div>
-                              <AssignmentStatusBadge status={currentAssignment.status} />
+                              <AssignmentStatusBadge
+                                status={currentAssignment.status}
+                              />
                             </div>
 
                             <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -1898,7 +1942,9 @@ const OrderManagement = () => {
                                 ) : null}
                                 {currentAssignment.pickupProof?.imageUrl ? (
                                   <a
-                                    href={currentAssignment.pickupProof.imageUrl}
+                                    href={
+                                      currentAssignment.pickupProof.imageUrl
+                                    }
                                     target="_blank"
                                     rel="noreferrer"
                                     className="mt-2 inline-flex text-primary underline"
@@ -1943,12 +1989,18 @@ const OrderManagement = () => {
                                       <p className="font-medium text-foreground">
                                         {log.fromStatus
                                           ? `${ASSIGNMENT_STATUS_LABELS[log.fromStatus]} -> ${ASSIGNMENT_STATUS_LABELS[log.toStatus]}`
-                                          : ASSIGNMENT_STATUS_LABELS[log.toStatus]}
+                                          : ASSIGNMENT_STATUS_LABELS[
+                                              log.toStatus
+                                            ]}
                                       </p>
-                                      <span>{formatDateTime(log.createdAt)}</span>
+                                      <span>
+                                        {formatDateTime(log.createdAt)}
+                                      </span>
                                     </div>
                                     {log.actor?.name ? (
-                                      <p className="mt-1">By {log.actor.name}</p>
+                                      <p className="mt-1">
+                                        By {log.actor.name}
+                                      </p>
                                     ) : null}
                                     {log.note ? (
                                       <p className="mt-2 rounded-lg border border-border bg-background px-2 py-2">
@@ -1990,7 +2042,8 @@ const OrderManagement = () => {
                               Delivery PIN
                             </p>
                             <p className="delivery-pin-value mt-1 font-mono text-sm font-semibold">
-                              {shipment.deliveryConfirmationPin || "Will generate on OFD"}
+                              {shipment.deliveryConfirmationPin ||
+                                "Will generate on OFD"}
                             </p>
                           </div>
                         </div>

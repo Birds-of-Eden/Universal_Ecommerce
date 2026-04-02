@@ -53,6 +53,20 @@ const getOrderStatusConfig = (status: string) => {
         "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
     };
   }
+  if (s === "RETURNED") {
+    return {
+      label: "Returned",
+      className:
+        "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300",
+    };
+  }
+  if (s === "FAILED") {
+    return {
+      label: "Failed",
+      className:
+        "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300",
+    };
+  }
   if (s === "SHIPPED" || s === "PROCESSING" || s === "CONFIRMED") {
     return {
       label:
@@ -86,6 +100,13 @@ const getPaymentStatusConfig = (paymentStatus: string) => {
       label: "Paid",
       className:
         "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
+    };
+  }
+  if (s === "REFUNDED") {
+    return {
+      label: "Refunded",
+      className:
+        "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300",
     };
   }
   return {

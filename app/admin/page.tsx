@@ -49,7 +49,10 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
   const processingOrders = stats.orders?.processing ?? Math.max(0, Math.round(stats.pendingOrders * 0.45));
   const shippedOrders = stats.orders?.shipped ?? Math.max(0, Math.round(deliveredOrders * 0.24));
   const cancelledOrders = stats.orders?.cancelled ?? Math.max(0, Math.round(stats.totalOrders * 0.04));
-  const unpaidOrders = stats.orders?.unpaid ?? Math.max(0, stats.totalOrders - paidOrders);
+  const failedOrders = stats.orders?.failed ?? stats.failedOrders ?? Math.max(0, Math.round(stats.totalOrders * 0.015));
+  const returnedOrders = stats.orders?.returned ?? stats.returnedOrders ?? Math.max(0, Math.round(stats.totalOrders * 0.02));
+  const refundedPayments = stats.refundRequests ?? Math.max(0, Math.round(stats.totalOrders * 0.03));
+  const unpaidOrders = stats.orders?.unpaid ?? Math.max(0, stats.totalOrders - paidOrders - refundedPayments);
   const totalVariants = stats.inventory?.totalVariants ?? stats.totalVariants ?? Math.max(stats.topProducts.length * 3, Math.round(stats.totalProducts * 1.6));
   const lowStockVariants = stats.inventory?.lowStockVariants ?? stats.lowStockVariants ?? stats.lowStockProducts;
   const outOfStockVariants = stats.inventory?.outOfStockVariants ?? stats.outOfStockVariants ?? Math.max(0, Math.round(lowStockVariants * 0.35));
@@ -73,7 +76,7 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
   const paymentBreakdown = stats.analytics?.paymentBreakdown ?? [
     { label: "Paid", value: paidOrders, tone: "good" as const },
     { label: "Unpaid", value: unpaidOrders, tone: "warn" as const },
-    { label: "Refunded", value: refundRequests, tone: "danger" as const },
+    { label: "Refunded", value: refundedPayments, tone: "danger" as const },
   ];
   const orderStatusBreakdown = stats.analytics?.orderStatusBreakdown ?? [
     { label: "Pending", value: stats.pendingOrders, tone: "warn" as const },
@@ -81,6 +84,8 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
     { label: "Shipped", value: shippedOrders },
     { label: "Delivered", value: deliveredOrders, tone: "good" as const },
     { label: "Cancelled", value: cancelledOrders, tone: "danger" as const },
+    { label: "Failed", value: failedOrders, tone: "danger" as const },
+    { label: "Returned", value: returnedOrders, tone: "warn" as const },
   ];
   const warehouseDistribution = stats.inventory?.warehouseDistribution ?? [
     { label: "Default Warehouse", value: Math.max(0, Math.round(inStockVariants * 0.54)) },
@@ -171,6 +176,8 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
     processingOrders,
     shippedOrders,
     cancelledOrders,
+    failedOrders,
+    returnedOrders,
     unpaidOrders,
     activeProducts,
     totalVariants,

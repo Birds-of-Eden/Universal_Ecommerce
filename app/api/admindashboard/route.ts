@@ -77,7 +77,11 @@ export async function GET(request: NextRequest) {
       recentOrders,
       topProducts,
       totalRevenue,
-      prevTotalRevenue
+      prevTotalRevenue,
+      refundCount,
+      recentRefunds,
+      failedOrders,
+      returnedOrders,
     ] = await Promise.all([
       // Current period users
       prisma.user.count({
@@ -173,7 +177,10 @@ export async function GET(request: NextRequest) {
       prisma.order.aggregate({
         where: {
           order_date: { gte: startDate },
-          paymentStatus: 'PAID'
+          paymentStatus: 'PAID',
+          status: {
+            notIn: ['CANCELLED', 'FAILED', 'RETURNED'],
+          },
         },
         _sum: {
           grand_total: true
@@ -184,12 +191,73 @@ export async function GET(request: NextRequest) {
       prisma.order.aggregate({
         where: {
           order_date: { gte: prevStartDate, lte: prevEndDate },
-          paymentStatus: 'PAID'
+          paymentStatus: 'PAID',
+          status: {
+            notIn: ['CANCELLED', 'FAILED', 'RETURNED'],
+          },
         },
         _sum: {
           grand_total: true
         }
-      })
+      }),
+
+      // Current period refund requests
+      prisma.refund.count({
+        where: {
+          createdAt: { gte: startDate },
+          status: {
+            in: ['REQUESTED', 'APPROVED', 'COMPLETED'],
+          },
+        },
+      }),
+
+      // Recent refund requests for dashboard alerts
+      prisma.refund.findMany({
+        where: {
+          createdAt: { gte: startDate },
+          status: {
+            in: ['REQUESTED', 'APPROVED', 'COMPLETED'],
+          },
+        },
+        take: 5,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          order: {
+            select: {
+              id: true,
+              name: true,
+              phone_number: true,
+            },
+          },
+          orderItem: {
+            select: {
+              id: true,
+              quantity: true,
+              product: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+
+      prisma.order.count({
+        where: {
+          order_date: { gte: startDate },
+          status: 'FAILED',
+        },
+      }),
+
+      prisma.order.count({
+        where: {
+          order_date: { gte: startDate },
+          status: 'RETURNED',
+        },
+      }),
     ]);
 
     // Calculate growth percentages
@@ -224,7 +292,10 @@ export async function GET(request: NextRequest) {
       totalProducts,
       totalRevenue: currentRevenue,
       pendingOrders,
+      failedOrders,
+      returnedOrders,
       lowStockProducts: lowStockProductsCount,
+      refundRequests: refundCount,
       recentOrders: recentOrders.map((order: any) => ({
         id: order.id,
         grandTotal: Number(order.grand_total),
@@ -251,6 +322,21 @@ export async function GET(request: NextRequest) {
       conversionRate: totalUsers > 0
         ? Math.round(((totalOrders / totalUsers) * 100) * 100) / 100
         : 0,
+      orders: {
+        refundAlerts: recentRefunds.map((refund: any) => ({
+          id: refund.id,
+          title: refund.orderItem?.product?.name || `Order #${refund.orderId}`,
+          subtitle: `Order #${refund.orderId} • Qty ${refund.quantity || refund.orderItem?.quantity || 1}`,
+          status: refund.status,
+          tone:
+            refund.status === 'COMPLETED'
+              ? ('good' as const)
+              : refund.status === 'APPROVED'
+                ? ('warn' as const)
+                : ('danger' as const),
+          value: `৳${Number(refund.amount || 0).toFixed(2)}`,
+        })),
+      },
     };
 
     return NextResponse.json(stats);

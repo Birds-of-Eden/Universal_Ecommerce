@@ -368,9 +368,9 @@ export function mapAssignmentStatusToOrderStatus(
     case DeliveryAssignmentStatus.DELIVERED:
       return "DELIVERED";
     case DeliveryAssignmentStatus.FAILED:
-      return "PROCESSING";
+      return "FAILED";
     case DeliveryAssignmentStatus.RETURNED:
-      return "CANCELLED";
+      return "RETURNED";
     case DeliveryAssignmentStatus.ASSIGNED:
     case DeliveryAssignmentStatus.REJECTED:
     default:
