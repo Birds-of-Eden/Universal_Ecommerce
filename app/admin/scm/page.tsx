@@ -1,0 +1,89 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { BookOpen, PackageCheck, ShoppingCart } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const cards = [
+  {
+    title: "Suppliers",
+    href: "/admin/scm/suppliers",
+    description: "Maintain approved vendors, contacts, and lead times.",
+    icon: BookOpen,
+    permission: "suppliers.read",
+    globalPermission: "suppliers.manage",
+  },
+  {
+    title: "Purchase Orders",
+    href: "/admin/scm/purchase-orders",
+    description: "Create, submit, and approve purchase orders per warehouse.",
+    icon: ShoppingCart,
+    permission: "purchase_orders.read",
+  },
+  {
+    title: "Goods Receipts",
+    href: "/admin/scm/goods-receipts",
+    description: "Post inbound stock against approved purchase orders.",
+    icon: PackageCheck,
+    permission: "goods_receipts.read",
+  },
+  {
+    title: "Supplier Ledger",
+    href: "/admin/scm/supplier-ledger",
+    description: "Track payable balances, supplier invoices, and supplier payments.",
+    icon: BookOpen,
+    permission: "supplier_ledger.read",
+    globalPermission: "supplier_ledger.read",
+  },
+];
+
+export default function ScmHomePage() {
+  const { data: session } = useSession();
+  const permissions = Array.isArray((session?.user as any)?.permissions)
+    ? ((session?.user as any).permissions as string[])
+    : [];
+  const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
+    ? ((session?.user as any).globalPermissions as string[])
+    : [];
+
+  const visibleCards = useMemo(() => {
+    return cards.filter((card) => {
+      const hasPermission = permissions.includes(card.permission);
+      const hasGlobalPermission = card.globalPermission
+        ? globalPermissions.includes(card.globalPermission)
+        : true;
+      return hasPermission && hasGlobalPermission;
+    });
+  }, [globalPermissions, permissions]);
+
+  return (
+    <div className="space-y-6 p-6">
+      <div>
+        <h1 className="text-2xl font-bold">Supply Chain Management</h1>
+        <p className="text-sm text-muted-foreground">
+          Phase 1 foundation for supplier, purchasing, and goods receipt operations.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {visibleCards.map((card) => (
+          <Link key={card.href} href={card.href}>
+            <Card className="h-full transition-colors hover:border-primary">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <card.icon className="h-5 w-5" />
+                  {card.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {card.description}
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}

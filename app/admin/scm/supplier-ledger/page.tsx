@@ -1,0 +1,662 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { useSession } from "next-auth/react";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+
+type SupplierSummary = {
+  id: number;
+  code: string;
+  name: string;
+  isActive: boolean;
+  currency: string;
+  totalDebit: string;
+  totalCredit: string;
+  balance: string;
+};
+
+type SupplierOption = {
+  id: number;
+  code: string;
+  name: string;
+  currency: string;
+};
+
+type PurchaseOrderOption = {
+  id: number;
+  poNumber: string;
+  supplier: {
+    id: number;
+    name: string;
+  };
+  status: string;
+  grandTotal: number | string;
+};
+
+type SupplierLedgerDetail = {
+  supplier: SupplierOption & { isActive: boolean };
+  summary: {
+    totalDebit: string;
+    totalCredit: string;
+    balance: string;
+  };
+  entries: Array<{
+    id: number;
+    entryDate: string;
+    entryType: string;
+    direction: "DEBIT" | "CREDIT";
+    amount: number | string;
+    currency: string;
+    note: string | null;
+    referenceNumber: string | null;
+    supplierInvoice?: { invoiceNumber: string; status: string } | null;
+    supplierPayment?: { paymentNumber: string; method: string } | null;
+    purchaseOrder?: { poNumber: string } | null;
+  }>;
+  invoices: Array<{
+    id: number;
+    invoiceNumber: string;
+    status: string;
+    issueDate: string;
+    dueDate: string | null;
+    total: number | string;
+    purchaseOrder?: { poNumber: string } | null;
+    payments: Array<{ id: number; paymentNumber: string; amount: number | string; paymentDate: string }>;
+  }>;
+  payments: Array<{
+    id: number;
+    paymentNumber: string;
+    paymentDate: string;
+    amount: number | string;
+    method: string;
+    reference: string | null;
+    supplierInvoice?: { invoiceNumber: string; status: string } | null;
+  }>;
+};
+
+async function readJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || fallbackMessage);
+  }
+  return data as T;
+}
+
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { cache: "no-store" });
+  return readJson<T>(response, "Request failed");
+}
+
+export default function SupplierLedgerPage() {
+  const { data: session } = useSession();
+  const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
+    ? ((session?.user as any).globalPermissions as string[])
+    : [];
+
+  const canManageInvoices = globalPermissions.includes("supplier_invoices.manage");
+  const canManagePayments = globalPermissions.includes("supplier_payments.manage");
+
+  const [suppliers, setSuppliers] = useState<SupplierSummary[]>([]);
+  const [supplierOptions, setSupplierOptions] = useState<SupplierOption[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrderOption[]>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const [detail, setDetail] = useState<SupplierLedgerDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [savingInvoice, setSavingInvoice] = useState(false);
+  const [savingPayment, setSavingPayment] = useState(false);
+
+  const [invoicePurchaseOrderId, setInvoicePurchaseOrderId] = useState("");
+  const [invoiceIssueDate, setInvoiceIssueDate] = useState("");
+  const [invoiceDueDate, setInvoiceDueDate] = useState("");
+  const [invoiceSubtotal, setInvoiceSubtotal] = useState("");
+  const [invoiceTaxTotal, setInvoiceTaxTotal] = useState("0");
+  const [invoiceOtherCharges, setInvoiceOtherCharges] = useState("0");
+  const [invoiceNote, setInvoiceNote] = useState("");
+
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("BANK_TRANSFER");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentNote, setPaymentNote] = useState("");
+
+  const loadBaseData = async () => {
+    try {
+      setLoading(true);
+      const [summary, supplierData, purchaseOrderData] = await Promise.all([
+        getJson<SupplierSummary[]>("/api/scm/supplier-ledger"),
+        getJson<SupplierOption[]>("/api/scm/suppliers"),
+        getJson<PurchaseOrderOption[]>("/api/scm/purchase-orders"),
+      ]);
+      setSuppliers(Array.isArray(summary) ? summary : []);
+      setSupplierOptions(Array.isArray(supplierData) ? supplierData : []);
+      setPurchaseOrders(Array.isArray(purchaseOrderData) ? purchaseOrderData : []);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to load supplier ledger");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDetail = async (supplierId: string) => {
+    if (!supplierId) {
+      setDetail(null);
+      return;
+    }
+    try {
+      const data = await getJson<SupplierLedgerDetail>(
+        `/api/scm/supplier-ledger?supplierId=${supplierId}`,
+      );
+      setDetail(data);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to load supplier details");
+      setDetail(null);
+    }
+  };
+
+  useEffect(() => {
+    void loadBaseData();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSupplierId) {
+      setDetail(null);
+      return;
+    }
+    void loadDetail(selectedSupplierId);
+  }, [selectedSupplierId]);
+
+  const supplierPurchaseOrders = useMemo(() => {
+    const supplierId = Number(selectedSupplierId);
+    if (!Number.isInteger(supplierId) || supplierId <= 0) return [];
+    return purchaseOrders.filter((purchaseOrder) => purchaseOrder.supplier.id === supplierId);
+  }, [purchaseOrders, selectedSupplierId]);
+
+  const selectedPurchaseOrder = useMemo(() => {
+    const purchaseOrderId = Number(invoicePurchaseOrderId);
+    if (!Number.isInteger(purchaseOrderId) || purchaseOrderId <= 0) return null;
+    return supplierPurchaseOrders.find((purchaseOrder) => purchaseOrder.id === purchaseOrderId) || null;
+  }, [invoicePurchaseOrderId, supplierPurchaseOrders]);
+
+  useEffect(() => {
+    if (selectedPurchaseOrder && !invoiceSubtotal) {
+      setInvoiceSubtotal(String(Number(selectedPurchaseOrder.grandTotal || 0)));
+    }
+  }, [invoiceSubtotal, selectedPurchaseOrder]);
+
+  const createInvoice = async () => {
+    if (!selectedSupplierId) {
+      toast.error("Select a supplier");
+      return;
+    }
+    try {
+      setSavingInvoice(true);
+      const response = await fetch("/api/scm/supplier-invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplierId: Number(selectedSupplierId),
+          purchaseOrderId: invoicePurchaseOrderId ? Number(invoicePurchaseOrderId) : null,
+          issueDate: invoiceIssueDate || null,
+          dueDate: invoiceDueDate || null,
+          subtotal: invoiceSubtotal || 0,
+          taxTotal: invoiceTaxTotal || 0,
+          otherCharges: invoiceOtherCharges || 0,
+          note: invoiceNote,
+        }),
+      });
+      await readJson(response, "Failed to create supplier invoice");
+      toast.success("Supplier invoice created");
+      setInvoicePurchaseOrderId("");
+      setInvoiceIssueDate("");
+      setInvoiceDueDate("");
+      setInvoiceSubtotal("");
+      setInvoiceTaxTotal("0");
+      setInvoiceOtherCharges("0");
+      setInvoiceNote("");
+      await Promise.all([loadBaseData(), loadDetail(selectedSupplierId)]);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to create supplier invoice");
+    } finally {
+      setSavingInvoice(false);
+    }
+  };
+
+  const createPayment = async () => {
+    if (!selectedSupplierId) {
+      toast.error("Select a supplier");
+      return;
+    }
+    try {
+      setSavingPayment(true);
+      const response = await fetch("/api/scm/supplier-payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          supplierId: Number(selectedSupplierId),
+          supplierInvoiceId: paymentInvoiceId ? Number(paymentInvoiceId) : null,
+          paymentDate: paymentDate || null,
+          amount: paymentAmount,
+          method: paymentMethod,
+          reference: paymentReference,
+          note: paymentNote,
+        }),
+      });
+      await readJson(response, "Failed to create supplier payment");
+      toast.success("Supplier payment created");
+      setPaymentInvoiceId("");
+      setPaymentDate("");
+      setPaymentAmount("");
+      setPaymentMethod("BANK_TRANSFER");
+      setPaymentReference("");
+      setPaymentNote("");
+      await Promise.all([loadBaseData(), loadDetail(selectedSupplierId)]);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to create supplier payment");
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Supplier Ledger</h1>
+          <p className="text-sm text-muted-foreground">
+            Track supplier payable balances using invoice debits and payment credits.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => void loadBaseData()} disabled={loading}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Supplier Balances</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading supplier balances...</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Supplier</TableHead>
+                    <TableHead>Total Debit</TableHead>
+                    <TableHead>Total Credit</TableHead>
+                    <TableHead>Balance</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {suppliers.map((supplier) => (
+                    <TableRow key={supplier.id}>
+                      <TableCell>
+                        <div className="font-medium">{supplier.name}</div>
+                        <div className="text-xs text-muted-foreground">{supplier.code}</div>
+                      </TableCell>
+                      <TableCell>{supplier.totalDebit}</TableCell>
+                      <TableCell>{supplier.totalCredit}</TableCell>
+                      <TableCell>{supplier.balance}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedSupplierId(String(supplier.id))}
+                        >
+                          Open Ledger
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ledger Workspace</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Supplier</Label>
+            <select
+              className="w-full rounded-md border bg-background px-3 py-2 md:w-[420px]"
+              value={selectedSupplierId}
+              onChange={(event) => setSelectedSupplierId(event.target.value)}
+            >
+              <option value="">Select supplier</option>
+              {supplierOptions.map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name} ({supplier.code})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {detail ? (
+            <>
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">Total Debit</p>
+                    <p className="text-2xl font-semibold">{detail.summary.totalDebit}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">Total Credit</p>
+                    <p className="text-2xl font-semibold">{detail.summary.totalCredit}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">Outstanding Balance</p>
+                    <p className="text-2xl font-semibold">{detail.summary.balance}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {(canManageInvoices || canManagePayments) ? (
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {canManageInvoices ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Create Supplier Invoice</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Label>Purchase Order</Label>
+                          <select
+                            className="w-full rounded-md border bg-background px-3 py-2"
+                            value={invoicePurchaseOrderId}
+                            onChange={(event) => setInvoicePurchaseOrderId(event.target.value)}
+                          >
+                            <option value="">Optional purchase order</option>
+                            {supplierPurchaseOrders.map((purchaseOrder) => (
+                              <option key={purchaseOrder.id} value={purchaseOrder.id}>
+                                {purchaseOrder.poNumber} • {purchaseOrder.status}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <Label>Issue Date</Label>
+                            <Input
+                              type="date"
+                              value={invoiceIssueDate}
+                              onChange={(event) => setInvoiceIssueDate(event.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Due Date</Label>
+                            <Input
+                              type="date"
+                              value={invoiceDueDate}
+                              onChange={(event) => setInvoiceDueDate(event.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Subtotal</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={invoiceSubtotal}
+                              onChange={(event) => setInvoiceSubtotal(event.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Tax Total</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={invoiceTaxTotal}
+                              onChange={(event) => setInvoiceTaxTotal(event.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Other Charges</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={invoiceOtherCharges}
+                              onChange={(event) => setInvoiceOtherCharges(event.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Note</Label>
+                          <Textarea
+                            rows={4}
+                            value={invoiceNote}
+                            onChange={(event) => setInvoiceNote(event.target.value)}
+                          />
+                        </div>
+                        <Button onClick={() => void createInvoice()} disabled={savingInvoice}>
+                          {savingInvoice ? "Posting..." : "Post Invoice"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  {canManagePayments ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Create Supplier Payment</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <Label>Invoice</Label>
+                          <select
+                            className="w-full rounded-md border bg-background px-3 py-2"
+                            value={paymentInvoiceId}
+                            onChange={(event) => setPaymentInvoiceId(event.target.value)}
+                          >
+                            <option value="">Optional invoice allocation</option>
+                            {detail.invoices
+                              .filter((invoice) => invoice.status !== "PAID")
+                              .map((invoice) => (
+                                <option key={invoice.id} value={invoice.id}>
+                                  {invoice.invoiceNumber} • {invoice.status} • {invoice.total}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <Label>Payment Date</Label>
+                            <Input
+                              type="date"
+                              value={paymentDate}
+                              onChange={(event) => setPaymentDate(event.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Amount</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={paymentAmount}
+                              onChange={(event) => setPaymentAmount(event.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Method</Label>
+                            <select
+                              className="w-full rounded-md border bg-background px-3 py-2"
+                              value={paymentMethod}
+                              onChange={(event) => setPaymentMethod(event.target.value)}
+                            >
+                              <option value="BANK_TRANSFER">Bank Transfer</option>
+                              <option value="CASH">Cash</option>
+                              <option value="MOBILE_BANKING">Mobile Banking</option>
+                              <option value="CHEQUE">Cheque</option>
+                              <option value="ADJUSTMENT">Adjustment</option>
+                            </select>
+                          </div>
+                          <div>
+                            <Label>Reference</Label>
+                            <Input
+                              value={paymentReference}
+                              onChange={(event) => setPaymentReference(event.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Note</Label>
+                          <Textarea
+                            rows={4}
+                            value={paymentNote}
+                            onChange={(event) => setPaymentNote(event.target.value)}
+                          />
+                        </div>
+                        <Button onClick={() => void createPayment()} disabled={savingPayment}>
+                          {savingPayment ? "Posting..." : "Post Payment"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="grid gap-6 xl:grid-cols-3">
+                <Card className="xl:col-span-2">
+                  <CardHeader>
+                    <CardTitle>Ledger Entries</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Reference</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Debit</TableHead>
+                            <TableHead>Credit</TableHead>
+                            <TableHead>Note</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {detail.entries.map((entry) => (
+                            <TableRow key={entry.id}>
+                              <TableCell>{new Date(entry.entryDate).toLocaleDateString()}</TableCell>
+                              <TableCell>{entry.referenceNumber || "-"}</TableCell>
+                              <TableCell>{entry.entryType}</TableCell>
+                              <TableCell>
+                                {entry.direction === "DEBIT" ? Number(entry.amount).toFixed(2) : "-"}
+                              </TableCell>
+                              <TableCell>
+                                {entry.direction === "CREDIT" ? Number(entry.amount).toFixed(2) : "-"}
+                              </TableCell>
+                              <TableCell className="max-w-[320px] truncate">{entry.note || "-"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Open Invoices</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {detail.invoices.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No supplier invoices yet.</p>
+                    ) : (
+                      detail.invoices.map((invoice) => (
+                        <div key={invoice.id} className="rounded-lg border p-3">
+                          <div className="font-medium">{invoice.invoiceNumber}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {invoice.status} • {Number(invoice.total).toFixed(2)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {invoice.purchaseOrder?.poNumber || "Direct supplier invoice"}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Supplier Payments</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Payment No</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Method</TableHead>
+                          <TableHead>Invoice</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Reference</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detail.payments.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                              No supplier payments found.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          detail.payments.map((payment) => (
+                            <TableRow key={payment.id}>
+                              <TableCell>{payment.paymentNumber}</TableCell>
+                              <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
+                              <TableCell>{payment.method}</TableCell>
+                              <TableCell>{payment.supplierInvoice?.invoiceNumber || "-"}</TableCell>
+                              <TableCell>{Number(payment.amount).toFixed(2)}</TableCell>
+                              <TableCell>{payment.reference || "-"}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Select a supplier to view ledger details and post AP transactions.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

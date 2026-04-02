@@ -25,6 +25,7 @@ type SessionShape = {
   user?: {
     role?: string;
     permissions?: string[];
+    globalPermissions?: string[];
     defaultAdminRoute?: "/admin" | "/admin/warehouse";
   };
 } | null;
@@ -32,6 +33,7 @@ type SessionShape = {
 type PermissionRule = {
   prefix: string;
   permissions: string[];
+  globalOnly?: boolean;
   methods?: string[];
   excludePrefixes?: string[];
 };
@@ -40,6 +42,51 @@ const adminPagePermissionRules: PermissionRule[] = [
   {
     prefix: "/admin/warehouse",
     permissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
+  },
+  {
+    prefix: "/admin/scm/suppliers",
+    permissions: ["suppliers.read", "suppliers.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/admin/scm/purchase-orders",
+    permissions: [
+      "purchase_orders.read",
+      "purchase_orders.manage",
+      "purchase_orders.approve",
+      "goods_receipts.manage",
+    ],
+  },
+  {
+    prefix: "/admin/scm/goods-receipts",
+    permissions: ["goods_receipts.read", "goods_receipts.manage"],
+  },
+  {
+    prefix: "/admin/scm/supplier-ledger",
+    permissions: [
+      "supplier_ledger.read",
+      "supplier_invoices.read",
+      "supplier_payments.read",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/admin/scm",
+    permissions: [
+      "scm.access",
+      "suppliers.read",
+      "suppliers.manage",
+      "purchase_orders.read",
+      "purchase_orders.manage",
+      "purchase_orders.approve",
+      "goods_receipts.read",
+      "goods_receipts.manage",
+      "supplier_ledger.read",
+      "supplier_invoices.read",
+      "supplier_invoices.manage",
+      "supplier_payments.read",
+      "supplier_payments.manage",
+    ],
   },
   { prefix: "/admin/analytics", permissions: ["dashboard.read", "admin.panel.access"] },
   { prefix: "/admin/reports", permissions: ["reports.read"] },
@@ -88,6 +135,76 @@ const adminPagePermissionRules: PermissionRule[] = [
 ];
 
 const apiPermissionRules: PermissionRule[] = [
+  {
+    prefix: "/api/scm/suppliers",
+    methods: ["GET", "POST", "PUT", "PATCH"],
+    permissions: ["suppliers.read", "suppliers.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/purchase-orders",
+    methods: ["GET"],
+    permissions: [
+      "purchase_orders.read",
+      "purchase_orders.manage",
+      "purchase_orders.approve",
+      "goods_receipts.manage",
+    ],
+  },
+  {
+    prefix: "/api/scm/purchase-orders",
+    methods: ["POST"],
+    permissions: ["purchase_orders.manage"],
+  },
+  {
+    prefix: "/api/scm/purchase-orders",
+    methods: ["PATCH", "PUT"],
+    permissions: ["purchase_orders.manage", "purchase_orders.approve"],
+  },
+  {
+    prefix: "/api/scm/goods-receipts",
+    methods: ["GET"],
+    permissions: ["goods_receipts.read", "goods_receipts.manage"],
+  },
+  {
+    prefix: "/api/scm/goods-receipts",
+    methods: ["POST"],
+    permissions: ["goods_receipts.manage"],
+  },
+  {
+    prefix: "/api/scm/supplier-ledger",
+    methods: ["GET"],
+    permissions: [
+      "supplier_ledger.read",
+      "supplier_invoices.read",
+      "supplier_payments.read",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/supplier-invoices",
+    methods: ["GET"],
+    permissions: ["supplier_ledger.read", "supplier_invoices.read", "supplier_invoices.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/supplier-invoices",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["supplier_invoices.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/supplier-payments",
+    methods: ["GET"],
+    permissions: ["supplier_ledger.read", "supplier_payments.read", "supplier_payments.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/supplier-payments",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["supplier_payments.manage"],
+    globalOnly: true,
+  },
   {
     prefix: "/api/admin/rbac/users",
     permissions: ["users.manage"],
@@ -273,6 +390,12 @@ function getPermissionKeys(session: SessionShape): string[] {
   return Array.isArray(session?.user?.permissions) ? session.user.permissions : [];
 }
 
+function getGlobalPermissionKeys(session: SessionShape): string[] {
+  return Array.isArray(session?.user?.globalPermissions)
+    ? session.user.globalPermissions
+    : [];
+}
+
 function hasAnyPermission(permissionKeys: string[], required: string[]): boolean {
   if (required.length === 0) return true;
   return required.some((permission) => permissionKeys.includes(permission));
@@ -355,6 +478,7 @@ export default async function authMiddleware(request: NextRequest) {
   }
 
   const permissionKeys = getPermissionKeys(session);
+  const globalPermissionKeys = getGlobalPermissionKeys(session);
   const adminAccess = hasAdminPanelAccess(session);
   const defaultAdminRoute = getDefaultAdminRoute(session);
   const dashboardRoute = getDashboardRoute(session?.user);
@@ -378,7 +502,10 @@ export default async function authMiddleware(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!hasAnyPermission(permissionKeys, matchedApiRule.permissions)) {
+    const apiPermissionKeys = matchedApiRule.globalOnly
+      ? globalPermissionKeys
+      : permissionKeys;
+    if (!hasAnyPermission(apiPermissionKeys, matchedApiRule.permissions)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     return NextResponse.next();
@@ -422,7 +549,10 @@ export default async function authMiddleware(request: NextRequest) {
       }
 
       const matchedPageRule = findMatchedRule(pathname, method, adminPagePermissionRules);
-      if (matchedPageRule && !hasAnyPermission(permissionKeys, matchedPageRule.permissions)) {
+      const pagePermissionKeys = matchedPageRule?.globalOnly
+        ? globalPermissionKeys
+        : permissionKeys;
+      if (matchedPageRule && !hasAnyPermission(pagePermissionKeys, matchedPageRule.permissions)) {
         if (pathname !== "/admin") {
           if (pathname === defaultAdminRoute) {
             return NextResponse.redirect(new URL("/ecommerce/user/", request.url));
