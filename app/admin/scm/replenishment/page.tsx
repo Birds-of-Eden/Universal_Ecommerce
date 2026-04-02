@@ -118,6 +118,9 @@ export default function ReplenishmentPlanningPage() {
   const canCreateRequisition =
     permissions.includes("replenishment.manage") &&
     permissions.includes("purchase_requisitions.manage");
+  const canCreateTransfer =
+    permissions.includes("replenishment.manage") &&
+    permissions.includes("warehouse_transfers.manage");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -321,6 +324,46 @@ export default function ReplenishmentPlanningPage() {
       await loadData(warehouseFilter);
     } catch (error: any) {
       toast.error(error?.message || "Failed to create replenishment requisition");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const createTransferDraft = async (suggestion: Suggestion) => {
+    if (!suggestion.sourceWarehouse || suggestion.transferQty <= 0) {
+      toast.error("This suggestion does not have a transferable quantity");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch("/api/scm/replenishment/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create_transfer",
+          warehouseId: suggestion.warehouseId,
+          neededBy: neededBy || null,
+          note:
+            requisitionNote ||
+            `Generated for ${suggestion.productName} (${suggestion.sku}) from replenishment planning.`,
+          items: [
+            {
+              ruleId: suggestion.ruleId,
+              quantityRequested: suggestion.transferQty,
+            },
+          ],
+        }),
+      });
+
+      const transfer = await readJson<{ transferNumber: string }>(
+        response,
+        "Failed to create transfer draft",
+      );
+      toast.success(`Transfer draft ${transfer.transferNumber} created from planning`);
+      await loadData(warehouseFilter);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to create transfer draft");
     } finally {
       setSaving(false);
     }
@@ -669,6 +712,7 @@ export default function ReplenishmentPlanningPage() {
                       <TableHead>Signal</TableHead>
                       <TableHead>Recommendation</TableHead>
                       <TableHead>Lead Time</TableHead>
+                      <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -719,12 +763,28 @@ export default function ReplenishmentPlanningPage() {
                           <TableCell>
                             {suggestion.leadTimeDays !== null ? `${suggestion.leadTimeDays}d` : "N/A"}
                           </TableCell>
+                          <TableCell>
+                            {canCreateTransfer &&
+                            suggestion.sourceWarehouse &&
+                            suggestion.transferQty > 0 ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={saving}
+                                onClick={() => void createTransferDraft(suggestion)}
+                              >
+                                Create Transfer Draft
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">N/A</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       );
                     })}
                     {!loading && visibleSuggestions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
                           No triggered replenishment suggestions.
                         </TableCell>
                       </TableRow>

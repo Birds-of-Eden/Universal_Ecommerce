@@ -10,8 +10,11 @@ import {
 } from "@/lib/replenishment";
 import {
   generatePurchaseRequisitionNumber,
+  generateWarehouseTransferNumber,
   purchaseRequisitionInclude,
   toPurchaseRequisitionLogSnapshot,
+  toWarehouseTransferLogSnapshot,
+  warehouseTransferInclude,
 } from "@/lib/scm";
 import { resolveWarehouseScope } from "@/lib/warehouse-scope";
 
@@ -94,6 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json().catch(() => ({}))) as {
+      action?: unknown;
       warehouseId?: unknown;
       neededBy?: unknown;
       note?: unknown;
@@ -102,15 +106,14 @@ export async function POST(request: NextRequest) {
         quantityRequested?: unknown;
       }>;
     };
+    const action =
+      typeof body.action === "string" ? body.action.trim().toLowerCase() : "create_requisition";
 
     const warehouseId = Number(body.warehouseId);
     if (!Number.isInteger(warehouseId) || warehouseId <= 0) {
       return NextResponse.json({ error: "Warehouse is required." }, { status: 400 });
     }
-    if (
-      !access.can("replenishment.manage", warehouseId) ||
-      !access.can("purchase_requisitions.manage", warehouseId)
-    ) {
+    if (!access.can("replenishment.manage", warehouseId)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -151,24 +154,15 @@ export async function POST(request: NextRequest) {
     }
 
     const ruleMap = new Map(rules.map((rule) => [rule.id, rule]));
-    const requisitionItems = normalizedItems.map((item) => {
+    const computedItems = normalizedItems.map((item) => {
       const rule = ruleMap.get(item.ruleId);
       if (!rule) {
         throw new Error("Replenishment rule lookup failed");
       }
       const suggestion = buildReplenishmentSuggestion(rule);
-      const allowedMax = Math.max(0, suggestion.purchaseQty);
-      if (allowedMax <= 0) {
-        throw new Error(
-          `${rule.productVariant.product.name} (${rule.productVariant.sku}) does not need purchase replenishment right now.`,
-        );
-      }
-      if (item.quantityRequested > allowedMax) {
-        throw new Error(
-          `${rule.productVariant.product.name} (${rule.productVariant.sku}) exceeds suggested purchase quantity.`,
-        );
-      }
       return {
+        rule,
+        suggestion,
         productVariantId: rule.productVariantId,
         quantityRequested: item.quantityRequested,
         description: `${rule.productVariant.product.name} (${rule.productVariant.sku})`,
@@ -182,6 +176,111 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    if (action === "create_transfer") {
+      const transferItems = computedItems.map((item) => {
+        const allowedMax = Math.max(0, item.suggestion.transferQty);
+        if (allowedMax <= 0 || !item.suggestion.sourceWarehouse) {
+          throw new Error(
+            `${item.rule.productVariant.product.name} (${item.rule.productVariant.sku}) does not have a transfer recommendation right now.`,
+          );
+        }
+        if (item.quantityRequested > allowedMax) {
+          throw new Error(
+            `${item.rule.productVariant.product.name} (${item.rule.productVariant.sku}) exceeds suggested transfer quantity.`,
+          );
+        }
+        return item;
+      });
+
+      const sourceWarehouseIds = [
+        ...new Set(
+          transferItems.map((item) => item.suggestion.sourceWarehouse?.id).filter(Boolean),
+        ),
+      ];
+      if (sourceWarehouseIds.length !== 1) {
+        return NextResponse.json(
+          {
+            error:
+              "Selected transfer suggestions must share the same source warehouse.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const sourceWarehouseId = Number(sourceWarehouseIds[0]);
+      if (!access.can("warehouse_transfers.manage", sourceWarehouseId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (!access.canAccessWarehouse(warehouseId)) {
+        return NextResponse.json(
+          { error: "Destination warehouse is outside your allowed scope." },
+          { status: 403 },
+        );
+      }
+
+      const createdTransfer = await prisma.$transaction(async (tx) => {
+        const transferNumber = await generateWarehouseTransferNumber(tx);
+        return tx.warehouseTransfer.create({
+          data: {
+            transferNumber,
+            sourceWarehouseId,
+            destinationWarehouseId: warehouseId,
+            requiredBy: neededBy,
+            note:
+              toCleanText(body.note, 500) ||
+              "Generated from replenishment planning suggestion.",
+            createdById: access.userId,
+            items: {
+              create: transferItems.map((item) => ({
+                productVariantId: item.productVariantId,
+                quantityRequested: item.quantityRequested,
+                description: `${item.description} [Replenishment suggestion]`,
+              })),
+            },
+          },
+          include: warehouseTransferInclude,
+        });
+      });
+
+      await logActivity({
+        action: "create",
+        entity: "warehouse_transfer",
+        entityId: createdTransfer.id,
+        access,
+        request,
+        metadata: {
+          message: `Created warehouse transfer ${createdTransfer.transferNumber} from replenishment planning`,
+          source: "replenishment_planning",
+        },
+        after: toWarehouseTransferLogSnapshot(createdTransfer),
+      });
+
+      return NextResponse.json(createdTransfer, { status: 201 });
+    }
+
+    if (!access.can("purchase_requisitions.manage", warehouseId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const requisitionItems = computedItems.map((item) => {
+      const allowedMax = Math.max(0, item.suggestion.purchaseQty);
+      if (allowedMax <= 0) {
+        throw new Error(
+          `${item.rule.productVariant.product.name} (${item.rule.productVariant.sku}) does not need purchase replenishment right now.`,
+        );
+      }
+      if (item.quantityRequested > allowedMax) {
+        throw new Error(
+          `${item.rule.productVariant.product.name} (${item.rule.productVariant.sku}) exceeds suggested purchase quantity.`,
+        );
+      }
+      return {
+        productVariantId: item.productVariantId,
+        quantityRequested: item.quantityRequested,
+        description: item.description,
+      };
+    });
 
     const created = await prisma.$transaction(async (tx) => {
       const requisitionNumber = await generatePurchaseRequisitionNumber(tx);
@@ -217,7 +316,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("SCM REPLENISHMENT SUGGESTIONS POST ERROR:", error);
     return NextResponse.json(
-      { error: error?.message || "Failed to create replenishment requisition." },
+      {
+        error:
+          error?.message ||
+          "Failed to create replenishment requisition or transfer draft.",
+      },
       { status: 500 },
     );
   }
