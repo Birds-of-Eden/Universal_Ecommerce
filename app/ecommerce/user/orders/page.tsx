@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { ChevronRight, Home } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import AccountMenu from "../AccountMenu";
-import { Home, ChevronRight, User } from "lucide-react";
 import AccountHeader from "../AccountHeader";
 
 interface CartItem {
@@ -49,24 +49,33 @@ const getOrderStatusConfig = (status: string) => {
   if (s === "DELIVERED") {
     return {
       label: "Delivered",
-      className: "bg-muted text-foreground border border-border",
+      className:
+        "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
     };
   }
   if (s === "SHIPPED" || s === "PROCESSING" || s === "CONFIRMED") {
     return {
-      label: s === "SHIPPED" ? "Shipped" : s === "PROCESSING" ? "Processing" : "Confirmed",
-      className: "bg-muted text-foreground border border-border",
+      label:
+        s === "SHIPPED"
+          ? "Shipped"
+          : s === "PROCESSING"
+            ? "Processing"
+            : "Confirmed",
+      className:
+        "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300",
     };
   }
   if (s === "CANCELLED") {
     return {
       label: "Cancelled",
-      className: "bg-muted text-foreground border border-border",
+      className:
+        "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300",
     };
   }
   return {
     label: "Pending",
-    className: "bg-muted text-foreground border border-border",
+    className:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
   };
 };
 
@@ -75,14 +84,68 @@ const getPaymentStatusConfig = (paymentStatus: string) => {
   if (s === "PAID") {
     return {
       label: "Paid",
-      className: "bg-muted text-foreground border border-border",
+      className:
+        "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
     };
   }
   return {
     label: "Unpaid",
-    className: "bg-muted text-foreground border border-border",
+    className:
+      "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300",
   };
 };
+
+function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-muted/70 ${className}`} />;
+}
+
+function OrdersPageSkeleton() {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Card
+          key={index}
+          className="overflow-hidden border-border/60 bg-card/90 p-4 shadow-sm md:p-6"
+        >
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-3 w-56" />
+              <Skeleton className="h-3 w-64" />
+            </div>
+            <div className="flex flex-col gap-2 md:items-end">
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-4 border-t border-border/60 pt-4">
+            {Array.from({ length: 2 }).map((__, itemIndex) => (
+              <div
+                key={itemIndex}
+                className="flex gap-4 rounded-2xl border border-border/50 p-3"
+              >
+                <Skeleton className="h-20 w-16 flex-none rounded-xl" />
+                <div className="flex-1 space-y-3 py-1">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 flex justify-end border-t border-border/60 pt-4">
+            <div className="space-y-2 text-right">
+              <Skeleton className="ml-auto h-3 w-20" />
+              <Skeleton className="ml-auto h-5 w-28" />
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function OrdersPage() {
   const { data: session } = useSession();
@@ -91,7 +154,6 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // You can wire these later from API if you have them
   const starPoints = 0;
   const storeCredit = 0;
 
@@ -178,59 +240,63 @@ export default function OrdersPage() {
   const orderedList = useMemo(() => orders, [orders]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-     {/* Breadcrumb */}
-<div className="px-6 pt-6">
-  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-    
-    <Link
-      href="/"
-      className="flex items-center gap-1 hover:text-foreground transition-colors"
-    >
-      <Home className="h-4 w-4" />
-      <span>Home</span>
-    </Link>
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/25 text-foreground">
+      <div className="px-6 pt-6">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link
+            href="/"
+            className="flex items-center gap-1 transition-colors hover:text-foreground"
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </Link>
 
-    <span>›</span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground/70" />
 
-    <Link
-      href="/ecommerce/user"
-      className="hover:text-foreground transition-colors"
-    >
-      Account
-    </Link>
+          <Link
+            href="/ecommerce/user"
+            className="transition-colors hover:text-foreground"
+          >
+            Account
+          </Link>
 
-    <span>›</span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground/70" />
 
-    <span className="text-foreground">
-      Order History
-    </span>
+          <span className="text-foreground">Order History</span>
+        </div>
+      </div>
 
-  </div>
-</div>
-
-      {/* Header row (avatar + hello + points/credit) */}
-    <AccountHeader />
-
-      {/* SS Menu (separate component) */}
+      <AccountHeader />
       <AccountMenu />
 
-      {/* Page content */}
-      <div className="max-w-6xl mx-auto px-6 py-10">
-        <h2 className="text-2xl font-medium mb-6">Order History</h2>
+      <div className="mx-auto max-w-6xl px-6 py-10">
+        <div className="mb-6">
+          <h2 className="text-3xl font-semibold tracking-tight">
+            Order History
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Track your recent orders, payment state, and delivery progress.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {userName}
+            {starPoints || storeCredit
+              ? ` • ${starPoints} stars • TK. ${storeCredit.toFixed(2)} credit`
+              : ""}
+          </p>
+        </div>
 
         {loading ? (
-          <Card className="p-6 bg-card text-card-foreground border border-border">
-            <p className="text-sm text-muted-foreground">Loading orders...</p>
-          </Card>
+          <OrdersPageSkeleton />
         ) : error ? (
-          <Card className="p-6 bg-card text-card-foreground border border-border">
-            <p className="text-sm">{error}</p>
+          <Card className="border-rose-200 bg-rose-50 p-6 text-rose-900 shadow-sm dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-100">
+            <p className="text-sm font-medium">{error}</p>
           </Card>
         ) : orderedList.length === 0 ? (
-          <div className="text-sm text-muted-foreground">
-            You have not made any previous orders!
-          </div>
+          <Card className="border-dashed border-border/70 bg-card/80 p-8 text-center shadow-sm">
+            <p className="text-sm text-muted-foreground">
+              You have not made any previous orders yet.
+            </p>
+          </Card>
         ) : (
           <div className="space-y-4">
             {orderedList.map((order) => {
@@ -241,64 +307,75 @@ export default function OrdersPage() {
               return (
                 <Card
                   key={order.invoiceId}
-                  className="p-4 md:p-6 bg-card text-card-foreground border border-border"
+                  className="overflow-hidden border-border/60 bg-card/90 p-4 text-card-foreground shadow-sm transition-shadow hover:shadow-md md:p-6"
                 >
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div className="text-sm">
                       <p>
                         <span className="font-medium">Order ID: </span>
                         <Link
                           href={`/ecommerce/user/orders/${order.invoiceId}`}
-                          className="underline underline-offset-2 hover:no-underline"
+                          className="font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary/80 hover:no-underline"
                         >
                           {order.invoiceId}
                         </Link>
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Placed on: {formatDateTime(order.createdAt)}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Customer: <span className="text-foreground font-medium">{order.customer.name}</span>{" "}
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Customer:{" "}
+                        <span className="font-medium text-foreground">
+                          {order.customer.name}
+                        </span>{" "}
                         | Mobile: {order.customer.mobile}
                       </p>
                     </div>
 
-                    <div className="flex flex-col md:items-end gap-2">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusCfg.className}`}>
+                    <div className="flex flex-col gap-2 md:items-end">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusCfg.className}`}
+                      >
                         {statusCfg.label}
                       </span>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs ${paymentCfg.className}`}>
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${paymentCfg.className}`}
+                      >
                         Payment: {paymentCfg.label}
                       </span>
 
                       <Link
                         href={`/ecommerce/user/orders/${order.invoiceId}`}
-                        className="text-sm font-medium underline underline-offset-2 hover:no-underline"
+                        className="text-sm font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary/80 hover:no-underline"
                       >
                         Track My Order →
                       </Link>
                     </div>
                   </div>
 
-                  <div className="border-t border-border pt-4">
+                  <div className="mt-4 border-t border-border/60 pt-4">
                     {items.map((item) => (
                       <div
                         key={item.id}
-                        className="flex gap-4 py-4 border-b border-border last:border-b-0"
+                        className="flex gap-4 border-b border-border/60 py-4 last:border-b-0"
                       >
-                        <div className="w-16 h-20 flex-shrink-0 bg-muted border border-border rounded-xl overflow-hidden flex items-center justify-center">
+                        <div className="flex h-20 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-muted/40">
                           {item.image ? (
-                            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="h-full w-full object-cover"
+                            />
                           ) : (
-                            <span className="text-[10px] text-muted-foreground px-2 text-center">
+                            <span className="px-2 text-center text-[10px] text-muted-foreground">
                               No Image
                             </span>
                           )}
                         </div>
 
                         <div className="flex-1 text-sm">
-                          <p className="font-medium line-clamp-1">{item.name}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="line-clamp-1 font-medium">{item.name}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
                             TK. {item.price.toFixed(2)} × {item.quantity}
                           </p>
                         </div>
@@ -306,10 +383,14 @@ export default function OrdersPage() {
                     ))}
                   </div>
 
-                  <div className="pt-3 border-t border-border mt-2 flex justify-end">
+                  <div className="mt-2 flex justify-end border-t border-border/60 pt-3">
                     <div className="text-right text-sm">
-                      <p className="text-xs text-muted-foreground">Order Total</p>
-                      <p className="text-base font-semibold">TK. {order.total.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Order Total
+                      </p>
+                      <p className="text-base font-semibold text-foreground">
+                        TK. {order.total.toFixed(2)}
+                      </p>
                     </div>
                   </div>
                 </Card>

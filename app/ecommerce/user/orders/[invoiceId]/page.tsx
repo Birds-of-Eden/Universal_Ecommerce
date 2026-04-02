@@ -13,7 +13,10 @@ import {
   Receipt,
   ShieldCheck,
   MapPin,
+  X,
 } from "lucide-react";
+import { DeliveryConfirmationForm } from "@/components/customer/DeliveryConfirmationForm";
+import ProductReviews from "@/components/ecommarce/ProductReviews";
 
 interface CartItem {
   id: number | string;
@@ -98,8 +101,8 @@ const getOrderStatusConfig = (status: string) => {
         s === "SHIPPED"
           ? "Shipped"
           : s === "PROCESSING"
-          ? "Processing"
-          : "Confirmed",
+            ? "Processing"
+            : "Confirmed",
       className: "bg-blue-100 text-blue-800 border border-blue-200",
     };
   }
@@ -314,6 +317,12 @@ export default function OrderDetailsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [shipment, setShipment] = useState<Shipment | null>(null);
+  const [proofModalOpen, setProofModalOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewProduct, setReviewProduct] = useState<{
+    productId: number;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!invoiceId) {
@@ -363,8 +372,8 @@ export default function OrderDetailsPage() {
           new Set(
             orderItemsRaw
               .map((oi) => Number(oi.productId))
-              .filter((id) => !!id && !Number.isNaN(id))
-          )
+              .filter((id) => !!id && !Number.isNaN(id)),
+          ),
         );
 
         const imageMap: Record<number, string> = {};
@@ -387,7 +396,7 @@ export default function OrderDetailsPage() {
               } catch (err) {
                 console.error("Failed to fetch product image:", pid, err);
               }
-            })
+            }),
           );
         }
 
@@ -428,12 +437,14 @@ export default function OrderDetailsPage() {
           paymentStatus: o.paymentStatus ?? "UNPAID",
           vatTotal: Number(o.Vat_total ?? 0),
           discountTotal: Number(o.discount_total ?? 0),
-          coupon: o.coupon ? {
-            id: o.coupon.id,
-            code: o.coupon.code,
-            discountType: o.coupon.discountType,
-            discountValue: Number(o.coupon.discountValue),
-          } : null,
+          coupon: o.coupon
+            ? {
+                id: o.coupon.id,
+                code: o.coupon.code,
+                discountType: o.coupon.discountType,
+                discountValue: Number(o.coupon.discountValue),
+              }
+            : null,
         };
 
         setOrder(mapped);
@@ -601,7 +612,7 @@ export default function OrderDetailsPage() {
   const getActiveStageIndex = (
     stages: Stage[],
     order: Order,
-    shipment: Shipment | null
+    shipment: Shipment | null,
   ) => {
     if (stages.length === 1 && stages[0].label === "Order Cancelled") return 0;
 
@@ -638,11 +649,14 @@ export default function OrderDetailsPage() {
   const items = Array.isArray(order.cartItems) ? order.cartItems : [];
   const subTotal = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
-    0
+    0,
   );
   const vatTotal = Number(order.vatTotal ?? 0);
   const discountTotal = Number(order.discountTotal ?? 0);
-  const deliveryCharge = Math.max(order.total - subTotal - vatTotal + discountTotal, 0);
+  const deliveryCharge = Math.max(
+    order.total - subTotal - vatTotal + discountTotal,
+    0,
+  );
 
   const statusCfg = getOrderStatusConfig(order.status);
   const paymentCfg = getPaymentStatusConfig(order.paymentStatus);
@@ -655,6 +669,23 @@ export default function OrderDetailsPage() {
       shipment?.status?.toUpperCase() || "",
     ) &&
     !shipment?.deliveryProof;
+  const canLeaveReview =
+    statusCfg.label === "Delivered" ||
+    shipment?.status?.toUpperCase() === "DELIVERED";
+  const proofToken =
+    shipment?.deliveryConfirmationToken ||
+    shipment?.deliveryConfirmationUrl?.split("/").pop() ||
+    "";
+
+  const openReviewModal = (productId: number, name: string) => {
+    setReviewProduct({ productId, name });
+    setReviewModalOpen(true);
+  };
+
+  const closeReviewModal = () => {
+    setReviewModalOpen(false);
+    setReviewProduct(null);
+  };
 
   return (
     <div className="min-h-screen bg-background py-8">
@@ -898,6 +929,15 @@ export default function OrderDetailsPage() {
                           TK. {(item.price * item.quantity).toFixed(2)}
                         </span>
                       </p>
+                      {canLeaveReview && (
+                        <button
+                          type="button"
+                          onClick={() => openReviewModal(item.productId, item.name)}
+                          className="mt-3 inline-flex text-sm font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary/80"
+                        >
+                          Leave a review
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -934,7 +974,9 @@ export default function OrderDetailsPage() {
                   </div>
                   <div className="flex justify-between gap-8 text-[13px] text-muted-foreground">
                     <span>VAT</span>
-                    <span className="text-foreground">TK. {vatTotal.toFixed(2)}</span>
+                    <span className="text-foreground">
+                      TK. {vatTotal.toFixed(2)}
+                    </span>
                   </div>
                   <div className="flex justify-between gap-8 text-[13px] text-muted-foreground">
                     <span>Payable Amount</span>
@@ -1025,37 +1067,66 @@ export default function OrderDetailsPage() {
                       </span>
                       .
                     </p>
-                    {shipment.deliveryProof.photoUrl ? (
-                      <a
-                        href={shipment.deliveryProof.photoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex text-sm font-medium text-emerald-700 underline"
-                      >
-                        View proof photo
-                      </a>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setProofModalOpen(true)}
+                      className="inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                    >
+                      View delivery proof
+                    </button>
                   </>
                 ) : canConfirmDelivery ? (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      Once the courier shares the delivery PIN, complete the proof
-                      form to confirm you received the parcel.
+                      Once the courier shares the delivery PIN, complete the
+                      proof form to confirm you received the parcel.
                     </p>
-                    <Link
-                      href={shipment?.deliveryConfirmationUrl || "#"}
+                    <button
+                      type="button"
+                      onClick={() => setProofModalOpen(true)}
                       className="inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
                     >
-                      Confirm Delivery
-                    </Link>
+                      Open delivery confirmation
+                    </button>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Delivery confirmation will appear here when the shipment is out
-                    for delivery.
+                    Delivery confirmation will appear here when the shipment is
+                    out for delivery.
                   </p>
                 )}
               </div>
+            </Card>
+
+            <Card>
+              {canLeaveReview && items.length > 0 && (
+                <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                      Review New Product
+                    </p>
+                    <h3 className="mt-1 text-base font-semibold text-foreground">
+                      Write a review for delivered products
+                    </h3>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Open the review form in a modal without leaving this page.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {items.map((item) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => openReviewModal(item.productId, item.name)}
+                        className="inline-flex w-full items-center justify-center rounded-full bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700"
+                      >
+                        Review {item.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Card>
 
             <Card className="bg-accent text-accent-foreground border border-border p-6">
@@ -1083,6 +1154,78 @@ export default function OrderDetailsPage() {
           </div>
         </div>
       </div>
+
+      {proofModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setProofModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-4xl rounded-3xl border border-border bg-card p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setProofModalOpen(false)}
+                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="max-h-[80vh] overflow-y-auto">
+              {proofToken ? (
+                <div className="space-y-6">
+                  <DeliveryConfirmationForm token={proofToken} />
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  Delivery confirmation link is unavailable for this shipment.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewModalOpen && reviewProduct && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeReviewModal}
+        >
+          <div
+            className="w-full max-w-5xl rounded-3xl border border-border bg-card p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                  Review New Product
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-foreground">
+                  {reviewProduct.name}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Submit your rating and review without leaving this page.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeReviewModal}
+                className="rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-6 max-h-[80vh] overflow-y-auto rounded-2xl border border-border bg-background p-4">
+              <ProductReviews productId={reviewProduct.productId} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
