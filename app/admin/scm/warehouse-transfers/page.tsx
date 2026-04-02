@@ -19,7 +19,7 @@ type Warehouse = {
 type ProductVariant = {
   id: number;
   sku: string;
-  product: {
+  product?: {
     name: string;
   };
 };
@@ -345,7 +345,7 @@ export default function WarehouseTransfersPage() {
                       <option value="">Select variant</option>
                       {variants.map((variant) => (
                         <option key={variant.id} value={variant.id}>
-                          {variant.product.name} ({variant.sku})
+                          {variant.product?.name ?? "Variant"} ({variant.sku})
                         </option>
                       ))}
                     </select>

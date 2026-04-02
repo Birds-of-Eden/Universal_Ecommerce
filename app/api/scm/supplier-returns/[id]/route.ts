@@ -486,14 +486,27 @@ export async function PATCH(
         );
       }
 
+      const totalDispatchedQty = supplierReturn.items.reduce(
+        (sum, item) => sum + item.quantityDispatched,
+        0,
+      );
       const creditAmount = supplierReturn.items.reduce(
         (sum, item) =>
           sum.plus(item.unitCost.mul(item.quantityDispatched)),
         new Prisma.Decimal(0),
       );
-      if (creditAmount.lte(0)) {
+      if (totalDispatchedQty <= 0) {
         return NextResponse.json(
           { error: "No dispatched supplier return quantity is available to close." },
+          { status: 400 },
+        );
+      }
+      if (creditAmount.lte(0)) {
+        return NextResponse.json(
+          {
+            error:
+              "Dispatched quantity exists, but the supplier return credit value is 0.00. Review the linked PO/GR unit cost before closing.",
+          },
           { status: 400 },
         );
       }

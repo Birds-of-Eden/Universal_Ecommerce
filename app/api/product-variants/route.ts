@@ -18,6 +18,12 @@ export async function GET(req: Request) {
       where: productId ? { productId } : undefined,
       orderBy: { id: "desc" },
       include: {
+        product: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         codes: {
           where: { isPrimary: true, status: "ACTIVE" },
           orderBy: { id: "asc" },

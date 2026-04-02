@@ -676,14 +676,21 @@ export default function SupplierReturnsPage() {
                       ) : null}
 
                       {canApprove && supplierReturn.status === "DISPATCHED" ? (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => void runAction(supplierReturn.id, "close")}
-                          disabled={saving}
-                        >
-                          Close & Post Credit
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => void runAction(supplierReturn.id, "close")}
+                            disabled={saving || dispatchedValue <= 0}
+                          >
+                            Close & Post Credit
+                          </Button>
+                          {dispatchedValue <= 0 ? (
+                            <p className="self-center text-xs text-destructive">
+                              Credit value is 0.00. Review PO/GR unit cost before closing.
+                            </p>
+                          ) : null}
+                        </>
                       ) : null}
 
                       {(canManage || canApprove) &&
