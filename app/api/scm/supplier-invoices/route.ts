@@ -7,6 +7,8 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import {
   generateSupplierInvoiceNumber,
+  refreshSupplierInvoiceThreeWayMatch,
+  supplierInvoiceInclude,
   toDecimalAmount,
   toSupplierInvoiceLogSnapshot,
 } from "@/lib/scm";
@@ -40,23 +42,7 @@ export async function GET(request: NextRequest) {
         ...(status ? { status: status as any } : {}),
       },
       orderBy: [{ issueDate: "desc" }, { id: "desc" }],
-      include: {
-        supplier: {
-          select: { id: true, name: true, code: true },
-        },
-        purchaseOrder: {
-          select: { id: true, poNumber: true, warehouseId: true },
-        },
-        payments: {
-          select: {
-            id: true,
-            paymentNumber: true,
-            amount: true,
-            paymentDate: true,
-          },
-          orderBy: { paymentDate: "desc" },
-        },
-      },
+      include: supplierInvoiceInclude,
     });
 
     return NextResponse.json(invoices);
@@ -90,6 +76,13 @@ export async function POST(request: NextRequest) {
       total?: unknown;
       currency?: unknown;
       note?: unknown;
+      items?: Array<{
+        purchaseOrderItemId?: unknown;
+        productVariantId?: unknown;
+        quantityInvoiced?: unknown;
+        unitCost?: unknown;
+        description?: unknown;
+      }>;
     };
 
     const supplierId = Number(body.supplierId);
@@ -114,14 +107,10 @@ export async function POST(request: NextRequest) {
     const subtotal = toDecimalAmount(body.subtotal ?? 0, "Subtotal");
     const taxTotal = toDecimalAmount(body.taxTotal ?? 0, "Tax total");
     const otherCharges = toDecimalAmount(body.otherCharges ?? 0, "Other charges");
-    const total =
+    const requestedTotal =
       body.total === null || body.total === undefined || body.total === ""
-        ? subtotal.plus(taxTotal).plus(otherCharges)
+        ? null
         : toDecimalAmount(body.total, "Total");
-
-    if (total.lte(0)) {
-      return NextResponse.json({ error: "Invoice total must be greater than 0." }, { status: 400 });
-    }
 
     const [supplier, purchaseOrder] = await Promise.all([
       prisma.supplier.findUnique({
@@ -131,11 +120,24 @@ export async function POST(request: NextRequest) {
       purchaseOrderId
         ? prisma.purchaseOrder.findUnique({
             where: { id: purchaseOrderId },
-            select: {
-              id: true,
-              supplierId: true,
-              poNumber: true,
-              grandTotal: true,
+            include: {
+              items: {
+                orderBy: { id: "asc" },
+                include: {
+                  productVariant: {
+                    select: {
+                      id: true,
+                      productId: true,
+                      sku: true,
+                      product: {
+                        select: {
+                          name: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
           })
         : Promise.resolve(null),
@@ -154,6 +156,130 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const requestedItems = Array.isArray(body.items) ? body.items : [];
+    const normalizedItems =
+      purchaseOrder && requestedItems.length === 0
+        ? purchaseOrder.items
+            .filter((item) => item.quantityReceived > 0)
+            .map((item) => ({
+              purchaseOrderItemId: item.id,
+              productVariantId: item.productVariantId,
+              quantityInvoiced: item.quantityReceived,
+              unitCost: item.unitCost,
+              description: `${item.productVariant.product.name} (${item.productVariant.sku})`,
+            }))
+        : requestedItems.map((item, index) => {
+            const purchaseOrderItemId =
+              item.purchaseOrderItemId === null ||
+              item.purchaseOrderItemId === undefined ||
+              item.purchaseOrderItemId === ""
+                ? null
+                : Number(item.purchaseOrderItemId);
+            const productVariantId =
+              item.productVariantId === null ||
+              item.productVariantId === undefined ||
+              item.productVariantId === ""
+                ? null
+                : Number(item.productVariantId);
+            const quantityInvoiced = Number(item.quantityInvoiced);
+
+            if (
+              purchaseOrderItemId !== null &&
+              (!Number.isInteger(purchaseOrderItemId) || purchaseOrderItemId <= 0)
+            ) {
+              throw new Error(`Item ${index + 1}: invalid purchase order item`);
+            }
+            if (
+              productVariantId !== null &&
+              (!Number.isInteger(productVariantId) || productVariantId <= 0)
+            ) {
+              throw new Error(`Item ${index + 1}: invalid product variant`);
+            }
+            if (!Number.isInteger(quantityInvoiced) || quantityInvoiced <= 0) {
+              throw new Error(`Item ${index + 1}: quantity must be greater than 0`);
+            }
+            return {
+              purchaseOrderItemId,
+              productVariantId,
+              quantityInvoiced,
+              unitCost: toDecimalAmount(item.unitCost, `Item ${index + 1} unit cost`),
+              description: toCleanText(item.description, 255),
+            };
+          });
+
+    if (purchaseOrder && normalizedItems.length === 0) {
+      return NextResponse.json(
+        { error: "At least one matched invoice line is required for PO-linked invoices." },
+        { status: 400 },
+      );
+    }
+
+    const poItemMap = new Map(
+      purchaseOrder?.items.map((item) => [item.id, item]) ?? [],
+    );
+    const invoiceLineItems = normalizedItems.map((item) => {
+      const purchaseOrderItem =
+        item.purchaseOrderItemId !== null && item.purchaseOrderItemId !== undefined
+          ? poItemMap.get(item.purchaseOrderItemId)
+          : purchaseOrder?.items.find(
+              (candidate) => candidate.productVariantId === item.productVariantId,
+            );
+
+      if (purchaseOrder && !purchaseOrderItem) {
+        throw new Error("Invoice line must map to a purchase order item.");
+      }
+
+      const productVariantId =
+        item.productVariantId ??
+        purchaseOrderItem?.productVariantId ??
+        null;
+      if (!productVariantId) {
+        throw new Error("Invoice line is missing product variant mapping.");
+      }
+
+      const lineUnitCost =
+        item.unitCost instanceof Prisma.Decimal
+          ? item.unitCost
+          : purchaseOrderItem?.unitCost ?? new Prisma.Decimal(0);
+
+      return {
+        purchaseOrderItemId: purchaseOrderItem?.id ?? item.purchaseOrderItemId ?? null,
+        productVariantId,
+        quantityInvoiced: item.quantityInvoiced,
+        unitCost: lineUnitCost,
+        lineTotal: lineUnitCost.mul(item.quantityInvoiced),
+        description:
+          item.description ||
+          (purchaseOrderItem
+            ? `${purchaseOrderItem.productVariant.product.name} (${purchaseOrderItem.productVariant.sku})`
+            : null),
+      };
+    });
+
+    const derivedSubtotal =
+      invoiceLineItems.length > 0
+        ? invoiceLineItems.reduce(
+            (sum, item) => sum.plus(item.lineTotal),
+            new Prisma.Decimal(0),
+          )
+        : subtotal;
+
+    const normalizedSubtotal =
+      body.subtotal === null || body.subtotal === undefined || body.subtotal === ""
+        ? derivedSubtotal
+        : subtotal;
+    const normalizedTotal =
+      requestedTotal === null
+        ? normalizedSubtotal.plus(taxTotal).plus(otherCharges)
+        : requestedTotal;
+
+    if (normalizedTotal.lte(0)) {
+      return NextResponse.json(
+        { error: "Invoice total must be greater than 0." },
+        { status: 400 },
+      );
+    }
+
     const created = await prisma.$transaction(async (tx) => {
       const invoiceNumber = await generateSupplierInvoiceNumber(tx);
       const invoice = await tx.supplierInvoice.create({
@@ -166,12 +292,14 @@ export async function POST(request: NextRequest) {
           postedAt: new Date(),
           createdById: access.userId,
           currency: toCleanText(body.currency, 3).toUpperCase() || supplier.currency || "BDT",
-          subtotal,
+          subtotal: normalizedSubtotal,
           taxTotal,
           otherCharges,
-          total,
+          total: normalizedTotal,
           note: toCleanText(body.note, 500) || null,
+          items: invoiceLineItems.length > 0 ? { create: invoiceLineItems } : undefined,
         },
+        include: supplierInvoiceInclude,
       });
 
       await tx.supplierLedgerEntry.create({
@@ -180,7 +308,7 @@ export async function POST(request: NextRequest) {
           entryDate: issueDate,
           entryType: "INVOICE",
           direction: "DEBIT",
-          amount: total,
+          amount: normalizedTotal,
           currency: invoice.currency,
           note: invoice.note,
           referenceType: "SUPPLIER_INVOICE",
@@ -191,7 +319,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return invoice;
+      const matched = await refreshSupplierInvoiceThreeWayMatch(
+        tx,
+        invoice.id,
+        access.userId,
+      );
+
+      return matched.invoice;
     });
 
     await logActivity({

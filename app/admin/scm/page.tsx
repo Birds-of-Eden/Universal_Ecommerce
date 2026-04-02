@@ -7,6 +7,7 @@ import {
   ArrowRightLeft,
   BookOpen,
   ClipboardList,
+  GitCompareArrows,
   PackageCheck,
   ShoppingCart,
 } from "lucide-react";
@@ -56,6 +57,14 @@ const cards = [
     icon: BookOpen,
     permission: "supplier_ledger.read",
     globalPermission: "supplier_ledger.read",
+  },
+  {
+    title: "3-Way Match",
+    href: "/admin/scm/three-way-match",
+    description: "Review PO, goods receipt, and supplier invoice variances before payment release.",
+    icon: GitCompareArrows,
+    permission: "three_way_match.read",
+    globalPermission: "three_way_match.read",
   },
 ];
 

@@ -127,6 +127,15 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     permissions: ["supplier_ledger.read", "scm.access"],
   },
   {
+    match: ["three_way_match", "threewaymatch"],
+    permissions: [
+      "three_way_match.read",
+      "supplier_invoices.read",
+      "supplier_invoices.manage",
+      "scm.access",
+    ],
+  },
+  {
     match: ["warehouse_transfer", "warehousetransfer"],
     permissions: [
       "warehouse_transfers.read",

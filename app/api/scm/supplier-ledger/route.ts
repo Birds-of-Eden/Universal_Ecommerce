@@ -4,7 +4,11 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
-import { computeSupplierLedgerTotals } from "@/lib/scm";
+import {
+  computeSupplierLedgerTotals,
+  evaluateSupplierInvoiceThreeWayMatch,
+  supplierInvoiceInclude,
+} from "@/lib/scm";
 
 function canReadSupplierLedger(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return (
@@ -53,14 +57,7 @@ export async function GET(request: NextRequest) {
         prisma.supplierInvoice.findMany({
           where: { supplierId },
           orderBy: [{ issueDate: "desc" }, { id: "desc" }],
-          include: {
-            purchaseOrder: {
-              select: { id: true, poNumber: true },
-            },
-            payments: {
-              select: { id: true, paymentNumber: true, amount: true, paymentDate: true },
-            },
-          },
+          include: supplierInvoiceInclude,
         }),
         prisma.supplierPayment.findMany({
           where: { supplierId },
@@ -78,6 +75,12 @@ export async function GET(request: NextRequest) {
       }
 
       const totals = computeSupplierLedgerTotals(entries);
+      const invoicesWithMatch = invoices.map((invoice) => ({
+        ...invoice,
+        threeWayMatch: evaluateSupplierInvoiceThreeWayMatch(
+          invoice as Parameters<typeof evaluateSupplierInvoiceThreeWayMatch>[0],
+        ),
+      }));
       return NextResponse.json({
         supplier,
         summary: {
@@ -86,7 +89,7 @@ export async function GET(request: NextRequest) {
           balance: totals.balance.toString(),
         },
         entries,
-        invoices,
+        invoices: invoicesWithMatch,
         payments,
       });
     }

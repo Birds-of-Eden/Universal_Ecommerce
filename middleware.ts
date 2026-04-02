@@ -92,6 +92,11 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/scm/three-way-match",
+    permissions: ["three_way_match.read", "supplier_invoices.read", "supplier_invoices.manage"],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/scm",
     permissions: [
       "scm.access",
@@ -113,6 +118,7 @@ const adminPagePermissionRules: PermissionRule[] = [
       "supplier_invoices.manage",
       "supplier_payments.read",
       "supplier_payments.manage",
+      "three_way_match.read",
     ],
   },
   {
@@ -294,6 +300,12 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/supplier-invoices",
     methods: ["POST", "PATCH", "PUT"],
     permissions: ["supplier_invoices.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/three-way-match",
+    methods: ["GET"],
+    permissions: ["three_way_match.read", "supplier_invoices.read", "supplier_invoices.manage"],
     globalOnly: true,
   },
   {

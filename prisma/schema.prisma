@@ -52,6 +52,7 @@ model User {
   purchaseRequisitionsConverted PurchaseRequisition[]   @relation("PurchaseRequisitionsConverted")
   goodsReceiptsReceived         GoodsReceipt[]          @relation("GoodsReceiptsReceived")
   supplierInvoicesCreated       SupplierInvoice[]       @relation("SupplierInvoicesCreated")
+  supplierInvoicesMatched       SupplierInvoice[]       @relation("SupplierInvoicesMatched")
   supplierPaymentsCreated       SupplierPayment[]       @relation("SupplierPaymentsCreated")
   supplierLedgerEntriesCreated  SupplierLedgerEntry[]   @relation("SupplierLedgerEntriesCreated")
   warehouseTransfersCreated     WarehouseTransfer[]     @relation("WarehouseTransfersCreated")
@@ -273,6 +274,7 @@ model ProductVariant {
   purchaseOrderItems      PurchaseOrderItem[]
   goodsReceiptItems       GoodsReceiptItem[]
   purchaseRequisitionItems PurchaseRequisitionItem[]
+  supplierInvoiceItems    SupplierInvoiceItem[]
   warehouseTransferItems  WarehouseTransferItem[]
   stockLevels             StockLevel[]
 }
@@ -1116,6 +1118,7 @@ model PurchaseOrderItem {
   purchaseOrder    PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
   receiptItems     GoodsReceiptItem[]
+  supplierInvoiceItems SupplierInvoiceItem[]
 
   @@index([purchaseOrderId])
   @@index([productVariantId])
@@ -1165,10 +1168,13 @@ model SupplierInvoice {
   supplierId     Int
   purchaseOrderId Int?
   status         SupplierInvoiceStatus @default(POSTED)
+  matchStatus    ThreeWayMatchStatus   @default(PENDING)
   issueDate      DateTime              @default(now())
   dueDate        DateTime?
   postedAt       DateTime              @default(now())
   createdById    String?
+  matchedAt      DateTime?
+  matchedById    String?
   currency       String                @default("BDT") @db.VarChar(3)
   subtotal       Decimal               @default(0) @db.Decimal(12, 2)
   taxTotal       Decimal               @default(0) @db.Decimal(12, 2)
@@ -1178,16 +1184,40 @@ model SupplierInvoice {
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   createdBy      User?                 @relation("SupplierInvoicesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  matchedBy      User?                 @relation("SupplierInvoicesMatched", fields: [matchedById], references: [id], onDelete: SetNull)
   purchaseOrder  PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   supplier       Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items          SupplierInvoiceItem[]
   payments       SupplierPayment[]
   ledgerEntries  SupplierLedgerEntry[]
 
   @@index([supplierId, status])
   @@index([purchaseOrderId])
   @@index([createdById])
+  @@index([matchedById])
+  @@index([matchStatus])
   @@index([issueDate])
   @@index([dueDate])
+}
+
+model SupplierInvoiceItem {
+  id                Int               @id @default(autoincrement())
+  supplierInvoiceId Int
+  purchaseOrderItemId Int?
+  productVariantId  Int
+  description       String?
+  quantityInvoiced  Int
+  unitCost          Decimal           @db.Decimal(12, 2)
+  lineTotal         Decimal           @db.Decimal(12, 2)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  productVariant    ProductVariant    @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  purchaseOrderItem PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id], onDelete: SetNull)
+  supplierInvoice   SupplierInvoice   @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([supplierInvoiceId])
+  @@index([purchaseOrderItemId])
+  @@index([productVariantId])
 }
 
 model SupplierPayment {
@@ -1901,6 +1931,12 @@ enum SupplierLedgerEntryType {
 enum SupplierLedgerDirection {
   DEBIT
   CREDIT
+}
+
+enum ThreeWayMatchStatus {
+  PENDING
+  MATCHED
+  VARIANCE
 }
 
 enum WarehouseTransferStatus {

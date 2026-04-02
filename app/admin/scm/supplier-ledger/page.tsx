@@ -43,8 +43,37 @@ type PurchaseOrderOption = {
     id: number;
     name: string;
   };
+  warehouse?: {
+    id: number;
+    name: string;
+    code: string;
+  };
   status: string;
   grandTotal: number | string;
+  items: Array<{
+    id: number;
+    quantityOrdered: number;
+    quantityReceived: number;
+    unitCost: number | string;
+    productVariant: {
+      id: number;
+      sku: string;
+      product: {
+        id: number;
+        name: string;
+      };
+    };
+  }>;
+};
+
+type InvoiceDraftLine = {
+  purchaseOrderItemId: string;
+  productVariantId: string;
+  sku: string;
+  productName: string;
+  quantityInvoiced: string;
+  unitCost: string;
+  description: string;
 };
 
 type SupplierLedgerDetail = {
@@ -71,10 +100,17 @@ type SupplierLedgerDetail = {
     id: number;
     invoiceNumber: string;
     status: string;
+    matchStatus?: string;
     issueDate: string;
     dueDate: string | null;
     total: number | string;
     purchaseOrder?: { poNumber: string } | null;
+    threeWayMatch?: {
+      status: string;
+      summary: {
+        varianceCount: number;
+      };
+    };
     payments: Array<{ id: number; paymentNumber: string; amount: number | string; paymentDate: string }>;
   }>;
   payments: Array<{
@@ -126,6 +162,7 @@ export default function SupplierLedgerPage() {
   const [invoiceTaxTotal, setInvoiceTaxTotal] = useState("0");
   const [invoiceOtherCharges, setInvoiceOtherCharges] = useState("0");
   const [invoiceNote, setInvoiceNote] = useState("");
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceDraftLine[]>([]);
 
   const [paymentInvoiceId, setPaymentInvoiceId] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
@@ -193,10 +230,41 @@ export default function SupplierLedgerPage() {
   }, [invoicePurchaseOrderId, supplierPurchaseOrders]);
 
   useEffect(() => {
-    if (selectedPurchaseOrder && !invoiceSubtotal) {
-      setInvoiceSubtotal(String(Number(selectedPurchaseOrder.grandTotal || 0)));
+    if (!selectedPurchaseOrder) {
+      setInvoiceItems([]);
+      return;
     }
-  }, [invoiceSubtotal, selectedPurchaseOrder]);
+
+    const lines = selectedPurchaseOrder.items
+      .filter((item) => item.quantityReceived > 0)
+      .map((item) => ({
+        purchaseOrderItemId: String(item.id),
+        productVariantId: String(item.productVariant.id),
+        sku: item.productVariant.sku,
+        productName: item.productVariant.product.name,
+        quantityInvoiced: String(item.quantityReceived),
+        unitCost: String(Number(item.unitCost || 0)),
+        description: `${item.productVariant.product.name} (${item.productVariant.sku})`,
+      }));
+    setInvoiceItems(lines);
+  }, [selectedPurchaseOrder]);
+
+  useEffect(() => {
+    if (invoiceItems.length === 0) {
+      if (!selectedPurchaseOrder) {
+        setInvoiceSubtotal("");
+      }
+      return;
+    }
+
+    const subtotal = invoiceItems.reduce((sum, item) => {
+      const quantity = Number(item.quantityInvoiced);
+      const unitCost = Number(item.unitCost);
+      if (!Number.isFinite(quantity) || !Number.isFinite(unitCost)) return sum;
+      return sum + quantity * unitCost;
+    }, 0);
+    setInvoiceSubtotal(subtotal.toFixed(2));
+  }, [invoiceItems, selectedPurchaseOrder]);
 
   const createInvoice = async () => {
     if (!selectedSupplierId) {
@@ -217,6 +285,15 @@ export default function SupplierLedgerPage() {
           taxTotal: invoiceTaxTotal || 0,
           otherCharges: invoiceOtherCharges || 0,
           note: invoiceNote,
+          items: invoiceItems
+            .filter((item) => Number(item.quantityInvoiced) > 0)
+            .map((item) => ({
+              purchaseOrderItemId: item.purchaseOrderItemId ? Number(item.purchaseOrderItemId) : null,
+              productVariantId: item.productVariantId ? Number(item.productVariantId) : null,
+              quantityInvoiced: Number(item.quantityInvoiced),
+              unitCost: Number(item.unitCost),
+              description: item.description,
+            })),
         }),
       });
       await readJson(response, "Failed to create supplier invoice");
@@ -228,6 +305,7 @@ export default function SupplierLedgerPage() {
       setInvoiceTaxTotal("0");
       setInvoiceOtherCharges("0");
       setInvoiceNote("");
+      setInvoiceItems([]);
       await Promise.all([loadBaseData(), loadDetail(selectedSupplierId)]);
     } catch (error: any) {
       toast.error(error?.message || "Failed to create supplier invoice");
@@ -270,6 +348,18 @@ export default function SupplierLedgerPage() {
     } finally {
       setSavingPayment(false);
     }
+  };
+
+  const updateInvoiceItem = (
+    index: number,
+    key: keyof InvoiceDraftLine,
+    value: string,
+  ) => {
+    setInvoiceItems((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [key]: value } : item,
+      ),
+    );
   };
 
   return (
@@ -401,6 +491,56 @@ export default function SupplierLedgerPage() {
                             ))}
                           </select>
                         </div>
+                        {selectedPurchaseOrder ? (
+                          <div className="space-y-3 rounded-lg border p-3">
+                            <div className="text-sm font-medium">
+                              Matchable invoice lines from {selectedPurchaseOrder.poNumber}
+                            </div>
+                            {invoiceItems.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                No received PO lines available yet. Post goods receipt before invoicing.
+                              </p>
+                            ) : (
+                              <div className="space-y-3">
+                                {invoiceItems.map((item, index) => (
+                                  <div
+                                    key={`${item.purchaseOrderItemId}-${index}`}
+                                    className="grid gap-3 rounded-md border p-3 md:grid-cols-[2fr_1fr_1fr]"
+                                  >
+                                    <div>
+                                      <Label>Item</Label>
+                                      <div className="text-sm font-medium">{item.productName}</div>
+                                      <div className="text-xs text-muted-foreground">{item.sku}</div>
+                                    </div>
+                                    <div>
+                                      <Label>Qty Invoiced</Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={item.quantityInvoiced}
+                                        onChange={(event) =>
+                                          updateInvoiceItem(index, "quantityInvoiced", event.target.value)
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label>Unit Cost</Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={item.unitCost}
+                                        onChange={(event) =>
+                                          updateInvoiceItem(index, "unitCost", event.target.value)
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
                         <div className="grid gap-4 md:grid-cols-2">
                           <div>
                             <Label>Issue Date</Label>
@@ -597,6 +737,12 @@ export default function SupplierLedgerPage() {
                           <div className="font-medium">{invoice.invoiceNumber}</div>
                           <div className="text-xs text-muted-foreground">
                             {invoice.status} • {Number(invoice.total).toFixed(2)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Match: {invoice.threeWayMatch?.status || invoice.matchStatus || "PENDING"}
+                            {typeof invoice.threeWayMatch?.summary?.varianceCount === "number"
+                              ? ` • Variances: ${invoice.threeWayMatch.summary.varianceCount}`
+                              : ""}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {invoice.purchaseOrder?.poNumber || "Direct supplier invoice"}

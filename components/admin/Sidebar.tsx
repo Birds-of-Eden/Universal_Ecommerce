@@ -200,6 +200,20 @@ const menuItems: MenuItem[] = [
           "supplier_payments.read",
         ],
       },
+      {
+        name: "3-Way Match",
+        href: "/admin/scm/three-way-match",
+        requiredPermissions: [
+          "three_way_match.read",
+          "supplier_invoices.read",
+          "supplier_invoices.manage",
+        ],
+        requiredGlobalPermissions: [
+          "three_way_match.read",
+          "supplier_invoices.read",
+          "supplier_invoices.manage",
+        ],
+      },
     ],
   },
   {

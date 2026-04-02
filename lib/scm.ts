@@ -273,6 +273,54 @@ export const goodsReceiptInclude = Prisma.validator<Prisma.GoodsReceiptInclude>(
   },
 });
 
+export const supplierInvoiceInclude = Prisma.validator<Prisma.SupplierInvoiceInclude>()({
+  supplier: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
+  purchaseOrder: {
+    include: purchaseOrderInclude,
+  },
+  items: {
+    orderBy: { id: "asc" },
+    include: {
+      purchaseOrderItem: {
+        select: {
+          id: true,
+          quantityOrdered: true,
+          quantityReceived: true,
+          unitCost: true,
+        },
+      },
+      productVariant: {
+        select: {
+          id: true,
+          productId: true,
+          sku: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  payments: {
+    select: {
+      id: true,
+      paymentNumber: true,
+      amount: true,
+      paymentDate: true,
+    },
+    orderBy: { paymentDate: "desc" },
+  },
+});
+
 export const warehouseTransferInclude = Prisma.validator<Prisma.WarehouseTransferInclude>()({
   sourceWarehouse: {
     select: {
@@ -354,6 +402,10 @@ export type PurchaseRequisitionWithRelations = Prisma.PurchaseRequisitionGetPayl
 
 export type GoodsReceiptWithRelations = Prisma.GoodsReceiptGetPayload<{
   include: typeof goodsReceiptInclude;
+}>;
+
+export type SupplierInvoiceWithRelations = Prisma.SupplierInvoiceGetPayload<{
+  include: typeof supplierInvoiceInclude;
 }>;
 
 export type WarehouseTransferWithRelations = Prisma.WarehouseTransferGetPayload<{
@@ -450,6 +502,7 @@ export function toGoodsReceiptLogSnapshot(receipt: GoodsReceiptWithRelations) {
 export function toSupplierInvoiceLogSnapshot(invoice: {
   invoiceNumber: string;
   status: string;
+  matchStatus?: string;
   supplierId: number;
   purchaseOrderId: number | null;
   issueDate: Date;
@@ -465,6 +518,7 @@ export function toSupplierInvoiceLogSnapshot(invoice: {
   return {
     invoiceNumber: invoice.invoiceNumber,
     status: invoice.status,
+    matchStatus: invoice.matchStatus ?? null,
     supplierId: invoice.supplierId,
     purchaseOrderId: invoice.purchaseOrderId,
     issueDate: invoice.issueDate.toISOString(),
@@ -476,6 +530,180 @@ export function toSupplierInvoiceLogSnapshot(invoice: {
     otherCharges: invoice.otherCharges.toString(),
     total: invoice.total.toString(),
     note: invoice.note,
+  };
+}
+
+function decimalAbs(value: Prisma.Decimal) {
+  return value.lt(0) ? value.mul(-1) : value;
+}
+
+function isDecimalEqual(
+  left: Prisma.Decimal | string | number,
+  right: Prisma.Decimal | string | number,
+  tolerance = new Prisma.Decimal("0.01"),
+) {
+  const leftDecimal = left instanceof Prisma.Decimal ? left : new Prisma.Decimal(left);
+  const rightDecimal = right instanceof Prisma.Decimal ? right : new Prisma.Decimal(right);
+  return decimalAbs(leftDecimal.minus(rightDecimal)).lte(tolerance);
+}
+
+export function evaluateSupplierInvoiceThreeWayMatch(
+  invoice: SupplierInvoiceWithRelations,
+) {
+  if (!invoice.purchaseOrderId || !invoice.purchaseOrder) {
+    return {
+      status: "PENDING" as const,
+      summary: {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        purchaseOrderId: null,
+        purchaseOrderNumber: null,
+        matchedLineCount: 0,
+        varianceCount: 0,
+        invoiceSubtotal: invoice.subtotal.toString(),
+        expectedSubtotal: null,
+        lines: [],
+        issues: ["Invoice is not linked to a purchase order."],
+      },
+    };
+  }
+
+  if (invoice.items.length === 0) {
+    return {
+      status: "PENDING" as const,
+      summary: {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        purchaseOrderId: invoice.purchaseOrderId,
+        purchaseOrderNumber: invoice.purchaseOrder.poNumber,
+        matchedLineCount: 0,
+        varianceCount: 0,
+        invoiceSubtotal: invoice.subtotal.toString(),
+        expectedSubtotal: null,
+        lines: [],
+        issues: ["Invoice has no line items to match."],
+      },
+    };
+  }
+
+  const poItemMap = new Map(invoice.purchaseOrder.items.map((item) => [item.id, item]));
+  const lines = invoice.items.map((item) => {
+    const purchaseOrderItem =
+      (item.purchaseOrderItemId ? poItemMap.get(item.purchaseOrderItemId) : null) ??
+      invoice.purchaseOrder?.items.find(
+        (candidate) => candidate.productVariantId === item.productVariantId,
+      ) ??
+      null;
+
+    const expectedUnitCost = purchaseOrderItem?.unitCost ?? null;
+    const expectedReceivedQty = purchaseOrderItem?.quantityReceived ?? 0;
+    const expectedOrderedQty = purchaseOrderItem?.quantityOrdered ?? 0;
+    const expectedLineTotal = expectedUnitCost
+      ? expectedUnitCost.mul(item.quantityInvoiced)
+      : null;
+
+    const issues: string[] = [];
+    if (!purchaseOrderItem) {
+      issues.push("Invoice line is not linked to a purchase order item.");
+    } else {
+      if (item.quantityInvoiced > expectedReceivedQty) {
+        issues.push("Invoiced quantity exceeds goods received quantity.");
+      }
+      if (item.quantityInvoiced > expectedOrderedQty) {
+        issues.push("Invoiced quantity exceeds ordered quantity.");
+      }
+      if (expectedUnitCost && !isDecimalEqual(item.unitCost, expectedUnitCost)) {
+        issues.push("Invoice unit cost does not match purchase order unit cost.");
+      }
+      if (expectedLineTotal && !isDecimalEqual(item.lineTotal, expectedLineTotal)) {
+        issues.push("Invoice line total does not match expected PO value.");
+      }
+    }
+
+    return {
+      id: item.id,
+      sku: item.productVariant.sku,
+      productName: item.productVariant.product.name,
+      quantityInvoiced: item.quantityInvoiced,
+      quantityReceived: expectedReceivedQty,
+      quantityOrdered: expectedOrderedQty,
+      invoiceUnitCost: item.unitCost.toString(),
+      purchaseOrderUnitCost: expectedUnitCost?.toString() ?? null,
+      invoiceLineTotal: item.lineTotal.toString(),
+      expectedLineTotal: expectedLineTotal?.toString() ?? null,
+      isMatched: issues.length === 0,
+      issues,
+    };
+  });
+
+  const expectedSubtotal = lines.reduce(
+    (sum, line) =>
+      line.expectedLineTotal ? sum.plus(new Prisma.Decimal(line.expectedLineTotal)) : sum,
+    new Prisma.Decimal(0),
+  );
+  const invoiceLineSubtotal = invoice.items.reduce(
+    (sum, item) => sum.plus(item.lineTotal),
+    new Prisma.Decimal(0),
+  );
+
+  const issues: string[] = [];
+  if (!isDecimalEqual(invoice.subtotal, invoiceLineSubtotal)) {
+    issues.push("Invoice subtotal does not equal sum of invoice lines.");
+  }
+  if (!isDecimalEqual(invoiceLineSubtotal, expectedSubtotal)) {
+    issues.push("Invoice line subtotal does not equal expected PO/GR matched subtotal.");
+  }
+
+  const varianceCount =
+    lines.filter((line) => !line.isMatched).length + issues.length;
+  return {
+    status: (varianceCount === 0 ? "MATCHED" : "VARIANCE") as
+      | "MATCHED"
+      | "VARIANCE",
+    summary: {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      purchaseOrderId: invoice.purchaseOrderId,
+      purchaseOrderNumber: invoice.purchaseOrder.poNumber,
+      matchedLineCount: lines.filter((line) => line.isMatched).length,
+      varianceCount,
+      invoiceSubtotal: invoice.subtotal.toString(),
+      expectedSubtotal: expectedSubtotal.toString(),
+      lines,
+      issues,
+    },
+  };
+}
+
+export async function refreshSupplierInvoiceThreeWayMatch(
+  tx: TransactionClient,
+  supplierInvoiceId: number,
+  matchedById?: string | null,
+) {
+  const invoice = await tx.supplierInvoice.findUnique({
+    where: { id: supplierInvoiceId },
+    include: supplierInvoiceInclude,
+  });
+
+  if (!invoice) {
+    throw new Error("Supplier invoice not found");
+  }
+
+  const evaluation = evaluateSupplierInvoiceThreeWayMatch(invoice);
+
+  const updated = await tx.supplierInvoice.update({
+    where: { id: supplierInvoiceId },
+    data: {
+      matchStatus: evaluation.status,
+      matchedAt: new Date(),
+      ...(matchedById ? { matchedById } : {}),
+    },
+    include: supplierInvoiceInclude,
+  });
+
+  return {
+    invoice: updated,
+    evaluation,
   };
 }
 
