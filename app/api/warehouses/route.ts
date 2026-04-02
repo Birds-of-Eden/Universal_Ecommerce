@@ -72,6 +72,8 @@ export async function GET() {
         "supplier_returns.read",
         "supplier_returns.manage",
         "supplier_returns.approve",
+        "replenishment.read",
+        "replenishment.manage",
         "warehouse_transfers.read",
         "warehouse_transfers.manage",
         "warehouse_transfers.approve",
@@ -99,6 +101,8 @@ export async function GET() {
         access.hasGlobal("supplier_returns.read") ||
         access.hasGlobal("supplier_returns.manage") ||
         access.hasGlobal("supplier_returns.approve") ||
+        access.hasGlobal("replenishment.read") ||
+        access.hasGlobal("replenishment.manage") ||
         access.hasGlobal("warehouse_transfers.read") ||
         access.hasGlobal("warehouse_transfers.manage") ||
         access.hasGlobal("warehouse_transfers.approve")

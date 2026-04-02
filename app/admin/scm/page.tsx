@@ -10,6 +10,7 @@ import {
   GitCompareArrows,
   RotateCcw,
   PackageCheck,
+  Radar,
   ShoppingCart,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +51,13 @@ const cards = [
     description: "Control vendor returns, stock deduction, and credit-note closure from received goods.",
     icon: RotateCcw,
     permission: "supplier_returns.read",
+  },
+  {
+    title: "Replenishment",
+    href: "/admin/scm/replenishment",
+    description: "Manage warehouse reorder rules and turn shortage signals into requisitions.",
+    icon: Radar,
+    permission: "replenishment.read",
   },
   {
     title: "Warehouse Transfers",

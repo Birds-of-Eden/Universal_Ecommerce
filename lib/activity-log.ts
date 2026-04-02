@@ -114,6 +114,10 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     ],
   },
   {
+    match: ["replenishment", "replenishment_rule", "replenishment_plan"],
+    permissions: ["replenishment.read", "replenishment.manage", "scm.access"],
+  },
+  {
     match: ["supplier_invoice", "supplierinvoice"],
     permissions: [
       "supplier_ledger.read",

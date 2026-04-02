@@ -63,6 +63,8 @@ model User {
   warehouseTransfersApproved    WarehouseTransfer[]     @relation("WarehouseTransfersApproved")
   warehouseTransfersDispatched  WarehouseTransfer[]     @relation("WarehouseTransfersDispatched")
   warehouseTransfersReceived    WarehouseTransfer[]     @relation("WarehouseTransfersReceived")
+  replenishmentRulesCreated     ReplenishmentRule[]     @relation("ReplenishmentRulesCreated")
+  replenishmentRulesUpdated     ReplenishmentRule[]     @relation("ReplenishmentRulesUpdated")
   wishlist                      Wishlist[]
   analyticsEvents               AnalyticsEvent[]
   deliveryManProfile            DeliveryManProfile?
@@ -299,6 +301,7 @@ model ProductVariant {
   purchaseRequisitionItems PurchaseRequisitionItem[]
   supplierInvoiceItems    SupplierInvoiceItem[]
   supplierReturnItems     SupplierReturnItem[]
+  replenishmentRules      ReplenishmentRule[]
   warehouseTransferItems  WarehouseTransferItem[]
   stockLevels             StockLevel[]
 }
@@ -726,6 +729,7 @@ model Warehouse {
   purchaseRequisitions             PurchaseRequisition[]
   goodsReceipts                    GoodsReceipt[]
   supplierReturns                  SupplierReturn[]
+  replenishmentRules               ReplenishmentRule[]
   transfersFrom                    WarehouseTransfer[]               @relation("WarehouseTransferSource")
   transfersTo                      WarehouseTransfer[]               @relation("WarehouseTransferDestination")
   deliveryMen                      DeliveryManProfile[]
@@ -1379,6 +1383,35 @@ model SupplierReturnItem {
   @@index([productVariantId])
 }
 
+model ReplenishmentRule {
+  id                    Int                   @id @default(autoincrement())
+  warehouseId           Int
+  productVariantId      Int
+  strategy              ReplenishmentStrategy @default(MIN_MAX)
+  reorderPoint          Int
+  targetStockLevel      Int
+  safetyStock           Int                   @default(0)
+  minOrderQty           Int                   @default(1)
+  orderMultiple         Int                   @default(1)
+  leadTimeDays          Int?
+  isActive              Boolean               @default(true)
+  note                  String?
+  createdById           String?
+  updatedById           String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  createdBy             User?                 @relation("ReplenishmentRulesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  productVariant        ProductVariant        @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  updatedBy             User?                 @relation("ReplenishmentRulesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  warehouse             Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, productVariantId])
+  @@index([warehouseId, isActive])
+  @@index([productVariantId, isActive])
+  @@index([createdById])
+  @@index([updatedById])
+}
+
 model WarehouseTransfer {
   id                   Int                     @id @default(autoincrement())
   transferNumber       String                  @unique
@@ -2021,6 +2054,11 @@ enum SupplierReturnStatus {
   DISPATCHED
   CLOSED
   CANCELLED
+}
+
+enum ReplenishmentStrategy {
+  MIN_MAX
+  REORDER_POINT
 }
 
 enum SupplierInvoiceStatus {
