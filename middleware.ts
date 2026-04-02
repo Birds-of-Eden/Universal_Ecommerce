@@ -54,6 +54,11 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/scm/supplier-intelligence",
+    permissions: ["supplier_performance.read"],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/scm/purchase-requisitions",
     permissions: [
       "purchase_requisitions.read",
@@ -73,6 +78,18 @@ const adminPagePermissionRules: PermissionRule[] = [
   {
     prefix: "/admin/scm/goods-receipts",
     permissions: ["goods_receipts.read", "goods_receipts.manage"],
+  },
+  {
+    prefix: "/admin/scm/supplier-returns",
+    permissions: [
+      "supplier_returns.read",
+      "supplier_returns.manage",
+      "supplier_returns.approve",
+    ],
+  },
+  {
+    prefix: "/admin/scm/replenishment",
+    permissions: ["replenishment.read", "replenishment.manage"],
   },
   {
     prefix: "/admin/scm/warehouse-transfers",
@@ -102,6 +119,7 @@ const adminPagePermissionRules: PermissionRule[] = [
       "scm.access",
       "suppliers.read",
       "suppliers.manage",
+      "supplier_performance.read",
       "purchase_requisitions.read",
       "purchase_requisitions.manage",
       "purchase_requisitions.approve",
@@ -110,6 +128,11 @@ const adminPagePermissionRules: PermissionRule[] = [
       "purchase_orders.approve",
       "goods_receipts.read",
       "goods_receipts.manage",
+      "supplier_returns.read",
+      "supplier_returns.manage",
+      "supplier_returns.approve",
+      "replenishment.read",
+      "replenishment.manage",
       "warehouse_transfers.read",
       "warehouse_transfers.manage",
       "warehouse_transfers.approve",
@@ -205,6 +228,12 @@ const apiPermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/api/scm/supplier-intelligence",
+    methods: ["GET"],
+    permissions: ["supplier_performance.read"],
+    globalOnly: true,
+  },
+  {
     prefix: "/api/scm/purchase-requisitions",
     methods: ["GET"],
     permissions: [
@@ -256,6 +285,45 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/goods-receipts",
     methods: ["POST"],
     permissions: ["goods_receipts.manage"],
+  },
+  {
+    prefix: "/api/scm/supplier-returns",
+    methods: ["GET"],
+    permissions: [
+      "supplier_returns.read",
+      "supplier_returns.manage",
+      "supplier_returns.approve",
+    ],
+  },
+  {
+    prefix: "/api/scm/supplier-returns",
+    methods: ["POST"],
+    permissions: ["supplier_returns.manage"],
+  },
+  {
+    prefix: "/api/scm/supplier-returns",
+    methods: ["PATCH", "PUT"],
+    permissions: ["supplier_returns.manage", "supplier_returns.approve"],
+  },
+  {
+    prefix: "/api/scm/replenishment/rules",
+    methods: ["GET"],
+    permissions: ["replenishment.read", "replenishment.manage"],
+  },
+  {
+    prefix: "/api/scm/replenishment/rules",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["replenishment.manage"],
+  },
+  {
+    prefix: "/api/scm/replenishment/suggestions",
+    methods: ["GET"],
+    permissions: ["replenishment.read", "replenishment.manage"],
+  },
+  {
+    prefix: "/api/scm/replenishment/suggestions",
+    methods: ["POST"],
+    permissions: ["replenishment.manage", "purchase_requisitions.manage"],
   },
   {
     prefix: "/api/scm/warehouse-transfers",

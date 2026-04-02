@@ -7,8 +7,11 @@ import {
   ArrowRightLeft,
   BookOpen,
   ClipboardList,
+  Clock3,
   GitCompareArrows,
+  RotateCcw,
   PackageCheck,
+  Radar,
   ShoppingCart,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +24,14 @@ const cards = [
     icon: BookOpen,
     permission: "suppliers.read",
     globalPermission: "suppliers.manage",
+  },
+  {
+    title: "Supplier Intelligence",
+    href: "/admin/scm/supplier-intelligence",
+    description: "Track actual lead-time trends, late-order risk, and recommended supplier buffers.",
+    icon: Clock3,
+    permission: "supplier_performance.read",
+    globalPermission: "supplier_performance.read",
   },
   {
     title: "Purchase Requisitions",
@@ -42,6 +53,20 @@ const cards = [
     description: "Post inbound stock against approved purchase orders.",
     icon: PackageCheck,
     permission: "goods_receipts.read",
+  },
+  {
+    title: "Supplier Returns",
+    href: "/admin/scm/supplier-returns",
+    description: "Control vendor returns, stock deduction, and credit-note closure from received goods.",
+    icon: RotateCcw,
+    permission: "supplier_returns.read",
+  },
+  {
+    title: "Replenishment",
+    href: "/admin/scm/replenishment",
+    description: "Manage warehouse reorder rules and turn shortage signals into requisitions.",
+    icon: Radar,
+    permission: "replenishment.read",
   },
   {
     title: "Warehouse Transfers",

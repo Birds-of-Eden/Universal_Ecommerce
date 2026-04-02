@@ -154,6 +154,11 @@ const menuItems: MenuItem[] = [
         requiredGlobalPermissions: ["suppliers.read", "suppliers.manage"],
       },
       {
+        name: "Supplier Intelligence",
+        href: "/admin/scm/supplier-intelligence",
+        requiredGlobalPermissions: ["supplier_performance.read"],
+      },
+      {
         name: "Purchase Requisitions",
         href: "/admin/scm/purchase-requisitions",
         requiredPermissions: [
@@ -176,6 +181,20 @@ const menuItems: MenuItem[] = [
         name: "Goods Receipts",
         href: "/admin/scm/goods-receipts",
         requiredPermissions: ["goods_receipts.read", "goods_receipts.manage"],
+      },
+      {
+        name: "Supplier Returns",
+        href: "/admin/scm/supplier-returns",
+        requiredPermissions: [
+          "supplier_returns.read",
+          "supplier_returns.manage",
+          "supplier_returns.approve",
+        ],
+      },
+      {
+        name: "Replenishment",
+        href: "/admin/scm/replenishment",
+        requiredPermissions: ["replenishment.read", "replenishment.manage"],
       },
       {
         name: "Warehouse Transfers",

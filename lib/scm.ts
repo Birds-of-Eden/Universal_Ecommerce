@@ -62,6 +62,19 @@ export async function generateSupplierInvoiceNumber(tx: TransactionClient) {
   return `${prefix}-${String(count + 1).padStart(4, "0")}`;
 }
 
+export async function generateSupplierReturnNumber(tx: TransactionClient) {
+  const today = new Date();
+  const prefix = `SRT-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const count = await tx.supplierReturn.count({
+    where: {
+      returnNumber: {
+        startsWith: prefix,
+      },
+    },
+  });
+  return `${prefix}-${String(count + 1).padStart(4, "0")}`;
+}
+
 export async function generateSupplierPaymentNumber(tx: TransactionClient) {
   const today = new Date();
   const prefix = `SPAY-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -110,6 +123,7 @@ export const purchaseOrderInclude = Prisma.validator<Prisma.PurchaseOrderInclude
       id: true,
       name: true,
       code: true,
+      currency: true,
     },
   },
   warehouse: {
@@ -279,6 +293,7 @@ export const supplierInvoiceInclude = Prisma.validator<Prisma.SupplierInvoiceInc
       id: true,
       name: true,
       code: true,
+      currency: true,
     },
   },
   purchaseOrder: {
@@ -318,6 +333,113 @@ export const supplierInvoiceInclude = Prisma.validator<Prisma.SupplierInvoiceInc
       paymentDate: true,
     },
     orderBy: { paymentDate: "desc" },
+  },
+});
+
+export const supplierReturnInclude = Prisma.validator<Prisma.SupplierReturnInclude>()({
+  supplier: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      currency: true,
+    },
+  },
+  warehouse: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
+  purchaseOrder: {
+    select: {
+      id: true,
+      poNumber: true,
+      status: true,
+    },
+  },
+  goodsReceipt: {
+    select: {
+      id: true,
+      receiptNumber: true,
+      receivedAt: true,
+      purchaseOrder: {
+        select: {
+          id: true,
+          poNumber: true,
+          supplierId: true,
+          warehouseId: true,
+        },
+      },
+    },
+  },
+  supplierInvoice: {
+    select: {
+      id: true,
+      invoiceNumber: true,
+      status: true,
+      total: true,
+    },
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  approvedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  dispatchedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  closedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  items: {
+    orderBy: { id: "asc" },
+    include: {
+      goodsReceiptItem: {
+        select: {
+          id: true,
+          quantityReceived: true,
+        },
+      },
+      purchaseOrderItem: {
+        select: {
+          id: true,
+          quantityOrdered: true,
+          quantityReceived: true,
+        },
+      },
+      productVariant: {
+        select: {
+          id: true,
+          productId: true,
+          sku: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
   },
 });
 
@@ -406,6 +528,10 @@ export type GoodsReceiptWithRelations = Prisma.GoodsReceiptGetPayload<{
 
 export type SupplierInvoiceWithRelations = Prisma.SupplierInvoiceGetPayload<{
   include: typeof supplierInvoiceInclude;
+}>;
+
+export type SupplierReturnWithRelations = Prisma.SupplierReturnGetPayload<{
+  include: typeof supplierReturnInclude;
 }>;
 
 export type WarehouseTransferWithRelations = Prisma.WarehouseTransferGetPayload<{
@@ -731,6 +857,45 @@ export function toSupplierPaymentLogSnapshot(payment: {
   };
 }
 
+export function toSupplierReturnLogSnapshot(supplierReturn: SupplierReturnWithRelations) {
+  return {
+    returnNumber: supplierReturn.returnNumber,
+    status: supplierReturn.status,
+    supplierId: supplierReturn.supplierId,
+    supplierName: supplierReturn.supplier.name,
+    warehouseId: supplierReturn.warehouseId,
+    warehouseCode: supplierReturn.warehouse.code,
+    purchaseOrderId: supplierReturn.purchaseOrderId,
+    purchaseOrderNumber: supplierReturn.purchaseOrder?.poNumber ?? null,
+    goodsReceiptId: supplierReturn.goodsReceiptId,
+    goodsReceiptNumber: supplierReturn.goodsReceipt.receiptNumber,
+    supplierInvoiceId: supplierReturn.supplierInvoiceId,
+    supplierInvoiceNumber: supplierReturn.supplierInvoice?.invoiceNumber ?? null,
+    requestedAt: supplierReturn.requestedAt.toISOString(),
+    requiredBy: supplierReturn.requiredBy?.toISOString() ?? null,
+    submittedAt: supplierReturn.submittedAt?.toISOString() ?? null,
+    approvedAt: supplierReturn.approvedAt?.toISOString() ?? null,
+    dispatchedAt: supplierReturn.dispatchedAt?.toISOString() ?? null,
+    closedAt: supplierReturn.closedAt?.toISOString() ?? null,
+    ledgerPostedAt: supplierReturn.ledgerPostedAt?.toISOString() ?? null,
+    reasonCode: supplierReturn.reasonCode ?? null,
+    note: supplierReturn.note ?? null,
+    items: supplierReturn.items.map((item) => ({
+      id: item.id,
+      goodsReceiptItemId: item.goodsReceiptItemId,
+      purchaseOrderItemId: item.purchaseOrderItemId,
+      variantId: item.productVariantId,
+      sku: item.productVariant.sku,
+      productName: item.productVariant.product.name,
+      quantityRequested: item.quantityRequested,
+      quantityDispatched: item.quantityDispatched,
+      unitCost: item.unitCost.toString(),
+      lineTotal: item.lineTotal.toString(),
+      reason: item.reason ?? null,
+    })),
+  };
+}
+
 export function toWarehouseTransferLogSnapshot(transfer: WarehouseTransferWithRelations) {
   return {
     transferNumber: transfer.transferNumber,
@@ -773,6 +938,15 @@ export async function syncSupplierInvoicePaymentStatus(
           amount: true,
         },
       },
+      ledgerEntries: {
+        where: {
+          entryType: "ADJUSTMENT",
+          direction: "CREDIT",
+        },
+        select: {
+          amount: true,
+        },
+      },
     },
   });
 
@@ -784,11 +958,16 @@ export async function syncSupplierInvoicePaymentStatus(
     (sum, item) => sum.plus(item.amount),
     new Prisma.Decimal(0),
   );
+  const adjustmentCredit = invoice.ledgerEntries.reduce(
+    (sum, entry) => sum.plus(entry.amount),
+    new Prisma.Decimal(0),
+  );
+  const settledAmount = paidAmount.plus(adjustmentCredit);
 
   let nextStatus = invoice.status;
-  if (paidAmount.gte(invoice.total)) {
+  if (settledAmount.gte(invoice.total)) {
     nextStatus = "PAID";
-  } else if (paidAmount.gt(0)) {
+  } else if (settledAmount.gt(0)) {
     nextStatus = "PARTIALLY_PAID";
   } else if (invoice.status === "PAID" || invoice.status === "PARTIALLY_PAID") {
     nextStatus = "POSTED";
@@ -829,6 +1008,72 @@ export function computeSupplierLedgerTotals(
     credit: totals.credit,
     balance: totals.debit.minus(totals.credit),
   };
+}
+
+export async function refreshSupplierReturnStatus(
+  tx: TransactionClient,
+  supplierReturnId: number,
+) {
+  const supplierReturn = await tx.supplierReturn.findUnique({
+    where: { id: supplierReturnId },
+    select: {
+      id: true,
+      status: true,
+      submittedAt: true,
+      approvedAt: true,
+      closedAt: true,
+      items: {
+        select: {
+          quantityRequested: true,
+          quantityDispatched: true,
+        },
+      },
+    },
+  });
+
+  if (!supplierReturn) {
+    throw new Error("Supplier return not found");
+  }
+
+  const requested = supplierReturn.items.reduce(
+    (sum, item) => sum + item.quantityRequested,
+    0,
+  );
+  const dispatched = supplierReturn.items.reduce(
+    (sum, item) => sum + item.quantityDispatched,
+    0,
+  );
+
+  let status = supplierReturn.status;
+  let dispatchedAt: Date | null | undefined = undefined;
+
+  if (supplierReturn.closedAt) {
+    status = "CLOSED";
+  } else if (requested > 0 && dispatched >= requested) {
+    status = "DISPATCHED";
+    dispatchedAt = new Date();
+  } else if (dispatched > 0) {
+    status = "PARTIALLY_DISPATCHED";
+    dispatchedAt = new Date();
+  } else if (supplierReturn.approvedAt) {
+    status = "APPROVED";
+    dispatchedAt = null;
+  } else if (supplierReturn.submittedAt) {
+    status = "SUBMITTED";
+    dispatchedAt = null;
+  } else {
+    status = "DRAFT";
+    dispatchedAt = null;
+  }
+
+  return tx.supplierReturn.update({
+    where: { id: supplierReturnId },
+    data: {
+      status,
+      ...(dispatchedAt !== undefined ? { dispatchedAt } : {}),
+    },
+    include: supplierReturnInclude,
+  });
 }
 
 export async function refreshWarehouseTransferStatus(

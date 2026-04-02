@@ -24,6 +24,19 @@ export async function GET() {
               orderBy: { id: 'asc' },
             },
             VatClass: true,
+            bundleItems: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    basePrice: true,
+                  }
+                }
+              },
+              orderBy: { sortOrder: 'asc' }
+            },
           },
         },
         variant: true,
@@ -74,6 +87,18 @@ export async function POST(request: NextRequest) {
         variants: {
           orderBy: { isDefault: 'desc' },
         },
+        bundleItems: {
+          include: {
+            product: {
+              include: {
+                variants: {
+                  orderBy: { isDefault: 'desc' },
+                },
+              },
+            },
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
       },
     });
 
@@ -82,6 +107,87 @@ export async function POST(request: NextRequest) {
         { error: 'Product not available' },
         { status: 404 }
       );
+    }
+
+    // Handle bundle stock validation
+    if (product.type === 'BUNDLE') {
+      if (product.bundleItems.length === 0) {
+        return NextResponse.json(
+          { error: 'Bundle has no items configured' },
+          { status: 400 }
+        );
+      }
+
+      // Check bundle stock based on child products
+      for (const bundleItem of product.bundleItems) {
+        const childProduct = bundleItem.product;
+        const childVariant = childProduct.variants.find(v => v.isDefault) || childProduct.variants[0];
+        
+        if (!childVariant) {
+          return NextResponse.json(
+            { error: `Bundle item "${childProduct.name}" has no inventory configured` },
+            { status: 400 }
+          );
+        }
+
+        const requiredQuantity = bundleItem.quantity * quantity;
+        const availableStock = Number(childVariant.stock);
+
+        if (availableStock < requiredQuantity) {
+          return NextResponse.json(
+            { error: `Insufficient stock for bundle item "${childProduct.name}". Required: ${requiredQuantity}, Available: ${availableStock}` },
+            { status: 400 }
+          );
+        }
+      }
+
+      // For bundles, we don't need variant validation - use null variantId
+      const existing = await prisma.cartItem.findFirst({
+        where: {
+          userId,
+          productId,
+          variantId: null, // Bundles don't use variants
+        },
+      });
+
+      let cartItem;
+
+      if (existing) {
+        const nextQuantity = existing.quantity + quantity;
+        
+        // Re-check bundle stock for updated quantity
+        for (const bundleItem of product.bundleItems) {
+          const childProduct = bundleItem.product;
+          const childVariant = childProduct.variants.find(v => v.isDefault) || childProduct.variants[0];
+          const requiredQuantity = bundleItem.quantity * nextQuantity;
+          const availableStock = Number(childVariant.stock);
+
+          if (availableStock < requiredQuantity) {
+            return NextResponse.json(
+              { error: `Insufficient stock for bundle item "${childProduct.name}". Required: ${requiredQuantity}, Available: ${availableStock}` },
+              { status: 400 }
+            );
+          }
+        }
+
+        cartItem = await prisma.cartItem.update({
+          where: { id: existing.id },
+          data: {
+            quantity: nextQuantity,
+          },
+        });
+      } else {
+        cartItem = await prisma.cartItem.create({
+          data: {
+            userId,
+            productId,
+            variantId: null, // Bundles don't use variants
+            quantity,
+          },
+        });
+      }
+
+      return NextResponse.json(cartItem, { status: 201 });
     }
 
     const targetVariant =

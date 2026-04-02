@@ -51,6 +51,10 @@ model User {
   purchaseRequisitionsApproved  PurchaseRequisition[]   @relation("PurchaseRequisitionsApproved")
   purchaseRequisitionsConverted PurchaseRequisition[]   @relation("PurchaseRequisitionsConverted")
   goodsReceiptsReceived         GoodsReceipt[]          @relation("GoodsReceiptsReceived")
+  supplierReturnsCreated       SupplierReturn[]        @relation("SupplierReturnsCreated")
+  supplierReturnsApproved      SupplierReturn[]        @relation("SupplierReturnsApproved")
+  supplierReturnsDispatched    SupplierReturn[]        @relation("SupplierReturnsDispatched")
+  supplierReturnsClosed        SupplierReturn[]        @relation("SupplierReturnsClosed")
   supplierInvoicesCreated       SupplierInvoice[]       @relation("SupplierInvoicesCreated")
   supplierInvoicesMatched       SupplierInvoice[]       @relation("SupplierInvoicesMatched")
   supplierPaymentsCreated       SupplierPayment[]       @relation("SupplierPaymentsCreated")
@@ -59,6 +63,8 @@ model User {
   warehouseTransfersApproved    WarehouseTransfer[]     @relation("WarehouseTransfersApproved")
   warehouseTransfersDispatched  WarehouseTransfer[]     @relation("WarehouseTransfersDispatched")
   warehouseTransfersReceived    WarehouseTransfer[]     @relation("WarehouseTransfersReceived")
+  replenishmentRulesCreated     ReplenishmentRule[]     @relation("ReplenishmentRulesCreated")
+  replenishmentRulesUpdated     ReplenishmentRule[]     @relation("ReplenishmentRulesUpdated")
   wishlist                      Wishlist[]
   analyticsEvents               AnalyticsEvent[]
   deliveryManProfile            DeliveryManProfile?
@@ -246,6 +252,25 @@ model Product {
   reviews                 Review[]
   serviceSlots            ServiceSlot[]
   wishlist                Wishlist[]
+  bundleItems             ProductBundleItem[] @relation("BundleProducts")
+  includedInBundles       ProductBundleItem[] @relation("IncludedProducts")
+}
+
+model ProductBundleItem {
+  id         Int     @id @default(autoincrement())
+  bundleId   Int
+  productId  Int
+  quantity   Int     @default(1)
+  sortOrder  Int     @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  bundle    Product @relation("BundleProducts", fields: [bundleId], references: [id], onDelete: Cascade)
+  product   Product @relation("IncludedProducts", fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@unique([bundleId, productId])
+  @@index([bundleId])
+  @@index([productId])
 }
 
 model ProductVariant {
@@ -275,6 +300,8 @@ model ProductVariant {
   goodsReceiptItems       GoodsReceiptItem[]
   purchaseRequisitionItems PurchaseRequisitionItem[]
   supplierInvoiceItems    SupplierInvoiceItem[]
+  supplierReturnItems     SupplierReturnItem[]
+  replenishmentRules      ReplenishmentRule[]
   warehouseTransferItems  WarehouseTransferItem[]
   stockLevels             StockLevel[]
 }
@@ -701,6 +728,8 @@ model Warehouse {
   purchaseOrders                   PurchaseOrder[]
   purchaseRequisitions             PurchaseRequisition[]
   goodsReceipts                    GoodsReceipt[]
+  supplierReturns                  SupplierReturn[]
+  replenishmentRules               ReplenishmentRule[]
   transfersFrom                    WarehouseTransfer[]               @relation("WarehouseTransferSource")
   transfersTo                      WarehouseTransfer[]               @relation("WarehouseTransferDestination")
   deliveryMen                      DeliveryManProfile[]
@@ -1010,6 +1039,7 @@ model Supplier {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   purchaseOrders   PurchaseOrder[]
+  supplierReturns SupplierReturn[]
   invoices         SupplierInvoice[]
   payments         SupplierPayment[]
   ledgerEntries    SupplierLedgerEntry[]
@@ -1092,6 +1122,7 @@ model PurchaseOrder {
   supplier      Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   warehouse     Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   goodsReceipts GoodsReceipt[]
+  supplierReturns SupplierReturn[]
   supplierInvoices SupplierInvoice[]
   supplierLedgerEntries SupplierLedgerEntry[]
   items         PurchaseOrderItem[]
@@ -1119,6 +1150,7 @@ model PurchaseOrderItem {
   productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
   receiptItems     GoodsReceiptItem[]
   supplierInvoiceItems SupplierInvoiceItem[]
+  supplierReturnItems SupplierReturnItem[]
 
   @@index([purchaseOrderId])
   @@index([productVariantId])
@@ -1139,6 +1171,7 @@ model GoodsReceipt {
   warehouse       Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   receivedBy      User?              @relation("GoodsReceiptsReceived", fields: [receivedById], references: [id], onDelete: SetNull)
   items           GoodsReceiptItem[]
+  supplierReturns SupplierReturn[]
 
   @@index([purchaseOrderId])
   @@index([warehouseId, receivedAt])
@@ -1156,6 +1189,7 @@ model GoodsReceiptItem {
   goodsReceipt        GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
   purchaseOrderItem   PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
   productVariant      ProductVariant    @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  supplierReturnItems SupplierReturnItem[]
 
   @@index([goodsReceiptId])
   @@index([purchaseOrderItemId])
@@ -1190,6 +1224,7 @@ model SupplierInvoice {
   items          SupplierInvoiceItem[]
   payments       SupplierPayment[]
   ledgerEntries  SupplierLedgerEntry[]
+  supplierReturns SupplierReturn[]
 
   @@index([supplierId, status])
   @@index([purchaseOrderId])
@@ -1258,6 +1293,7 @@ model SupplierLedgerEntry {
   purchaseOrderId   Int?
   supplierInvoiceId Int?
   supplierPaymentId Int?
+  supplierReturnId  Int?
   createdById       String?
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
@@ -1266,12 +1302,114 @@ model SupplierLedgerEntry {
   supplier          Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   supplierInvoice   SupplierInvoice?      @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
   supplierPayment   SupplierPayment?      @relation(fields: [supplierPaymentId], references: [id], onDelete: SetNull)
+  supplierReturn    SupplierReturn?       @relation(fields: [supplierReturnId], references: [id], onDelete: SetNull)
 
   @@index([supplierId, entryDate])
   @@index([supplierInvoiceId])
   @@index([supplierPaymentId])
+  @@index([supplierReturnId])
   @@index([purchaseOrderId])
   @@index([createdById])
+}
+
+model SupplierReturn {
+  id               Int                  @id @default(autoincrement())
+  returnNumber     String               @unique
+  supplierId       Int
+  warehouseId      Int
+  purchaseOrderId  Int?
+  goodsReceiptId   Int
+  supplierInvoiceId Int?
+  status           SupplierReturnStatus @default(DRAFT)
+  requestedAt      DateTime             @default(now())
+  requiredBy       DateTime?
+  submittedAt      DateTime?
+  approvedAt       DateTime?
+  dispatchedAt     DateTime?
+  closedAt         DateTime?
+  ledgerPostedAt   DateTime?
+  createdById      String?
+  approvedById     String?
+  dispatchedById   String?
+  closedById       String?
+  reasonCode       String?
+  note             String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  approvedBy       User?                @relation("SupplierReturnsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  closedBy         User?                @relation("SupplierReturnsClosed", fields: [closedById], references: [id], onDelete: SetNull)
+  createdBy        User?                @relation("SupplierReturnsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  dispatchedBy     User?                @relation("SupplierReturnsDispatched", fields: [dispatchedById], references: [id], onDelete: SetNull)
+  goodsReceipt     GoodsReceipt         @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
+  items            SupplierReturnItem[]
+  ledgerEntries    SupplierLedgerEntry[]
+  purchaseOrder    PurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplier         Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierInvoice  SupplierInvoice?     @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
+  warehouse        Warehouse            @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+
+  @@index([supplierId, status])
+  @@index([warehouseId, status])
+  @@index([goodsReceiptId])
+  @@index([purchaseOrderId])
+  @@index([supplierInvoiceId])
+  @@index([createdById])
+  @@index([approvedById])
+  @@index([requestedAt])
+}
+
+model SupplierReturnItem {
+  id                Int               @id @default(autoincrement())
+  supplierReturnId  Int
+  goodsReceiptItemId Int?
+  purchaseOrderItemId Int?
+  productVariantId  Int
+  description       String?
+  quantityRequested Int
+  quantityDispatched Int              @default(0)
+  unitCost          Decimal           @db.Decimal(12, 2)
+  lineTotal         Decimal           @db.Decimal(12, 2)
+  reason            String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  goodsReceiptItem  GoodsReceiptItem? @relation(fields: [goodsReceiptItemId], references: [id], onDelete: SetNull)
+  productVariant    ProductVariant    @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  purchaseOrderItem PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id], onDelete: SetNull)
+  supplierReturn    SupplierReturn    @relation(fields: [supplierReturnId], references: [id], onDelete: Cascade)
+
+  @@index([supplierReturnId])
+  @@index([goodsReceiptItemId])
+  @@index([purchaseOrderItemId])
+  @@index([productVariantId])
+}
+
+model ReplenishmentRule {
+  id                    Int                   @id @default(autoincrement())
+  warehouseId           Int
+  productVariantId      Int
+  strategy              ReplenishmentStrategy @default(MIN_MAX)
+  reorderPoint          Int
+  targetStockLevel      Int
+  safetyStock           Int                   @default(0)
+  minOrderQty           Int                   @default(1)
+  orderMultiple         Int                   @default(1)
+  leadTimeDays          Int?
+  isActive              Boolean               @default(true)
+  note                  String?
+  createdById           String?
+  updatedById           String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  createdBy             User?                 @relation("ReplenishmentRulesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  productVariant        ProductVariant        @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  updatedBy             User?                 @relation("ReplenishmentRulesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  warehouse             Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, productVariantId])
+  @@index([warehouseId, isActive])
+  @@index([productVariantId, isActive])
+  @@index([createdById])
+  @@index([updatedById])
 }
 
 model WarehouseTransfer {
@@ -1725,6 +1863,7 @@ enum ProductType {
   PHYSICAL
   DIGITAL
   SERVICE
+  BUNDLE
 }
 
 enum ProductCodeKind {
@@ -1905,6 +2044,21 @@ enum PurchaseOrderStatus {
 enum GoodsReceiptStatus {
   RECEIVED
   CANCELLED
+}
+
+enum SupplierReturnStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PARTIALLY_DISPATCHED
+  DISPATCHED
+  CLOSED
+  CANCELLED
+}
+
+enum ReplenishmentStrategy {
+  MIN_MAX
+  REORDER_POINT
 }
 
 enum SupplierInvoiceStatus {
