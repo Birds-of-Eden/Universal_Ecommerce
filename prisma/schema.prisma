@@ -47,10 +47,17 @@ model User {
   warehouseMemberships          WarehouseMembership[]   @relation("WarehouseMemberships")
   purchaseOrdersCreated         PurchaseOrder[]         @relation("PurchaseOrdersCreated")
   purchaseOrdersApproved        PurchaseOrder[]         @relation("PurchaseOrdersApproved")
+  purchaseRequisitionsCreated   PurchaseRequisition[]   @relation("PurchaseRequisitionsCreated")
+  purchaseRequisitionsApproved  PurchaseRequisition[]   @relation("PurchaseRequisitionsApproved")
+  purchaseRequisitionsConverted PurchaseRequisition[]   @relation("PurchaseRequisitionsConverted")
   goodsReceiptsReceived         GoodsReceipt[]          @relation("GoodsReceiptsReceived")
   supplierInvoicesCreated       SupplierInvoice[]       @relation("SupplierInvoicesCreated")
   supplierPaymentsCreated       SupplierPayment[]       @relation("SupplierPaymentsCreated")
   supplierLedgerEntriesCreated  SupplierLedgerEntry[]   @relation("SupplierLedgerEntriesCreated")
+  warehouseTransfersCreated     WarehouseTransfer[]     @relation("WarehouseTransfersCreated")
+  warehouseTransfersApproved    WarehouseTransfer[]     @relation("WarehouseTransfersApproved")
+  warehouseTransfersDispatched  WarehouseTransfer[]     @relation("WarehouseTransfersDispatched")
+  warehouseTransfersReceived    WarehouseTransfer[]     @relation("WarehouseTransfersReceived")
   wishlist                      Wishlist[]
   analyticsEvents               AnalyticsEvent[]
   deliveryManProfile            DeliveryManProfile?
@@ -265,6 +272,8 @@ model ProductVariant {
   product                 Product                           @relation(fields: [productId], references: [id])
   purchaseOrderItems      PurchaseOrderItem[]
   goodsReceiptItems       GoodsReceiptItem[]
+  purchaseRequisitionItems PurchaseRequisitionItem[]
+  warehouseTransferItems  WarehouseTransferItem[]
   stockLevels             StockLevel[]
 }
 
@@ -688,7 +697,10 @@ model Warehouse {
   userRoles                        UserRole[]
   memberships                      WarehouseMembership[]
   purchaseOrders                   PurchaseOrder[]
+  purchaseRequisitions             PurchaseRequisition[]
   goodsReceipts                    GoodsReceipt[]
+  transfersFrom                    WarehouseTransfer[]               @relation("WarehouseTransferSource")
+  transfersTo                      WarehouseTransfer[]               @relation("WarehouseTransferDestination")
   deliveryMen                      DeliveryManProfile[]
   deliveryAssignments              DeliveryAssignment[]
 
@@ -1004,10 +1016,57 @@ model Supplier {
   @@index([isActive])
 }
 
+model PurchaseRequisition {
+  id                Int                       @id @default(autoincrement())
+  requisitionNumber String                    @unique
+  warehouseId       Int
+  status            PurchaseRequisitionStatus @default(DRAFT)
+  requestedAt       DateTime                  @default(now())
+  neededBy          DateTime?
+  submittedAt       DateTime?
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  convertedAt       DateTime?
+  createdById       String?
+  approvedById      String?
+  convertedById     String?
+  note              String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  approvedBy        User?                     @relation("PurchaseRequisitionsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  convertedBy       User?                     @relation("PurchaseRequisitionsConverted", fields: [convertedById], references: [id], onDelete: SetNull)
+  createdBy         User?                     @relation("PurchaseRequisitionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  items             PurchaseRequisitionItem[]
+  purchaseOrders    PurchaseOrder[]
+  warehouse         Warehouse                 @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+
+  @@index([warehouseId, status])
+  @@index([createdById])
+  @@index([approvedById])
+  @@index([requestedAt])
+}
+
+model PurchaseRequisitionItem {
+  id                   Int                 @id @default(autoincrement())
+  purchaseRequisitionId Int
+  productVariantId     Int
+  description          String?
+  quantityRequested    Int
+  quantityApproved     Int?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  productVariant       ProductVariant      @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  purchaseRequisition  PurchaseRequisition @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseRequisitionId])
+  @@index([productVariantId])
+}
+
 model PurchaseOrder {
   id            Int                 @id @default(autoincrement())
   poNumber      String              @unique
   supplierId    Int
+  purchaseRequisitionId Int?
   warehouseId   Int
   status        PurchaseOrderStatus @default(DRAFT)
   orderDate     DateTime            @default(now())
@@ -1027,6 +1086,7 @@ model PurchaseOrder {
   updatedAt     DateTime            @updatedAt
   approvedBy    User?               @relation("PurchaseOrdersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
   createdBy     User?               @relation("PurchaseOrdersCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  purchaseRequisition PurchaseRequisition? @relation(fields: [purchaseRequisitionId], references: [id], onDelete: SetNull)
   supplier      Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   warehouse     Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   goodsReceipts GoodsReceipt[]
@@ -1035,6 +1095,7 @@ model PurchaseOrder {
   items         PurchaseOrderItem[]
 
   @@index([supplierId, status])
+  @@index([purchaseRequisitionId])
   @@index([warehouseId, status])
   @@index([createdById])
   @@index([approvedById])
@@ -1181,6 +1242,57 @@ model SupplierLedgerEntry {
   @@index([supplierPaymentId])
   @@index([purchaseOrderId])
   @@index([createdById])
+}
+
+model WarehouseTransfer {
+  id                   Int                     @id @default(autoincrement())
+  transferNumber       String                  @unique
+  sourceWarehouseId    Int
+  destinationWarehouseId Int
+  status               WarehouseTransferStatus @default(DRAFT)
+  requestedAt          DateTime                @default(now())
+  requiredBy           DateTime?
+  submittedAt          DateTime?
+  approvedAt           DateTime?
+  dispatchedAt         DateTime?
+  receivedAt           DateTime?
+  createdById          String?
+  approvedById         String?
+  dispatchedById       String?
+  receivedById         String?
+  note                 String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  approvedBy           User?                   @relation("WarehouseTransfersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  createdBy            User?                   @relation("WarehouseTransfersCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  destinationWarehouse Warehouse               @relation("WarehouseTransferDestination", fields: [destinationWarehouseId], references: [id], onDelete: Restrict)
+  dispatchedBy         User?                   @relation("WarehouseTransfersDispatched", fields: [dispatchedById], references: [id], onDelete: SetNull)
+  items                WarehouseTransferItem[]
+  receivedBy           User?                   @relation("WarehouseTransfersReceived", fields: [receivedById], references: [id], onDelete: SetNull)
+  sourceWarehouse      Warehouse               @relation("WarehouseTransferSource", fields: [sourceWarehouseId], references: [id], onDelete: Restrict)
+
+  @@index([sourceWarehouseId, status])
+  @@index([destinationWarehouseId, status])
+  @@index([createdById])
+  @@index([approvedById])
+  @@index([requestedAt])
+}
+
+model WarehouseTransferItem {
+  id                 Int               @id @default(autoincrement())
+  warehouseTransferId Int
+  productVariantId   Int
+  description        String?
+  quantityRequested  Int
+  quantityDispatched Int               @default(0)
+  quantityReceived   Int               @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  productVariant     ProductVariant    @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  warehouseTransfer  WarehouseTransfer @relation(fields: [warehouseTransferId], references: [id], onDelete: Cascade)
+
+  @@index([warehouseTransferId])
+  @@index([productVariantId])
 }
 
 model NewsletterSubscriber {
@@ -1742,6 +1854,15 @@ enum PickupProofStatus {
   CONFIRMED
 }
 
+enum PurchaseRequisitionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CONVERTED
+  CANCELLED
+}
+
 enum PurchaseOrderStatus {
   DRAFT
   SUBMITTED
@@ -1780,4 +1901,15 @@ enum SupplierLedgerEntryType {
 enum SupplierLedgerDirection {
   DEBIT
   CREDIT
+}
+
+enum WarehouseTransferStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PARTIALLY_DISPATCHED
+  DISPATCHED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
 }

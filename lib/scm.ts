@@ -23,6 +23,19 @@ export async function generatePurchaseOrderNumber(tx: TransactionClient) {
   return `${prefix}-${String(count + 1).padStart(4, "0")}`;
 }
 
+export async function generatePurchaseRequisitionNumber(tx: TransactionClient) {
+  const today = new Date();
+  const prefix = `PR-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const count = await tx.purchaseRequisition.count({
+    where: {
+      requisitionNumber: {
+        startsWith: prefix,
+      },
+    },
+  });
+  return `${prefix}-${String(count + 1).padStart(4, "0")}`;
+}
+
 export async function generateGoodsReceiptNumber(tx: TransactionClient) {
   const today = new Date();
   const prefix = `GRN-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -55,6 +68,19 @@ export async function generateSupplierPaymentNumber(tx: TransactionClient) {
   const count = await tx.supplierPayment.count({
     where: {
       paymentNumber: {
+        startsWith: prefix,
+      },
+    },
+  });
+  return `${prefix}-${String(count + 1).padStart(4, "0")}`;
+}
+
+export async function generateWarehouseTransferNumber(tx: TransactionClient) {
+  const today = new Date();
+  const prefix = `WTR-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const count = await tx.warehouseTransfer.count({
+    where: {
+      transferNumber: {
         startsWith: prefix,
       },
     },
@@ -137,6 +163,71 @@ export const purchaseOrderInclude = Prisma.validator<Prisma.PurchaseOrderInclude
   },
 });
 
+export const purchaseRequisitionInclude = Prisma.validator<Prisma.PurchaseRequisitionInclude>()({
+  warehouse: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  approvedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  convertedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  items: {
+    orderBy: { id: "asc" },
+    include: {
+      productVariant: {
+        select: {
+          id: true,
+          productId: true,
+          sku: true,
+          stock: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  purchaseOrders: {
+    select: {
+      id: true,
+      poNumber: true,
+      status: true,
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+        },
+      },
+    },
+    orderBy: { id: "desc" },
+  },
+});
+
 export const goodsReceiptInclude = Prisma.validator<Prisma.GoodsReceiptInclude>()({
   warehouse: {
     select: {
@@ -182,12 +273,91 @@ export const goodsReceiptInclude = Prisma.validator<Prisma.GoodsReceiptInclude>(
   },
 });
 
+export const warehouseTransferInclude = Prisma.validator<Prisma.WarehouseTransferInclude>()({
+  sourceWarehouse: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
+  destinationWarehouse: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  approvedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  dispatchedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  receivedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  items: {
+    orderBy: { id: "asc" },
+    include: {
+      productVariant: {
+        select: {
+          id: true,
+          productId: true,
+          sku: true,
+          stock: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          stockLevels: {
+            select: {
+              warehouseId: true,
+              quantity: true,
+              reserved: true,
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
 export type PurchaseOrderWithRelations = Prisma.PurchaseOrderGetPayload<{
   include: typeof purchaseOrderInclude;
 }>;
 
+export type PurchaseRequisitionWithRelations = Prisma.PurchaseRequisitionGetPayload<{
+  include: typeof purchaseRequisitionInclude;
+}>;
+
 export type GoodsReceiptWithRelations = Prisma.GoodsReceiptGetPayload<{
   include: typeof goodsReceiptInclude;
+}>;
+
+export type WarehouseTransferWithRelations = Prisma.WarehouseTransferGetPayload<{
+  include: typeof warehouseTransferInclude;
 }>;
 
 export function toPurchaseOrderLogSnapshot(purchaseOrder: PurchaseOrderWithRelations) {
@@ -218,6 +388,39 @@ export function toPurchaseOrderLogSnapshot(purchaseOrder: PurchaseOrderWithRelat
       quantityReceived: item.quantityReceived,
       unitCost: item.unitCost.toString(),
       lineTotal: item.lineTotal.toString(),
+    })),
+  };
+}
+
+export function toPurchaseRequisitionLogSnapshot(
+  requisition: PurchaseRequisitionWithRelations,
+) {
+  return {
+    requisitionNumber: requisition.requisitionNumber,
+    status: requisition.status,
+    warehouseId: requisition.warehouseId,
+    warehouseCode: requisition.warehouse.code,
+    requestedAt: requisition.requestedAt.toISOString(),
+    neededBy: requisition.neededBy?.toISOString() ?? null,
+    submittedAt: requisition.submittedAt?.toISOString() ?? null,
+    approvedAt: requisition.approvedAt?.toISOString() ?? null,
+    rejectedAt: requisition.rejectedAt?.toISOString() ?? null,
+    convertedAt: requisition.convertedAt?.toISOString() ?? null,
+    note: requisition.note ?? null,
+    purchaseOrders: requisition.purchaseOrders.map((purchaseOrder) => ({
+      id: purchaseOrder.id,
+      poNumber: purchaseOrder.poNumber,
+      status: purchaseOrder.status,
+      supplierId: purchaseOrder.supplier.id,
+      supplierName: purchaseOrder.supplier.name,
+    })),
+    items: requisition.items.map((item) => ({
+      id: item.id,
+      variantId: item.productVariantId,
+      sku: item.productVariant.sku,
+      productName: item.productVariant.product.name,
+      quantityRequested: item.quantityRequested,
+      quantityApproved: item.quantityApproved,
     })),
   };
 }
@@ -300,6 +503,33 @@ export function toSupplierPaymentLogSnapshot(payment: {
   };
 }
 
+export function toWarehouseTransferLogSnapshot(transfer: WarehouseTransferWithRelations) {
+  return {
+    transferNumber: transfer.transferNumber,
+    status: transfer.status,
+    sourceWarehouseId: transfer.sourceWarehouseId,
+    sourceWarehouseCode: transfer.sourceWarehouse.code,
+    destinationWarehouseId: transfer.destinationWarehouseId,
+    destinationWarehouseCode: transfer.destinationWarehouse.code,
+    requestedAt: transfer.requestedAt.toISOString(),
+    requiredBy: transfer.requiredBy?.toISOString() ?? null,
+    submittedAt: transfer.submittedAt?.toISOString() ?? null,
+    approvedAt: transfer.approvedAt?.toISOString() ?? null,
+    dispatchedAt: transfer.dispatchedAt?.toISOString() ?? null,
+    receivedAt: transfer.receivedAt?.toISOString() ?? null,
+    note: transfer.note ?? null,
+    items: transfer.items.map((item) => ({
+      id: item.id,
+      variantId: item.productVariantId,
+      sku: item.productVariant.sku,
+      productName: item.productVariant.product.name,
+      quantityRequested: item.quantityRequested,
+      quantityDispatched: item.quantityDispatched,
+      quantityReceived: item.quantityReceived,
+    })),
+  };
+}
+
 export async function syncSupplierInvoicePaymentStatus(
   tx: TransactionClient,
   supplierInvoiceId: number,
@@ -371,6 +601,71 @@ export function computeSupplierLedgerTotals(
     credit: totals.credit,
     balance: totals.debit.minus(totals.credit),
   };
+}
+
+export async function refreshWarehouseTransferStatus(
+  tx: TransactionClient,
+  warehouseTransferId: number,
+) {
+  const transfer = await tx.warehouseTransfer.findUnique({
+    where: { id: warehouseTransferId },
+    select: {
+      id: true,
+      status: true,
+      submittedAt: true,
+      approvedAt: true,
+      items: {
+        select: {
+          quantityRequested: true,
+          quantityDispatched: true,
+          quantityReceived: true,
+        },
+      },
+    },
+  });
+
+  if (!transfer) {
+    throw new Error("Warehouse transfer not found");
+  }
+
+  const requested = transfer.items.reduce((sum, item) => sum + item.quantityRequested, 0);
+  const dispatched = transfer.items.reduce((sum, item) => sum + item.quantityDispatched, 0);
+  const received = transfer.items.reduce((sum, item) => sum + item.quantityReceived, 0);
+
+  let status = transfer.status;
+  let receivedAt: Date | null | undefined = undefined;
+
+  if (requested > 0 && received >= requested && dispatched >= requested) {
+    status = "RECEIVED";
+    receivedAt = new Date();
+  } else if (received > 0) {
+    status = "PARTIALLY_RECEIVED";
+    receivedAt = null;
+  } else if (requested > 0 && dispatched >= requested) {
+    status = "DISPATCHED";
+    receivedAt = null;
+  } else if (dispatched > 0) {
+    status = "PARTIALLY_DISPATCHED";
+    receivedAt = null;
+  } else if (transfer.approvedAt) {
+    status = "APPROVED";
+    receivedAt = null;
+  } else if (transfer.submittedAt) {
+    status = "SUBMITTED";
+    receivedAt = null;
+  } else {
+    status = "DRAFT";
+    receivedAt = null;
+  }
+
+  return tx.warehouseTransfer.update({
+    where: { id: warehouseTransferId },
+    data: {
+      status,
+      ...(receivedAt !== undefined ? { receivedAt } : {}),
+    },
+    include: warehouseTransferInclude,
+  });
 }
 
 export async function refreshPurchaseOrderReceiptStatus(

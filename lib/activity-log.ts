@@ -88,6 +88,15 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     permissions: ["suppliers.read", "suppliers.manage", "scm.access"],
   },
   {
+    match: ["purchase_requisition", "purchaserequisition"],
+    permissions: [
+      "purchase_requisitions.read",
+      "purchase_requisitions.manage",
+      "purchase_requisitions.approve",
+      "scm.access",
+    ],
+  },
+  {
     match: ["purchase_order", "purchaseorder"],
     permissions: ["purchase_orders.read", "purchase_orders.manage", "purchase_orders.approve", "scm.access"],
   },
@@ -116,6 +125,15 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
   {
     match: ["supplier_ledger", "ledger_entry", "supplier_ledger_entry"],
     permissions: ["supplier_ledger.read", "scm.access"],
+  },
+  {
+    match: ["warehouse_transfer", "warehousetransfer"],
+    permissions: [
+      "warehouse_transfers.read",
+      "warehouse_transfers.manage",
+      "warehouse_transfers.approve",
+      "scm.access",
+    ],
   },
   {
     match: ["chat"],

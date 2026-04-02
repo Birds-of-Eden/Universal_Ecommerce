@@ -54,6 +54,14 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/scm/purchase-requisitions",
+    permissions: [
+      "purchase_requisitions.read",
+      "purchase_requisitions.manage",
+      "purchase_requisitions.approve",
+    ],
+  },
+  {
     prefix: "/admin/scm/purchase-orders",
     permissions: [
       "purchase_orders.read",
@@ -65,6 +73,14 @@ const adminPagePermissionRules: PermissionRule[] = [
   {
     prefix: "/admin/scm/goods-receipts",
     permissions: ["goods_receipts.read", "goods_receipts.manage"],
+  },
+  {
+    prefix: "/admin/scm/warehouse-transfers",
+    permissions: [
+      "warehouse_transfers.read",
+      "warehouse_transfers.manage",
+      "warehouse_transfers.approve",
+    ],
   },
   {
     prefix: "/admin/scm/supplier-ledger",
@@ -81,11 +97,17 @@ const adminPagePermissionRules: PermissionRule[] = [
       "scm.access",
       "suppliers.read",
       "suppliers.manage",
+      "purchase_requisitions.read",
+      "purchase_requisitions.manage",
+      "purchase_requisitions.approve",
       "purchase_orders.read",
       "purchase_orders.manage",
       "purchase_orders.approve",
       "goods_receipts.read",
       "goods_receipts.manage",
+      "warehouse_transfers.read",
+      "warehouse_transfers.manage",
+      "warehouse_transfers.approve",
       "supplier_ledger.read",
       "supplier_invoices.read",
       "supplier_invoices.manage",
@@ -177,6 +199,29 @@ const apiPermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/api/scm/purchase-requisitions",
+    methods: ["GET"],
+    permissions: [
+      "purchase_requisitions.read",
+      "purchase_requisitions.manage",
+      "purchase_requisitions.approve",
+    ],
+  },
+  {
+    prefix: "/api/scm/purchase-requisitions",
+    methods: ["POST"],
+    permissions: ["purchase_requisitions.manage"],
+  },
+  {
+    prefix: "/api/scm/purchase-requisitions",
+    methods: ["PATCH", "PUT"],
+    permissions: [
+      "purchase_requisitions.manage",
+      "purchase_requisitions.approve",
+      "purchase_orders.manage",
+    ],
+  },
+  {
     prefix: "/api/scm/purchase-orders",
     methods: ["GET"],
     permissions: [
@@ -205,6 +250,25 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/goods-receipts",
     methods: ["POST"],
     permissions: ["goods_receipts.manage"],
+  },
+  {
+    prefix: "/api/scm/warehouse-transfers",
+    methods: ["GET"],
+    permissions: [
+      "warehouse_transfers.read",
+      "warehouse_transfers.manage",
+      "warehouse_transfers.approve",
+    ],
+  },
+  {
+    prefix: "/api/scm/warehouse-transfers",
+    methods: ["POST"],
+    permissions: ["warehouse_transfers.manage"],
+  },
+  {
+    prefix: "/api/scm/warehouse-transfers",
+    methods: ["PATCH", "PUT"],
+    permissions: ["warehouse_transfers.manage", "warehouse_transfers.approve"],
   },
   {
     prefix: "/api/scm/supplier-ledger",
