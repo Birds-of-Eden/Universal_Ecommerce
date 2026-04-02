@@ -178,6 +178,15 @@ const menuItems: MenuItem[] = [
         requiredPermissions: ["goods_receipts.read", "goods_receipts.manage"],
       },
       {
+        name: "Supplier Returns",
+        href: "/admin/scm/supplier-returns",
+        requiredPermissions: [
+          "supplier_returns.read",
+          "supplier_returns.manage",
+          "supplier_returns.approve",
+        ],
+      },
+      {
         name: "Warehouse Transfers",
         href: "/admin/scm/warehouse-transfers",
         requiredPermissions: [

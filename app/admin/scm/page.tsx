@@ -8,6 +8,7 @@ import {
   BookOpen,
   ClipboardList,
   GitCompareArrows,
+  RotateCcw,
   PackageCheck,
   ShoppingCart,
 } from "lucide-react";
@@ -42,6 +43,13 @@ const cards = [
     description: "Post inbound stock against approved purchase orders.",
     icon: PackageCheck,
     permission: "goods_receipts.read",
+  },
+  {
+    title: "Supplier Returns",
+    href: "/admin/scm/supplier-returns",
+    description: "Control vendor returns, stock deduction, and credit-note closure from received goods.",
+    icon: RotateCcw,
+    permission: "supplier_returns.read",
   },
   {
     title: "Warehouse Transfers",

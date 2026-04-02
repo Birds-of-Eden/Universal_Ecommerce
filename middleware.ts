@@ -75,6 +75,14 @@ const adminPagePermissionRules: PermissionRule[] = [
     permissions: ["goods_receipts.read", "goods_receipts.manage"],
   },
   {
+    prefix: "/admin/scm/supplier-returns",
+    permissions: [
+      "supplier_returns.read",
+      "supplier_returns.manage",
+      "supplier_returns.approve",
+    ],
+  },
+  {
     prefix: "/admin/scm/warehouse-transfers",
     permissions: [
       "warehouse_transfers.read",
@@ -110,6 +118,9 @@ const adminPagePermissionRules: PermissionRule[] = [
       "purchase_orders.approve",
       "goods_receipts.read",
       "goods_receipts.manage",
+      "supplier_returns.read",
+      "supplier_returns.manage",
+      "supplier_returns.approve",
       "warehouse_transfers.read",
       "warehouse_transfers.manage",
       "warehouse_transfers.approve",
@@ -256,6 +267,25 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/goods-receipts",
     methods: ["POST"],
     permissions: ["goods_receipts.manage"],
+  },
+  {
+    prefix: "/api/scm/supplier-returns",
+    methods: ["GET"],
+    permissions: [
+      "supplier_returns.read",
+      "supplier_returns.manage",
+      "supplier_returns.approve",
+    ],
+  },
+  {
+    prefix: "/api/scm/supplier-returns",
+    methods: ["POST"],
+    permissions: ["supplier_returns.manage"],
+  },
+  {
+    prefix: "/api/scm/supplier-returns",
+    methods: ["PATCH", "PUT"],
+    permissions: ["supplier_returns.manage", "supplier_returns.approve"],
   },
   {
     prefix: "/api/scm/warehouse-transfers",

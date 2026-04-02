@@ -105,6 +105,15 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     permissions: ["goods_receipts.read", "goods_receipts.manage", "scm.access"],
   },
   {
+    match: ["supplier_return", "supplierreturn"],
+    permissions: [
+      "supplier_returns.read",
+      "supplier_returns.manage",
+      "supplier_returns.approve",
+      "scm.access",
+    ],
+  },
+  {
     match: ["supplier_invoice", "supplierinvoice"],
     permissions: [
       "supplier_ledger.read",
