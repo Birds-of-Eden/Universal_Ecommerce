@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRightLeft, BookOpen, PackageCheck, ShoppingCart } from "lucide-react";
+import {
+  ArrowRightLeft,
+  BookOpen,
+  ClipboardList,
+  PackageCheck,
+  ShoppingCart,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const cards = [
@@ -14,6 +20,13 @@ const cards = [
     icon: BookOpen,
     permission: "suppliers.read",
     globalPermission: "suppliers.manage",
+  },
+  {
+    title: "Purchase Requisitions",
+    href: "/admin/scm/purchase-requisitions",
+    description: "Capture internal purchase demand and route it for procurement approval.",
+    icon: ClipboardList,
+    permission: "purchase_requisitions.read",
   },
   {
     title: "Purchase Orders",

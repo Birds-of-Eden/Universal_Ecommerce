@@ -154,6 +154,15 @@ const menuItems: MenuItem[] = [
         requiredGlobalPermissions: ["suppliers.read", "suppliers.manage"],
       },
       {
+        name: "Purchase Requisitions",
+        href: "/admin/scm/purchase-requisitions",
+        requiredPermissions: [
+          "purchase_requisitions.read",
+          "purchase_requisitions.manage",
+          "purchase_requisitions.approve",
+        ],
+      },
+      {
         name: "Purchase Orders",
         href: "/admin/scm/purchase-orders",
         requiredPermissions: [

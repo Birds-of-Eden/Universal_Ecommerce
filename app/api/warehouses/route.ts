@@ -61,6 +61,9 @@ export async function GET() {
         "shipments.manage",
         "orders.read_all",
         "dashboard.read",
+        "purchase_requisitions.read",
+        "purchase_requisitions.manage",
+        "purchase_requisitions.approve",
         "purchase_orders.read",
         "purchase_orders.manage",
         "purchase_orders.approve",
@@ -82,6 +85,9 @@ export async function GET() {
         access.hasGlobal("shipments.manage") ||
         access.hasGlobal("orders.read_all") ||
         access.hasGlobal("dashboard.read") ||
+        access.hasGlobal("purchase_requisitions.read") ||
+        access.hasGlobal("purchase_requisitions.manage") ||
+        access.hasGlobal("purchase_requisitions.approve") ||
         access.hasGlobal("purchase_orders.read") ||
         access.hasGlobal("purchase_orders.manage") ||
         access.hasGlobal("purchase_orders.approve") ||
