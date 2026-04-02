@@ -206,3 +206,52 @@ export async function deductVariantInventory(params: {
   await captureVariantInventoryDailySnapshots(tx, productVariantId);
   return { stock };
 }
+
+export async function receiveVariantInventory(params: {
+  tx: TransactionClient;
+  productId: number;
+  productVariantId: number;
+  warehouseId: number;
+  quantity: number;
+  reason: string;
+}) {
+  const { tx, productId, productVariantId, warehouseId, quantity, reason } = params;
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    throw new Error("Receipt quantity must be greater than 0");
+  }
+
+  await tx.stockLevel.upsert({
+    where: {
+      warehouseId_productVariantId: {
+        warehouseId,
+        productVariantId,
+      },
+    },
+    create: {
+      warehouseId,
+      productVariantId,
+      quantity,
+      reserved: 0,
+    },
+    update: {
+      quantity: {
+        increment: quantity,
+      },
+    },
+  });
+
+  await tx.inventoryLog.create({
+    data: {
+      productId,
+      variantId: productVariantId,
+      warehouseId,
+      change: quantity,
+      reason,
+    },
+  });
+
+  const stock = await refreshVariantStock(tx, productVariantId);
+  await captureVariantInventoryDailySnapshots(tx, productVariantId);
+  return { stock };
+}

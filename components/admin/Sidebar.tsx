@@ -30,10 +30,12 @@ type MenuItem = {
   href?: string;
   icon: LucideIcon;
   requiredPermissions?: string[];
+  requiredGlobalPermissions?: string[];
   subItems?: Array<{
     name: string;
     href: string;
     requiredPermissions?: string[];
+    requiredGlobalPermissions?: string[];
   }>;
 };
 
@@ -143,6 +145,46 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
+    name: "SCM",
+    icon: BookOpen,
+    subItems: [
+      {
+        name: "Suppliers",
+        href: "/admin/scm/suppliers",
+        requiredGlobalPermissions: ["suppliers.read", "suppliers.manage"],
+      },
+      {
+        name: "Purchase Orders",
+        href: "/admin/scm/purchase-orders",
+        requiredPermissions: [
+          "purchase_orders.read",
+          "purchase_orders.manage",
+          "purchase_orders.approve",
+          "goods_receipts.manage",
+        ],
+      },
+      {
+        name: "Goods Receipts",
+        href: "/admin/scm/goods-receipts",
+        requiredPermissions: ["goods_receipts.read", "goods_receipts.manage"],
+      },
+      {
+        name: "Supplier Ledger",
+        href: "/admin/scm/supplier-ledger",
+        requiredPermissions: [
+          "supplier_ledger.read",
+          "supplier_invoices.read",
+          "supplier_payments.read",
+        ],
+        requiredGlobalPermissions: [
+          "supplier_ledger.read",
+          "supplier_invoices.read",
+          "supplier_payments.read",
+        ],
+      },
+    ],
+  },
+  {
     name: "Chats",
     href: "/admin/chats",
     icon: MessageCircle,
@@ -210,8 +252,14 @@ interface MenuItemProps {
 }
 
 const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
-  const isManagementActive = pathname.startsWith("/admin/management");
-  const initialOpenState = item.name === "Management" && isManagementActive;
+  const hasActiveSubItem = Boolean(
+    item.subItems?.some(
+      (subItem) =>
+        pathname === subItem.href ||
+        (subItem.href !== "/admin" && pathname.startsWith(`${subItem.href}/`)),
+    ),
+  );
+  const initialOpenState = hasActiveSubItem;
 
   const [isOpen, setIsOpen] = useState(initialOpenState);
   const hasSubItems = item.subItems && item.subItems.length > 0;
@@ -220,13 +268,13 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
   const isActive = item.href
     ? pathname === item.href ||
       (item.href !== "/admin" && pathname.startsWith(item.href))
-    : isManagementActive;
+    : hasActiveSubItem;
 
   useEffect(() => {
-    if (item.name === "Management" && isManagementActive) {
+    if (hasActiveSubItem) {
       setIsOpen(true);
     }
-  }, [isManagementActive, item.name]);
+  }, [hasActiveSubItem]);
 
   // Using CSS variables from global.css
   const baseClasses =
@@ -378,6 +426,9 @@ export default function Sidebar({
   const permissionKeys = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
     : [];
+  const globalPermissionKeys = Array.isArray((session?.user as any)?.globalPermissions)
+    ? ((session?.user as any).globalPermissions as string[])
+    : [];
   const warehouseIds = Array.isArray((session?.user as any)?.warehouseIds)
     ? ((session?.user as any).warehouseIds as number[])
     : [];
@@ -420,16 +471,26 @@ export default function Sidebar({
     [permissionKeys],
   );
 
+  const hasGlobalPermission = useCallback(
+    (required?: string[]) => {
+      if (!required || required.length === 0) return true;
+      return required.some((permission) => globalPermissionKeys.includes(permission));
+    },
+    [globalPermissionKeys],
+  );
+
   const visibleMenuItems = useMemo<MenuItem[]>(() => {
     return menuItems
       .map((item) => {
         if (item.subItems && item.subItems.length > 0) {
           const visibleSubItems = item.subItems.filter((subItem) =>
-            hasPermission(subItem.requiredPermissions),
+            hasPermission(subItem.requiredPermissions) &&
+            hasGlobalPermission(subItem.requiredGlobalPermissions),
           );
           if (
             visibleSubItems.length === 0 &&
-            !hasPermission(item.requiredPermissions)
+            (!hasPermission(item.requiredPermissions) ||
+              !hasGlobalPermission(item.requiredGlobalPermissions))
           ) {
             return null;
           }
@@ -447,13 +508,21 @@ export default function Sidebar({
           return null;
         }
 
-        if (!hasPermission(item.requiredPermissions)) {
+        if (
+          !hasPermission(item.requiredPermissions) ||
+          !hasGlobalPermission(item.requiredGlobalPermissions)
+        ) {
           return null;
         }
         return item;
       })
       .filter((item): item is MenuItem => item !== null);
-  }, [hasPermission, isWarehouseScopedOnly, warehouseIds.length]);
+  }, [
+    hasGlobalPermission,
+    hasPermission,
+    isWarehouseScopedOnly,
+    warehouseIds.length,
+  ]);
 
   // Using CSS variables from global.css
   const themeBg = "bg-background";
