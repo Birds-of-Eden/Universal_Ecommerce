@@ -9,16 +9,16 @@ import {
 
 // List of public paths that don't require authentication
 const publicPaths = [
-  '/',
-  '/signin',
-  '/sign-up',
-  '/api/auth/signin',
-  '/api/auth/signout',
-  '/api/auth/session',
-  '/_next/static',
-  '/_next/image',
-  '/favicon.ico',
-  '/static',
+  "/",
+  "/signin",
+  "/sign-up",
+  "/api/auth/signin",
+  "/api/auth/signout",
+  "/api/auth/session",
+  "/_next/static",
+  "/_next/image",
+  "/favicon.ico",
+  "/static",
 ];
 
 type SessionShape = {
@@ -39,20 +39,49 @@ type PermissionRule = {
 const adminPagePermissionRules: PermissionRule[] = [
   {
     prefix: "/admin/warehouse",
-    permissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
+    permissions: [
+      "dashboard.read",
+      "inventory.manage",
+      "orders.read_all",
+      "shipments.manage",
+    ],
   },
-  { prefix: "/admin/analytics", permissions: ["dashboard.read", "admin.panel.access"] },
+  {
+    prefix: "/admin/analytics",
+    permissions: ["dashboard.read", "admin.panel.access"],
+  },
   { prefix: "/admin/reports", permissions: ["reports.read"] },
-   { prefix: "/admin/settings/activitylog", permissions: ["settings.activitylog.read", "settings.manage"] },
+  {
+    prefix: "/admin/settings/activitylog",
+    permissions: ["settings.activitylog.read", "settings.manage"],
+  },
   { prefix: "/admin/settings/payroll", permissions: ["payroll.manage"] },
   { prefix: "/admin/settings/rbac", permissions: ["roles.manage"] },
-  { prefix: "/admin/settings/banner", permissions: ["settings.banner.manage", "settings.manage"] },
+  {
+    prefix: "/admin/settings/banner",
+    permissions: ["settings.banner.manage", "settings.manage"],
+  },
   { prefix: "/admin/settings/general", permissions: ["settings.manage"] },
-  { prefix: "/admin/settings/payment", permissions: ["settings.payment.manage", "settings.manage"] },
-  { prefix: "/admin/settings/warehouses", permissions: ["settings.warehouse.manage", "settings.manage"] },
-  { prefix: "/admin/settings/couriers", permissions: ["settings.courier.manage", "settings.manage"] },
-  { prefix: "/admin/settings/vatclasses", permissions: ["settings.vat.manage", "settings.manage"] },
-  { prefix: "/admin/settings/shipping-rates", permissions: ["settings.shipping.manage", "settings.manage"] },
+  {
+    prefix: "/admin/settings/payment",
+    permissions: ["settings.payment.manage", "settings.manage"],
+  },
+  {
+    prefix: "/admin/settings/warehouses",
+    permissions: ["settings.warehouse.manage", "settings.manage"],
+  },
+  {
+    prefix: "/admin/settings/couriers",
+    permissions: ["settings.courier.manage", "settings.manage"],
+  },
+  {
+    prefix: "/admin/settings/vatmanagent",
+    permissions: ["settings.vat.manage", "settings.manage"],
+  },
+  {
+    prefix: "/admin/settings/shipping-rates",
+    permissions: ["settings.shipping.manage", "settings.manage"],
+  },
   {
     prefix: "/admin/settings",
     permissions: [
@@ -69,9 +98,15 @@ const adminPagePermissionRules: PermissionRule[] = [
   { prefix: "/admin/products", permissions: ["products.manage"] },
   { prefix: "/admin/orders", permissions: ["orders.read_all"] },
   { prefix: "/admin/chats", permissions: ["chats.manage"] },
-  { prefix: "/admin/shipments", permissions: ["shipments.manage", "orders.read_all"] },
+  {
+    prefix: "/admin/shipments",
+    permissions: ["shipments.manage", "orders.read_all"],
+  },
   { prefix: "/admin/logistics", permissions: ["logistics.manage"] },
-  { prefix: "/admin/delivery-men", permissions: ["delivery-men.manage", "logistics.manage"] },
+  {
+    prefix: "/admin/delivery-men",
+    permissions: ["delivery-men.manage", "logistics.manage"],
+  },
   { prefix: "/admin/payroll", permissions: ["payroll.manage"] },
   { prefix: "/admin/management/categories", permissions: ["products.manage"] },
   { prefix: "/admin/management/brands", permissions: ["products.manage"] },
@@ -137,7 +172,12 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/shipments",
     methods: ["GET"],
-    permissions: ["shipments.manage", "logistics.manage", "orders.read_all", "orders.read_own"],
+    permissions: [
+      "shipments.manage",
+      "logistics.manage",
+      "orders.read_all",
+      "orders.read_own",
+    ],
   },
   {
     prefix: "/api/shipments",
@@ -146,7 +186,12 @@ const apiPermissionRules: PermissionRule[] = [
   },
   {
     prefix: "/api/admin/warehouse-dashboard",
-    permissions: ["dashboard.read", "inventory.manage", "orders.read_all", "shipments.manage"],
+    permissions: [
+      "dashboard.read",
+      "inventory.manage",
+      "orders.read_all",
+      "shipments.manage",
+    ],
   },
   {
     prefix: "/api/admin/payroll",
@@ -265,15 +310,23 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/newsletter/",
     permissions: ["newsletter.manage"],
-    excludePrefixes: ["/api/newsletter/subscribe", "/api/newsletter/unsubscribe"],
+    excludePrefixes: [
+      "/api/newsletter/subscribe",
+      "/api/newsletter/unsubscribe",
+    ],
   },
 ];
 
 function getPermissionKeys(session: SessionShape): string[] {
-  return Array.isArray(session?.user?.permissions) ? session.user.permissions : [];
+  return Array.isArray(session?.user?.permissions)
+    ? session.user.permissions
+    : [];
 }
 
-function hasAnyPermission(permissionKeys: string[], required: string[]): boolean {
+function hasAnyPermission(
+  permissionKeys: string[],
+  required: string[],
+): boolean {
   if (required.length === 0) return true;
   return required.some((permission) => permissionKeys.includes(permission));
 }
@@ -283,7 +336,9 @@ function hasAdminPanelAccess(session: SessionShape): boolean {
   return permissionKeys.includes("admin.panel.access");
 }
 
-function getDefaultAdminRoute(session: SessionShape): "/admin" | "/admin/warehouse" {
+function getDefaultAdminRoute(
+  session: SessionShape,
+): "/admin" | "/admin/warehouse" {
   return session?.user?.defaultAdminRoute === "/admin/warehouse"
     ? "/admin/warehouse"
     : "/admin";
@@ -302,7 +357,8 @@ function findMatchedRule(
     if (
       rule.excludePrefixes &&
       rule.excludePrefixes.some(
-        (excluded) => pathname === excluded || pathname.startsWith(`${excluded}/`),
+        (excluded) =>
+          pathname === excluded || pathname.startsWith(`${excluded}/`),
       )
     ) {
       continue;
@@ -324,7 +380,9 @@ export default async function authMiddleware(request: NextRequest) {
   // Skip middleware for public paths
   if (
     !isAuthRoute &&
-    publicPaths.some(path => pathname === path || pathname.startsWith(`${path}/`))
+    publicPaths.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    )
   ) {
     return NextResponse.next();
   }
@@ -337,21 +395,21 @@ export default async function authMiddleware(request: NextRequest) {
   let session: SessionShape = null;
 
   try {
-    const response = await fetch(new URL('/api/auth/session', request.url), {
+    const response = await fetch(new URL("/api/auth/session", request.url), {
       headers: {
-        cookie: request.headers.get('cookie') || '',
+        cookie: request.headers.get("cookie") || "",
       },
     });
 
     if (response.ok) {
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
         const parsedSession = await response.json();
         session = parsedSession?.user ? parsedSession : null;
       }
     }
   } catch (error) {
-    console.error('Error checking auth status:', error);
+    console.error("Error checking auth status:", error);
   }
 
   const permissionKeys = getPermissionKeys(session);
@@ -366,7 +424,11 @@ export default async function authMiddleware(request: NextRequest) {
 
   // API permission checks
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")) {
-    const matchedApiRule = findMatchedRule(pathname, method, apiPermissionRules);
+    const matchedApiRule = findMatchedRule(
+      pathname,
+      method,
+      apiPermissionRules,
+    );
     if (!matchedApiRule) {
       return NextResponse.next();
     }
@@ -400,7 +462,11 @@ export default async function authMiddleware(request: NextRequest) {
       return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
     }
 
-    if (!adminAccess && pathname.startsWith("/admin") && !canUseDeliveryAdminShell) {
+    if (
+      !adminAccess &&
+      pathname.startsWith("/admin") &&
+      !canUseDeliveryAdminShell
+    ) {
       return NextResponse.redirect(new URL(dashboardRoute, request.url));
     }
 
@@ -416,16 +482,28 @@ export default async function authMiddleware(request: NextRequest) {
       return NextResponse.redirect(new URL(dashboardRoute, request.url));
     }
 
-    if ((adminAccess || canUseDeliveryAdminShell) && pathname.startsWith("/admin")) {
+    if (
+      (adminAccess || canUseDeliveryAdminShell) &&
+      pathname.startsWith("/admin")
+    ) {
       if (pathname === "/admin" && defaultAdminRoute !== "/admin") {
         return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
       }
 
-      const matchedPageRule = findMatchedRule(pathname, method, adminPagePermissionRules);
-      if (matchedPageRule && !hasAnyPermission(permissionKeys, matchedPageRule.permissions)) {
+      const matchedPageRule = findMatchedRule(
+        pathname,
+        method,
+        adminPagePermissionRules,
+      );
+      if (
+        matchedPageRule &&
+        !hasAnyPermission(permissionKeys, matchedPageRule.permissions)
+      ) {
         if (pathname !== "/admin") {
           if (pathname === defaultAdminRoute) {
-            return NextResponse.redirect(new URL("/ecommerce/user/", request.url));
+            return NextResponse.redirect(
+              new URL("/ecommerce/user/", request.url),
+            );
           }
           return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
         }
@@ -435,8 +513,11 @@ export default async function authMiddleware(request: NextRequest) {
   }
 
   if (isProtectedRoute && !session?.user) {
-    const signInUrl = new URL('/signin', request.url);
-    signInUrl.searchParams.set('returnUrl', `${pathname}${request.nextUrl.search}`);
+    const signInUrl = new URL("/signin", request.url);
+    signInUrl.searchParams.set(
+      "returnUrl",
+      `${pathname}${request.nextUrl.search}`,
+    );
     return NextResponse.redirect(signInUrl);
   }
 
@@ -448,7 +529,5 @@ export default async function authMiddleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/auth|static).*)',
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth|static).*)"],
 };
