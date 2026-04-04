@@ -38,6 +38,18 @@ type ProductDTO = {
   totalSold?: number | null;
   rank?: number | null;
   variants?: ApiVariant[] | null;
+  type?: string;
+  bundleStockLimit?: number | string | null;
+  bundleItems?: Array<{
+    product: {
+      id: number;
+      name: string;
+      image?: string;
+    };
+    quantity: number;
+  }>;
+  bundleItemCount?: number;
+  bundleSavings?: string;
   stock: number;
 };
 
@@ -170,7 +182,16 @@ export default function BestSelling({
 
         const mappedProducts: ProductDTO[] = pList.map((p) => {
           const variants = Array.isArray(p?.variants) ? p.variants : [];
-          const stock = computeStockFromVariants(variants);
+          const type = p?.type ? String(p.type) : undefined;
+          const bundleStockLimit =
+            p?.bundleStockLimit !== null && p?.bundleStockLimit !== undefined
+              ? p.bundleStockLimit
+              : null;
+
+          const stock =
+            type === "BUNDLE"
+              ? toNumber(bundleStockLimit, 0)
+              : computeStockFromVariants(variants);
 
           const basePrice = toNumber(p?.basePrice, 0);
           const originalPrice =
@@ -190,6 +211,11 @@ export default function BestSelling({
             totalSold: p.totalSold ?? p.soldCount ?? null,
             rank: p.rank ?? null,
             variants,
+            type,
+            bundleStockLimit,
+            bundleItems: p.bundleItems,
+            bundleItemCount: p.bundleItemCount,
+            bundleSavings: p.bundleSavings,
             stock,
           };
         });
@@ -338,6 +364,11 @@ export default function BestSelling({
                           price: p.basePrice,
                           originalPrice: p.originalPrice,
                           stock: p.stock,
+                          type: p.type,
+                          bundleStockLimit: p.bundleStockLimit ?? undefined,
+                          bundleItems: p.bundleItems,
+                          bundleItemCount: p.bundleItemCount,
+                          bundleSavings: p.bundleSavings,
                           ratingAvg: stats.avg,
                           ratingCount: stats.count,
                           discountPct: discountPct ?? undefined,

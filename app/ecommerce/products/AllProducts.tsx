@@ -73,6 +73,19 @@ type ApiProduct = {
 
   categoryId?: number | null;
   category?: { id: number; name: string } | null;
+
+  // Bundle fields
+  bundleStockLimit?: number | string | null;
+  bundleItems?: Array<{
+    product: {
+      id: number;
+      name: string;
+      image?: string;
+    };
+    quantity: number;
+  }> | null;
+  bundleItemCount?: number | null;
+  bundleSavings?: string | null;
 };
 
 type ProductUI = {
@@ -98,6 +111,19 @@ type ProductUI = {
 
   variants: ApiVariant[];
   variantOptions: ApiVariantOption[];
+
+  // Bundle fields
+  bundleStockLimit?: number | string | null;
+  bundleItems?: Array<{
+    product: {
+      id: number;
+      name: string;
+      image?: string;
+    };
+    quantity: number;
+  }> | null;
+  bundleItemCount?: number;
+  bundleSavings?: string;
 };
 
 type ReviewDTO = {
@@ -153,10 +179,10 @@ type UnifiedAttribute = {
 /* =========================
   Helpers
 ========================= */
-const toNumber = (v: any) => {
+const toNumber = (v: any, fallback = 0) => {
   const n =
     typeof v === "string" ? Number(v.replace(/,/g, "")) : Number(v);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? n : fallback;
 };
 
 const formatBDT = (v: number) => {
@@ -677,7 +703,10 @@ export default function ProductsPage() {
             const bId =
               typeof p.brandId === "number" ? p.brandId : p.brand?.id ?? null;
 
-            const stock = computeStockFromVariants(p.variants);
+            const stock =
+              p.type === "BUNDLE"
+                ? toNumber(p.bundleStockLimit, 0)
+                : computeStockFromVariants(p.variants);
             const rating = reviewStats[String(p.id)] ?? { sum: 0, count: 0 };
 
             return {
@@ -701,6 +730,11 @@ export default function ProductsPage() {
               variantOptions: Array.isArray(p.variantOptions)
                 ? p.variantOptions
                 : [],
+              // Bundle fields
+              bundleStockLimit: p.bundleStockLimit,
+              bundleItems: p.bundleItems,
+              bundleItemCount: p.bundleItemCount ?? undefined,
+              bundleSavings: p.bundleSavings ?? undefined,
             };
           }
         );
@@ -1284,6 +1318,10 @@ export default function ProductsPage() {
                       ratingAvg: p.ratingAvg,
                       ratingCount: p.ratingCount,
                       available: p.stock > 0,
+                      bundleStockLimit: p.bundleStockLimit ?? undefined,
+                      bundleItems: p.bundleItems,
+                      bundleItemCount: p.bundleItemCount,
+                      bundleSavings: p.bundleSavings,
                     }}
                     wishlisted={isInWishlist(p.id)}
                     onWishlistClick={() => toggleWishlist(p)}

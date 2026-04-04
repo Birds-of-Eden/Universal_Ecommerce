@@ -25,7 +25,6 @@ import {
   Image as ImageIcon,
   ChevronDown,
   RefreshCw,
-  Warehouse,
   Boxes,
   Package,
   AlertTriangle,
@@ -44,7 +43,6 @@ import ProductAddModal from "./ProductAddModal";
 import ProductRelationsModal from "./ProductRelationsModal";
 import AttributesManagerModal from "./AttributesManagerModal";
 import DigitalAssetManagerModal from "./DigitalAssetManagerModal";
-import SpotlightCard from "../SpotlightCard";
 import type { InventoryStatus } from "@/lib/stock-status";
 
 type WarehouseOption = {
@@ -76,6 +74,12 @@ export default function ProductManager({
   digitalAssets,
 }: any) {
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [productTypeFilter, setProductTypeFilter] = useState("");
+  const [availabilityFilter, setAvailabilityFilter] = useState("");
+  const [featuredFilter, setFeaturedFilter] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
+  const [sortBy, setSortBy] = useState("name-asc");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [manageOpen, setManageOpen] = useState(false);
@@ -93,10 +97,53 @@ export default function ProductManager({
   const [warehouseLoading, setWarehouseLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const hasActiveFilters = Boolean(
+    search ||
+    categoryFilter ||
+    productTypeFilter ||
+    availabilityFilter ||
+    featuredFilter ||
+    stockFilter,
+  );
+
+  const clearFilters = () => {
+    setSearch("");
+    setCategoryFilter("");
+    setProductTypeFilter("");
+    setAvailabilityFilter("");
+    setFeaturedFilter("");
+    setStockFilter("");
+    setSortBy("name-asc");
+  };
+
   const filtered = useMemo(() => {
     let result = products
       ?.filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()))
       .filter((p: any) => p.category !== null);
+
+    if (categoryFilter) {
+      result = result.filter(
+        (p: any) => String(p.category?.id ?? "") === categoryFilter,
+      );
+    }
+
+    if (productTypeFilter) {
+      result = result.filter((p: any) => p.type === productTypeFilter);
+    }
+
+    if (availabilityFilter) {
+      result = result.filter((p: any) =>
+        availabilityFilter === "available"
+          ? Boolean(p.available)
+          : !p.available,
+      );
+    }
+
+    if (featuredFilter) {
+      result = result.filter((p: any) =>
+        featuredFilter === "featured" ? Boolean(p.featured) : !p.featured,
+      );
+    }
 
     if (warehouses.length > 0) {
       const accessibleWarehouseIds = new Set(warehouses.map((w) => w.id));
@@ -131,8 +178,74 @@ export default function ProductManager({
       });
     }
 
+    if (stockFilter) {
+      result = result.filter((p: any) => {
+        if (p.type !== "PHYSICAL") {
+          return stockFilter === "non-physical";
+        }
+
+        const inventory = getProductInventorySummary(p);
+
+        if (stockFilter === "in-stock") return inventory.status === "IN_STOCK";
+        if (stockFilter === "low-stock")
+          return inventory.status === "LOW_STOCK";
+        if (stockFilter === "out-of-stock") {
+          return inventory.status === "OUT_OF_STOCK";
+        }
+
+        return true;
+      });
+    }
+
+    result.sort((a: any, b: any) => {
+      const [field, order] = sortBy.split("-");
+      const direction = order === "desc" ? -1 : 1;
+
+      let aValue: string | number = "";
+      let bValue: string | number = "";
+
+      switch (field) {
+        case "price":
+          aValue = Number(a.basePrice ?? 0);
+          bValue = Number(b.basePrice ?? 0);
+          break;
+        case "category":
+          aValue = String(a.category?.name ?? "").toLowerCase();
+          bValue = String(b.category?.name ?? "").toLowerCase();
+          break;
+        case "stock":
+          aValue =
+            a.type === "PHYSICAL"
+              ? getProductInventorySummary(a).totalStock
+              : -1;
+          bValue =
+            b.type === "PHYSICAL"
+              ? getProductInventorySummary(b).totalStock
+              : -1;
+          break;
+        default:
+          aValue = String(a.name ?? "").toLowerCase();
+          bValue = String(b.name ?? "").toLowerCase();
+      }
+
+      if (aValue > bValue) return direction;
+      if (aValue < bValue) return -direction;
+      return 0;
+    });
+
     return result;
-  }, [products, search, warehouseId, warehouses]);
+  }, [
+    products,
+    search,
+    categoryFilter,
+    productTypeFilter,
+    availabilityFilter,
+    featuredFilter,
+    stockFilter,
+    sortBy,
+    warehouseId,
+    warehouses,
+  ]);
 
   const fetchWarehouseData = useCallback(
     async (nextWarehouseId?: string, showRefresh = false) => {
@@ -451,55 +564,186 @@ export default function ProductManager({
         ))}
       </section>
 
-      {/* SEARCH + ADD */}
-      <Card className="mb-2 bg-card flex justify-between shadow-sm border mx-6">
-        <CardContent className="p-6 flex gap-4 justify-between items-center">
-          <Layers className="h-8 w-8 text-muted-foreground" />
-          <div>
-            <p className="text-sm text-muted-foreground">Total Products</p>
-            <h3 className="text-2xl font-bold">{filtered.length}</h3>
-            {warehouseId && (
-              <p className="text-xs text-muted-foreground mt-1">
-                In {selectedWarehouseLabel}
-              </p>
+      {/* SEARCH + ADD + FILTERS */}
+      <Card className="mx-6 mb-6 border bg-card shadow-sm">
+        <CardContent className="p-6 space-y-6">
+          {/* Header with Stats and Actions */}
+
+          {/* Filters Section */}
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <h2 className="text-lg font-semibold text-foreground">Filters</h2>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setAttributesOpen(true)}
+                  >
+                    Attributes
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDigitalAssetsOpen(true)}
+                  >
+                    Digital Assets
+                  </Button>
+                  <Button onClick={openAdd}>
+                    <Plus className="h-4 w-4 mr-1" /> New Product
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      (window.location.href = "/admin/products/bundles")
+                    }
+                    className="border-primary/20 text-primary hover:bg-primary/10"
+                  >
+                    <Package className="h-4 w-4 mr-1" /> Bundles
+                  </Button>
+                </div>
+
+                {hasActiveFilters && (
+                  <Button variant="outline" size="sm" onClick={clearFilters}>
+                    Clear All Filters
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-4">
+              <div className="relative min-w-[220px] flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-10"
+                  placeholder="Search products..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">All Categories</option>
+                {(categories || []).map((category: any) => (
+                  <option key={category.id} value={String(category.id)}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={productTypeFilter}
+                onChange={(e) => setProductTypeFilter(e.target.value)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">All Types</option>
+                <option value="PHYSICAL">Physical</option>
+                <option value="DIGITAL">Digital</option>
+                <option value="SERVICE">Service</option>
+                <option value="BUNDLE">Bundle</option>
+              </select>
+
+              <select
+                value={availabilityFilter}
+                onChange={(e) => setAvailabilityFilter(e.target.value)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">All Availability</option>
+                <option value="available">Available</option>
+                <option value="unavailable">Unavailable</option>
+              </select>
+
+              <select
+                value={featuredFilter}
+                onChange={(e) => setFeaturedFilter(e.target.value)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">All Visibility</option>
+                <option value="featured">Featured</option>
+                <option value="regular">Regular</option>
+              </select>
+
+              <select
+                value={stockFilter}
+                onChange={(e) => setStockFilter(e.target.value)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">All Stock States</option>
+                <option value="in-stock">In Stock</option>
+                <option value="low-stock">Low Stock</option>
+                <option value="out-of-stock">Out of Stock</option>
+                <option value="non-physical">Non-Physical</option>
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="category-asc">Category (A-Z)</option>
+                <option value="category-desc">Category (Z-A)</option>
+                <option value="price-asc">Price (Low to High)</option>
+                <option value="price-desc">Price (High to Low)</option>
+                <option value="stock-asc">Stock (Low to High)</option>
+                <option value="stock-desc">Stock (High to Low)</option>
+              </select>
+            </div>
+
+            {/* Active Filters Tags */}
+            {hasActiveFilters && (
+              <div className="flex flex-wrap gap-2 border-t border-border/50 pt-3">
+                <span className="text-sm text-muted-foreground">
+                  Active filters:
+                </span>
+                {search && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                    Search: {search}
+                    <button onClick={() => setSearch("")}>×</button>
+                  </span>
+                )}
+                {categoryFilter && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                    Category:{" "}
+                    {categories?.find(
+                      (category: any) => String(category.id) === categoryFilter,
+                    )?.name || categoryFilter}
+                    <button onClick={() => setCategoryFilter("")}>×</button>
+                  </span>
+                )}
+                {productTypeFilter && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                    Type: {productTypeFilter}
+                    <button onClick={() => setProductTypeFilter("")}>×</button>
+                  </span>
+                )}
+                {availabilityFilter && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                    {availabilityFilter === "available"
+                      ? "Available"
+                      : "Unavailable"}
+                    <button onClick={() => setAvailabilityFilter("")}>×</button>
+                  </span>
+                )}
+                {featuredFilter && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                    {featuredFilter === "featured" ? "Featured" : "Regular"}
+                    <button onClick={() => setFeaturedFilter("")}>×</button>
+                  </span>
+                )}
+                {stockFilter && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
+                    Stock: {stockFilter}
+                    <button onClick={() => setStockFilter("")}>×</button>
+                  </span>
+                )}
+              </div>
             )}
-          </div>
-        </CardContent>
-        <CardContent className="p-6 flex flex-col md:flex-row gap-4 md:items-center">
-          <div className="flex-1 relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-10"
-              placeholder="Search product..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2 justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setAttributesOpen(true)}
-            >
-              Attributes
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setDigitalAssetsOpen(true)}
-            >
-              Digital Assets
-            </Button>
-            <Button onClick={openAdd}>
-              <Plus className="h-4 w-4 mr-1" /> New Product
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => window.location.href = '/admin/products/bundles'}
-              className="border-primary/20 text-primary hover:bg-primary/10"
-            >
-              <Package className="h-4 w-4 mr-1" /> Bundles
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -648,10 +892,17 @@ export default function ProductManager({
               : "No products found"}
           </h3>
           <p className="text-sm text-muted-foreground mb-4">
-            {warehouseId
-              ? "Try selecting a different warehouse or add products to this warehouse."
+            {warehouseId || hasActiveFilters
+              ? "Try adjusting your filters or selecting a different warehouse."
               : "Try adjusting your search or add your first product."}
           </p>
+          {hasActiveFilters && (
+            <div className="mb-4">
+              <Button variant="outline" onClick={clearFilters}>
+                Clear Filters
+              </Button>
+            </div>
+          )}
           <Button onClick={openAdd}>
             <Plus className="h-4 w-4 mr-1" /> Add Product
           </Button>

@@ -6,6 +6,7 @@ import { Package, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -293,7 +294,8 @@ export default function ProductPicker({
         item.product?.id === productId &&
         (item.variant?.id || 0) === (variantId || 0)
       ) {
-        return { ...item, quantity };
+        const itemStock = Number(item.variant?.stock ?? item.product?.stock ?? 0);
+        return { ...item, quantity: Math.min(quantity, Math.max(itemStock, 1)) };
       }
       return item;
     });
@@ -384,7 +386,7 @@ export default function ProductPicker({
                           variant={product.stock > 0 ? "outline" : "destructive"}
                           className="text-xs"
                         >
-                          Stock: {product.stock}
+                          Total Stock: {product.stock}
                         </Badge>
 
                         {warehouseId && (
@@ -488,6 +490,8 @@ export default function ProductPicker({
               {selectedItems.map((item, index) => {
                 const itemStock = item.variant ? item.variant.stock : item.product.stock;
                 const isOutOfStock = itemStock <= 0;
+                const maxBundlesForItem =
+                  item.quantity > 0 ? Math.floor(itemStock / item.quantity) : 0;
 
                 return (
                   <div
@@ -545,10 +549,37 @@ export default function ProductPicker({
                           </>
                         )}
                       </div>
+
+                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <span>Total Stock: {itemStock}</span>
+                        <span>Qty / Bundle: {item.quantity}</span>
+                        <span>Max Bundles: {maxBundlesForItem}</span>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-28">
+                          <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                            Qty / Bundle
+                          </label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max={Math.max(itemStock, 1)}
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateQuantity(
+                                item.product.id,
+                                Number(e.target.value || 1),
+                                item.variant?.id
+                              )
+                            }
+                            className="h-8"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1">
                         <Button
                           type="button"
                           variant="outline"
@@ -585,6 +616,7 @@ export default function ProductPicker({
                         >
                           +
                         </Button>
+                        </div>
                       </div>
 
                       <Button

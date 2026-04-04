@@ -10,10 +10,11 @@ import {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const bundleId = parseInt(params.id);
+    const { id } = await params;
+    const bundleId = parseInt(id);
 
     if (isNaN(bundleId)) {
       return NextResponse.json(
@@ -88,10 +89,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const bundleId = parseInt(params.id);
+    const { id } = await params;
+    const bundleId = parseInt(id);
 
     if (isNaN(bundleId)) {
       return NextResponse.json(
@@ -108,12 +110,14 @@ export async function PUT(
       shortDesc,
       categoryId,
       brandId,
+      vatClassId,
       image,
       gallery,
       discountType,
       discountValue,
       manualPrice,
       items,
+      bundleStockLimit,
       available,
       featured,
       currency
@@ -225,8 +229,15 @@ export async function PUT(
           currency,
           image,
           gallery: gallery || [],
+          bundleStockLimit:
+            bundleStockLimit !== null &&
+            bundleStockLimit !== undefined &&
+            Number(bundleStockLimit) > 0
+              ? Number(bundleStockLimit)
+              : null,
           available,
           featured,
+          VatClassId: vatClassId || null,
         }
       });
 
@@ -267,10 +278,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const bundleId = parseInt(params.id);
+    const { id } = await params;
+    const bundleId = parseInt(id);
 
     if (isNaN(bundleId)) {
       return NextResponse.json(

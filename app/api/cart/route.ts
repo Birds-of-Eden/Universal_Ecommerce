@@ -119,6 +119,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Check bundle stock based on child products
+      let derivedBundleStock = Number.POSITIVE_INFINITY;
+
       for (const bundleItem of product.bundleItems) {
         const childProduct = bundleItem.product;
         const childVariant = childProduct.variants.find(v => v.isDefault) || childProduct.variants[0];
@@ -132,6 +134,8 @@ export async function POST(request: NextRequest) {
 
         const requiredQuantity = bundleItem.quantity * quantity;
         const availableStock = Number(childVariant.stock);
+        const maxBundlesForItem = Math.floor(availableStock / bundleItem.quantity);
+        derivedBundleStock = Math.min(derivedBundleStock, maxBundlesForItem);
 
         if (availableStock < requiredQuantity) {
           return NextResponse.json(
@@ -139,6 +143,24 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
+      }
+
+      const bundleStockLimit =
+        product.bundleStockLimit !== null && product.bundleStockLimit !== undefined
+          ? Number(product.bundleStockLimit)
+          : null;
+      const effectiveBundleStock =
+        bundleStockLimit !== null
+          ? Math.min(derivedBundleStock, bundleStockLimit)
+          : derivedBundleStock;
+
+      if (quantity > effectiveBundleStock) {
+        return NextResponse.json(
+          {
+            error: `Requested bundle quantity exceeds available bundle stock. Available: ${effectiveBundleStock}`,
+          },
+          { status: 400 }
+        );
       }
 
       // For bundles, we don't need variant validation - use null variantId
@@ -156,11 +178,14 @@ export async function POST(request: NextRequest) {
         const nextQuantity = existing.quantity + quantity;
         
         // Re-check bundle stock for updated quantity
+        let updatedDerivedBundleStock = Number.POSITIVE_INFINITY;
         for (const bundleItem of product.bundleItems) {
           const childProduct = bundleItem.product;
           const childVariant = childProduct.variants.find(v => v.isDefault) || childProduct.variants[0];
           const requiredQuantity = bundleItem.quantity * nextQuantity;
           const availableStock = Number(childVariant.stock);
+          const maxBundlesForItem = Math.floor(availableStock / bundleItem.quantity);
+          updatedDerivedBundleStock = Math.min(updatedDerivedBundleStock, maxBundlesForItem);
 
           if (availableStock < requiredQuantity) {
             return NextResponse.json(
@@ -168,6 +193,24 @@ export async function POST(request: NextRequest) {
               { status: 400 }
             );
           }
+        }
+
+        const bundleStockLimit =
+          product.bundleStockLimit !== null && product.bundleStockLimit !== undefined
+            ? Number(product.bundleStockLimit)
+            : null;
+        const effectiveBundleStock =
+          bundleStockLimit !== null
+            ? Math.min(updatedDerivedBundleStock, bundleStockLimit)
+            : updatedDerivedBundleStock;
+
+        if (nextQuantity > effectiveBundleStock) {
+          return NextResponse.json(
+            {
+              error: `Requested bundle quantity exceeds available bundle stock. Available: ${effectiveBundleStock}`,
+            },
+            { status: 400 }
+          );
         }
 
         cartItem = await prisma.cartItem.update({
