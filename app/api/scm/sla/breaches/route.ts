@@ -152,6 +152,21 @@ function parseActionStatus(value: unknown): Prisma.SupplierSlaActionStatus | nul
   return null;
 }
 
+function parseDisputeStatus(value: unknown): Prisma.SupplierSlaDisputeStatus | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  if (
+    normalized === "NONE" ||
+    normalized === "OPEN" ||
+    normalized === "UNDER_REVIEW" ||
+    normalized === "RESOLVED" ||
+    normalized === "REJECTED"
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
 function toBreachActionSnapshot(
   breach: Awaited<ReturnType<typeof prisma.supplierSlaBreach.findUnique>>,
 ) {
@@ -171,6 +186,16 @@ function toBreachActionSnapshot(
     resolutionNote: breach.resolutionNote ?? null,
     alertTriggeredAt: breach.alertTriggeredAt?.toISOString() ?? null,
     alertAcknowledgedAt: breach.alertAcknowledgedAt?.toISOString() ?? null,
+    disputeStatus: breach.disputeStatus,
+    disputeReason: breach.disputeReason ?? null,
+    disputeRaisedAt: breach.disputeRaisedAt?.toISOString() ?? null,
+    disputeRaisedById: breach.disputeRaisedById ?? null,
+    disputeResolutionNote: breach.disputeResolutionNote ?? null,
+    disputeResolvedAt: breach.disputeResolvedAt?.toISOString() ?? null,
+    disputeResolvedById: breach.disputeResolvedById ?? null,
+    terminationCaseId: breach.terminationCaseId ?? null,
+    terminationSuggestedAt: breach.terminationSuggestedAt?.toISOString() ?? null,
+    terminationSuggestionNote: breach.terminationSuggestionNote ?? null,
   };
 }
 
@@ -194,6 +219,9 @@ export async function PATCH(request: NextRequest) {
       actionStatus?: unknown;
       resolutionNote?: unknown;
       acknowledgeAlert?: unknown;
+      disputeStatus?: unknown;
+      disputeReason?: unknown;
+      disputeResolutionNote?: unknown;
     };
 
     const breachId = Number(body.breachId);
@@ -212,6 +240,10 @@ export async function PATCH(request: NextRequest) {
     const requestedActionStatus = parseActionStatus(body.actionStatus);
     if (body.actionStatus !== undefined && requestedActionStatus === null) {
       return NextResponse.json({ error: "Invalid action status." }, { status: 400 });
+    }
+    const requestedDisputeStatus = parseDisputeStatus(body.disputeStatus);
+    if (body.disputeStatus !== undefined && requestedDisputeStatus === null) {
+      return NextResponse.json({ error: "Invalid dispute status." }, { status: 400 });
     }
     if (
       breach.status === "OK" &&
@@ -259,6 +291,14 @@ export async function PATCH(request: NextRequest) {
     if (body.resolutionNote !== undefined) {
       scalarUpdateData.resolutionNote = resolutionNote;
     }
+    const disputeReason = trimText(body.disputeReason, 1000);
+    if (body.disputeReason !== undefined) {
+      scalarUpdateData.disputeReason = disputeReason;
+    }
+    const disputeResolutionNote = trimText(body.disputeResolutionNote, 1000);
+    if (body.disputeResolutionNote !== undefined) {
+      scalarUpdateData.disputeResolutionNote = disputeResolutionNote;
+    }
 
     if (requestedActionStatus) {
       scalarUpdateData.actionStatus = requestedActionStatus;
@@ -298,6 +338,53 @@ export async function PATCH(request: NextRequest) {
 
     if (body.acknowledgeAlert === true) {
       scalarUpdateData.alertAcknowledgedAt = new Date();
+    }
+
+    if (requestedDisputeStatus) {
+      scalarUpdateData.disputeStatus = requestedDisputeStatus;
+      if (requestedDisputeStatus === "NONE") {
+        scalarUpdateData.disputeReason = null;
+        scalarUpdateData.disputeRaisedAt = null;
+        scalarUpdateData.disputeRaisedById = null;
+        scalarUpdateData.disputeResolutionNote = null;
+        scalarUpdateData.disputeResolvedAt = null;
+        scalarUpdateData.disputeResolvedById = null;
+      } else if (requestedDisputeStatus === "OPEN" || requestedDisputeStatus === "UNDER_REVIEW") {
+        const finalReason = disputeReason ?? breach.disputeReason ?? "";
+        if (finalReason.trim().length < 3) {
+          return NextResponse.json(
+            { error: "Dispute reason (minimum 3 chars) is required for open dispute statuses." },
+            { status: 400 },
+          );
+        }
+        scalarUpdateData.disputeReason = finalReason.trim().slice(0, 1000);
+        if (!breach.disputeRaisedAt) {
+          scalarUpdateData.disputeRaisedAt = new Date();
+        }
+        if (!breach.disputeRaisedById) {
+          scalarUpdateData.disputeRaisedById = access.userId;
+        }
+        scalarUpdateData.disputeResolvedAt = null;
+        scalarUpdateData.disputeResolvedById = null;
+      } else {
+        const finalDisputeResolutionNote =
+          disputeResolutionNote ?? breach.disputeResolutionNote ?? "";
+        if (finalDisputeResolutionNote.trim().length < 3) {
+          return NextResponse.json(
+            { error: "Dispute resolution note (minimum 3 chars) is required." },
+            { status: 400 },
+          );
+        }
+        if (!breach.disputeRaisedAt && !breach.disputeReason) {
+          return NextResponse.json(
+            { error: "Dispute must be opened before resolving or rejecting it." },
+            { status: 400 },
+          );
+        }
+        scalarUpdateData.disputeResolutionNote = finalDisputeResolutionNote.trim().slice(0, 1000);
+        scalarUpdateData.disputeResolvedAt = new Date();
+        scalarUpdateData.disputeResolvedById = access.userId;
+      }
     }
 
     if (Object.keys(scalarUpdateData).length === 0) {

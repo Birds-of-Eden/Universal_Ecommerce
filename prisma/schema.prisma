@@ -71,8 +71,13 @@ model User {
   supplierSlaBreachesEvaluated  SupplierSlaBreach[]     @relation("SupplierSlaBreachesEvaluated")
   supplierSlaBreachesOwned      SupplierSlaBreach[]     @relation("SupplierSlaBreachesOwned")
   supplierSlaBreachesResolved   SupplierSlaBreach[]     @relation("SupplierSlaBreachesResolved")
+  supplierSlaBreachesDisputeRaised SupplierSlaBreach[]  @relation("SupplierSlaBreachesDisputeRaised")
+  supplierSlaBreachesDisputeResolved SupplierSlaBreach[] @relation("SupplierSlaBreachesDisputeResolved")
   supplierSlaFinancialRulesCreated SupplierSlaFinancialRule[] @relation("SupplierSlaFinancialRulesCreated")
   supplierSlaFinancialRulesUpdated SupplierSlaFinancialRule[] @relation("SupplierSlaFinancialRulesUpdated")
+  supplierSlaTerminationCasesCreated SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationCasesCreated")
+  supplierSlaTerminationCasesOwned SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationCasesOwned")
+  supplierSlaTerminationCasesResolved SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationCasesResolved")
   wishlist                      Wishlist[]
   analyticsEvents               AnalyticsEvent[]
   deliveryManProfile            DeliveryManProfile?
@@ -1055,6 +1060,7 @@ model Supplier {
   ledgerEntries    SupplierLedgerEntry[]
   slaPolicies      SupplierSlaPolicy[]
   slaBreaches      SupplierSlaBreach[]
+  slaTerminationCases SupplierSlaTerminationCase[]
 
   @@index([companyType])
   @@index([name])
@@ -1471,6 +1477,12 @@ model SupplierSlaPolicy {
   autoEvaluationEnabled Boolean @default(true)
   warningActionDueDays Int      @default(7)
   breachActionDueDays  Int      @default(3)
+  terminationClauseEnabled Boolean @default(false)
+  terminationLookbackDays  Int      @default(180)
+  terminationMinBreachCount Int     @default(3)
+  terminationMinCriticalCount Int   @default(1)
+  terminationRecommendedAction SupplierSlaTerminationAction @default(REVIEW_CONTRACT)
+  terminationNote    String?
   note               String?
   createdById        String?
   updatedById        String?
@@ -1478,6 +1490,7 @@ model SupplierSlaPolicy {
   updatedAt          DateTime  @updatedAt
   breaches           SupplierSlaBreach[]
   financialRule      SupplierSlaFinancialRule?
+  terminationCases   SupplierSlaTerminationCase[]
   createdBy          User?     @relation("SupplierSlaPoliciesCreated", fields: [createdById], references: [id], onDelete: SetNull)
   supplier           Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   updatedBy          User?     @relation("SupplierSlaPoliciesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
@@ -1495,10 +1508,14 @@ model SupplierSlaFinancialRule {
   holdPaymentsOnOpenSlaAction    Boolean  @default(true)
   allowPaymentHoldOverride       Boolean  @default(true)
   autoCreditRecommendationEnabled Boolean @default(true)
+  autoApplyRecommendedCredit     Boolean  @default(false)
+  autoApplyRequireMatchedInvoice Boolean  @default(true)
+  autoApplyBlockOnOpenDispute    Boolean  @default(true)
   warningPenaltyRatePercent      Decimal  @default(0) @db.Decimal(5, 2)
   breachPenaltyRatePercent       Decimal  @default(2) @db.Decimal(5, 2)
   criticalPenaltyRatePercent     Decimal  @default(5) @db.Decimal(5, 2)
   minBreachCountForCredit        Int      @default(1)
+  autoApplyMaxAmount             Decimal? @db.Decimal(12, 2)
   maxCreditCapAmount             Decimal? @db.Decimal(12, 2)
   note                           String?
   createdById                    String?
@@ -1540,23 +1557,76 @@ model SupplierSlaBreach {
   alertTriggeredAt      DateTime?
   alertMessage          String?
   alertAcknowledgedAt   DateTime?
+  disputeStatus         SupplierSlaDisputeStatus   @default(NONE)
+  disputeReason         String?
+  disputeRaisedAt       DateTime?
+  disputeRaisedById     String?
+  disputeResolutionNote String?
+  disputeResolvedAt     DateTime?
+  disputeResolvedById   String?
+  terminationCaseId     Int?
+  terminationSuggestedAt DateTime?
+  terminationSuggestionNote String?
   issues                Json?
   evaluatedById         String?
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt
+  disputeRaisedBy       User?                      @relation("SupplierSlaBreachesDisputeRaised", fields: [disputeRaisedById], references: [id], onDelete: SetNull)
+  disputeResolvedBy     User?                      @relation("SupplierSlaBreachesDisputeResolved", fields: [disputeResolvedById], references: [id], onDelete: SetNull)
   owner                 User?                      @relation("SupplierSlaBreachesOwned", fields: [ownerUserId], references: [id], onDelete: SetNull)
   resolvedBy            User?                      @relation("SupplierSlaBreachesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
   evaluatedBy           User?                      @relation("SupplierSlaBreachesEvaluated", fields: [evaluatedById], references: [id], onDelete: SetNull)
   policy                SupplierSlaPolicy          @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
   supplier              Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  terminationCase       SupplierSlaTerminationCase? @relation(fields: [terminationCaseId], references: [id], onDelete: SetNull)
+  triggeredTerminationCases SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationTriggerBreach")
 
   @@index([supplierId, evaluationDate])
   @@index([supplierSlaPolicyId, evaluationDate])
   @@index([status, evaluationDate])
   @@index([actionStatus, dueDate])
+  @@index([disputeStatus, evaluationDate])
   @@index([ownerUserId, actionStatus])
+  @@index([disputeRaisedById])
+  @@index([disputeResolvedById])
+  @@index([terminationCaseId])
   @@index([resolvedById])
   @@index([evaluatedById])
+}
+
+model SupplierSlaTerminationCase {
+  id                    Int                             @id @default(autoincrement())
+  supplierId            Int
+  supplierSlaPolicyId   Int
+  triggerBreachId       Int?
+  status                SupplierSlaTerminationCaseStatus @default(OPEN)
+  recommendedAction     SupplierSlaTerminationAction    @default(REVIEW_CONTRACT)
+  openBreachCount       Int                             @default(0)
+  criticalBreachCount   Int                             @default(0)
+  lookbackDays          Int                             @default(180)
+  reason                String
+  ownerUserId           String?
+  reviewedAt            DateTime?
+  resolvedAt            DateTime?
+  resolvedById          String?
+  resolutionNote        String?
+  createdById           String?
+  createdAt             DateTime                        @default(now())
+  updatedAt             DateTime                        @updatedAt
+  createdBy             User?                           @relation("SupplierSlaTerminationCasesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  owner                 User?                           @relation("SupplierSlaTerminationCasesOwned", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  policy                SupplierSlaPolicy               @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
+  resolvedBy            User?                           @relation("SupplierSlaTerminationCasesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+  supplier              Supplier                        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  triggerBreach         SupplierSlaBreach?              @relation("SupplierSlaTerminationTriggerBreach", fields: [triggerBreachId], references: [id], onDelete: SetNull)
+  breaches              SupplierSlaBreach[]
+
+  @@index([supplierId, status])
+  @@index([supplierSlaPolicyId, status])
+  @@index([ownerUserId, status])
+  @@index([resolvedById])
+  @@index([createdById])
+  @@index([createdAt])
 }
 
 model WarehouseTransfer {
@@ -2225,6 +2295,29 @@ enum SupplierSlaActionStatus {
   IN_PROGRESS
   RESOLVED
   DISMISSED
+}
+
+enum SupplierSlaDisputeStatus {
+  NONE
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum SupplierSlaTerminationCaseStatus {
+  OPEN
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+
+enum SupplierSlaTerminationAction {
+  WATCHLIST
+  SUSPEND_NEW_PO
+  REVIEW_CONTRACT
+  TERMINATE_RELATIONSHIP
 }
 
 enum SupplierCompanyType {

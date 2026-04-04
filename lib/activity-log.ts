@@ -91,6 +91,7 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     match: [
       "supplier_sla_policy",
       "supplier_sla_breach",
+      "supplier_sla_termination",
       "supplier_sla_alert",
       "sla_policy",
       "sla_breach",

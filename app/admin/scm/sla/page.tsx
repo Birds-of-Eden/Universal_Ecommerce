@@ -40,6 +40,16 @@ type SlaPolicy = {
   autoEvaluationEnabled: boolean;
   warningActionDueDays: number;
   breachActionDueDays: number;
+  terminationClauseEnabled: boolean;
+  terminationLookbackDays: number;
+  terminationMinBreachCount: number;
+  terminationMinCriticalCount: number;
+  terminationRecommendedAction:
+    | "WATCHLIST"
+    | "SUSPEND_NEW_PO"
+    | "REVIEW_CONTRACT"
+    | "TERMINATE_RELATIONSHIP";
+  terminationNote: string | null;
   note: string | null;
   financialRule: {
     id: number;
@@ -48,10 +58,14 @@ type SlaPolicy = {
     holdPaymentsOnOpenSlaAction: boolean;
     allowPaymentHoldOverride: boolean;
     autoCreditRecommendationEnabled: boolean;
+    autoApplyRecommendedCredit: boolean;
+    autoApplyRequireMatchedInvoice: boolean;
+    autoApplyBlockOnOpenDispute: boolean;
     warningPenaltyRatePercent: number | string;
     breachPenaltyRatePercent: number | string;
     criticalPenaltyRatePercent: number | string;
     minBreachCountForCredit: number;
+    autoApplyMaxAmount: number | string | null;
     maxCreditCapAmount: number | string | null;
     note: string | null;
   } | null;
@@ -91,6 +105,16 @@ type SlaBreach = {
   alertTriggeredAt: string | null;
   alertMessage: string | null;
   alertAcknowledgedAt: string | null;
+  disputeStatus: "NONE" | "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "REJECTED";
+  disputeReason: string | null;
+  disputeRaisedAt: string | null;
+  disputeRaisedById: string | null;
+  disputeResolutionNote: string | null;
+  disputeResolvedAt: string | null;
+  disputeResolvedById: string | null;
+  terminationCaseId: number | null;
+  terminationSuggestedAt: string | null;
+  terminationSuggestionNote: string | null;
   issues: unknown;
   supplier: {
     id: number;
@@ -118,6 +142,72 @@ type SlaBreach = {
     email: string;
   } | null;
   resolvedBy: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  disputeRaisedBy: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  disputeResolvedBy: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  terminationCase: {
+    id: number;
+    status: "OPEN" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "EXECUTED";
+    recommendedAction:
+      | "WATCHLIST"
+      | "SUSPEND_NEW_PO"
+      | "REVIEW_CONTRACT"
+      | "TERMINATE_RELATIONSHIP";
+    openBreachCount: number;
+    criticalBreachCount: number;
+    lookbackDays: number;
+    reason: string;
+    ownerUserId: string | null;
+    reviewedAt: string | null;
+    resolvedAt: string | null;
+    resolvedById: string | null;
+    resolutionNote: string | null;
+    owner: {
+      id: string;
+      name: string | null;
+      email: string;
+    } | null;
+  } | null;
+};
+
+type TerminationCase = {
+  id: number;
+  supplierId: number;
+  supplierSlaPolicyId: number;
+  triggerBreachId: number | null;
+  status: "OPEN" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "EXECUTED";
+  recommendedAction:
+    | "WATCHLIST"
+    | "SUSPEND_NEW_PO"
+    | "REVIEW_CONTRACT"
+    | "TERMINATE_RELATIONSHIP";
+  openBreachCount: number;
+  criticalBreachCount: number;
+  lookbackDays: number;
+  reason: string;
+  ownerUserId: string | null;
+  reviewedAt: string | null;
+  resolvedAt: string | null;
+  resolvedById: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+  supplier: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  owner: {
     id: string;
     name: string | null;
     email: string;
@@ -154,15 +244,25 @@ type SlaFormState = {
   autoEvaluationEnabled: boolean;
   warningActionDueDays: string;
   breachActionDueDays: string;
+  terminationClauseEnabled: boolean;
+  terminationLookbackDays: string;
+  terminationMinBreachCount: string;
+  terminationMinCriticalCount: string;
+  terminationRecommendedAction: "WATCHLIST" | "SUSPEND_NEW_PO" | "REVIEW_CONTRACT" | "TERMINATE_RELATIONSHIP";
+  terminationNote: string;
   financialRuleActive: boolean;
   holdPaymentsOnThreeWayVariance: boolean;
   holdPaymentsOnOpenSlaAction: boolean;
   allowPaymentHoldOverride: boolean;
   autoCreditRecommendationEnabled: boolean;
+  autoApplyRecommendedCredit: boolean;
+  autoApplyRequireMatchedInvoice: boolean;
+  autoApplyBlockOnOpenDispute: boolean;
   warningPenaltyRatePercent: string;
   breachPenaltyRatePercent: string;
   criticalPenaltyRatePercent: string;
   minBreachCountForCredit: string;
+  autoApplyMaxAmount: string;
   maxCreditCapAmount: string;
   financialRuleNote: string;
   note: string;
@@ -174,6 +274,17 @@ type BreachActionDraft = {
   actionStatus: SlaBreach["actionStatus"];
   resolutionNote: string;
   acknowledgeAlert: boolean;
+  disputeStatus: SlaBreach["disputeStatus"];
+  disputeReason: string;
+  disputeResolutionNote: string;
+};
+
+type TerminationDraft = {
+  ownerUserId: string;
+  status: TerminationCase["status"];
+  recommendedAction: TerminationCase["recommendedAction"];
+  resolutionNote: string;
+  markReviewed: boolean;
 };
 
 const DEFAULT_FORM: SlaFormState = {
@@ -190,15 +301,25 @@ const DEFAULT_FORM: SlaFormState = {
   autoEvaluationEnabled: true,
   warningActionDueDays: "7",
   breachActionDueDays: "3",
+  terminationClauseEnabled: false,
+  terminationLookbackDays: "180",
+  terminationMinBreachCount: "3",
+  terminationMinCriticalCount: "1",
+  terminationRecommendedAction: "REVIEW_CONTRACT",
+  terminationNote: "",
   financialRuleActive: true,
   holdPaymentsOnThreeWayVariance: true,
   holdPaymentsOnOpenSlaAction: true,
   allowPaymentHoldOverride: true,
   autoCreditRecommendationEnabled: true,
+  autoApplyRecommendedCredit: false,
+  autoApplyRequireMatchedInvoice: true,
+  autoApplyBlockOnOpenDispute: true,
   warningPenaltyRatePercent: "0",
   breachPenaltyRatePercent: "2",
   criticalPenaltyRatePercent: "5",
   minBreachCountForCredit: "1",
+  autoApplyMaxAmount: "",
   maxCreditCapAmount: "",
   financialRuleNote: "",
   note: "",
@@ -265,6 +386,19 @@ function toActionDraft(row: SlaBreach): BreachActionDraft {
     actionStatus: row.actionStatus,
     resolutionNote: row.resolutionNote ?? "",
     acknowledgeAlert: Boolean(row.alertTriggeredAt && !row.alertAcknowledgedAt),
+    disputeStatus: row.disputeStatus,
+    disputeReason: row.disputeReason ?? "",
+    disputeResolutionNote: row.disputeResolutionNote ?? "",
+  };
+}
+
+function toTerminationDraft(row: TerminationCase): TerminationDraft {
+  return {
+    ownerUserId: row.ownerUserId ?? "",
+    status: row.status,
+    recommendedAction: row.recommendedAction,
+    resolutionNote: row.resolutionNote ?? "",
+    markReviewed: false,
   };
 }
 
@@ -290,7 +424,10 @@ export default function SupplierSlaPage() {
   const [owners, setOwners] = useState<SlaOwner[]>([]);
   const [policies, setPolicies] = useState<SlaPolicy[]>([]);
   const [breaches, setBreaches] = useState<SlaBreach[]>([]);
+  const [terminationCases, setTerminationCases] = useState<TerminationCase[]>([]);
   const [actionDrafts, setActionDrafts] = useState<Record<number, BreachActionDraft>>({});
+  const [terminationDrafts, setTerminationDrafts] = useState<Record<number, TerminationDraft>>({});
+  const [terminationSavingId, setTerminationSavingId] = useState<number | null>(null);
   const [form, setForm] = useState<SlaFormState>(DEFAULT_FORM);
 
   const loadData = async () => {
@@ -300,10 +437,11 @@ export default function SupplierSlaPage() {
         fetch("/api/scm/suppliers", { cache: "no-store" }),
         fetch("/api/scm/sla/policies?includeInactive=1", { cache: "no-store" }),
         fetch("/api/scm/sla/breaches?latest=1&days=365", { cache: "no-store" }),
+        fetch("/api/scm/sla/termination-cases?limit=200", { cache: "no-store" }),
         canManage ? fetch("/api/scm/sla/owners", { cache: "no-store" }) : Promise.resolve(null),
       ]);
 
-      const [supplierRes, policyRes, breachRes, ownerRes] = responses;
+      const [supplierRes, policyRes, breachRes, terminationRes, ownerRes] = responses;
 
       const supplierData = await readJson<Supplier[]>(
         supplierRes,
@@ -317,6 +455,10 @@ export default function SupplierSlaPage() {
         breachRes,
         "Failed to load SLA breach logs",
       );
+      const terminationData = await readJson<TerminationCase[]>(
+        terminationRes,
+        "Failed to load SLA termination cases",
+      );
       const ownerData = ownerRes
         ? await readJson<SlaOwner[]>(ownerRes, "Failed to load SLA owners")
         : [];
@@ -324,11 +466,13 @@ export default function SupplierSlaPage() {
       setSuppliers(Array.isArray(supplierData) ? supplierData : []);
       setPolicies(Array.isArray(policyData) ? policyData : []);
       setBreaches(Array.isArray(breachData) ? breachData : []);
+      setTerminationCases(Array.isArray(terminationData) ? terminationData : []);
       setOwners(Array.isArray(ownerData) ? ownerData : []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load SLA workspace");
       setPolicies([]);
       setBreaches([]);
+      setTerminationCases([]);
       setOwners([]);
     } finally {
       setLoading(false);
@@ -348,6 +492,14 @@ export default function SupplierSlaPage() {
     }
     setActionDrafts(nextDrafts);
   }, [breaches]);
+
+  useEffect(() => {
+    const nextDrafts: Record<number, TerminationDraft> = {};
+    for (const row of terminationCases) {
+      nextDrafts[row.id] = toTerminationDraft(row);
+    }
+    setTerminationDrafts(nextDrafts);
+  }, [terminationCases]);
 
   const visibleBreaches = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -387,15 +539,25 @@ export default function SupplierSlaPage() {
           autoEvaluationEnabled: form.autoEvaluationEnabled,
           warningActionDueDays: Number(form.warningActionDueDays),
           breachActionDueDays: Number(form.breachActionDueDays),
+          terminationClauseEnabled: form.terminationClauseEnabled,
+          terminationLookbackDays: Number(form.terminationLookbackDays),
+          terminationMinBreachCount: Number(form.terminationMinBreachCount),
+          terminationMinCriticalCount: Number(form.terminationMinCriticalCount),
+          terminationRecommendedAction: form.terminationRecommendedAction,
+          terminationNote: form.terminationNote || null,
           financialRuleActive: form.financialRuleActive,
           holdPaymentsOnThreeWayVariance: form.holdPaymentsOnThreeWayVariance,
           holdPaymentsOnOpenSlaAction: form.holdPaymentsOnOpenSlaAction,
           allowPaymentHoldOverride: form.allowPaymentHoldOverride,
           autoCreditRecommendationEnabled: form.autoCreditRecommendationEnabled,
+          autoApplyRecommendedCredit: form.autoApplyRecommendedCredit,
+          autoApplyRequireMatchedInvoice: form.autoApplyRequireMatchedInvoice,
+          autoApplyBlockOnOpenDispute: form.autoApplyBlockOnOpenDispute,
           warningPenaltyRatePercent: Number(form.warningPenaltyRatePercent),
           breachPenaltyRatePercent: Number(form.breachPenaltyRatePercent),
           criticalPenaltyRatePercent: Number(form.criticalPenaltyRatePercent),
           minBreachCountForCredit: Number(form.minBreachCountForCredit),
+          autoApplyMaxAmount: form.autoApplyMaxAmount ? Number(form.autoApplyMaxAmount) : null,
           maxCreditCapAmount: form.maxCreditCapAmount ? Number(form.maxCreditCapAmount) : null,
           financialRuleNote: form.financialRuleNote || null,
           note: form.note || null,
@@ -445,6 +607,9 @@ export default function SupplierSlaPage() {
         actionStatus: "OPEN" as const,
         resolutionNote: "",
         acknowledgeAlert: false,
+        disputeStatus: "NONE" as const,
+        disputeReason: "",
+        disputeResolutionNote: "",
       };
       return {
         ...current,
@@ -473,6 +638,9 @@ export default function SupplierSlaPage() {
           actionStatus: draft.actionStatus,
           resolutionNote: draft.resolutionNote || null,
           acknowledgeAlert: draft.acknowledgeAlert,
+          disputeStatus: draft.disputeStatus,
+          disputeReason: draft.disputeReason || null,
+          disputeResolutionNote: draft.disputeResolutionNote || null,
         }),
       });
       await readJson(response, "Failed to update SLA action workflow");
@@ -482,6 +650,58 @@ export default function SupplierSlaPage() {
       toast.error(error?.message || "Failed to update SLA action workflow");
     } finally {
       setActionSavingId(null);
+    }
+  };
+
+  const updateTerminationDraft = <K extends keyof TerminationDraft>(
+    caseId: number,
+    key: K,
+    value: TerminationDraft[K],
+  ) => {
+    setTerminationDrafts((current) => {
+      const existing = current[caseId] ?? {
+        ownerUserId: "",
+        status: "OPEN" as const,
+        recommendedAction: "REVIEW_CONTRACT" as const,
+        resolutionNote: "",
+        markReviewed: false,
+      };
+      return {
+        ...current,
+        [caseId]: {
+          ...existing,
+          [key]: value,
+        },
+      };
+    });
+  };
+
+  const submitTerminationCase = async (caseId: number) => {
+    if (!canManage) return;
+    const draft = terminationDrafts[caseId];
+    if (!draft) return;
+
+    try {
+      setTerminationSavingId(caseId);
+      const response = await fetch("/api/scm/sla/termination-cases", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caseId,
+          ownerUserId: draft.ownerUserId || null,
+          status: draft.status,
+          recommendedAction: draft.recommendedAction,
+          resolutionNote: draft.resolutionNote || null,
+          markReviewed: draft.markReviewed,
+        }),
+      });
+      await readJson(response, "Failed to update termination case");
+      toast.success("Termination case workflow updated");
+      await loadData();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update termination case");
+    } finally {
+      setTerminationSavingId(null);
     }
   };
 
@@ -501,6 +721,12 @@ export default function SupplierSlaPage() {
       autoEvaluationEnabled: policy.autoEvaluationEnabled,
       warningActionDueDays: String(policy.warningActionDueDays),
       breachActionDueDays: String(policy.breachActionDueDays),
+      terminationClauseEnabled: policy.terminationClauseEnabled ?? false,
+      terminationLookbackDays: String(policy.terminationLookbackDays ?? 180),
+      terminationMinBreachCount: String(policy.terminationMinBreachCount ?? 3),
+      terminationMinCriticalCount: String(policy.terminationMinCriticalCount ?? 1),
+      terminationRecommendedAction: policy.terminationRecommendedAction ?? "REVIEW_CONTRACT",
+      terminationNote: policy.terminationNote || "",
       financialRuleActive: policy.financialRule?.isActive ?? true,
       holdPaymentsOnThreeWayVariance:
         policy.financialRule?.holdPaymentsOnThreeWayVariance ?? true,
@@ -510,6 +736,12 @@ export default function SupplierSlaPage() {
         policy.financialRule?.allowPaymentHoldOverride ?? true,
       autoCreditRecommendationEnabled:
         policy.financialRule?.autoCreditRecommendationEnabled ?? true,
+      autoApplyRecommendedCredit:
+        policy.financialRule?.autoApplyRecommendedCredit ?? false,
+      autoApplyRequireMatchedInvoice:
+        policy.financialRule?.autoApplyRequireMatchedInvoice ?? true,
+      autoApplyBlockOnOpenDispute:
+        policy.financialRule?.autoApplyBlockOnOpenDispute ?? true,
       warningPenaltyRatePercent: String(
         policy.financialRule?.warningPenaltyRatePercent ?? 0,
       ),
@@ -522,6 +754,11 @@ export default function SupplierSlaPage() {
       minBreachCountForCredit: String(
         policy.financialRule?.minBreachCountForCredit ?? 1,
       ),
+      autoApplyMaxAmount:
+        policy.financialRule?.autoApplyMaxAmount === null ||
+        policy.financialRule?.autoApplyMaxAmount === undefined
+          ? ""
+          : String(policy.financialRule.autoApplyMaxAmount),
       maxCreditCapAmount:
         policy.financialRule?.maxCreditCapAmount === null ||
         policy.financialRule?.maxCreditCapAmount === undefined
@@ -736,6 +973,100 @@ export default function SupplierSlaPage() {
                   </label>
                 </div>
               </div>
+              <div className="space-y-2 xl:col-span-2">
+                <Label>Termination Clause</Label>
+                <div className="space-y-2 rounded-md border p-3 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={form.terminationClauseEnabled}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          terminationClauseEnabled: event.target.checked,
+                        }))
+                      }
+                    />
+                    Enable termination escalation
+                  </label>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label>Lookback Days</Label>
+                      <Input
+                        type="number"
+                        min={30}
+                        max={730}
+                        value={form.terminationLookbackDays}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            terminationLookbackDays: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Min Breach Count</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={form.terminationMinBreachCount}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            terminationMinBreachCount: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Min Critical Count</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={form.terminationMinCriticalCount}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            terminationMinCriticalCount: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Recommended Action</Label>
+                      <select
+                        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                        value={form.terminationRecommendedAction}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            terminationRecommendedAction:
+                              event.target.value as SlaFormState["terminationRecommendedAction"],
+                          }))
+                        }
+                      >
+                        <option value="WATCHLIST">WATCHLIST</option>
+                        <option value="SUSPEND_NEW_PO">SUSPEND_NEW_PO</option>
+                        <option value="REVIEW_CONTRACT">REVIEW_CONTRACT</option>
+                        <option value="TERMINATE_RELATIONSHIP">TERMINATE_RELATIONSHIP</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Termination Clause Note</Label>
+              <Textarea
+                rows={2}
+                value={form.terminationNote}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, terminationNote: event.target.value }))
+                }
+              />
             </div>
             <div className="space-y-2">
               <Label>Note</Label>
@@ -818,6 +1149,45 @@ export default function SupplierSlaPage() {
                   />
                   Auto credit recommendation
                 </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.autoApplyRecommendedCredit}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        autoApplyRecommendedCredit: event.target.checked,
+                      }))
+                    }
+                  />
+                  Auto-apply credit to AP
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.autoApplyRequireMatchedInvoice}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        autoApplyRequireMatchedInvoice: event.target.checked,
+                      }))
+                    }
+                  />
+                  Require MATCHED invoice for auto-apply
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.autoApplyBlockOnOpenDispute}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        autoApplyBlockOnOpenDispute: event.target.checked,
+                      }))
+                    }
+                  />
+                  Block auto-apply on open dispute
+                </label>
                 <div className="space-y-1">
                   <Label>Warning Penalty %</Label>
                   <Input
@@ -892,6 +1262,22 @@ export default function SupplierSlaPage() {
                       setForm((current) => ({
                         ...current,
                         maxCreditCapAmount: event.target.value,
+                      }))
+                    }
+                    placeholder="Optional"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Auto-Apply Max Amount</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={form.autoApplyMaxAmount}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        autoApplyMaxAmount: event.target.value,
                       }))
                     }
                     placeholder="Optional"
@@ -1051,6 +1437,8 @@ export default function SupplierSlaPage() {
                   <TableHead>Owner</TableHead>
                   <TableHead>Due</TableHead>
                   <TableHead>Alert</TableHead>
+                  <TableHead>Dispute</TableHead>
+                  <TableHead>Termination</TableHead>
                   <TableHead>Issues</TableHead>
                   {canManage ? <TableHead>Workflow</TableHead> : null}
                 </TableRow>
@@ -1105,6 +1493,33 @@ export default function SupplierSlaPage() {
                           </div>
                         ) : (
                           <span className="text-muted-foreground">No alert</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Badge variant={row.disputeStatus === "NONE" ? "outline" : "secondary"}>
+                            {row.disputeStatus}
+                          </Badge>
+                          {row.disputeReason ? (
+                            <p className="max-w-xs text-xs text-muted-foreground">{row.disputeReason}</p>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {row.terminationCase ? (
+                          <div className="space-y-1">
+                            <Badge variant="destructive">{row.terminationCase.status}</Badge>
+                            <p className="text-xs text-muted-foreground">
+                              {row.terminationCase.recommendedAction}
+                            </p>
+                          </div>
+                        ) : row.terminationSuggestedAt ? (
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <p>Suggested: {fmtDate(row.terminationSuggestedAt)}</p>
+                            {row.terminationSuggestionNote ? <p>{row.terminationSuggestionNote}</p> : null}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">No escalation</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1189,6 +1604,52 @@ export default function SupplierSlaPage() {
                             />
                             Acknowledge Alert
                           </label>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Dispute Status</Label>
+                            <select
+                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
+                              value={draft.disputeStatus}
+                              onChange={(event) =>
+                                updateActionDraft(
+                                  row.id,
+                                  "disputeStatus",
+                                  event.target.value as BreachActionDraft["disputeStatus"],
+                                )
+                              }
+                            >
+                              <option value="NONE">NONE</option>
+                              <option value="OPEN">OPEN</option>
+                              <option value="UNDER_REVIEW">UNDER_REVIEW</option>
+                              <option value="RESOLVED">RESOLVED</option>
+                              <option value="REJECTED">REJECTED</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Dispute Reason</Label>
+                            <Textarea
+                              rows={2}
+                              className="w-44 text-xs"
+                              value={draft.disputeReason}
+                              onChange={(event) =>
+                                updateActionDraft(row.id, "disputeReason", event.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Dispute Resolution</Label>
+                            <Textarea
+                              rows={2}
+                              className="w-44 text-xs"
+                              value={draft.disputeResolutionNote}
+                              onChange={(event) =>
+                                updateActionDraft(
+                                  row.id,
+                                  "disputeResolutionNote",
+                                  event.target.value,
+                                )
+                              }
+                            />
+                          </div>
                           <Button
                             size="sm"
                             className="h-8"
@@ -1196,6 +1657,163 @@ export default function SupplierSlaPage() {
                             onClick={() => void submitBreachAction(row.id)}
                           >
                             {actionSavingId === row.id ? "Saving..." : "Save Action"}
+                          </Button>
+                        </TableCell>
+                      ) : null}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Termination Queue</CardTitle>
+          <CardDescription>
+            Auto-opened governance queue when policy termination clause thresholds are reached.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading termination cases...</p>
+          ) : terminationCases.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No active termination escalation cases.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Case</TableHead>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Window</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>Updated</TableHead>
+                  {canManage ? <TableHead>Workflow</TableHead> : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {terminationCases.map((row) => {
+                  const draft = terminationDrafts[row.id] ?? toTerminationDraft(row);
+                  return (
+                    <TableRow key={row.id}>
+                      <TableCell>#{row.id}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{row.supplier.name}</div>
+                        <div className="text-xs text-muted-foreground">{row.supplier.code}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={row.status === "OPEN" ? "destructive" : "secondary"}>
+                          {row.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{row.recommendedAction}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {row.openBreachCount} breaches / {row.criticalBreachCount} critical in {row.lookbackDays}d
+                      </TableCell>
+                      <TableCell>
+                        <p className="max-w-sm text-xs text-muted-foreground">{row.reason}</p>
+                      </TableCell>
+                      <TableCell>
+                        {row.owner ? (
+                          <div className="text-xs">
+                            <p>{row.owner.name || "Unnamed"}</p>
+                            <p className="text-muted-foreground">{row.owner.email}</p>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{fmtDate(row.reviewedAt || row.resolvedAt || row.createdAt)}</TableCell>
+                      {canManage ? (
+                        <TableCell className="space-y-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Owner</Label>
+                            <select
+                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
+                              value={draft.ownerUserId}
+                              onChange={(event) =>
+                                updateTerminationDraft(row.id, "ownerUserId", event.target.value)
+                              }
+                            >
+                              <option value="">Unassigned</option>
+                              {owners.map((owner) => (
+                                <option key={owner.id} value={owner.id}>
+                                  {(owner.name || owner.email).slice(0, 38)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Case Status</Label>
+                            <select
+                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
+                              value={draft.status}
+                              onChange={(event) =>
+                                updateTerminationDraft(
+                                  row.id,
+                                  "status",
+                                  event.target.value as TerminationDraft["status"],
+                                )
+                              }
+                            >
+                              <option value="OPEN">OPEN</option>
+                              <option value="IN_REVIEW">IN_REVIEW</option>
+                              <option value="APPROVED">APPROVED</option>
+                              <option value="REJECTED">REJECTED</option>
+                              <option value="EXECUTED">EXECUTED</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Recommended Action</Label>
+                            <select
+                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
+                              value={draft.recommendedAction}
+                              onChange={(event) =>
+                                updateTerminationDraft(
+                                  row.id,
+                                  "recommendedAction",
+                                  event.target.value as TerminationDraft["recommendedAction"],
+                                )
+                              }
+                            >
+                              <option value="WATCHLIST">WATCHLIST</option>
+                              <option value="SUSPEND_NEW_PO">SUSPEND_NEW_PO</option>
+                              <option value="REVIEW_CONTRACT">REVIEW_CONTRACT</option>
+                              <option value="TERMINATE_RELATIONSHIP">TERMINATE_RELATIONSHIP</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Resolution Note</Label>
+                            <Textarea
+                              rows={2}
+                              className="w-44 text-xs"
+                              value={draft.resolutionNote}
+                              onChange={(event) =>
+                                updateTerminationDraft(row.id, "resolutionNote", event.target.value)
+                              }
+                            />
+                          </div>
+                          <label className="flex items-center gap-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={draft.markReviewed}
+                              onChange={(event) =>
+                                updateTerminationDraft(row.id, "markReviewed", event.target.checked)
+                              }
+                            />
+                            Mark reviewed
+                          </label>
+                          <Button
+                            size="sm"
+                            className="h-8"
+                            disabled={terminationSavingId === row.id}
+                            onClick={() => void submitTerminationCase(row.id)}
+                          >
+                            {terminationSavingId === row.id ? "Saving..." : "Save Case"}
                           </Button>
                         </TableCell>
                       ) : null}

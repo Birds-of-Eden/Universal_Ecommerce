@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma";
 import { logActivity } from "@/lib/activity-log";
 import { prisma } from "@/lib/prisma";
 import type { AccessContext } from "@/lib/rbac";
+import { syncSupplierInvoicePaymentStatus } from "@/lib/scm";
 import {
   buildSupplierLeadTimeIntelligence,
   supplierLeadTimeInclude,
@@ -10,6 +11,12 @@ import {
 
 const ACTIVE_ACTION_STATUSES: Prisma.SupplierSlaActionStatus[] = ["OPEN", "IN_PROGRESS"];
 const ACTIVE_BREACH_STATUSES: Prisma.SupplierSlaEvaluationStatus[] = ["WARNING", "BREACH"];
+const ACTIVE_DISPUTE_STATUSES: Prisma.SupplierSlaDisputeStatus[] = ["OPEN", "UNDER_REVIEW"];
+const ACTIVE_TERMINATION_CASE_STATUSES: Prisma.SupplierSlaTerminationCaseStatus[] = [
+  "OPEN",
+  "IN_REVIEW",
+  "APPROVED",
+];
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -73,10 +80,14 @@ export const supplierSlaPolicyInclude = Prisma.validator<Prisma.SupplierSlaPolic
       holdPaymentsOnOpenSlaAction: true,
       allowPaymentHoldOverride: true,
       autoCreditRecommendationEnabled: true,
+      autoApplyRecommendedCredit: true,
+      autoApplyRequireMatchedInvoice: true,
+      autoApplyBlockOnOpenDispute: true,
       warningPenaltyRatePercent: true,
       breachPenaltyRatePercent: true,
       criticalPenaltyRatePercent: true,
       minBreachCountForCredit: true,
+      autoApplyMaxAmount: true,
       maxCreditCapAmount: true,
       note: true,
       createdAt: true,
@@ -107,6 +118,16 @@ export const supplierSlaPolicyInclude = Prisma.validator<Prisma.SupplierSlaPolic
       resolutionNote: true,
       alertTriggeredAt: true,
       alertAcknowledgedAt: true,
+      disputeStatus: true,
+      disputeReason: true,
+      disputeRaisedAt: true,
+      disputeRaisedById: true,
+      disputeResolutionNote: true,
+      disputeResolvedAt: true,
+      disputeResolvedById: true,
+      terminationCaseId: true,
+      terminationSuggestedAt: true,
+      terminationSuggestionNote: true,
       issues: true,
       periodStart: true,
       periodEnd: true,
@@ -122,6 +143,36 @@ export const supplierSlaPolicyInclude = Prisma.validator<Prisma.SupplierSlaPolic
           id: true,
           name: true,
           email: true,
+        },
+      },
+      disputeRaisedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      disputeResolvedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      terminationCase: {
+        select: {
+          id: true,
+          status: true,
+          recommendedAction: true,
+          ownerUserId: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          resolvedAt: true,
         },
       },
     },
@@ -152,14 +203,23 @@ export const supplierSlaBreachInclude = Prisma.validator<Prisma.SupplierSlaBreac
           holdPaymentsOnOpenSlaAction: true,
           allowPaymentHoldOverride: true,
           autoCreditRecommendationEnabled: true,
+          autoApplyRecommendedCredit: true,
+          autoApplyRequireMatchedInvoice: true,
+          autoApplyBlockOnOpenDispute: true,
           warningPenaltyRatePercent: true,
           breachPenaltyRatePercent: true,
           criticalPenaltyRatePercent: true,
           minBreachCountForCredit: true,
+          autoApplyMaxAmount: true,
           maxCreditCapAmount: true,
         },
       },
       isActive: true,
+      terminationClauseEnabled: true,
+      terminationLookbackDays: true,
+      terminationMinBreachCount: true,
+      terminationMinCriticalCount: true,
+      terminationRecommendedAction: true,
     },
   },
   owner: {
@@ -168,10 +228,72 @@ export const supplierSlaBreachInclude = Prisma.validator<Prisma.SupplierSlaBreac
   resolvedBy: {
     select: { id: true, name: true, email: true },
   },
+  disputeRaisedBy: {
+    select: { id: true, name: true, email: true },
+  },
+  disputeResolvedBy: {
+    select: { id: true, name: true, email: true },
+  },
   evaluatedBy: {
     select: { id: true, name: true, email: true },
   },
+  terminationCase: {
+    select: {
+      id: true,
+      status: true,
+      recommendedAction: true,
+      openBreachCount: true,
+      criticalBreachCount: true,
+      lookbackDays: true,
+      reason: true,
+      ownerUserId: true,
+      owner: {
+        select: { id: true, name: true, email: true },
+      },
+      reviewedAt: true,
+      resolvedAt: true,
+      resolvedById: true,
+      resolutionNote: true,
+    },
+  },
 });
+
+export const supplierSlaTerminationCaseInclude =
+  Prisma.validator<Prisma.SupplierSlaTerminationCaseInclude>()({
+    supplier: {
+      select: { id: true, name: true, code: true },
+    },
+    policy: {
+      select: {
+        id: true,
+        isActive: true,
+        terminationClauseEnabled: true,
+        terminationLookbackDays: true,
+        terminationMinBreachCount: true,
+        terminationMinCriticalCount: true,
+        terminationRecommendedAction: true,
+      },
+    },
+    triggerBreach: {
+      select: {
+        id: true,
+        evaluationDate: true,
+        status: true,
+        severity: true,
+        breachCount: true,
+        disputeStatus: true,
+      },
+    },
+    owner: {
+      select: { id: true, name: true, email: true },
+    },
+    resolvedBy: {
+      select: { id: true, name: true, email: true },
+    },
+    createdBy: {
+      select: { id: true, name: true, email: true },
+    },
+  });
 
 export type SupplierSlaPolicyWithRelations = Prisma.SupplierSlaPolicyGetPayload<{
   include: typeof supplierSlaPolicyInclude;
@@ -179,6 +301,10 @@ export type SupplierSlaPolicyWithRelations = Prisma.SupplierSlaPolicyGetPayload<
 
 export type SupplierSlaBreachWithRelations = Prisma.SupplierSlaBreachGetPayload<{
   include: typeof supplierSlaBreachInclude;
+}>;
+
+export type SupplierSlaTerminationCaseWithRelations = Prisma.SupplierSlaTerminationCaseGetPayload<{
+  include: typeof supplierSlaTerminationCaseInclude;
 }>;
 
 export type SupplierSlaEvaluationResult = {
@@ -309,10 +435,14 @@ type SupplierSlaFinancialRuleSnapshot = {
   holdPaymentsOnOpenSlaAction: boolean;
   allowPaymentHoldOverride: boolean;
   autoCreditRecommendationEnabled: boolean;
+  autoApplyRecommendedCredit: boolean;
+  autoApplyRequireMatchedInvoice: boolean;
+  autoApplyBlockOnOpenDispute: boolean;
   warningPenaltyRatePercent: Prisma.Decimal;
   breachPenaltyRatePercent: Prisma.Decimal;
   criticalPenaltyRatePercent: Prisma.Decimal;
   minBreachCountForCredit: number;
+  autoApplyMaxAmount: Prisma.Decimal | null;
   maxCreditCapAmount: Prisma.Decimal | null;
 };
 
@@ -323,10 +453,14 @@ function getDefaultFinancialRuleSnapshot(): SupplierSlaFinancialRuleSnapshot {
     holdPaymentsOnOpenSlaAction: true,
     allowPaymentHoldOverride: true,
     autoCreditRecommendationEnabled: true,
+    autoApplyRecommendedCredit: false,
+    autoApplyRequireMatchedInvoice: true,
+    autoApplyBlockOnOpenDispute: true,
     warningPenaltyRatePercent: new Prisma.Decimal(0),
     breachPenaltyRatePercent: new Prisma.Decimal(2),
     criticalPenaltyRatePercent: new Prisma.Decimal(5),
     minBreachCountForCredit: 1,
+    autoApplyMaxAmount: null,
     maxCreditCapAmount: null,
   };
 }
@@ -335,7 +469,7 @@ async function getSupplierSlaFinancialContext(
   tx: DbClient,
   supplierId: number,
 ) {
-  const [policy, latestOpenBreach] = await Promise.all([
+  const [policy, latestOpenBreach, latestOpenDisputeBreach] = await Promise.all([
     tx.supplierSlaPolicy.findFirst({
       where: {
         supplierId,
@@ -362,6 +496,19 @@ async function getSupplierSlaFinancialContext(
         evaluationDate: true,
       },
     }),
+    tx.supplierSlaBreach.findFirst({
+      where: {
+        supplierId,
+        disputeStatus: { in: ACTIVE_DISPUTE_STATUSES },
+      },
+      orderBy: [{ evaluationDate: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        disputeStatus: true,
+        actionStatus: true,
+        evaluationDate: true,
+      },
+    }),
   ]);
 
   const rule = policy?.financialRule;
@@ -372,10 +519,14 @@ async function getSupplierSlaFinancialContext(
         holdPaymentsOnOpenSlaAction: rule.holdPaymentsOnOpenSlaAction,
         allowPaymentHoldOverride: rule.allowPaymentHoldOverride,
         autoCreditRecommendationEnabled: rule.autoCreditRecommendationEnabled,
+        autoApplyRecommendedCredit: rule.autoApplyRecommendedCredit,
+        autoApplyRequireMatchedInvoice: rule.autoApplyRequireMatchedInvoice,
+        autoApplyBlockOnOpenDispute: rule.autoApplyBlockOnOpenDispute,
         warningPenaltyRatePercent: rule.warningPenaltyRatePercent,
         breachPenaltyRatePercent: rule.breachPenaltyRatePercent,
         criticalPenaltyRatePercent: rule.criticalPenaltyRatePercent,
         minBreachCountForCredit: Math.max(1, rule.minBreachCountForCredit),
+        autoApplyMaxAmount: rule.autoApplyMaxAmount,
         maxCreditCapAmount: rule.maxCreditCapAmount,
       }
     : getDefaultFinancialRuleSnapshot();
@@ -385,6 +536,9 @@ async function getSupplierSlaFinancialContext(
     financialRuleId: rule?.id ?? null,
     effectiveRule,
     latestOpenBreach,
+    latestOpenDisputeBreach,
+    hasOpenDispute: Boolean(latestOpenDisputeBreach),
+    policy,
   };
 }
 
@@ -513,6 +667,8 @@ export async function evaluateSupplierInvoiceApControls(
       id: true,
       invoiceNumber: true,
       supplierId: true,
+      status: true,
+      currency: true,
       total: true,
       matchStatus: true,
       paymentHoldStatus: true,
@@ -539,7 +695,7 @@ export async function evaluateSupplierInvoiceApControls(
   });
 
   const now = new Date();
-  return tx.supplierInvoice.update({
+  let updated = await tx.supplierInvoice.update({
     where: { id: invoice.id },
     data: {
       paymentHoldStatus: decision.holdStatus,
@@ -572,6 +728,171 @@ export async function evaluateSupplierInvoiceApControls(
       },
     },
   });
+
+  const rule = financialContext.effectiveRule;
+  const autoApplyAmountCap = rule.autoApplyMaxAmount;
+  const canAutoApplyRecommendedCredit =
+    rule.isActive &&
+    rule.autoApplyRecommendedCredit &&
+    decision.creditStatus === "RECOMMENDED" &&
+    decision.recommendedCreditAmount.gt(0) &&
+    invoice.status !== "CANCELLED" &&
+    (invoice.status === "POSTED" || invoice.status === "PARTIALLY_PAID") &&
+    (invoice.slaCreditStatus === "NONE" || invoice.slaCreditStatus === "RECOMMENDED") &&
+    (!rule.autoApplyRequireMatchedInvoice || invoice.matchStatus === "MATCHED") &&
+    (!rule.autoApplyBlockOnOpenDispute || !financialContext.hasOpenDispute) &&
+    (!autoApplyAmountCap || decision.recommendedCreditAmount.lte(autoApplyAmountCap));
+
+  if (canAutoApplyRecommendedCredit) {
+    await tx.supplierLedgerEntry.create({
+      data: {
+        supplierId: invoice.supplierId,
+        entryDate: now,
+        entryType: "ADJUSTMENT",
+        direction: "CREDIT",
+        amount: decision.recommendedCreditAmount,
+        currency: invoice.currency || "BDT",
+        note: `Auto-applied SLA credit for invoice ${invoice.invoiceNumber}.`,
+        referenceType: "SLA_AUTO_CREDIT",
+        referenceNumber: invoice.invoiceNumber,
+        supplierInvoiceId: invoice.id,
+        createdById: actorUserId,
+      },
+    });
+
+    await syncSupplierInvoicePaymentStatus(tx as Prisma.TransactionClient, invoice.id);
+    updated = await tx.supplierInvoice.update({
+      where: { id: invoice.id },
+      data: {
+        slaCreditStatus: "APPLIED",
+        slaCreditUpdatedAt: now,
+        slaCreditReason: `Auto-applied SLA credit (${decision.recommendedCreditAmount.toString()}) by policy rule.`,
+      },
+      include: {
+        supplier: {
+          select: { id: true, name: true, code: true },
+        },
+        paymentHoldReleasedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+  }
+
+  return updated;
+}
+
+function clampInt(value: number, min: number, max: number, fallback: number) {
+  if (!Number.isInteger(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+async function evaluateSupplierTerminationClause(input: {
+  tx: DbClient;
+  policy: SupplierSlaPolicyWithRelations;
+  createdBreachId: number;
+  ownerUserId: string | null;
+  actorUserId: string | null;
+  access: AccessContext | null;
+  request: Request | null;
+}) {
+  const { tx, policy, createdBreachId, ownerUserId, actorUserId, access, request } = input;
+  if (!policy.terminationClauseEnabled) return null;
+
+  const lookbackDays = clampInt(policy.terminationLookbackDays, 30, 730, 180);
+  const minBreachCount = clampInt(policy.terminationMinBreachCount, 1, 20, 3);
+  const minCriticalCount = clampInt(policy.terminationMinCriticalCount, 0, 20, 1);
+  const lookbackFrom = toDate(lookbackDays);
+
+  const recentBreaches = await tx.supplierSlaBreach.findMany({
+    where: {
+      supplierSlaPolicyId: policy.id,
+      evaluationDate: { gte: lookbackFrom },
+      status: "BREACH",
+    },
+    select: {
+      id: true,
+      severity: true,
+    },
+  });
+
+  const openBreachCount = recentBreaches.length;
+  const criticalBreachCount = recentBreaches.filter((row) => row.severity === "CRITICAL").length;
+  const thresholdReached =
+    openBreachCount >= minBreachCount && criticalBreachCount >= minCriticalCount;
+
+  if (!thresholdReached) {
+    return null;
+  }
+
+  const reason =
+    `Termination clause threshold reached in last ${lookbackDays} days: ` +
+    `${openBreachCount} breaches (${criticalBreachCount} critical).`;
+  const now = new Date();
+
+  const existingCase = await tx.supplierSlaTerminationCase.findFirst({
+    where: {
+      supplierSlaPolicyId: policy.id,
+      status: { in: ACTIVE_TERMINATION_CASE_STATUSES },
+    },
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+  });
+
+  const terminationCase = existingCase
+    ? await tx.supplierSlaTerminationCase.update({
+        where: { id: existingCase.id },
+        data: {
+          triggerBreachId: createdBreachId,
+          openBreachCount,
+          criticalBreachCount,
+          lookbackDays,
+          recommendedAction: policy.terminationRecommendedAction,
+          reason,
+          ownerUserId: existingCase.ownerUserId ?? ownerUserId,
+        },
+      })
+    : await tx.supplierSlaTerminationCase.create({
+        data: {
+          supplierId: policy.supplierId,
+          supplierSlaPolicyId: policy.id,
+          triggerBreachId: createdBreachId,
+          status: "OPEN",
+          recommendedAction: policy.terminationRecommendedAction,
+          openBreachCount,
+          criticalBreachCount,
+          lookbackDays,
+          reason,
+          ownerUserId,
+          createdById: actorUserId,
+        },
+      });
+
+  await tx.supplierSlaBreach.update({
+    where: { id: createdBreachId },
+    data: {
+      terminationCaseId: terminationCase.id,
+      terminationSuggestedAt: now,
+      terminationSuggestionNote: reason,
+    },
+  });
+
+  await logActivity({
+    action: existingCase ? "refresh_case" : "open_case",
+    entity: "supplier_sla_termination",
+    entityId: terminationCase.id,
+    access,
+    userId: actorUserId,
+    request,
+    metadata: {
+      message: `${existingCase ? "Updated" : "Opened"} SLA termination case for ${policy.supplier.name} (${policy.supplier.code})`,
+      recommendedAction: terminationCase.recommendedAction,
+      openBreachCount,
+      criticalBreachCount,
+      lookbackDays,
+    },
+  });
+
+  return terminationCase;
 }
 
 export async function runSupplierSlaEvaluation({
@@ -689,7 +1010,21 @@ export async function runSupplierSlaEvaluation({
       include: supplierSlaBreachInclude,
     });
 
-    createdRows.push(created);
+    await evaluateSupplierTerminationClause({
+      tx: prisma,
+      policy,
+      createdBreachId: created.id,
+      ownerUserId,
+      actorUserId,
+      access,
+      request,
+    });
+
+    const createdRow = await prisma.supplierSlaBreach.findUnique({
+      where: { id: created.id },
+      include: supplierSlaBreachInclude,
+    });
+    createdRows.push(createdRow ?? created);
 
     await logActivity({
       action: "evaluate",
@@ -762,6 +1097,12 @@ export function toSupplierSlaPolicyLogSnapshot(policy: SupplierSlaPolicyWithRela
     autoEvaluationEnabled: policy.autoEvaluationEnabled,
     warningActionDueDays: policy.warningActionDueDays,
     breachActionDueDays: policy.breachActionDueDays,
+    terminationClauseEnabled: policy.terminationClauseEnabled,
+    terminationLookbackDays: policy.terminationLookbackDays,
+    terminationMinBreachCount: policy.terminationMinBreachCount,
+    terminationMinCriticalCount: policy.terminationMinCriticalCount,
+    terminationRecommendedAction: policy.terminationRecommendedAction,
+    terminationNote: policy.terminationNote ?? null,
     financialRule: policy.financialRule
       ? {
           id: policy.financialRule.id,
@@ -770,10 +1111,14 @@ export function toSupplierSlaPolicyLogSnapshot(policy: SupplierSlaPolicyWithRela
           holdPaymentsOnOpenSlaAction: policy.financialRule.holdPaymentsOnOpenSlaAction,
           allowPaymentHoldOverride: policy.financialRule.allowPaymentHoldOverride,
           autoCreditRecommendationEnabled: policy.financialRule.autoCreditRecommendationEnabled,
+          autoApplyRecommendedCredit: policy.financialRule.autoApplyRecommendedCredit,
+          autoApplyRequireMatchedInvoice: policy.financialRule.autoApplyRequireMatchedInvoice,
+          autoApplyBlockOnOpenDispute: policy.financialRule.autoApplyBlockOnOpenDispute,
           warningPenaltyRatePercent: policy.financialRule.warningPenaltyRatePercent.toString(),
           breachPenaltyRatePercent: policy.financialRule.breachPenaltyRatePercent.toString(),
           criticalPenaltyRatePercent: policy.financialRule.criticalPenaltyRatePercent.toString(),
           minBreachCountForCredit: policy.financialRule.minBreachCountForCredit,
+          autoApplyMaxAmount: policy.financialRule.autoApplyMaxAmount?.toString() ?? null,
           maxCreditCapAmount: policy.financialRule.maxCreditCapAmount?.toString() ?? null,
           note: policy.financialRule.note ?? null,
         }

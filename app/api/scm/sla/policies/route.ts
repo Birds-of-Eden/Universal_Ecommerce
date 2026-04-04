@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@/generated/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -14,6 +15,20 @@ const SLA_POLICY_READ_PERMISSIONS = ["sla.read", "sla.manage"] as const;
 
 function canRead(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return SLA_POLICY_READ_PERMISSIONS.some((permission) => access.hasGlobal(permission));
+}
+
+function parseTerminationAction(value: unknown): Prisma.SupplierSlaTerminationAction | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  if (
+    normalized === "WATCHLIST" ||
+    normalized === "SUSPEND_NEW_PO" ||
+    normalized === "REVIEW_CONTRACT" ||
+    normalized === "TERMINATE_RELATIONSHIP"
+  ) {
+    return normalized;
+  }
+  return null;
 }
 
 export async function GET(request: NextRequest) {
@@ -78,15 +93,25 @@ export async function POST(request: NextRequest) {
       autoEvaluationEnabled?: unknown;
       warningActionDueDays?: unknown;
       breachActionDueDays?: unknown;
+      terminationClauseEnabled?: unknown;
+      terminationLookbackDays?: unknown;
+      terminationMinBreachCount?: unknown;
+      terminationMinCriticalCount?: unknown;
+      terminationRecommendedAction?: unknown;
+      terminationNote?: unknown;
       financialRuleActive?: unknown;
       holdPaymentsOnThreeWayVariance?: unknown;
       holdPaymentsOnOpenSlaAction?: unknown;
       allowPaymentHoldOverride?: unknown;
       autoCreditRecommendationEnabled?: unknown;
+      autoApplyRecommendedCredit?: unknown;
+      autoApplyRequireMatchedInvoice?: unknown;
+      autoApplyBlockOnOpenDispute?: unknown;
       warningPenaltyRatePercent?: unknown;
       breachPenaltyRatePercent?: unknown;
       criticalPenaltyRatePercent?: unknown;
       minBreachCountForCredit?: unknown;
+      autoApplyMaxAmount?: unknown;
       maxCreditCapAmount?: unknown;
       financialRuleNote?: unknown;
       note?: unknown;
@@ -111,7 +136,14 @@ export async function POST(request: NextRequest) {
     const maxOpenLatePoCount = Number(body.maxOpenLatePoCount ?? 0);
     const warningActionDueDays = Number(body.warningActionDueDays ?? 7);
     const breachActionDueDays = Number(body.breachActionDueDays ?? 3);
+    const terminationLookbackDays = Number(body.terminationLookbackDays ?? 180);
+    const terminationMinBreachCount = Number(body.terminationMinBreachCount ?? 3);
+    const terminationMinCriticalCount = Number(body.terminationMinCriticalCount ?? 1);
     const minBreachCountForCredit = Number(body.minBreachCountForCredit ?? 1);
+    const terminationRecommendedAction =
+      body.terminationRecommendedAction === undefined
+        ? "REVIEW_CONTRACT"
+        : parseTerminationAction(body.terminationRecommendedAction);
 
     if (!Number.isInteger(evaluationWindowDays) || evaluationWindowDays < 7 || evaluationWindowDays > 730) {
       return NextResponse.json(
@@ -149,9 +181,41 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (!Number.isInteger(terminationLookbackDays) || terminationLookbackDays < 30 || terminationLookbackDays > 730) {
+      return NextResponse.json(
+        { error: "Termination lookback window must be between 30 and 730 days." },
+        { status: 400 },
+      );
+    }
+    if (
+      !Number.isInteger(terminationMinBreachCount) ||
+      terminationMinBreachCount < 1 ||
+      terminationMinBreachCount > 20
+    ) {
+      return NextResponse.json(
+        { error: "Termination minimum breach count must be between 1 and 20." },
+        { status: 400 },
+      );
+    }
+    if (
+      !Number.isInteger(terminationMinCriticalCount) ||
+      terminationMinCriticalCount < 0 ||
+      terminationMinCriticalCount > 20
+    ) {
+      return NextResponse.json(
+        { error: "Termination minimum critical count must be between 0 and 20." },
+        { status: 400 },
+      );
+    }
     if (!Number.isInteger(minBreachCountForCredit) || minBreachCountForCredit < 1 || minBreachCountForCredit > 20) {
       return NextResponse.json(
         { error: "Minimum breach count for credit must be between 1 and 20." },
+        { status: 400 },
+      );
+    }
+    if (!terminationRecommendedAction) {
+      return NextResponse.json(
+        { error: "Invalid termination recommended action." },
         { status: 400 },
       );
     }
@@ -174,6 +238,10 @@ export async function POST(request: NextRequest) {
       body.maxCreditCapAmount === null || body.maxCreditCapAmount === undefined || body.maxCreditCapAmount === ""
         ? null
         : toDecimalAmount(body.maxCreditCapAmount, "Max credit cap amount");
+    const autoApplyMaxAmount =
+      body.autoApplyMaxAmount === null || body.autoApplyMaxAmount === undefined || body.autoApplyMaxAmount === ""
+        ? null
+        : toDecimalAmount(body.autoApplyMaxAmount, "Auto-apply max amount");
 
     if (
       minimumOnTimeRate.gt(100) ||
@@ -224,6 +292,15 @@ export async function POST(request: NextRequest) {
         autoEvaluationEnabled: body.autoEvaluationEnabled !== false,
         warningActionDueDays,
         breachActionDueDays,
+        terminationClauseEnabled: body.terminationClauseEnabled === true,
+        terminationLookbackDays,
+        terminationMinBreachCount,
+        terminationMinCriticalCount,
+        terminationRecommendedAction,
+        terminationNote:
+          typeof body.terminationNote === "string" && body.terminationNote.trim().length > 0
+            ? body.terminationNote.trim().slice(0, 500)
+            : null,
         financialRule: {
           create: {
             isActive: body.financialRuleActive !== false,
@@ -231,10 +308,14 @@ export async function POST(request: NextRequest) {
             holdPaymentsOnOpenSlaAction: body.holdPaymentsOnOpenSlaAction !== false,
             allowPaymentHoldOverride: body.allowPaymentHoldOverride !== false,
             autoCreditRecommendationEnabled: body.autoCreditRecommendationEnabled !== false,
+            autoApplyRecommendedCredit: body.autoApplyRecommendedCredit === true,
+            autoApplyRequireMatchedInvoice: body.autoApplyRequireMatchedInvoice !== false,
+            autoApplyBlockOnOpenDispute: body.autoApplyBlockOnOpenDispute !== false,
             warningPenaltyRatePercent,
             breachPenaltyRatePercent,
             criticalPenaltyRatePercent,
             minBreachCountForCredit,
+            autoApplyMaxAmount,
             maxCreditCapAmount,
             note:
               typeof body.financialRuleNote === "string" && body.financialRuleNote.trim().length > 0
@@ -264,6 +345,15 @@ export async function POST(request: NextRequest) {
         autoEvaluationEnabled: body.autoEvaluationEnabled !== false,
         warningActionDueDays,
         breachActionDueDays,
+        terminationClauseEnabled: body.terminationClauseEnabled === true,
+        terminationLookbackDays,
+        terminationMinBreachCount,
+        terminationMinCriticalCount,
+        terminationRecommendedAction,
+        terminationNote:
+          typeof body.terminationNote === "string" && body.terminationNote.trim().length > 0
+            ? body.terminationNote.trim().slice(0, 500)
+            : null,
         financialRule: {
           upsert: {
             create: {
@@ -272,10 +362,14 @@ export async function POST(request: NextRequest) {
               holdPaymentsOnOpenSlaAction: body.holdPaymentsOnOpenSlaAction !== false,
               allowPaymentHoldOverride: body.allowPaymentHoldOverride !== false,
               autoCreditRecommendationEnabled: body.autoCreditRecommendationEnabled !== false,
+              autoApplyRecommendedCredit: body.autoApplyRecommendedCredit === true,
+              autoApplyRequireMatchedInvoice: body.autoApplyRequireMatchedInvoice !== false,
+              autoApplyBlockOnOpenDispute: body.autoApplyBlockOnOpenDispute !== false,
               warningPenaltyRatePercent,
               breachPenaltyRatePercent,
               criticalPenaltyRatePercent,
               minBreachCountForCredit,
+              autoApplyMaxAmount,
               maxCreditCapAmount,
               note:
                 typeof body.financialRuleNote === "string" && body.financialRuleNote.trim().length > 0
@@ -290,10 +384,14 @@ export async function POST(request: NextRequest) {
               holdPaymentsOnOpenSlaAction: body.holdPaymentsOnOpenSlaAction !== false,
               allowPaymentHoldOverride: body.allowPaymentHoldOverride !== false,
               autoCreditRecommendationEnabled: body.autoCreditRecommendationEnabled !== false,
+              autoApplyRecommendedCredit: body.autoApplyRecommendedCredit === true,
+              autoApplyRequireMatchedInvoice: body.autoApplyRequireMatchedInvoice !== false,
+              autoApplyBlockOnOpenDispute: body.autoApplyBlockOnOpenDispute !== false,
               warningPenaltyRatePercent,
               breachPenaltyRatePercent,
               criticalPenaltyRatePercent,
               minBreachCountForCredit,
+              autoApplyMaxAmount,
               maxCreditCapAmount,
               note:
                 typeof body.financialRuleNote === "string" && body.financialRuleNote.trim().length > 0
