@@ -51,10 +51,10 @@ model User {
   purchaseRequisitionsApproved  PurchaseRequisition[]   @relation("PurchaseRequisitionsApproved")
   purchaseRequisitionsConverted PurchaseRequisition[]   @relation("PurchaseRequisitionsConverted")
   goodsReceiptsReceived         GoodsReceipt[]          @relation("GoodsReceiptsReceived")
-  supplierReturnsCreated       SupplierReturn[]        @relation("SupplierReturnsCreated")
-  supplierReturnsApproved      SupplierReturn[]        @relation("SupplierReturnsApproved")
-  supplierReturnsDispatched    SupplierReturn[]        @relation("SupplierReturnsDispatched")
-  supplierReturnsClosed        SupplierReturn[]        @relation("SupplierReturnsClosed")
+  supplierReturnsCreated        SupplierReturn[]        @relation("SupplierReturnsCreated")
+  supplierReturnsApproved       SupplierReturn[]        @relation("SupplierReturnsApproved")
+  supplierReturnsDispatched     SupplierReturn[]        @relation("SupplierReturnsDispatched")
+  supplierReturnsClosed         SupplierReturn[]        @relation("SupplierReturnsClosed")
   supplierInvoicesCreated       SupplierInvoice[]       @relation("SupplierInvoicesCreated")
   supplierInvoicesMatched       SupplierInvoice[]       @relation("SupplierInvoicesMatched")
   supplierPaymentsCreated       SupplierPayment[]       @relation("SupplierPaymentsCreated")
@@ -252,58 +252,58 @@ model Product {
   reviews                 Review[]
   serviceSlots            ServiceSlot[]
   wishlist                Wishlist[]
-  bundleItems             ProductBundleItem[] @relation("BundleProducts")
-  includedInBundles       ProductBundleItem[] @relation("IncludedProducts")
+  bundleItems             ProductBundleItem[]               @relation("BundleProducts")
+  includedInBundles       ProductBundleItem[]               @relation("IncludedProducts")
 }
 
 model ProductBundleItem {
-  id         Int     @id @default(autoincrement())
-  bundleId   Int
-  productId  Int
-  quantity   Int     @default(1)
-  sortOrder  Int     @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
-  bundle    Product @relation("BundleProducts", fields: [bundleId], references: [id], onDelete: Cascade)
-  product   Product @relation("IncludedProducts", fields: [productId], references: [id], onDelete: Cascade)
-  
+  id        Int      @id @default(autoincrement())
+  bundleId  Int
+  productId Int
+  quantity  Int      @default(1)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bundle  Product @relation("BundleProducts", fields: [bundleId], references: [id], onDelete: Cascade)
+  product Product @relation("IncludedProducts", fields: [productId], references: [id], onDelete: Cascade)
+
   @@unique([bundleId, productId])
   @@index([bundleId])
   @@index([productId])
 }
 
 model ProductVariant {
-  id                      Int                               @id @default(autoincrement())
-  productId               Int
-  sku                     String                            @unique
-  price                   Decimal                           @db.Decimal(10, 2)
-  currency                String                            @default("USD") @db.VarChar(3)
-  stock                   Int                               @default(0)
-  digitalAssetId          Int?
-  options                 Json
-  createdAt               DateTime                          @default(now())
-  updatedAt               DateTime                          @updatedAt
-  isDefault               Boolean                           @default(false)
-  active                  Boolean                           @default(true)
-  lowStockThreshold       Int                               @default(10)
-  costPrice               Decimal?                          @db.Decimal(10, 2)
-  cartItems               CartItem[]
-  dailySnapshots          InventoryDailySnapshot[]
-  inventoryLogs           InventoryLog[]
-  warehouseDailySnapshots InventoryWarehouseDailySnapshot[]
-  orderItems              OrderItem[]                          
-  codes                   ProductCode[]
-  digitalAsset            DigitalAsset?                     @relation("VariantDigitalAsset", fields: [digitalAssetId], references: [id])
-  product                 Product                           @relation(fields: [productId], references: [id])
-  purchaseOrderItems      PurchaseOrderItem[]
-  goodsReceiptItems       GoodsReceiptItem[]
+  id                       Int                               @id @default(autoincrement())
+  productId                Int
+  sku                      String                            @unique
+  price                    Decimal                           @db.Decimal(10, 2)
+  currency                 String                            @default("USD") @db.VarChar(3)
+  stock                    Int                               @default(0)
+  digitalAssetId           Int?
+  options                  Json
+  createdAt                DateTime                          @default(now())
+  updatedAt                DateTime                          @updatedAt
+  isDefault                Boolean                           @default(false)
+  active                   Boolean                           @default(true)
+  lowStockThreshold        Int                               @default(10)
+  costPrice                Decimal?                          @db.Decimal(10, 2)
+  cartItems                CartItem[]
+  dailySnapshots           InventoryDailySnapshot[]
+  inventoryLogs            InventoryLog[]
+  warehouseDailySnapshots  InventoryWarehouseDailySnapshot[]
+  orderItems               OrderItem[]
+  codes                    ProductCode[]
+  digitalAsset             DigitalAsset?                     @relation("VariantDigitalAsset", fields: [digitalAssetId], references: [id])
+  product                  Product                           @relation(fields: [productId], references: [id])
+  purchaseOrderItems       PurchaseOrderItem[]
+  goodsReceiptItems        GoodsReceiptItem[]
   purchaseRequisitionItems PurchaseRequisitionItem[]
-  supplierInvoiceItems    SupplierInvoiceItem[]
-  supplierReturnItems     SupplierReturnItem[]
-  replenishmentRules      ReplenishmentRule[]
-  warehouseTransferItems  WarehouseTransferItem[]
-  stockLevels             StockLevel[]
+  supplierInvoiceItems     SupplierInvoiceItem[]
+  supplierReturnItems      SupplierReturnItem[]
+  replenishmentRules       ReplenishmentRule[]
+  warehouseTransferItems   WarehouseTransferItem[]
+  stockLevels              StockLevel[]
 }
 
 model ProductVariantOption {
@@ -1021,31 +1021,51 @@ model InventoryLog {
 }
 
 model Supplier {
-  id               Int             @id @default(autoincrement())
-  code             String          @unique
+  id               Int                   @id @default(autoincrement())
+  code             String                @unique
   name             String
+  companyType      SupplierCompanyType   @default(PROPRIETOR)
   contactName      String?
   email            String?
   phone            String?
   address          String?
   city             String?
-  country          String?         @default("BD")
+  country          String?               @default("BD")
   leadTimeDays     Int?
   paymentTermsDays Int?
-  currency         String          @default("BDT") @db.VarChar(3)
+  currency         String                @default("BDT") @db.VarChar(3)
   taxNumber        String?
   notes            String?
-  isActive         Boolean         @default(true)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  isActive         Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  documents        SupplierDocument[]
   purchaseOrders   PurchaseOrder[]
-  supplierReturns SupplierReturn[]
+  supplierReturns  SupplierReturn[]
   invoices         SupplierInvoice[]
   payments         SupplierPayment[]
   ledgerEntries    SupplierLedgerEntry[]
 
+  @@index([companyType])
   @@index([name])
   @@index([isActive])
+}
+
+model SupplierDocument {
+  id         Int                  @id @default(autoincrement())
+  supplierId Int
+  type       SupplierDocumentType
+  fileUrl    String
+  fileName   String?
+  mimeType   String?
+  fileSize   Int?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  supplier   Supplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, type])
+  @@index([supplierId])
+  @@index([type])
 }
 
 model PurchaseRequisition {
@@ -1079,53 +1099,53 @@ model PurchaseRequisition {
 }
 
 model PurchaseRequisitionItem {
-  id                   Int                 @id @default(autoincrement())
+  id                    Int                 @id @default(autoincrement())
   purchaseRequisitionId Int
-  productVariantId     Int
-  description          String?
-  quantityRequested    Int
-  quantityApproved     Int?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
-  productVariant       ProductVariant      @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  purchaseRequisition  PurchaseRequisition @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
+  productVariantId      Int
+  description           String?
+  quantityRequested     Int
+  quantityApproved      Int?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  productVariant        ProductVariant      @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  purchaseRequisition   PurchaseRequisition @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
 
   @@index([purchaseRequisitionId])
   @@index([productVariantId])
 }
 
 model PurchaseOrder {
-  id            Int                 @id @default(autoincrement())
-  poNumber      String              @unique
-  supplierId    Int
+  id                    Int                   @id @default(autoincrement())
+  poNumber              String                @unique
+  supplierId            Int
   purchaseRequisitionId Int?
-  warehouseId   Int
-  status        PurchaseOrderStatus @default(DRAFT)
-  orderDate     DateTime            @default(now())
-  expectedAt    DateTime?
-  submittedAt   DateTime?
-  approvedAt    DateTime?
-  receivedAt    DateTime?
-  createdById   String?
-  approvedById  String?
-  currency      String              @default("BDT") @db.VarChar(3)
-  subtotal      Decimal             @default(0) @db.Decimal(12, 2)
-  taxTotal      Decimal             @default(0) @db.Decimal(12, 2)
-  shippingTotal Decimal             @default(0) @db.Decimal(12, 2)
-  grandTotal    Decimal             @default(0) @db.Decimal(12, 2)
-  notes         String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  approvedBy    User?               @relation("PurchaseOrdersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
-  createdBy     User?               @relation("PurchaseOrdersCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  purchaseRequisition PurchaseRequisition? @relation(fields: [purchaseRequisitionId], references: [id], onDelete: SetNull)
-  supplier      Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  warehouse     Warehouse           @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  goodsReceipts GoodsReceipt[]
-  supplierReturns SupplierReturn[]
-  supplierInvoices SupplierInvoice[]
+  warehouseId           Int
+  status                PurchaseOrderStatus   @default(DRAFT)
+  orderDate             DateTime              @default(now())
+  expectedAt            DateTime?
+  submittedAt           DateTime?
+  approvedAt            DateTime?
+  receivedAt            DateTime?
+  createdById           String?
+  approvedById          String?
+  currency              String                @default("BDT") @db.VarChar(3)
+  subtotal              Decimal               @default(0) @db.Decimal(12, 2)
+  taxTotal              Decimal               @default(0) @db.Decimal(12, 2)
+  shippingTotal         Decimal               @default(0) @db.Decimal(12, 2)
+  grandTotal            Decimal               @default(0) @db.Decimal(12, 2)
+  notes                 String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  approvedBy            User?                 @relation("PurchaseOrdersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  createdBy             User?                 @relation("PurchaseOrdersCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  purchaseRequisition   PurchaseRequisition?  @relation(fields: [purchaseRequisitionId], references: [id], onDelete: SetNull)
+  supplier              Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse             Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  goodsReceipts         GoodsReceipt[]
+  supplierReturns       SupplierReturn[]
+  supplierInvoices      SupplierInvoice[]
   supplierLedgerEntries SupplierLedgerEntry[]
-  items         PurchaseOrderItem[]
+  items                 PurchaseOrderItem[]
 
   @@index([supplierId, status])
   @@index([purchaseRequisitionId])
@@ -1136,21 +1156,21 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id               Int            @id @default(autoincrement())
-  purchaseOrderId  Int
-  productVariantId Int
-  description      String?
-  quantityOrdered  Int
-  quantityReceived Int            @default(0)
-  unitCost         Decimal        @db.Decimal(12, 2)
-  lineTotal        Decimal        @db.Decimal(12, 2)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  purchaseOrder    PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  receiptItems     GoodsReceiptItem[]
+  id                   Int                   @id @default(autoincrement())
+  purchaseOrderId      Int
+  productVariantId     Int
+  description          String?
+  quantityOrdered      Int
+  quantityReceived     Int                   @default(0)
+  unitCost             Decimal               @db.Decimal(12, 2)
+  lineTotal            Decimal               @db.Decimal(12, 2)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  purchaseOrder        PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productVariant       ProductVariant        @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  receiptItems         GoodsReceiptItem[]
   supplierInvoiceItems SupplierInvoiceItem[]
-  supplierReturnItems SupplierReturnItem[]
+  supplierReturnItems  SupplierReturnItem[]
 
   @@index([purchaseOrderId])
   @@index([productVariantId])
@@ -1179,16 +1199,16 @@ model GoodsReceipt {
 }
 
 model GoodsReceiptItem {
-  id                  Int               @id @default(autoincrement())
+  id                  Int                  @id @default(autoincrement())
   goodsReceiptId      Int
   purchaseOrderItemId Int
   productVariantId    Int
   quantityReceived    Int
-  unitCost            Decimal           @db.Decimal(12, 2)
-  createdAt           DateTime          @default(now())
-  goodsReceipt        GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
-  purchaseOrderItem   PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
-  productVariant      ProductVariant    @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  unitCost            Decimal              @db.Decimal(12, 2)
+  createdAt           DateTime             @default(now())
+  goodsReceipt        GoodsReceipt         @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItem   PurchaseOrderItem    @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
+  productVariant      ProductVariant       @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
   supplierReturnItems SupplierReturnItem[]
 
   @@index([goodsReceiptId])
@@ -1197,33 +1217,33 @@ model GoodsReceiptItem {
 }
 
 model SupplierInvoice {
-  id             Int                   @id @default(autoincrement())
-  invoiceNumber  String                @unique
-  supplierId     Int
+  id              Int                   @id @default(autoincrement())
+  invoiceNumber   String                @unique
+  supplierId      Int
   purchaseOrderId Int?
-  status         SupplierInvoiceStatus @default(POSTED)
-  matchStatus    ThreeWayMatchStatus   @default(PENDING)
-  issueDate      DateTime              @default(now())
-  dueDate        DateTime?
-  postedAt       DateTime              @default(now())
-  createdById    String?
-  matchedAt      DateTime?
-  matchedById    String?
-  currency       String                @default("BDT") @db.VarChar(3)
-  subtotal       Decimal               @default(0) @db.Decimal(12, 2)
-  taxTotal       Decimal               @default(0) @db.Decimal(12, 2)
-  otherCharges   Decimal               @default(0) @db.Decimal(12, 2)
-  total          Decimal               @default(0) @db.Decimal(12, 2)
-  note           String?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  createdBy      User?                 @relation("SupplierInvoicesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  matchedBy      User?                 @relation("SupplierInvoicesMatched", fields: [matchedById], references: [id], onDelete: SetNull)
-  purchaseOrder  PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
-  supplier       Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  items          SupplierInvoiceItem[]
-  payments       SupplierPayment[]
-  ledgerEntries  SupplierLedgerEntry[]
+  status          SupplierInvoiceStatus @default(POSTED)
+  matchStatus     ThreeWayMatchStatus   @default(PENDING)
+  issueDate       DateTime              @default(now())
+  dueDate         DateTime?
+  postedAt        DateTime              @default(now())
+  createdById     String?
+  matchedAt       DateTime?
+  matchedById     String?
+  currency        String                @default("BDT") @db.VarChar(3)
+  subtotal        Decimal               @default(0) @db.Decimal(12, 2)
+  taxTotal        Decimal               @default(0) @db.Decimal(12, 2)
+  otherCharges    Decimal               @default(0) @db.Decimal(12, 2)
+  total           Decimal               @default(0) @db.Decimal(12, 2)
+  note            String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  createdBy       User?                 @relation("SupplierInvoicesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  matchedBy       User?                 @relation("SupplierInvoicesMatched", fields: [matchedById], references: [id], onDelete: SetNull)
+  purchaseOrder   PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplier        Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items           SupplierInvoiceItem[]
+  payments        SupplierPayment[]
+  ledgerEntries   SupplierLedgerEntry[]
   supplierReturns SupplierReturn[]
 
   @@index([supplierId, status])
@@ -1236,19 +1256,19 @@ model SupplierInvoice {
 }
 
 model SupplierInvoiceItem {
-  id                Int               @id @default(autoincrement())
-  supplierInvoiceId Int
+  id                  Int                @id @default(autoincrement())
+  supplierInvoiceId   Int
   purchaseOrderItemId Int?
-  productVariantId  Int
-  description       String?
-  quantityInvoiced  Int
-  unitCost          Decimal           @db.Decimal(12, 2)
-  lineTotal         Decimal           @db.Decimal(12, 2)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  productVariant    ProductVariant    @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  purchaseOrderItem PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id], onDelete: SetNull)
-  supplierInvoice   SupplierInvoice   @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
+  productVariantId    Int
+  description         String?
+  quantityInvoiced    Int
+  unitCost            Decimal            @db.Decimal(12, 2)
+  lineTotal           Decimal            @db.Decimal(12, 2)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  productVariant      ProductVariant     @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  purchaseOrderItem   PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id], onDelete: SetNull)
+  supplierInvoice     SupplierInvoice    @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
 
   @@index([supplierInvoiceId])
   @@index([purchaseOrderItemId])
@@ -1256,23 +1276,23 @@ model SupplierInvoiceItem {
 }
 
 model SupplierPayment {
-  id               Int                 @id @default(autoincrement())
-  paymentNumber    String              @unique
-  supplierId       Int
+  id                Int                   @id @default(autoincrement())
+  paymentNumber     String                @unique
+  supplierId        Int
   supplierInvoiceId Int?
-  paymentDate      DateTime            @default(now())
-  createdById      String?
-  amount           Decimal             @db.Decimal(12, 2)
-  currency         String              @default("BDT") @db.VarChar(3)
-  method           SupplierPaymentMethod
-  reference        String?
-  note             String?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  createdBy        User?               @relation("SupplierPaymentsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  supplier         Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  supplierInvoice  SupplierInvoice?    @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
-  ledgerEntries    SupplierLedgerEntry[]
+  paymentDate       DateTime              @default(now())
+  createdById       String?
+  amount            Decimal               @db.Decimal(12, 2)
+  currency          String                @default("BDT") @db.VarChar(3)
+  method            SupplierPaymentMethod
+  reference         String?
+  note              String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  createdBy         User?                 @relation("SupplierPaymentsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  supplier          Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierInvoice   SupplierInvoice?      @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
+  ledgerEntries     SupplierLedgerEntry[]
 
   @@index([supplierId, paymentDate])
   @@index([supplierInvoiceId])
@@ -1280,13 +1300,13 @@ model SupplierPayment {
 }
 
 model SupplierLedgerEntry {
-  id                Int                   @id @default(autoincrement())
+  id                Int                     @id @default(autoincrement())
   supplierId        Int
-  entryDate         DateTime              @default(now())
+  entryDate         DateTime                @default(now())
   entryType         SupplierLedgerEntryType
   direction         SupplierLedgerDirection
-  amount            Decimal               @db.Decimal(12, 2)
-  currency          String                @default("BDT") @db.VarChar(3)
+  amount            Decimal                 @db.Decimal(12, 2)
+  currency          String                  @default("BDT") @db.VarChar(3)
   note              String?
   referenceType     String?
   referenceNumber   String?
@@ -1295,14 +1315,14 @@ model SupplierLedgerEntry {
   supplierPaymentId Int?
   supplierReturnId  Int?
   createdById       String?
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  createdBy         User?                 @relation("SupplierLedgerEntriesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  purchaseOrder     PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
-  supplier          Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  supplierInvoice   SupplierInvoice?      @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
-  supplierPayment   SupplierPayment?      @relation(fields: [supplierPaymentId], references: [id], onDelete: SetNull)
-  supplierReturn    SupplierReturn?       @relation(fields: [supplierReturnId], references: [id], onDelete: SetNull)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  createdBy         User?                   @relation("SupplierLedgerEntriesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  purchaseOrder     PurchaseOrder?          @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplier          Supplier                @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierInvoice   SupplierInvoice?        @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
+  supplierPayment   SupplierPayment?        @relation(fields: [supplierPaymentId], references: [id], onDelete: SetNull)
+  supplierReturn    SupplierReturn?         @relation(fields: [supplierReturnId], references: [id], onDelete: SetNull)
 
   @@index([supplierId, entryDate])
   @@index([supplierInvoiceId])
@@ -1313,40 +1333,40 @@ model SupplierLedgerEntry {
 }
 
 model SupplierReturn {
-  id               Int                  @id @default(autoincrement())
-  returnNumber     String               @unique
-  supplierId       Int
-  warehouseId      Int
-  purchaseOrderId  Int?
-  goodsReceiptId   Int
+  id                Int                   @id @default(autoincrement())
+  returnNumber      String                @unique
+  supplierId        Int
+  warehouseId       Int
+  purchaseOrderId   Int?
+  goodsReceiptId    Int
   supplierInvoiceId Int?
-  status           SupplierReturnStatus @default(DRAFT)
-  requestedAt      DateTime             @default(now())
-  requiredBy       DateTime?
-  submittedAt      DateTime?
-  approvedAt       DateTime?
-  dispatchedAt     DateTime?
-  closedAt         DateTime?
-  ledgerPostedAt   DateTime?
-  createdById      String?
-  approvedById     String?
-  dispatchedById   String?
-  closedById       String?
-  reasonCode       String?
-  note             String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  approvedBy       User?                @relation("SupplierReturnsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
-  closedBy         User?                @relation("SupplierReturnsClosed", fields: [closedById], references: [id], onDelete: SetNull)
-  createdBy        User?                @relation("SupplierReturnsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  dispatchedBy     User?                @relation("SupplierReturnsDispatched", fields: [dispatchedById], references: [id], onDelete: SetNull)
-  goodsReceipt     GoodsReceipt         @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
-  items            SupplierReturnItem[]
-  ledgerEntries    SupplierLedgerEntry[]
-  purchaseOrder    PurchaseOrder?       @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
-  supplier         Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  supplierInvoice  SupplierInvoice?     @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
-  warehouse        Warehouse            @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  status            SupplierReturnStatus  @default(DRAFT)
+  requestedAt       DateTime              @default(now())
+  requiredBy        DateTime?
+  submittedAt       DateTime?
+  approvedAt        DateTime?
+  dispatchedAt      DateTime?
+  closedAt          DateTime?
+  ledgerPostedAt    DateTime?
+  createdById       String?
+  approvedById      String?
+  dispatchedById    String?
+  closedById        String?
+  reasonCode        String?
+  note              String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  approvedBy        User?                 @relation("SupplierReturnsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  closedBy          User?                 @relation("SupplierReturnsClosed", fields: [closedById], references: [id], onDelete: SetNull)
+  createdBy         User?                 @relation("SupplierReturnsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  dispatchedBy      User?                 @relation("SupplierReturnsDispatched", fields: [dispatchedById], references: [id], onDelete: SetNull)
+  goodsReceipt      GoodsReceipt          @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
+  items             SupplierReturnItem[]
+  ledgerEntries     SupplierLedgerEntry[]
+  purchaseOrder     PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplier          Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierInvoice   SupplierInvoice?      @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
+  warehouse         Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
 
   @@index([supplierId, status])
   @@index([warehouseId, status])
@@ -1359,23 +1379,23 @@ model SupplierReturn {
 }
 
 model SupplierReturnItem {
-  id                Int               @id @default(autoincrement())
-  supplierReturnId  Int
-  goodsReceiptItemId Int?
+  id                  Int                @id @default(autoincrement())
+  supplierReturnId    Int
+  goodsReceiptItemId  Int?
   purchaseOrderItemId Int?
-  productVariantId  Int
-  description       String?
-  quantityRequested Int
-  quantityDispatched Int              @default(0)
-  unitCost          Decimal           @db.Decimal(12, 2)
-  lineTotal         Decimal           @db.Decimal(12, 2)
-  reason            String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  goodsReceiptItem  GoodsReceiptItem? @relation(fields: [goodsReceiptItemId], references: [id], onDelete: SetNull)
-  productVariant    ProductVariant    @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  purchaseOrderItem PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id], onDelete: SetNull)
-  supplierReturn    SupplierReturn    @relation(fields: [supplierReturnId], references: [id], onDelete: Cascade)
+  productVariantId    Int
+  description         String?
+  quantityRequested   Int
+  quantityDispatched  Int                @default(0)
+  unitCost            Decimal            @db.Decimal(12, 2)
+  lineTotal           Decimal            @db.Decimal(12, 2)
+  reason              String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  goodsReceiptItem    GoodsReceiptItem?  @relation(fields: [goodsReceiptItemId], references: [id], onDelete: SetNull)
+  productVariant      ProductVariant     @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  purchaseOrderItem   PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id], onDelete: SetNull)
+  supplierReturn      SupplierReturn     @relation(fields: [supplierReturnId], references: [id], onDelete: Cascade)
 
   @@index([supplierReturnId])
   @@index([goodsReceiptItemId])
@@ -1384,26 +1404,26 @@ model SupplierReturnItem {
 }
 
 model ReplenishmentRule {
-  id                    Int                   @id @default(autoincrement())
-  warehouseId           Int
-  productVariantId      Int
-  strategy              ReplenishmentStrategy @default(MIN_MAX)
-  reorderPoint          Int
-  targetStockLevel      Int
-  safetyStock           Int                   @default(0)
-  minOrderQty           Int                   @default(1)
-  orderMultiple         Int                   @default(1)
-  leadTimeDays          Int?
-  isActive              Boolean               @default(true)
-  note                  String?
-  createdById           String?
-  updatedById           String?
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  createdBy             User?                 @relation("ReplenishmentRulesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  productVariant        ProductVariant        @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
-  updatedBy             User?                 @relation("ReplenishmentRulesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
-  warehouse             Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  id               Int                   @id @default(autoincrement())
+  warehouseId      Int
+  productVariantId Int
+  strategy         ReplenishmentStrategy @default(MIN_MAX)
+  reorderPoint     Int
+  targetStockLevel Int
+  safetyStock      Int                   @default(0)
+  minOrderQty      Int                   @default(1)
+  orderMultiple    Int                   @default(1)
+  leadTimeDays     Int?
+  isActive         Boolean               @default(true)
+  note             String?
+  createdById      String?
+  updatedById      String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  createdBy        User?                 @relation("ReplenishmentRulesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  productVariant   ProductVariant        @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  updatedBy        User?                 @relation("ReplenishmentRulesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  warehouse        Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
 
   @@unique([warehouseId, productVariantId])
   @@index([warehouseId, isActive])
@@ -1413,31 +1433,31 @@ model ReplenishmentRule {
 }
 
 model WarehouseTransfer {
-  id                   Int                     @id @default(autoincrement())
-  transferNumber       String                  @unique
-  sourceWarehouseId    Int
+  id                     Int                     @id @default(autoincrement())
+  transferNumber         String                  @unique
+  sourceWarehouseId      Int
   destinationWarehouseId Int
-  status               WarehouseTransferStatus @default(DRAFT)
-  requestedAt          DateTime                @default(now())
-  requiredBy           DateTime?
-  submittedAt          DateTime?
-  approvedAt           DateTime?
-  dispatchedAt         DateTime?
-  receivedAt           DateTime?
-  createdById          String?
-  approvedById         String?
-  dispatchedById       String?
-  receivedById         String?
-  note                 String?
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
-  approvedBy           User?                   @relation("WarehouseTransfersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
-  createdBy            User?                   @relation("WarehouseTransfersCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  destinationWarehouse Warehouse               @relation("WarehouseTransferDestination", fields: [destinationWarehouseId], references: [id], onDelete: Restrict)
-  dispatchedBy         User?                   @relation("WarehouseTransfersDispatched", fields: [dispatchedById], references: [id], onDelete: SetNull)
-  items                WarehouseTransferItem[]
-  receivedBy           User?                   @relation("WarehouseTransfersReceived", fields: [receivedById], references: [id], onDelete: SetNull)
-  sourceWarehouse      Warehouse               @relation("WarehouseTransferSource", fields: [sourceWarehouseId], references: [id], onDelete: Restrict)
+  status                 WarehouseTransferStatus @default(DRAFT)
+  requestedAt            DateTime                @default(now())
+  requiredBy             DateTime?
+  submittedAt            DateTime?
+  approvedAt             DateTime?
+  dispatchedAt           DateTime?
+  receivedAt             DateTime?
+  createdById            String?
+  approvedById           String?
+  dispatchedById         String?
+  receivedById           String?
+  note                   String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  approvedBy             User?                   @relation("WarehouseTransfersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  createdBy              User?                   @relation("WarehouseTransfersCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  destinationWarehouse   Warehouse               @relation("WarehouseTransferDestination", fields: [destinationWarehouseId], references: [id], onDelete: Restrict)
+  dispatchedBy           User?                   @relation("WarehouseTransfersDispatched", fields: [dispatchedById], references: [id], onDelete: SetNull)
+  items                  WarehouseTransferItem[]
+  receivedBy             User?                   @relation("WarehouseTransfersReceived", fields: [receivedById], references: [id], onDelete: SetNull)
+  sourceWarehouse        Warehouse               @relation("WarehouseTransferSource", fields: [sourceWarehouseId], references: [id], onDelete: Restrict)
 
   @@index([sourceWarehouseId, status])
   @@index([destinationWarehouseId, status])
@@ -1447,17 +1467,17 @@ model WarehouseTransfer {
 }
 
 model WarehouseTransferItem {
-  id                 Int               @id @default(autoincrement())
+  id                  Int               @id @default(autoincrement())
   warehouseTransferId Int
-  productVariantId   Int
-  description        String?
-  quantityRequested  Int
-  quantityDispatched Int               @default(0)
-  quantityReceived   Int               @default(0)
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  productVariant     ProductVariant    @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  warehouseTransfer  WarehouseTransfer @relation(fields: [warehouseTransferId], references: [id], onDelete: Cascade)
+  productVariantId    Int
+  description         String?
+  quantityRequested   Int
+  quantityDispatched  Int               @default(0)
+  quantityReceived    Int               @default(0)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  productVariant      ProductVariant    @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  warehouseTransfer   WarehouseTransfer @relation(fields: [warehouseTransferId], references: [id], onDelete: Cascade)
 
   @@index([warehouseTransferId])
   @@index([productVariantId])
@@ -2057,6 +2077,26 @@ enum SupplierReturnStatus {
   DISPATCHED
   CLOSED
   CANCELLED
+}
+
+enum SupplierCompanyType {
+  PROPRIETOR
+  LIMITED_COMPANY
+}
+
+enum SupplierDocumentType {
+  PROPRIETOR_NID
+  TRADE_LICENSE
+  PROPRIETOR_DETAILS
+  PROPRIETOR_VISITING_CARD
+  DECLARATION
+  SEAL
+  SIGNATURE
+  DIRECTORS_NID_DETAILS
+  CERTIFICATE_OF_INCORPORATION
+  TAX_IDENTIFICATION_NUMBER
+  BOARD_RESOLUTION
+  VAT_REGISTRATION
 }
 
 enum ReplenishmentStrategy {

@@ -4,62 +4,18 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
-
-function toCleanText(value: unknown, max = 255) {
-  return typeof value === "string" ? value.trim().slice(0, max) : "";
-}
-
-function normalizeSupplierCode(raw: unknown, fallbackName: string) {
-  const source = toCleanText(raw, 40) || fallbackName;
-  return source
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 20);
-}
-
-function toSupplierSnapshot(supplier: {
-  code: string;
-  name: string;
-  contactName: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  city: string | null;
-  country: string | null;
-  leadTimeDays: number | null;
-  paymentTermsDays: number | null;
-  currency: string;
-  taxNumber: string | null;
-  notes: string | null;
-  isActive: boolean;
-}) {
-  return {
-    code: supplier.code,
-    name: supplier.name,
-    contactName: supplier.contactName,
-    email: supplier.email,
-    phone: supplier.phone,
-    address: supplier.address,
-    city: supplier.city,
-    country: supplier.country,
-    leadTimeDays: supplier.leadTimeDays,
-    paymentTermsDays: supplier.paymentTermsDays,
-    currency: supplier.currency,
-    taxNumber: supplier.taxNumber,
-    notes: supplier.notes,
-    isActive: supplier.isActive,
-  };
-}
-
-function hasSupplierReadAccess(access: Awaited<ReturnType<typeof getAccessContext>>) {
-  return access.hasGlobal("suppliers.read") || access.hasGlobal("suppliers.manage");
-}
-
-function hasSupplierManageAccess(access: Awaited<ReturnType<typeof getAccessContext>>) {
-  return access.hasGlobal("suppliers.manage");
-}
+import {
+  assertRequiredSupplierDocuments,
+  hasSupplierManageAccess,
+  hasSupplierReadAccess,
+  normalizeSupplierCode,
+  normalizeSupplierCompanyType,
+  parseSupplierDocuments,
+  serializeSupplier,
+  SupplierValidationError,
+  toCleanText,
+  toSupplierSnapshot,
+} from "../shared";
 
 export async function GET(
   _request: NextRequest,
@@ -85,12 +41,17 @@ export async function GET(
 
     const supplier = await prisma.supplier.findUnique({
       where: { id: supplierId },
+      include: {
+        documents: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        },
+      },
     });
     if (!supplier) {
       return NextResponse.json({ error: "Supplier not found." }, { status: 404 });
     }
 
-    return NextResponse.json(supplier);
+    return NextResponse.json(serializeSupplier(supplier));
   } catch (error) {
     console.error("SCM SUPPLIER GET ERROR:", error);
     return NextResponse.json(
@@ -124,6 +85,11 @@ export async function PATCH(
 
     const existing = await prisma.supplier.findUnique({
       where: { id: supplierId },
+      include: {
+        documents: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        },
+      },
     });
     if (!existing) {
       return NextResponse.json({ error: "Supplier not found." }, { status: 404 });
@@ -132,6 +98,30 @@ export async function PATCH(
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const name = toCleanText(body.name, 120) || existing.name;
     const code = normalizeSupplierCode(body.code, name) || existing.code;
+    const companyType = normalizeSupplierCompanyType(
+      body.companyType,
+      existing.companyType,
+    );
+
+    if (!companyType) {
+      return NextResponse.json(
+        { error: "Supplier company type is required." },
+        { status: 400 },
+      );
+    }
+
+    const documents =
+      body.documents === undefined
+        ? existing.documents.map((document) => ({
+            type: document.type,
+            fileUrl: document.fileUrl,
+            fileName: document.fileName,
+            mimeType: document.mimeType,
+            fileSize: document.fileSize,
+          }))
+        : parseSupplierDocuments(body.documents);
+
+    assertRequiredSupplierDocuments(companyType, documents);
 
     const leadTimeDays =
       body.leadTimeDays === null || body.leadTimeDays === undefined || body.leadTimeDays === ""
@@ -160,6 +150,7 @@ export async function PATCH(
       data: {
         code,
         name,
+        companyType,
         contactName: toCleanText(body.contactName, 120) || null,
         email: toCleanText(body.email, 120) || null,
         phone: toCleanText(body.phone, 40) || null,
@@ -172,6 +163,15 @@ export async function PATCH(
         taxNumber: toCleanText(body.taxNumber, 60) || null,
         notes: toCleanText(body.notes, 500) || null,
         isActive: body.isActive === undefined ? existing.isActive : Boolean(body.isActive),
+        documents: {
+          deleteMany: {},
+          create: documents,
+        },
+      },
+      include: {
+        documents: {
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        },
       },
     });
 
@@ -188,9 +188,12 @@ export async function PATCH(
       after: toSupplierSnapshot(updated),
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(serializeSupplier(updated));
   } catch (error: any) {
     console.error("SCM SUPPLIER PATCH ERROR:", error);
+    if (error instanceof SupplierValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     if (error?.code === "P2002") {
       return NextResponse.json(
         { error: "Supplier code already exists." },
@@ -198,7 +201,7 @@ export async function PATCH(
       );
     }
     return NextResponse.json(
-      { error: "Failed to update supplier." },
+      { error: error?.message || "Failed to update supplier." },
       { status: 500 },
     );
   }
