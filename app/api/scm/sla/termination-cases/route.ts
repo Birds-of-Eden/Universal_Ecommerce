@@ -114,7 +114,9 @@ export async function PATCH(request: NextRequest) {
     if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!access.hasGlobal("sla.manage")) {
+    const canManage = access.hasGlobal("sla.manage");
+    const canApproveTermination = access.hasGlobal("sla.termination.approve");
+    if (!canManage && !canApproveTermination) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -149,9 +151,34 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Invalid termination recommended action." }, { status: 400 });
     }
 
+    if (
+      requestedStatus &&
+      (requestedStatus === "APPROVED" ||
+        requestedStatus === "REJECTED" ||
+        requestedStatus === "EXECUTED") &&
+      !canApproveTermination
+    ) {
+      return NextResponse.json(
+        { error: "You do not have permission to approve/reject/execute termination cases." },
+        { status: 403 },
+      );
+    }
+    if (requestedStatus && (requestedStatus === "OPEN" || requestedStatus === "IN_REVIEW") && !canManage) {
+      return NextResponse.json(
+        { error: "Only SLA managers can move termination cases into OPEN/IN_REVIEW workflow." },
+        { status: 403 },
+      );
+    }
+
     const updateData: Prisma.SupplierSlaTerminationCaseUncheckedUpdateInput = {};
 
     if (body.ownerUserId !== undefined) {
+      if (!canManage) {
+        return NextResponse.json(
+          { error: "Only SLA managers can reassign termination case owner." },
+          { status: 403 },
+        );
+      }
       const ownerUserId = trimText(body.ownerUserId, 191);
       if (ownerUserId) {
         const user = await prisma.user.findUnique({
@@ -168,6 +195,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (requestedAction) {
+      if (!canManage) {
+        return NextResponse.json(
+          { error: "Only SLA managers can change recommended action." },
+          { status: 403 },
+        );
+      }
       updateData.recommendedAction = requestedAction;
     }
 
@@ -177,6 +210,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (body.markReviewed === true) {
+      if (!canManage) {
+        return NextResponse.json(
+          { error: "Only SLA managers can mark termination case as reviewed." },
+          { status: 403 },
+        );
+      }
       updateData.reviewedAt = new Date();
     }
 

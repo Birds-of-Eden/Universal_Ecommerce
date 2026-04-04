@@ -208,7 +208,9 @@ export async function PATCH(request: NextRequest) {
     if (!access.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!access.hasGlobal("sla.manage")) {
+    const canManageSla = access.hasGlobal("sla.manage");
+    const canResolveDisputes = access.hasGlobal("sla.dispute.resolve");
+    if (!canManageSla && !canResolveDisputes) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -244,6 +246,31 @@ export async function PATCH(request: NextRequest) {
     const requestedDisputeStatus = parseDisputeStatus(body.disputeStatus);
     if (body.disputeStatus !== undefined && requestedDisputeStatus === null) {
       return NextResponse.json({ error: "Invalid dispute status." }, { status: 400 });
+    }
+    if (!canManageSla) {
+      if (
+        body.ownerUserId !== undefined ||
+        body.dueDate !== undefined ||
+        body.actionStatus !== undefined ||
+        body.resolutionNote !== undefined ||
+        body.acknowledgeAlert !== undefined ||
+        body.disputeReason !== undefined
+      ) {
+        return NextResponse.json(
+          { error: "You only have permission to resolve/reject disputes." },
+          { status: 403 },
+        );
+      }
+      if (
+        requestedDisputeStatus &&
+        requestedDisputeStatus !== "RESOLVED" &&
+        requestedDisputeStatus !== "REJECTED"
+      ) {
+        return NextResponse.json(
+          { error: "You can only set dispute status to RESOLVED or REJECTED." },
+          { status: 403 },
+        );
+      }
     }
     if (
       breach.status === "OK" &&
@@ -341,6 +368,16 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (requestedDisputeStatus) {
+      if (
+        (requestedDisputeStatus === "RESOLVED" || requestedDisputeStatus === "REJECTED") &&
+        !canResolveDisputes &&
+        !canManageSla
+      ) {
+        return NextResponse.json(
+          { error: "Missing permission: sla.dispute.resolve" },
+          { status: 403 },
+        );
+      }
       scalarUpdateData.disputeStatus = requestedDisputeStatus;
       if (requestedDisputeStatus === "NONE") {
         scalarUpdateData.disputeReason = null;

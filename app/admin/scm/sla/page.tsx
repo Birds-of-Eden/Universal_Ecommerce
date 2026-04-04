@@ -214,6 +214,57 @@ type TerminationCase = {
   } | null;
 };
 
+type SlaAnalytics = {
+  range: {
+    from: string;
+    to: string;
+    days: number;
+    supplierId: number | null;
+  };
+  summary: {
+    totalEvaluations: number;
+    warningCount: number;
+    breachCount: number;
+    criticalBreachCount: number;
+    openActionCount: number;
+    overdueActionCount: number;
+    openDisputeCount: number;
+    openTerminationCaseCount: number;
+    heldInvoiceCount: number;
+    overriddenInvoiceCount: number;
+    recommendedCreditAmount: string;
+    appliedCreditAmount: string;
+    autoAppliedCreditAmount: string;
+    manualAppliedCreditAmount: string;
+    waivedCreditCount: number;
+    notificationEventCount: number;
+  };
+  trends: Array<{
+    date: string;
+    OK: number;
+    WARNING: number;
+    BREACH: number;
+  }>;
+  topSuppliers: Array<{
+    supplierId: number;
+    supplierName: string;
+    supplierCode: string;
+    evaluations: number;
+    warningCount: number;
+    breachCount: number;
+    criticalCount: number;
+    openActions: number;
+    openDisputes: number;
+    lastEvaluationAt: string | null;
+  }>;
+  recentNotificationEvents: Array<{
+    id: string;
+    action: string;
+    entity: string;
+    createdAt: string;
+  }>;
+};
+
 type SlaOwner = {
   id: string;
   name: string | null;
@@ -412,6 +463,9 @@ export default function SupplierSlaPage() {
     ["sla.read", "sla.manage"].includes(permission),
   );
   const canManage = globalPermissions.includes("sla.manage");
+  const canManageNotifications =
+    globalPermissions.includes("sla.manage") ||
+    globalPermissions.includes("sla.notifications.manage");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -425,23 +479,45 @@ export default function SupplierSlaPage() {
   const [policies, setPolicies] = useState<SlaPolicy[]>([]);
   const [breaches, setBreaches] = useState<SlaBreach[]>([]);
   const [terminationCases, setTerminationCases] = useState<TerminationCase[]>([]);
+  const [analytics, setAnalytics] = useState<SlaAnalytics | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsDays, setAnalyticsDays] = useState("90");
+  const [notifying, setNotifying] = useState(false);
   const [actionDrafts, setActionDrafts] = useState<Record<number, BreachActionDraft>>({});
   const [terminationDrafts, setTerminationDrafts] = useState<Record<number, TerminationDraft>>({});
   const [terminationSavingId, setTerminationSavingId] = useState<number | null>(null);
   const [form, setForm] = useState<SlaFormState>(DEFAULT_FORM);
 
+  const loadAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const response = await fetch(`/api/scm/sla/analytics?days=${Number(analyticsDays) || 90}`, {
+        cache: "no-store",
+      });
+      const data = await readJson<SlaAnalytics>(response, "Failed to load SLA analytics");
+      setAnalytics(data);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to load SLA analytics");
+      setAnalytics(null);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
+      setAnalyticsLoading(true);
       const responses = await Promise.all([
         fetch("/api/scm/suppliers", { cache: "no-store" }),
         fetch("/api/scm/sla/policies?includeInactive=1", { cache: "no-store" }),
         fetch("/api/scm/sla/breaches?latest=1&days=365", { cache: "no-store" }),
         fetch("/api/scm/sla/termination-cases?limit=200", { cache: "no-store" }),
+        fetch(`/api/scm/sla/analytics?days=${Number(analyticsDays) || 90}`, { cache: "no-store" }),
         canManage ? fetch("/api/scm/sla/owners", { cache: "no-store" }) : Promise.resolve(null),
       ]);
 
-      const [supplierRes, policyRes, breachRes, terminationRes, ownerRes] = responses;
+      const [supplierRes, policyRes, breachRes, terminationRes, analyticsRes, ownerRes] = responses;
 
       const supplierData = await readJson<Supplier[]>(
         supplierRes,
@@ -459,6 +535,10 @@ export default function SupplierSlaPage() {
         terminationRes,
         "Failed to load SLA termination cases",
       );
+      const analyticsData = await readJson<SlaAnalytics>(
+        analyticsRes,
+        "Failed to load SLA analytics",
+      );
       const ownerData = ownerRes
         ? await readJson<SlaOwner[]>(ownerRes, "Failed to load SLA owners")
         : [];
@@ -467,15 +547,18 @@ export default function SupplierSlaPage() {
       setPolicies(Array.isArray(policyData) ? policyData : []);
       setBreaches(Array.isArray(breachData) ? breachData : []);
       setTerminationCases(Array.isArray(terminationData) ? terminationData : []);
+      setAnalytics(analyticsData || null);
       setOwners(Array.isArray(ownerData) ? ownerData : []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load SLA workspace");
       setPolicies([]);
       setBreaches([]);
       setTerminationCases([]);
+      setAnalytics(null);
       setOwners([]);
     } finally {
       setLoading(false);
+      setAnalyticsLoading(false);
     }
   };
 
@@ -483,7 +566,7 @@ export default function SupplierSlaPage() {
     if (canRead) {
       void loadData();
     }
-  }, [canRead]);
+  }, [canRead, analyticsDays]);
 
   useEffect(() => {
     const nextDrafts: Record<number, BreachActionDraft> = {};
@@ -592,6 +675,43 @@ export default function SupplierSlaPage() {
       toast.error(error?.message || "Failed to run SLA evaluation");
     } finally {
       setRunning(false);
+    }
+  };
+
+  const runNotifications = async () => {
+    if (!canManageNotifications) return;
+    try {
+      setNotifying(true);
+      const response = await fetch("/api/scm/sla/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dryRun: false,
+          dueInHours: 24,
+          includeTermination: true,
+          maxItems: 120,
+        }),
+      });
+      const result = await readJson<{
+        processedCount: number;
+        emailedCount: number;
+        webhookCount: number;
+        errors: string[];
+      }>(response, "Failed to run SLA notifications");
+      if (Array.isArray(result.errors) && result.errors.length > 0) {
+        toast.warning(
+          `Notifications processed ${result.processedCount}; errors: ${result.errors.length}`,
+        );
+      } else {
+        toast.success(
+          `Notifications sent. Processed ${result.processedCount}, email ${result.emailedCount}, webhook ${result.webhookCount}`,
+        );
+      }
+      await loadData();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to run SLA notifications");
+    } finally {
+      setNotifying(false);
     }
   };
 
@@ -792,10 +912,29 @@ export default function SupplierSlaPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <select
+            className="rounded-md border bg-background px-2 py-2 text-sm"
+            value={analyticsDays}
+            onChange={(event) => setAnalyticsDays(event.target.value)}
+          >
+            <option value="30">30d</option>
+            <option value="60">60d</option>
+            <option value="90">90d</option>
+            <option value="180">180d</option>
+            <option value="365">365d</option>
+          </select>
+          <Button variant="outline" onClick={() => void loadAnalytics()} disabled={analyticsLoading}>
+            {analyticsLoading ? "Loading..." : "Refresh Analytics"}
+          </Button>
           <Button variant="outline" onClick={() => void loadData()} disabled={loading}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+          {canManageNotifications ? (
+            <Button variant="outline" onClick={() => void runNotifications()} disabled={notifying}>
+              {notifying ? "Notifying..." : "Run Notifications"}
+            </Button>
+          ) : null}
           {canManage ? (
             <Button onClick={() => void runEvaluation()} disabled={running}>
               {running ? "Running..." : "Run Evaluation"}
@@ -803,6 +942,81 @@ export default function SupplierSlaPage() {
           ) : null}
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>SLA Analytics</CardTitle>
+          <CardDescription>
+            Phase-5 governance KPIs, trend, and supplier risk ranking ({analytics?.range.days || Number(analyticsDays) || 90} days).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!analytics ? (
+            <p className="text-sm text-muted-foreground">
+              {analyticsLoading ? "Loading analytics..." : "No analytics data available."}
+            </p>
+          ) : (
+            <>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Evaluations</p>
+                  <p className="text-lg font-semibold">{analytics.summary.totalEvaluations}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Breaches</p>
+                  <p className="text-lg font-semibold">{analytics.summary.breachCount}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Overdue Actions</p>
+                  <p className="text-lg font-semibold">{analytics.summary.overdueActionCount}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Open Disputes</p>
+                  <p className="text-lg font-semibold">{analytics.summary.openDisputeCount}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Termination Cases</p>
+                  <p className="text-lg font-semibold">{analytics.summary.openTerminationCaseCount}</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Applied Credit</p>
+                  <p className="text-lg font-semibold">{analytics.summary.appliedCreditAmount}</p>
+                </div>
+              </div>
+              <div className="grid gap-4 xl:grid-cols-2">
+                <div className="rounded-md border p-3">
+                  <p className="mb-2 text-sm font-medium">Trend Snapshot</p>
+                  <div className="space-y-1 text-xs">
+                    {analytics.trends.slice(-7).map((row) => (
+                      <div key={row.date} className="flex items-center justify-between gap-2">
+                        <span>{row.date}</span>
+                        <span className="text-muted-foreground">
+                          OK {row.OK} | W {row.WARNING} | B {row.BREACH}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="mb-2 text-sm font-medium">Top Risk Suppliers</p>
+                  <div className="space-y-1 text-xs">
+                    {analytics.topSuppliers.slice(0, 6).map((row) => (
+                      <div key={row.supplierId} className="flex items-center justify-between gap-2">
+                        <span>
+                          {row.supplierName} ({row.supplierCode})
+                        </span>
+                        <span className="text-muted-foreground">
+                          B {row.breachCount} | W {row.warningCount} | D {row.openDisputes}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {canManage ? (
         <Card>

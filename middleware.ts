@@ -261,7 +261,19 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/scm/sla/breaches",
     methods: ["POST", "PATCH", "PUT"],
-    permissions: ["sla.manage"],
+    permissions: ["sla.manage", "sla.dispute.resolve"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/sla/analytics",
+    methods: ["GET"],
+    permissions: ["sla.read", "sla.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/sla/notifications",
+    methods: ["POST"],
+    permissions: ["sla.manage", "sla.notifications.manage"],
     globalOnly: true,
   },
   {
@@ -279,7 +291,7 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/scm/sla/termination-cases",
     methods: ["PATCH", "PUT"],
-    permissions: ["sla.manage"],
+    permissions: ["sla.manage", "sla.termination.approve"],
     globalOnly: true,
   },
   {
