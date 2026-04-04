@@ -33,6 +33,7 @@ export interface Product {
   createdAt: Date;
   updatedAt: Date;
   lowStockThreshold: number;
+  bundleStockLimit?: number | null;
   variants?: ProductVariant[];
 }
 

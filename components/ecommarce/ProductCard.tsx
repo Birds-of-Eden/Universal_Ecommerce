@@ -35,6 +35,7 @@ export type ProductCardData = {
   }>;
   bundleItemCount?: number;
   bundleSavings?: string;
+  bundleStockLimit?: number | string;
 };
 
 type Props = {
@@ -90,7 +91,15 @@ export default function ProductCardCompact({
 }: Props) {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  const isOutOfStock = product.stock === 0;
+  const effectiveStock =
+    product.type === "BUNDLE"
+      ? Number(product.bundleStockLimit ?? product.stock ?? 0)
+      : Number(product.stock ?? 0);
+
+  const bundleItemCount =
+    Number(product.bundleItemCount ?? product.bundleItems?.length ?? 0);
+
+  const isOutOfStock = effectiveStock === 0;
   const ratingAvg = Number(product.ratingAvg ?? 0);
   const ratingCount = Number(product.ratingCount ?? 0);
 
@@ -203,9 +212,7 @@ export default function ProductCardCompact({
             {/* Bundle-specific info */}
             {product.type === "BUNDLE" && (
               <div className="mt-2 space-y-1">
-                <div className="text-xs text-purple-600 font-medium">
-                  {product.bundleItemCount || product.bundleItems?.length || 0} items included
-                </div>
+                
                 {product.bundleSavings && (
                   <div className="text-xs text-green-600 font-medium">
                     Save {product.bundleSavings}

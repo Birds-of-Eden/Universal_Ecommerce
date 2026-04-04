@@ -50,6 +50,18 @@ type ProductDTO = {
   featured: boolean;
   createdAt: string;
   variants?: ApiVariant[] | null;
+  type?: string;
+  bundleStockLimit?: number | string | null;
+  bundleItems?: Array<{
+    product: {
+      id: number;
+      name: string;
+      image?: string;
+    };
+    quantity: number;
+  }>;
+  bundleItemCount?: number;
+  bundleSavings?: string;
   stock: number;
 };
 
@@ -114,15 +126,12 @@ export default function FeaturedProducts({
 
   const [active, setActive] = useState<"ALL" | string>("ALL");
   const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = useState(false);
-  const [canScrollCategoriesRight, setCanScrollCategoriesRight] =
-    useState(false);
+  const [canScrollCategoriesRight, setCanScrollCategoriesRight] = useState(false);
   const [showCategoryScrollbar, setShowCategoryScrollbar] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const categoryScrollerRef = useRef<HTMLDivElement | null>(null);
-  const categoryScrollbarTimeoutRef = useRef<ReturnType<
-    typeof setTimeout
-  > | null>(null);
+  const categoryScrollbarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -206,7 +215,16 @@ export default function FeaturedProducts({
 
         const mappedProducts: ProductDTO[] = pList.map((p) => {
           const variants = Array.isArray(p?.variants) ? p.variants : [];
-          const stock = computeStockFromVariants(variants);
+          const type = p?.type ? String(p.type) : undefined;
+          const bundleStockLimit =
+            p?.bundleStockLimit !== null && p?.bundleStockLimit !== undefined
+              ? p.bundleStockLimit
+              : null;
+
+          const stock =
+            type === "BUNDLE"
+              ? toNumber(bundleStockLimit, 0)
+              : computeStockFromVariants(variants);
 
           const basePrice = toNumber(p?.basePrice, 0);
           const originalPrice =
@@ -226,6 +244,11 @@ export default function FeaturedProducts({
             featured: Boolean(p.featured),
             createdAt: String(p.createdAt ?? ""),
             variants,
+            type,
+            bundleStockLimit,
+            bundleItems: p.bundleItems,
+            bundleItemCount: p.bundleItemCount,
+            bundleSavings: p.bundleSavings,
             stock,
           };
         });
@@ -490,7 +513,7 @@ export default function FeaturedProducts({
             </div>
 
             <div
-              
+              // className="hidden xl:block"
               className="mb-4 flex-shrink-0"
             >
               <button
@@ -574,6 +597,11 @@ export default function FeaturedProducts({
                           price: p.basePrice,
                           originalPrice: p.originalPrice,
                           stock: p.stock,
+                          type: p.type,
+                          bundleStockLimit: p.bundleStockLimit ?? undefined,
+                          bundleItems: p.bundleItems,
+                          bundleItemCount: p.bundleItemCount,
+                          bundleSavings: p.bundleSavings,
                           ratingAvg: stats.avg,
                           ratingCount: stats.count,
                           discountPct: discountPct ?? undefined,

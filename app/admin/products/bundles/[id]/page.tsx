@@ -1,14 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Edit3, Package, DollarSign, TrendingDown, Calendar, Tag } from "lucide-react";
+import {
+  ArrowLeft,
+  Edit3,
+  Package,
+  DollarSign,
+  TrendingDown,
+  Calendar,
+  Tag,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import BundleFormModal from "@/components/admin/products/bundles/BundleFormModal";
 
 interface Bundle {
   id: number;
@@ -71,39 +80,45 @@ interface Bundle {
   };
 }
 
-export default function BundleDetailPage({ params }: { params: { id: string } }) {
+export default function BundleDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const router = useRouter();
-  const bundleId = parseInt(params.id);
-  
+  const { id } = use(params);
+  const bundleId = parseInt(id);
+
   const [loading, setLoading] = useState(true);
   const [bundle, setBundle] = useState<Bundle | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+
+  const fetchBundle = async () => {
+    try {
+      const response = await fetch(`/api/admin/products/bundles/${bundleId}`);
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.error("Bundle not found");
+          router.push("/admin/products/bundles");
+          return;
+        }
+        throw new Error("Failed to fetch bundle");
+      }
+
+      const bundleData: Bundle = await response.json();
+      setBundle(bundleData);
+    } catch (error) {
+      console.error("Error fetching bundle:", error);
+      toast.error("Failed to load bundle");
+      router.push("/admin/products/bundles");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchBundle = async () => {
-      try {
-        const response = await fetch(`/api/admin/products/bundles/${bundleId}`);
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast.error("Bundle not found");
-            router.push("/admin/products/bundles");
-            return;
-          }
-          throw new Error("Failed to fetch bundle");
-        }
-
-        const bundleData: Bundle = await response.json();
-        setBundle(bundleData);
-      } catch (error) {
-        console.error("Error fetching bundle:", error);
-        toast.error("Failed to load bundle");
-        router.push("/admin/products/bundles");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (bundleId && !isNaN(bundleId)) {
-      fetchBundle();
+      void fetchBundle();
     }
   }, [bundleId, router]);
 
@@ -153,15 +168,11 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.back()}
-          >
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
@@ -172,8 +183,8 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
             </p>
           </div>
         </div>
-        
-        <Button onClick={() => router.push(`/admin/products/bundles/${bundle.id}/edit`)}>
+
+        <Button onClick={() => setEditModalOpen(true)}>
           <Edit3 className="h-4 w-4 mr-2" />
           Edit Bundle
         </Button>
@@ -213,9 +224,7 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
               {bundle.shortDesc && (
                 <div>
                   <h3 className="font-medium mb-2">Short Description</h3>
-                  <p className="text-muted-foreground">
-                    {bundle.shortDesc}
-                  </p>
+                  <p className="text-muted-foreground">{bundle.shortDesc}</p>
                 </div>
               )}
 
@@ -225,7 +234,10 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
                   <h3 className="font-medium mb-2">Gallery</h3>
                   <div className="grid grid-cols-4 gap-2">
                     {bundle.gallery.map((image, index) => (
-                      <div key={index} className="aspect-square bg-muted rounded-lg overflow-hidden">
+                      <div
+                        key={index}
+                        className="aspect-square bg-muted rounded-lg overflow-hidden"
+                      >
                         <Image
                           src={image}
                           alt={`Gallery image ${index + 1}`}
@@ -252,13 +264,16 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
             <CardContent>
               <div className="space-y-4">
                 {bundle.bundleItems.map((item, index) => (
-                  <div key={item.id} className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg"
+                  >
                     <div className="flex-shrink-0">
                       <span className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
                         {index + 1}
                       </span>
                     </div>
-                    
+
                     <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center overflow-hidden flex-shrink-0">
                       {item.product.image ? (
                         <Image
@@ -272,21 +287,41 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
                         <Package className="h-6 w-6 text-muted-foreground" />
                       )}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium">{item.product.name}</h4>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span>Quantity: {item.quantity}</span>
-                        <span>Unit Price: {formatCurrency(item.product.basePrice, bundle.currency)}</span>
-                        <span>Total: {formatCurrency(item.product.basePrice * item.quantity, bundle.currency)}</span>
+                        <span>
+                          Unit Price:{" "}
+                          {formatCurrency(
+                            item.product.basePrice,
+                            bundle.currency,
+                          )}
+                        </span>
+                        <span>
+                          Total:{" "}
+                          {formatCurrency(
+                            item.product.basePrice * item.quantity,
+                            bundle.currency,
+                          )}
+                        </span>
                       </div>
                     </div>
-                    
+
                     <div className="text-right">
                       <div className="font-medium">
-                        {formatCurrency(item.product.basePrice * item.quantity, bundle.currency)}
+                        {formatCurrency(
+                          item.product.basePrice * item.quantity,
+                          bundle.currency,
+                        )}
                       </div>
-                      <Badge variant={item.product.available ? "default" : "secondary"} className="text-xs">
+                      <Badge
+                        variant={
+                          item.product.available ? "default" : "secondary"
+                        }
+                        className="text-xs"
+                      >
                         {item.product.available ? "Available" : "Unavailable"}
                       </Badge>
                     </div>
@@ -311,23 +346,23 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
                   {bundle.available ? "Active" : "Inactive"}
                 </Badge>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Featured</span>
                 <Badge variant={bundle.featured ? "default" : "outline"}>
                   {bundle.featured ? "Featured" : "Regular"}
                 </Badge>
               </div>
-              
+
               <Separator />
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Created</span>
                 <span className="text-xs text-muted-foreground">
                   {formatDate(bundle.createdAt)}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Last Updated</span>
                 <span className="text-xs text-muted-foreground">
@@ -348,36 +383,56 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Regular Total:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Regular Total:
+                  </span>
                   <span className="font-medium line-through">
-                    {formatCurrency(bundle._stats.regularTotal, bundle.currency)}
+                    {formatCurrency(
+                      bundle._stats.regularTotal,
+                      bundle.currency,
+                    )}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Bundle Price:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Bundle Price:
+                  </span>
                   <span className="font-bold text-lg text-green-600">
-                    {formatCurrency(bundle._stats.discountedPrice, bundle.currency)}
+                    {formatCurrency(
+                      bundle._stats.discountedPrice,
+                      bundle.currency,
+                    )}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Discount Amount:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Discount Amount:
+                  </span>
                   <span className="font-medium text-green-600">
-                    {formatCurrency(bundle._stats.discountAmount, bundle.currency)}
+                    {formatCurrency(
+                      bundle._stats.discountAmount,
+                      bundle.currency,
+                    )}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Discount Percentage:</span>
-                  <Badge variant="secondary" className="text-green-700 bg-green-50">
+                  <span className="text-sm text-muted-foreground">
+                    Discount Percentage:
+                  </span>
+                  <Badge
+                    variant="secondary"
+                    className="text-green-700 bg-green-50"
+                  >
                     {bundle._stats.discountPercentage.toFixed(1)}%
                   </Badge>
                 </div>
               </div>
-              
+
               <Separator />
-              
+
               <div className="text-center p-3 bg-green-50 rounded-lg">
                 <div className="flex items-center justify-center gap-2 text-green-700">
                   <TrendingDown className="h-4 w-4" />
@@ -405,23 +460,19 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
                   {bundle.category?.name || "Uncategorized"}
                 </Badge>
               </div>
-              
+
               {bundle.brand && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Brand:</span>
-                  <Badge variant="outline">
-                    {bundle.brand.name}
-                  </Badge>
+                  <Badge variant="outline">{bundle.brand.name}</Badge>
                 </div>
               )}
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Currency:</span>
-                <Badge variant="outline">
-                  {bundle.currency}
-                </Badge>
+                <Badge variant="outline">{bundle.currency}</Badge>
               </div>
-              
+
               {bundle.VatClass && (
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">VAT Class:</span>
@@ -439,12 +490,12 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
               <div className="space-y-3">
                 <Button
                   className="w-full"
-                  onClick={() => router.push(`/admin/products/bundles/${bundle.id}/edit`)}
+                  onClick={() => setEditModalOpen(true)}
                 >
                   <Edit3 className="h-4 w-4 mr-2" />
                   Edit Bundle
                 </Button>
-                
+
                 {/* <Button
                   variant="outline"
                   className="w-full"
@@ -459,6 +510,16 @@ export default function BundleDetailPage({ params }: { params: { id: string } })
           </Card>
         </div>
       </div>
+
+      <BundleFormModal
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        mode="edit"
+        bundleId={bundle.id}
+        onSuccess={async () => {
+          await fetchBundle();
+        }}
+      />
     </div>
   );
 }

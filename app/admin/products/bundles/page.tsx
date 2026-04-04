@@ -12,16 +12,8 @@ import {
   Tag,
   TrendingDown,
   Eye,
-  MoreHorizontal,
   RefreshCw,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import BundleFormModal from "@/components/admin/products/bundles/BundleFormModal";
 
 interface Bundle {
   id: number;
@@ -99,9 +92,11 @@ export default function BundlesPage() {
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "active" | "inactive"
+  >("all");
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState<BundlesResponse['pagination']>({
+  const [pagination, setPagination] = useState<BundlesResponse["pagination"]>({
     page: 1,
     limit: 10,
     total: 0,
@@ -111,6 +106,7 @@ export default function BundlesPage() {
   const [deletingBundle, setDeletingBundle] = useState<Bundle | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const fetchBundles = async () => {
     try {
@@ -146,9 +142,12 @@ export default function BundlesPage() {
 
     setIsDeleting(true);
     try {
-      const response = await fetch(`/api/admin/products/bundles/${deletingBundle.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/admin/products/bundles/${deletingBundle.id}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (!response.ok) throw new Error("Failed to delete bundle");
 
@@ -208,10 +207,12 @@ export default function BundlesPage() {
             onClick={handleRefresh}
             disabled={refreshing}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
-          <Button onClick={() => router.push("/admin/products/bundles/create")}>
+          <Button onClick={() => setCreateModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Create Bundle
           </Button>
@@ -284,7 +285,7 @@ export default function BundlesPage() {
                 : "Get started by creating your first bundle"}
             </p>
             {!search && statusFilter === "all" && (
-              <Button onClick={() => router.push("/admin/products/bundles/create")}>
+              <Button onClick={() => setCreateModalOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Bundle
               </Button>
@@ -294,8 +295,14 @@ export default function BundlesPage() {
       ) : (
         <div className="grid gap-6">
           {filteredBundles.map((bundle) => (
-            <Card key={bundle.id} className="overflow-hidden">
-              <CardContent className="p-6">
+            <Card
+              key={bundle.id}
+              className="overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-primary/50"
+              onClick={() =>
+                router.push(`/admin/products/bundles/${bundle.id}`)
+              }
+            >
+              <CardContent className="p-6 flex items-center justify-between">
                 <div className="flex items-start gap-6">
                   {/* Bundle Image */}
                   <div className="flex-shrink-0">
@@ -316,11 +323,15 @@ export default function BundlesPage() {
 
                   {/* Bundle Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="min-w-0 flex-1">
+                    <div className="mb-2">
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-lg truncate">{bundle.name}</h3>
-                          <Badge variant={bundle.available ? "default" : "secondary"}>
+                          <h3 className="font-semibold text-lg truncate">
+                            {bundle.name}
+                          </h3>
+                          <Badge
+                            variant={bundle.available ? "default" : "secondary"}
+                          >
                             {bundle.available ? "Active" : "Inactive"}
                           </Badge>
                           {bundle.featured && (
@@ -331,36 +342,6 @@ export default function BundlesPage() {
                           {bundle.shortDesc || bundle.description}
                         </p>
                       </div>
-                      
-                      {/* Actions */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(`/admin/products/bundles/${bundle.id}`)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => router.push(`/admin/products/bundles/${bundle.id}/edit`)}>
-                            <Edit3 className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setDeletingBundle(bundle);
-                              setDeleteModalOpen(true);
-                            }}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
 
                     {/* Bundle Items */}
@@ -371,7 +352,11 @@ export default function BundlesPage() {
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {bundle.bundleItems.slice(0, 3).map((item) => (
-                          <Badge key={item.id} variant="outline" className="text-xs">
+                          <Badge
+                            key={item.id}
+                            variant="outline"
+                            className="text-xs"
+                          >
                             {item.product.name} × {item.quantity}
                           </Badge>
                         ))}
@@ -387,18 +372,62 @@ export default function BundlesPage() {
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground line-through">
-                          {formatCurrency(bundle._stats.regularTotal, bundle.currency)}
+                          {formatCurrency(
+                            bundle._stats.regularTotal,
+                            bundle.currency,
+                          )}
                         </span>
                         <TrendingDown className="h-4 w-4 text-green-600" />
                         <span className="font-semibold text-lg">
-                          {formatCurrency(bundle._stats.discountedPrice, bundle.currency)}
+                          {formatCurrency(
+                            bundle._stats.discountedPrice,
+                            bundle.currency,
+                          )}
                         </span>
                       </div>
-                      <Badge variant="secondary" className="text-green-700 bg-green-50">
+                      <Badge
+                        variant="secondary"
+                        className="text-green-700 bg-green-50"
+                      >
                         Save {bundle._stats.savings}
                       </Badge>
                     </div>
                   </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      router.push(`/admin/products/bundles/${bundle.id}`)
+                    }
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      router.push(`/admin/products/bundles/${bundle.id}`)
+                    }
+                  >
+                    <Edit3 className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDeletingBundle(bundle);
+                      setDeleteModalOpen(true);
+                    }}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -437,10 +466,12 @@ export default function BundlesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Bundle</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deletingBundle?.name}"? This action cannot be undone.
+              Are you sure you want to delete "{deletingBundle?.name}"? This
+              action cannot be undone.
               {deletingBundle && (
                 <span className="block mt-2 text-sm">
-                  This bundle contains {deletingBundle._stats.itemCount} products.
+                  This bundle contains {deletingBundle._stats.itemCount}{" "}
+                  products.
                 </span>
               )}
             </AlertDialogDescription>
@@ -457,6 +488,16 @@ export default function BundlesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <BundleFormModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        mode="create"
+        onSuccess={async () => {
+          setPage(1);
+          await fetchBundles();
+        }}
+      />
     </div>
   );
 }
