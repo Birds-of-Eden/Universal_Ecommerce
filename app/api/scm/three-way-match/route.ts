@@ -7,6 +7,7 @@ import {
   refreshSupplierInvoiceThreeWayMatch,
   supplierInvoiceInclude,
 } from "@/lib/scm";
+import { evaluateSupplierInvoiceApControls } from "@/lib/supplier-sla";
 
 function canReadThreeWayMatch(
   access: Awaited<ReturnType<typeof getAccessContext>>,
@@ -47,7 +48,19 @@ export async function GET(request: NextRequest) {
     const evaluations = await Promise.all(
       invoices.map(async (invoice) => {
         const refreshed = await prisma.$transaction((tx) =>
-          refreshSupplierInvoiceThreeWayMatch(tx, invoice.id, access.userId),
+          refreshSupplierInvoiceThreeWayMatch(tx, invoice.id, access.userId).then(
+            async (result) => {
+              await evaluateSupplierInvoiceApControls(tx, result.invoice.id, access.userId);
+              const latestInvoice = await tx.supplierInvoice.findUniqueOrThrow({
+                where: { id: result.invoice.id },
+                include: supplierInvoiceInclude,
+              });
+              return {
+                invoice: latestInvoice,
+                evaluation: result.evaluation,
+              };
+            },
+          ),
         );
         return {
           invoice: refreshed.invoice,

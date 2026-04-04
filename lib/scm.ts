@@ -334,6 +334,13 @@ export const supplierInvoiceInclude = Prisma.validator<Prisma.SupplierInvoiceInc
     },
     orderBy: { paymentDate: "desc" },
   },
+  paymentHoldReleasedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
 });
 
 export const supplierReturnInclude = Prisma.validator<Prisma.SupplierReturnInclude>()({
@@ -640,6 +647,12 @@ export function toSupplierInvoiceLogSnapshot(invoice: {
   otherCharges: Prisma.Decimal;
   total: Prisma.Decimal;
   note: string | null;
+  paymentHoldStatus?: string;
+  paymentHoldReason?: string | null;
+  paymentHoldOverrideNote?: string | null;
+  slaRecommendedCredit?: Prisma.Decimal;
+  slaCreditStatus?: string;
+  slaCreditReason?: string | null;
 }) {
   return {
     invoiceNumber: invoice.invoiceNumber,
@@ -656,6 +669,12 @@ export function toSupplierInvoiceLogSnapshot(invoice: {
     otherCharges: invoice.otherCharges.toString(),
     total: invoice.total.toString(),
     note: invoice.note,
+    paymentHoldStatus: invoice.paymentHoldStatus ?? null,
+    paymentHoldReason: invoice.paymentHoldReason ?? null,
+    paymentHoldOverrideNote: invoice.paymentHoldOverrideNote ?? null,
+    slaRecommendedCredit: invoice.slaRecommendedCredit?.toString() ?? "0",
+    slaCreditStatus: invoice.slaCreditStatus ?? null,
+    slaCreditReason: invoice.slaCreditReason ?? null,
   };
 }
 

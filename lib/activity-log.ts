@@ -134,6 +134,7 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
       "supplier_ledger.read",
       "supplier_invoices.read",
       "supplier_invoices.manage",
+      "supplier_payments.override_hold",
       "scm.access",
     ],
   },

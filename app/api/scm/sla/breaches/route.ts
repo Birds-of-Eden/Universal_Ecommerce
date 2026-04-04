@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import {
+  evaluateSupplierInvoiceApControls,
   runSupplierSlaEvaluation,
   supplierSlaBreachInclude,
 } from "@/lib/supplier-sla";
@@ -311,6 +312,19 @@ export async function PATCH(request: NextRequest) {
       data: updateData,
       include: supplierSlaBreachInclude,
     });
+
+    const affectedInvoices = await prisma.supplierInvoice.findMany({
+      where: {
+        supplierId: updated.supplierId,
+        status: {
+          in: ["POSTED", "PARTIALLY_PAID"],
+        },
+      },
+      select: { id: true },
+    });
+    for (const invoice of affectedInvoices) {
+      await evaluateSupplierInvoiceApControls(prisma, invoice.id, access.userId);
+    }
 
     await logActivity({
       action: "update_action",

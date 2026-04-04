@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -104,6 +105,12 @@ type SupplierLedgerDetail = {
     issueDate: string;
     dueDate: string | null;
     total: number | string;
+    paymentHoldStatus?: "CLEAR" | "HELD" | "OVERRIDDEN";
+    paymentHoldReason?: string | null;
+    paymentHoldOverrideNote?: string | null;
+    slaRecommendedCredit?: number | string;
+    slaCreditStatus?: "NONE" | "RECOMMENDED" | "APPLIED" | "WAIVED";
+    slaCreditReason?: string | null;
     purchaseOrder?: { poNumber: string } | null;
     threeWayMatch?: {
       status: string;
@@ -145,6 +152,7 @@ export default function SupplierLedgerPage() {
 
   const canManageInvoices = globalPermissions.includes("supplier_invoices.manage");
   const canManagePayments = globalPermissions.includes("supplier_payments.manage");
+  const canOverridePaymentHold = globalPermissions.includes("supplier_payments.override_hold");
 
   const [suppliers, setSuppliers] = useState<SupplierSummary[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<SupplierOption[]>([]);
@@ -154,6 +162,7 @@ export default function SupplierLedgerPage() {
   const [loading, setLoading] = useState(true);
   const [savingInvoice, setSavingInvoice] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
+  const [invoiceActionId, setInvoiceActionId] = useState<number | null>(null);
 
   const [invoicePurchaseOrderId, setInvoicePurchaseOrderId] = useState("");
   const [invoiceIssueDate, setInvoiceIssueDate] = useState("");
@@ -170,6 +179,8 @@ export default function SupplierLedgerPage() {
   const [paymentMethod, setPaymentMethod] = useState("BANK_TRANSFER");
   const [paymentReference, setPaymentReference] = useState("");
   const [paymentNote, setPaymentNote] = useState("");
+  const [paymentHoldOverride, setPaymentHoldOverride] = useState(false);
+  const [paymentHoldOverrideNote, setPaymentHoldOverrideNote] = useState("");
 
   const loadBaseData = async () => {
     try {
@@ -332,6 +343,8 @@ export default function SupplierLedgerPage() {
           method: paymentMethod,
           reference: paymentReference,
           note: paymentNote,
+          holdOverride: paymentHoldOverride,
+          holdOverrideNote: paymentHoldOverrideNote,
         }),
       });
       await readJson(response, "Failed to create supplier payment");
@@ -342,11 +355,39 @@ export default function SupplierLedgerPage() {
       setPaymentMethod("BANK_TRANSFER");
       setPaymentReference("");
       setPaymentNote("");
+      setPaymentHoldOverride(false);
+      setPaymentHoldOverrideNote("");
       await Promise.all([loadBaseData(), loadDetail(selectedSupplierId)]);
     } catch (error: any) {
       toast.error(error?.message || "Failed to create supplier payment");
     } finally {
       setSavingPayment(false);
+    }
+  };
+
+  const runInvoiceAction = async (
+    invoiceId: number,
+    action: "reevaluate" | "override_hold" | "clear_override" | "apply_credit" | "waive_credit",
+    note?: string,
+  ) => {
+    if (!selectedSupplierId) return;
+    try {
+      setInvoiceActionId(invoiceId);
+      const response = await fetch(`/api/scm/supplier-invoices/${invoiceId}/hold`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          note: note || null,
+        }),
+      });
+      await readJson(response, "Failed to update invoice AP control");
+      toast.success("Invoice AP control updated");
+      await Promise.all([loadBaseData(), loadDetail(selectedSupplierId)]);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update invoice AP control");
+    } finally {
+      setInvoiceActionId(null);
     }
   };
 
@@ -623,6 +664,9 @@ export default function SupplierLedgerPage() {
                               .map((invoice) => (
                                 <option key={invoice.id} value={invoice.id}>
                                   {invoice.invoiceNumber} • {invoice.status} • {invoice.total}
+                                  {invoice.paymentHoldStatus && invoice.paymentHoldStatus !== "CLEAR"
+                                    ? ` • HOLD:${invoice.paymentHoldStatus}`
+                                    : ""}
                                 </option>
                               ))}
                           </select>
@@ -668,6 +712,33 @@ export default function SupplierLedgerPage() {
                             />
                           </div>
                         </div>
+                        {canOverridePaymentHold ? (
+                          <div className="space-y-2 rounded-md border p-3">
+                            <label className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={paymentHoldOverride}
+                                onChange={(event) =>
+                                  setPaymentHoldOverride(event.target.checked)
+                                }
+                              />
+                              Override invoice payment hold (if selected invoice is HELD)
+                            </label>
+                            {paymentHoldOverride ? (
+                              <div>
+                                <Label>Override Note</Label>
+                                <Textarea
+                                  rows={2}
+                                  value={paymentHoldOverrideNote}
+                                  onChange={(event) =>
+                                    setPaymentHoldOverrideNote(event.target.value)
+                                  }
+                                  placeholder="Write why this hold is being overridden..."
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
                         <div>
                           <Label>Note</Label>
                           <Textarea
@@ -734,7 +805,33 @@ export default function SupplierLedgerPage() {
                     ) : (
                       detail.invoices.map((invoice) => (
                         <div key={invoice.id} className="rounded-lg border p-3">
-                          <div className="font-medium">{invoice.invoiceNumber}</div>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="font-medium">{invoice.invoiceNumber}</div>
+                            <div className="flex gap-1">
+                              <Badge
+                                variant={
+                                  invoice.paymentHoldStatus === "HELD"
+                                    ? "destructive"
+                                    : invoice.paymentHoldStatus === "OVERRIDDEN"
+                                      ? "secondary"
+                                      : "outline"
+                                }
+                              >
+                                Hold: {invoice.paymentHoldStatus || "CLEAR"}
+                              </Badge>
+                              <Badge
+                                variant={
+                                  invoice.slaCreditStatus === "RECOMMENDED"
+                                    ? "secondary"
+                                    : invoice.slaCreditStatus === "APPLIED"
+                                      ? "default"
+                                      : "outline"
+                                }
+                              >
+                                Credit: {invoice.slaCreditStatus || "NONE"}
+                              </Badge>
+                            </div>
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {invoice.status} • {Number(invoice.total).toFixed(2)}
                           </div>
@@ -747,6 +844,91 @@ export default function SupplierLedgerPage() {
                           <div className="text-xs text-muted-foreground">
                             {invoice.purchaseOrder?.poNumber || "Direct supplier invoice"}
                           </div>
+                          {invoice.paymentHoldReason ? (
+                            <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                              {invoice.paymentHoldReason}
+                            </div>
+                          ) : null}
+                          {invoice.paymentHoldOverrideNote ? (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              Override note: {invoice.paymentHoldOverrideNote}
+                            </div>
+                          ) : null}
+                          {invoice.slaCreditStatus === "RECOMMENDED" ? (
+                            <div className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+                              Suggested credit: {Number(invoice.slaRecommendedCredit || 0).toFixed(2)}
+                              {invoice.slaCreditReason ? ` • ${invoice.slaCreditReason}` : ""}
+                            </div>
+                          ) : null}
+                          {(canManageInvoices || canOverridePaymentHold) ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {canManageInvoices ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={invoiceActionId === invoice.id}
+                                  onClick={() => void runInvoiceAction(invoice.id, "reevaluate")}
+                                >
+                                  Re-evaluate
+                                </Button>
+                              ) : null}
+                              {canOverridePaymentHold && invoice.paymentHoldStatus === "HELD" ? (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  disabled={invoiceActionId === invoice.id}
+                                  onClick={() =>
+                                    void runInvoiceAction(
+                                      invoice.id,
+                                      "override_hold",
+                                      "AP emergency release approved by authorized user.",
+                                    )
+                                  }
+                                >
+                                  Override Hold
+                                </Button>
+                              ) : null}
+                              {canOverridePaymentHold && invoice.paymentHoldStatus === "OVERRIDDEN" ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={invoiceActionId === invoice.id}
+                                  onClick={() =>
+                                    void runInvoiceAction(invoice.id, "clear_override")
+                                  }
+                                >
+                                  Clear Override
+                                </Button>
+                              ) : null}
+                              {canManageInvoices && invoice.slaCreditStatus === "RECOMMENDED" ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    disabled={invoiceActionId === invoice.id}
+                                    onClick={() =>
+                                      void runInvoiceAction(invoice.id, "apply_credit")
+                                    }
+                                  >
+                                    Apply SLA Credit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={invoiceActionId === invoice.id}
+                                    onClick={() =>
+                                      void runInvoiceAction(
+                                        invoice.id,
+                                        "waive_credit",
+                                        "Waived by AP manager after governance review.",
+                                      )
+                                    }
+                                  >
+                                    Waive Credit
+                                  </Button>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       ))
                     )}

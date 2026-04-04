@@ -12,6 +12,7 @@ import {
   toDecimalAmount,
   toSupplierInvoiceLogSnapshot,
 } from "@/lib/scm";
+import { evaluateSupplierInvoiceApControls } from "@/lib/supplier-sla";
 
 function toCleanText(value: unknown, max = 255) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -325,7 +326,12 @@ export async function POST(request: NextRequest) {
         access.userId,
       );
 
-      return matched.invoice;
+      await evaluateSupplierInvoiceApControls(tx, matched.invoice.id, access.userId);
+
+      return tx.supplierInvoice.findUniqueOrThrow({
+        where: { id: matched.invoice.id },
+        include: supplierInvoiceInclude,
+      });
     });
 
     await logActivity({

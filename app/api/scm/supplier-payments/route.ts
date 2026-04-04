@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -10,6 +11,7 @@ import {
   toDecimalAmount,
   toSupplierPaymentLogSnapshot,
 } from "@/lib/scm";
+import { evaluateSupplierInvoiceApControls } from "@/lib/supplier-sla";
 
 function toCleanText(value: unknown, max = 255) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -77,6 +79,8 @@ export async function POST(request: NextRequest) {
       method?: unknown;
       reference?: unknown;
       note?: unknown;
+      holdOverride?: unknown;
+      holdOverrideNote?: unknown;
     };
 
     const supplierId = Number(body.supplierId);
@@ -102,6 +106,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Payment amount must be greater than 0." }, { status: 400 });
     }
 
+    const holdOverrideRequested = body.holdOverride === true;
+    const holdOverrideNote = toCleanText(body.holdOverrideNote, 500);
+
     const [supplier, invoice] = await Promise.all([
       prisma.supplier.findUnique({
         where: { id: supplierId },
@@ -113,6 +120,21 @@ export async function POST(request: NextRequest) {
             include: {
               payments: {
                 select: { amount: true },
+              },
+              ledgerEntries: {
+                where: {
+                  entryType: "ADJUSTMENT",
+                  direction: "CREDIT",
+                },
+                select: {
+                  amount: true,
+                },
+              },
+              purchaseOrder: {
+                select: {
+                  id: true,
+                  poNumber: true,
+                },
               },
             },
           })
@@ -132,18 +154,113 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (invoice) {
-      const paidSoFar = invoice.payments.reduce((sum, item) => sum.plus(item.amount), amount.sub(amount));
-      const outstanding = invoice.total.minus(paidSoFar);
-      if (amount.gt(outstanding)) {
-        return NextResponse.json(
-          { error: "Payment exceeds the invoice outstanding amount." },
-          { status: 400 },
-        );
-      }
-    }
-
     const created = await prisma.$transaction(async (tx) => {
+      if (invoice && supplierInvoiceId) {
+        const reEvaluatedInvoice = await evaluateSupplierInvoiceApControls(
+          tx,
+          supplierInvoiceId,
+          access.userId,
+        );
+
+        if (reEvaluatedInvoice.paymentHoldStatus === "HELD") {
+          if (!holdOverrideRequested) {
+            throw new Error(
+              reEvaluatedInvoice.paymentHoldReason ||
+                "Payment is blocked by SLA/AP hold policy. Use an override note if policy allows.",
+            );
+          }
+          if (!access.hasGlobal("supplier_payments.override_hold")) {
+            throw new Error(
+              "You do not have permission to override held supplier invoice payments.",
+            );
+          }
+          if (holdOverrideNote.trim().length < 3) {
+            throw new Error(
+              "Hold override note (minimum 3 characters) is required.",
+            );
+          }
+
+          const activePolicy = await tx.supplierSlaPolicy.findFirst({
+            where: {
+              supplierId,
+              isActive: true,
+            },
+            orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+            include: {
+              financialRule: {
+                select: {
+                  allowPaymentHoldOverride: true,
+                },
+              },
+            },
+          });
+          if (
+            activePolicy?.financialRule &&
+            !activePolicy.financialRule.allowPaymentHoldOverride
+          ) {
+            throw new Error(
+              "Payment hold override is disabled by current supplier SLA financial rule.",
+            );
+          }
+
+          await tx.supplierInvoice.update({
+            where: { id: supplierInvoiceId },
+            data: {
+              paymentHoldStatus: "OVERRIDDEN",
+              paymentHoldReleasedAt: new Date(),
+              paymentHoldReleasedById: access.userId,
+              paymentHoldOverrideNote: holdOverrideNote,
+            },
+          });
+        }
+
+        const latestInvoiceBalance = await tx.supplierInvoice.findUnique({
+          where: { id: supplierInvoiceId },
+          select: {
+            status: true,
+            total: true,
+            payments: {
+              select: {
+                amount: true,
+              },
+            },
+            ledgerEntries: {
+              where: {
+                entryType: "ADJUSTMENT",
+                direction: "CREDIT",
+              },
+              select: {
+                amount: true,
+              },
+            },
+          },
+        });
+        if (!latestInvoiceBalance) {
+          throw new Error("Supplier invoice not found.");
+        }
+        if (latestInvoiceBalance.status === "CANCELLED") {
+          throw new Error("Cannot post payment against a cancelled supplier invoice.");
+        }
+        if (latestInvoiceBalance.status === "PAID") {
+          throw new Error("Supplier invoice is already fully settled.");
+        }
+
+        const paidSoFar = latestInvoiceBalance.payments.reduce(
+          (sum, item) => sum.plus(item.amount),
+          new Prisma.Decimal(0),
+        );
+        const adjustmentCredit = latestInvoiceBalance.ledgerEntries.reduce(
+          (sum, entry) => sum.plus(entry.amount),
+          new Prisma.Decimal(0),
+        );
+        const outstanding = latestInvoiceBalance.total
+          .minus(paidSoFar)
+          .minus(adjustmentCredit);
+        if (amount.gt(outstanding)) {
+          throw new Error("Payment exceeds the invoice outstanding amount.");
+        }
+      }
+
       const paymentNumber = await generateSupplierPaymentNumber(tx);
       const payment = await tx.supplierPayment.create({
         data: {
@@ -190,11 +307,12 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       access,
       request,
-      metadata: {
-        message: `Created supplier payment ${created.paymentNumber}`,
-      },
-      after: toSupplierPaymentLogSnapshot(created),
-    });
+          metadata: {
+            message: `Created supplier payment ${created.paymentNumber}`,
+            holdOverrideUsed: holdOverrideRequested,
+          },
+          after: toSupplierPaymentLogSnapshot(created),
+        });
 
     return NextResponse.json(created, { status: 201 });
   } catch (error: any) {

@@ -78,6 +78,17 @@ export async function POST(request: NextRequest) {
       autoEvaluationEnabled?: unknown;
       warningActionDueDays?: unknown;
       breachActionDueDays?: unknown;
+      financialRuleActive?: unknown;
+      holdPaymentsOnThreeWayVariance?: unknown;
+      holdPaymentsOnOpenSlaAction?: unknown;
+      allowPaymentHoldOverride?: unknown;
+      autoCreditRecommendationEnabled?: unknown;
+      warningPenaltyRatePercent?: unknown;
+      breachPenaltyRatePercent?: unknown;
+      criticalPenaltyRatePercent?: unknown;
+      minBreachCountForCredit?: unknown;
+      maxCreditCapAmount?: unknown;
+      financialRuleNote?: unknown;
       note?: unknown;
     };
 
@@ -100,6 +111,7 @@ export async function POST(request: NextRequest) {
     const maxOpenLatePoCount = Number(body.maxOpenLatePoCount ?? 0);
     const warningActionDueDays = Number(body.warningActionDueDays ?? 7);
     const breachActionDueDays = Number(body.breachActionDueDays ?? 3);
+    const minBreachCountForCredit = Number(body.minBreachCountForCredit ?? 1);
 
     if (!Number.isInteger(evaluationWindowDays) || evaluationWindowDays < 7 || evaluationWindowDays > 730) {
       return NextResponse.json(
@@ -137,11 +149,39 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (!Number.isInteger(minBreachCountForCredit) || minBreachCountForCredit < 1 || minBreachCountForCredit > 20) {
+      return NextResponse.json(
+        { error: "Minimum breach count for credit must be between 1 and 20." },
+        { status: 400 },
+      );
+    }
 
     const minimumOnTimeRate = toDecimalAmount(body.minimumOnTimeRate ?? 90, "Minimum on-time rate");
     const minimumFillRate = toDecimalAmount(body.minimumFillRate ?? 95, "Minimum fill rate");
+    const warningPenaltyRatePercent = toDecimalAmount(
+      body.warningPenaltyRatePercent ?? 0,
+      "Warning penalty rate",
+    );
+    const breachPenaltyRatePercent = toDecimalAmount(
+      body.breachPenaltyRatePercent ?? 2,
+      "Breach penalty rate",
+    );
+    const criticalPenaltyRatePercent = toDecimalAmount(
+      body.criticalPenaltyRatePercent ?? 5,
+      "Critical penalty rate",
+    );
+    const maxCreditCapAmount =
+      body.maxCreditCapAmount === null || body.maxCreditCapAmount === undefined || body.maxCreditCapAmount === ""
+        ? null
+        : toDecimalAmount(body.maxCreditCapAmount, "Max credit cap amount");
 
-    if (minimumOnTimeRate.gt(100) || minimumFillRate.gt(100)) {
+    if (
+      minimumOnTimeRate.gt(100) ||
+      minimumFillRate.gt(100) ||
+      warningPenaltyRatePercent.gt(100) ||
+      breachPenaltyRatePercent.gt(100) ||
+      criticalPenaltyRatePercent.gt(100)
+    ) {
       return NextResponse.json(
         { error: "SLA percentage thresholds cannot exceed 100." },
         { status: 400 },
@@ -184,6 +224,26 @@ export async function POST(request: NextRequest) {
         autoEvaluationEnabled: body.autoEvaluationEnabled !== false,
         warningActionDueDays,
         breachActionDueDays,
+        financialRule: {
+          create: {
+            isActive: body.financialRuleActive !== false,
+            holdPaymentsOnThreeWayVariance: body.holdPaymentsOnThreeWayVariance !== false,
+            holdPaymentsOnOpenSlaAction: body.holdPaymentsOnOpenSlaAction !== false,
+            allowPaymentHoldOverride: body.allowPaymentHoldOverride !== false,
+            autoCreditRecommendationEnabled: body.autoCreditRecommendationEnabled !== false,
+            warningPenaltyRatePercent,
+            breachPenaltyRatePercent,
+            criticalPenaltyRatePercent,
+            minBreachCountForCredit,
+            maxCreditCapAmount,
+            note:
+              typeof body.financialRuleNote === "string" && body.financialRuleNote.trim().length > 0
+                ? body.financialRuleNote.trim().slice(0, 500)
+                : null,
+            createdById: access.userId,
+            updatedById: access.userId,
+          },
+        },
         note:
           typeof body.note === "string" && body.note.trim().length > 0
             ? body.note.trim().slice(0, 500)
@@ -204,6 +264,45 @@ export async function POST(request: NextRequest) {
         autoEvaluationEnabled: body.autoEvaluationEnabled !== false,
         warningActionDueDays,
         breachActionDueDays,
+        financialRule: {
+          upsert: {
+            create: {
+              isActive: body.financialRuleActive !== false,
+              holdPaymentsOnThreeWayVariance: body.holdPaymentsOnThreeWayVariance !== false,
+              holdPaymentsOnOpenSlaAction: body.holdPaymentsOnOpenSlaAction !== false,
+              allowPaymentHoldOverride: body.allowPaymentHoldOverride !== false,
+              autoCreditRecommendationEnabled: body.autoCreditRecommendationEnabled !== false,
+              warningPenaltyRatePercent,
+              breachPenaltyRatePercent,
+              criticalPenaltyRatePercent,
+              minBreachCountForCredit,
+              maxCreditCapAmount,
+              note:
+                typeof body.financialRuleNote === "string" && body.financialRuleNote.trim().length > 0
+                  ? body.financialRuleNote.trim().slice(0, 500)
+                  : null,
+              createdById: access.userId,
+              updatedById: access.userId,
+            },
+            update: {
+              isActive: body.financialRuleActive !== false,
+              holdPaymentsOnThreeWayVariance: body.holdPaymentsOnThreeWayVariance !== false,
+              holdPaymentsOnOpenSlaAction: body.holdPaymentsOnOpenSlaAction !== false,
+              allowPaymentHoldOverride: body.allowPaymentHoldOverride !== false,
+              autoCreditRecommendationEnabled: body.autoCreditRecommendationEnabled !== false,
+              warningPenaltyRatePercent,
+              breachPenaltyRatePercent,
+              criticalPenaltyRatePercent,
+              minBreachCountForCredit,
+              maxCreditCapAmount,
+              note:
+                typeof body.financialRuleNote === "string" && body.financialRuleNote.trim().length > 0
+                  ? body.financialRuleNote.trim().slice(0, 500)
+                  : null,
+              updatedById: access.userId,
+            },
+          },
+        },
         note:
           typeof body.note === "string" && body.note.trim().length > 0
             ? body.note.trim().slice(0, 500)

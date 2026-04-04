@@ -57,6 +57,7 @@ model User {
   supplierReturnsClosed         SupplierReturn[]        @relation("SupplierReturnsClosed")
   supplierInvoicesCreated       SupplierInvoice[]       @relation("SupplierInvoicesCreated")
   supplierInvoicesMatched       SupplierInvoice[]       @relation("SupplierInvoicesMatched")
+  supplierInvoicePaymentHoldsReleased SupplierInvoice[] @relation("SupplierInvoicePaymentHoldsReleased")
   supplierPaymentsCreated       SupplierPayment[]       @relation("SupplierPaymentsCreated")
   supplierLedgerEntriesCreated  SupplierLedgerEntry[]   @relation("SupplierLedgerEntriesCreated")
   warehouseTransfersCreated     WarehouseTransfer[]     @relation("WarehouseTransfersCreated")
@@ -70,6 +71,8 @@ model User {
   supplierSlaBreachesEvaluated  SupplierSlaBreach[]     @relation("SupplierSlaBreachesEvaluated")
   supplierSlaBreachesOwned      SupplierSlaBreach[]     @relation("SupplierSlaBreachesOwned")
   supplierSlaBreachesResolved   SupplierSlaBreach[]     @relation("SupplierSlaBreachesResolved")
+  supplierSlaFinancialRulesCreated SupplierSlaFinancialRule[] @relation("SupplierSlaFinancialRulesCreated")
+  supplierSlaFinancialRulesUpdated SupplierSlaFinancialRule[] @relation("SupplierSlaFinancialRulesUpdated")
   wishlist                      Wishlist[]
   analyticsEvents               AnalyticsEvent[]
   deliveryManProfile            DeliveryManProfile?
@@ -1242,10 +1245,21 @@ model SupplierInvoice {
   otherCharges    Decimal               @default(0) @db.Decimal(12, 2)
   total           Decimal               @default(0) @db.Decimal(12, 2)
   note            String?
+  paymentHoldStatus       SupplierInvoicePaymentHoldStatus @default(CLEAR)
+  paymentHoldReason       String?
+  paymentHoldAt           DateTime?
+  paymentHoldReleasedAt   DateTime?
+  paymentHoldReleasedById String?
+  paymentHoldOverrideNote String?
+  slaRecommendedCredit    Decimal                          @default(0) @db.Decimal(12, 2)
+  slaCreditStatus         SupplierInvoiceSlaCreditStatus   @default(NONE)
+  slaCreditReason         String?
+  slaCreditUpdatedAt      DateTime?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   createdBy       User?                 @relation("SupplierInvoicesCreated", fields: [createdById], references: [id], onDelete: SetNull)
   matchedBy       User?                 @relation("SupplierInvoicesMatched", fields: [matchedById], references: [id], onDelete: SetNull)
+  paymentHoldReleasedBy User?           @relation("SupplierInvoicePaymentHoldsReleased", fields: [paymentHoldReleasedById], references: [id], onDelete: SetNull)
   purchaseOrder   PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   supplier        Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   items           SupplierInvoiceItem[]
@@ -1258,8 +1272,11 @@ model SupplierInvoice {
   @@index([createdById])
   @@index([matchedById])
   @@index([matchStatus])
+  @@index([paymentHoldStatus])
+  @@index([slaCreditStatus])
   @@index([issueDate])
   @@index([dueDate])
+  @@index([paymentHoldReleasedById])
 }
 
 model SupplierInvoiceItem {
@@ -1460,9 +1477,37 @@ model SupplierSlaPolicy {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   breaches           SupplierSlaBreach[]
+  financialRule      SupplierSlaFinancialRule?
   createdBy          User?     @relation("SupplierSlaPoliciesCreated", fields: [createdById], references: [id], onDelete: SetNull)
   supplier           Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   updatedBy          User?     @relation("SupplierSlaPoliciesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([isActive])
+  @@index([createdById])
+  @@index([updatedById])
+}
+
+model SupplierSlaFinancialRule {
+  id                             Int      @id @default(autoincrement())
+  supplierSlaPolicyId            Int      @unique
+  isActive                       Boolean  @default(true)
+  holdPaymentsOnThreeWayVariance Boolean  @default(true)
+  holdPaymentsOnOpenSlaAction    Boolean  @default(true)
+  allowPaymentHoldOverride       Boolean  @default(true)
+  autoCreditRecommendationEnabled Boolean @default(true)
+  warningPenaltyRatePercent      Decimal  @default(0) @db.Decimal(5, 2)
+  breachPenaltyRatePercent       Decimal  @default(2) @db.Decimal(5, 2)
+  criticalPenaltyRatePercent     Decimal  @default(5) @db.Decimal(5, 2)
+  minBreachCountForCredit        Int      @default(1)
+  maxCreditCapAmount             Decimal? @db.Decimal(12, 2)
+  note                           String?
+  createdById                    String?
+  updatedById                    String?
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @updatedAt
+  createdBy                      User?    @relation("SupplierSlaFinancialRulesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  policy                         SupplierSlaPolicy @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
+  updatedBy                      User?    @relation("SupplierSlaFinancialRulesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([isActive])
   @@index([createdById])
@@ -2212,6 +2257,19 @@ enum SupplierInvoiceStatus {
   PARTIALLY_PAID
   PAID
   CANCELLED
+}
+
+enum SupplierInvoicePaymentHoldStatus {
+  CLEAR
+  HELD
+  OVERRIDDEN
+}
+
+enum SupplierInvoiceSlaCreditStatus {
+  NONE
+  RECOMMENDED
+  APPLIED
+  WAIVED
 }
 
 enum SupplierPaymentMethod {

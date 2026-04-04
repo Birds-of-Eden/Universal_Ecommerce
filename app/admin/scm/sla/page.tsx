@@ -41,6 +41,20 @@ type SlaPolicy = {
   warningActionDueDays: number;
   breachActionDueDays: number;
   note: string | null;
+  financialRule: {
+    id: number;
+    isActive: boolean;
+    holdPaymentsOnThreeWayVariance: boolean;
+    holdPaymentsOnOpenSlaAction: boolean;
+    allowPaymentHoldOverride: boolean;
+    autoCreditRecommendationEnabled: boolean;
+    warningPenaltyRatePercent: number | string;
+    breachPenaltyRatePercent: number | string;
+    criticalPenaltyRatePercent: number | string;
+    minBreachCountForCredit: number;
+    maxCreditCapAmount: number | string | null;
+    note: string | null;
+  } | null;
   supplier: {
     id: number;
     name: string;
@@ -140,6 +154,17 @@ type SlaFormState = {
   autoEvaluationEnabled: boolean;
   warningActionDueDays: string;
   breachActionDueDays: string;
+  financialRuleActive: boolean;
+  holdPaymentsOnThreeWayVariance: boolean;
+  holdPaymentsOnOpenSlaAction: boolean;
+  allowPaymentHoldOverride: boolean;
+  autoCreditRecommendationEnabled: boolean;
+  warningPenaltyRatePercent: string;
+  breachPenaltyRatePercent: string;
+  criticalPenaltyRatePercent: string;
+  minBreachCountForCredit: string;
+  maxCreditCapAmount: string;
+  financialRuleNote: string;
   note: string;
 };
 
@@ -165,6 +190,17 @@ const DEFAULT_FORM: SlaFormState = {
   autoEvaluationEnabled: true,
   warningActionDueDays: "7",
   breachActionDueDays: "3",
+  financialRuleActive: true,
+  holdPaymentsOnThreeWayVariance: true,
+  holdPaymentsOnOpenSlaAction: true,
+  allowPaymentHoldOverride: true,
+  autoCreditRecommendationEnabled: true,
+  warningPenaltyRatePercent: "0",
+  breachPenaltyRatePercent: "2",
+  criticalPenaltyRatePercent: "5",
+  minBreachCountForCredit: "1",
+  maxCreditCapAmount: "",
+  financialRuleNote: "",
   note: "",
 };
 
@@ -351,6 +387,17 @@ export default function SupplierSlaPage() {
           autoEvaluationEnabled: form.autoEvaluationEnabled,
           warningActionDueDays: Number(form.warningActionDueDays),
           breachActionDueDays: Number(form.breachActionDueDays),
+          financialRuleActive: form.financialRuleActive,
+          holdPaymentsOnThreeWayVariance: form.holdPaymentsOnThreeWayVariance,
+          holdPaymentsOnOpenSlaAction: form.holdPaymentsOnOpenSlaAction,
+          allowPaymentHoldOverride: form.allowPaymentHoldOverride,
+          autoCreditRecommendationEnabled: form.autoCreditRecommendationEnabled,
+          warningPenaltyRatePercent: Number(form.warningPenaltyRatePercent),
+          breachPenaltyRatePercent: Number(form.breachPenaltyRatePercent),
+          criticalPenaltyRatePercent: Number(form.criticalPenaltyRatePercent),
+          minBreachCountForCredit: Number(form.minBreachCountForCredit),
+          maxCreditCapAmount: form.maxCreditCapAmount ? Number(form.maxCreditCapAmount) : null,
+          financialRuleNote: form.financialRuleNote || null,
           note: form.note || null,
         }),
       });
@@ -454,6 +501,33 @@ export default function SupplierSlaPage() {
       autoEvaluationEnabled: policy.autoEvaluationEnabled,
       warningActionDueDays: String(policy.warningActionDueDays),
       breachActionDueDays: String(policy.breachActionDueDays),
+      financialRuleActive: policy.financialRule?.isActive ?? true,
+      holdPaymentsOnThreeWayVariance:
+        policy.financialRule?.holdPaymentsOnThreeWayVariance ?? true,
+      holdPaymentsOnOpenSlaAction:
+        policy.financialRule?.holdPaymentsOnOpenSlaAction ?? true,
+      allowPaymentHoldOverride:
+        policy.financialRule?.allowPaymentHoldOverride ?? true,
+      autoCreditRecommendationEnabled:
+        policy.financialRule?.autoCreditRecommendationEnabled ?? true,
+      warningPenaltyRatePercent: String(
+        policy.financialRule?.warningPenaltyRatePercent ?? 0,
+      ),
+      breachPenaltyRatePercent: String(
+        policy.financialRule?.breachPenaltyRatePercent ?? 2,
+      ),
+      criticalPenaltyRatePercent: String(
+        policy.financialRule?.criticalPenaltyRatePercent ?? 5,
+      ),
+      minBreachCountForCredit: String(
+        policy.financialRule?.minBreachCountForCredit ?? 1,
+      ),
+      maxCreditCapAmount:
+        policy.financialRule?.maxCreditCapAmount === null ||
+        policy.financialRule?.maxCreditCapAmount === undefined
+          ? ""
+          : String(policy.financialRule.maxCreditCapAmount),
+      financialRuleNote: policy.financialRule?.note || "",
       note: policy.note || "",
     });
   };
@@ -670,6 +744,170 @@ export default function SupplierSlaPage() {
                 value={form.note}
                 onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
               />
+            </div>
+            <div className="space-y-3 rounded-md border p-4">
+              <div>
+                <Label>AP Financial Controls</Label>
+                <p className="text-xs text-muted-foreground">
+                  Configure payment hold policy and SLA credit recommendation rates.
+                </p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.financialRuleActive}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        financialRuleActive: event.target.checked,
+                      }))
+                    }
+                  />
+                  Financial Rule Active
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.holdPaymentsOnThreeWayVariance}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        holdPaymentsOnThreeWayVariance: event.target.checked,
+                      }))
+                    }
+                  />
+                  Hold on 3-way variance
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.holdPaymentsOnOpenSlaAction}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        holdPaymentsOnOpenSlaAction: event.target.checked,
+                      }))
+                    }
+                  />
+                  Hold on open SLA action
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.allowPaymentHoldOverride}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        allowPaymentHoldOverride: event.target.checked,
+                      }))
+                    }
+                  />
+                  Allow AP override
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.autoCreditRecommendationEnabled}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        autoCreditRecommendationEnabled: event.target.checked,
+                      }))
+                    }
+                  />
+                  Auto credit recommendation
+                </label>
+                <div className="space-y-1">
+                  <Label>Warning Penalty %</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={form.warningPenaltyRatePercent}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        warningPenaltyRatePercent: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Breach Penalty %</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={form.breachPenaltyRatePercent}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        breachPenaltyRatePercent: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Critical Penalty %</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step="0.01"
+                    value={form.criticalPenaltyRatePercent}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        criticalPenaltyRatePercent: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Min Breach Count</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={form.minBreachCountForCredit}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        minBreachCountForCredit: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Max Credit Cap</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={form.maxCreditCapAmount}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        maxCreditCapAmount: event.target.value,
+                      }))
+                    }
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Financial Rule Note</Label>
+                <Textarea
+                  rows={2}
+                  value={form.financialRuleNote}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, financialRuleNote: event.target.value }))
+                  }
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <Button onClick={() => void submitPolicy()} disabled={saving}>

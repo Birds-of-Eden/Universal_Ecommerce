@@ -403,8 +403,14 @@ const apiPermissionRules: PermissionRule[] = [
   },
   {
     prefix: "/api/scm/supplier-invoices",
-    methods: ["POST", "PATCH", "PUT"],
+    methods: ["POST"],
     permissions: ["supplier_invoices.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/supplier-invoices",
+    methods: ["PATCH", "PUT"],
+    permissions: ["supplier_invoices.manage", "supplier_payments.override_hold"],
     globalOnly: true,
   },
   {

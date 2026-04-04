@@ -9,6 +9,9 @@ import {
 } from "@/lib/supplier-intelligence";
 
 const ACTIVE_ACTION_STATUSES: Prisma.SupplierSlaActionStatus[] = ["OPEN", "IN_PROGRESS"];
+const ACTIVE_BREACH_STATUSES: Prisma.SupplierSlaEvaluationStatus[] = ["WARNING", "BREACH"];
+
+type DbClient = Prisma.TransactionClient | typeof prisma;
 
 function roundToTwo(value: number | null) {
   if (value === null || Number.isNaN(value)) return null;
@@ -24,6 +27,11 @@ function addDays(baseDate: Date, days: number) {
 function clampDueDays(value: number, fallback: number) {
   if (!Number.isInteger(value)) return fallback;
   return Math.min(60, Math.max(1, value));
+}
+
+function clampPercent(value: number | null | undefined, fallback: number) {
+  if (value === null || value === undefined || Number.isNaN(value)) return fallback;
+  return Math.min(100, Math.max(0, value));
 }
 
 function toDate(daysAgo: number) {
@@ -55,6 +63,24 @@ export const supplierSlaPolicyInclude = Prisma.validator<Prisma.SupplierSlaPolic
       id: true,
       name: true,
       email: true,
+    },
+  },
+  financialRule: {
+    select: {
+      id: true,
+      isActive: true,
+      holdPaymentsOnThreeWayVariance: true,
+      holdPaymentsOnOpenSlaAction: true,
+      allowPaymentHoldOverride: true,
+      autoCreditRecommendationEnabled: true,
+      warningPenaltyRatePercent: true,
+      breachPenaltyRatePercent: true,
+      criticalPenaltyRatePercent: true,
+      minBreachCountForCredit: true,
+      maxCreditCapAmount: true,
+      note: true,
+      createdAt: true,
+      updatedAt: true,
     },
   },
   breaches: {
@@ -118,6 +144,21 @@ export const supplierSlaBreachInclude = Prisma.validator<Prisma.SupplierSlaBreac
       autoEvaluationEnabled: true,
       warningActionDueDays: true,
       breachActionDueDays: true,
+      financialRule: {
+        select: {
+          id: true,
+          isActive: true,
+          holdPaymentsOnThreeWayVariance: true,
+          holdPaymentsOnOpenSlaAction: true,
+          allowPaymentHoldOverride: true,
+          autoCreditRecommendationEnabled: true,
+          warningPenaltyRatePercent: true,
+          breachPenaltyRatePercent: true,
+          criticalPenaltyRatePercent: true,
+          minBreachCountForCredit: true,
+          maxCreditCapAmount: true,
+        },
+      },
       isActive: true,
     },
   },
@@ -260,6 +301,277 @@ function buildAlertMessage(
   if (status === "OK") return null;
   const topIssue = issues[0] ?? "SLA threshold exceeded.";
   return `[${severity}] ${supplierName} SLA ${status}: ${topIssue}`.slice(0, 500);
+}
+
+type SupplierSlaFinancialRuleSnapshot = {
+  isActive: boolean;
+  holdPaymentsOnThreeWayVariance: boolean;
+  holdPaymentsOnOpenSlaAction: boolean;
+  allowPaymentHoldOverride: boolean;
+  autoCreditRecommendationEnabled: boolean;
+  warningPenaltyRatePercent: Prisma.Decimal;
+  breachPenaltyRatePercent: Prisma.Decimal;
+  criticalPenaltyRatePercent: Prisma.Decimal;
+  minBreachCountForCredit: number;
+  maxCreditCapAmount: Prisma.Decimal | null;
+};
+
+function getDefaultFinancialRuleSnapshot(): SupplierSlaFinancialRuleSnapshot {
+  return {
+    isActive: true,
+    holdPaymentsOnThreeWayVariance: true,
+    holdPaymentsOnOpenSlaAction: true,
+    allowPaymentHoldOverride: true,
+    autoCreditRecommendationEnabled: true,
+    warningPenaltyRatePercent: new Prisma.Decimal(0),
+    breachPenaltyRatePercent: new Prisma.Decimal(2),
+    criticalPenaltyRatePercent: new Prisma.Decimal(5),
+    minBreachCountForCredit: 1,
+    maxCreditCapAmount: null,
+  };
+}
+
+async function getSupplierSlaFinancialContext(
+  tx: DbClient,
+  supplierId: number,
+) {
+  const [policy, latestOpenBreach] = await Promise.all([
+    tx.supplierSlaPolicy.findFirst({
+      where: {
+        supplierId,
+        isActive: true,
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      include: {
+        financialRule: true,
+      },
+    }),
+    tx.supplierSlaBreach.findFirst({
+      where: {
+        supplierId,
+        status: { in: ACTIVE_BREACH_STATUSES },
+        actionStatus: { in: ACTIVE_ACTION_STATUSES },
+      },
+      orderBy: [{ evaluationDate: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        status: true,
+        severity: true,
+        breachCount: true,
+        issues: true,
+        evaluationDate: true,
+      },
+    }),
+  ]);
+
+  const rule = policy?.financialRule;
+  const effectiveRule: SupplierSlaFinancialRuleSnapshot = rule
+    ? {
+        isActive: rule.isActive,
+        holdPaymentsOnThreeWayVariance: rule.holdPaymentsOnThreeWayVariance,
+        holdPaymentsOnOpenSlaAction: rule.holdPaymentsOnOpenSlaAction,
+        allowPaymentHoldOverride: rule.allowPaymentHoldOverride,
+        autoCreditRecommendationEnabled: rule.autoCreditRecommendationEnabled,
+        warningPenaltyRatePercent: rule.warningPenaltyRatePercent,
+        breachPenaltyRatePercent: rule.breachPenaltyRatePercent,
+        criticalPenaltyRatePercent: rule.criticalPenaltyRatePercent,
+        minBreachCountForCredit: Math.max(1, rule.minBreachCountForCredit),
+        maxCreditCapAmount: rule.maxCreditCapAmount,
+      }
+    : getDefaultFinancialRuleSnapshot();
+
+  return {
+    policyId: policy?.id ?? null,
+    financialRuleId: rule?.id ?? null,
+    effectiveRule,
+    latestOpenBreach,
+  };
+}
+
+function getSeverityPenaltyRate(
+  rule: SupplierSlaFinancialRuleSnapshot,
+  status: Prisma.SupplierSlaEvaluationStatus,
+  severity: Prisma.SupplierSlaSeverity,
+) {
+  if (status === "WARNING") {
+    return clampPercent(Number(rule.warningPenaltyRatePercent), 0);
+  }
+  if (severity === "CRITICAL") {
+    return clampPercent(Number(rule.criticalPenaltyRatePercent), 0);
+  }
+  return clampPercent(Number(rule.breachPenaltyRatePercent), 0);
+}
+
+type SupplierInvoiceApDecision = {
+  holdStatus: Prisma.SupplierInvoicePaymentHoldStatus;
+  holdReason: string | null;
+  recommendedCreditAmount: Prisma.Decimal;
+  creditStatus: Prisma.SupplierInvoiceSlaCreditStatus;
+  creditReason: string | null;
+  shouldUpdateHoldAt: boolean;
+  shouldUpdateReleasedAt: boolean;
+  shouldClearOverrideNote: boolean;
+};
+
+function decideInvoiceApControls(input: {
+  invoice: {
+    total: Prisma.Decimal;
+    matchStatus: Prisma.ThreeWayMatchStatus;
+    paymentHoldStatus: Prisma.SupplierInvoicePaymentHoldStatus;
+    paymentHoldAt: Date | null;
+    paymentHoldReleasedAt: Date | null;
+    paymentHoldOverrideNote: string | null;
+    slaCreditStatus: Prisma.SupplierInvoiceSlaCreditStatus;
+    slaRecommendedCredit: Prisma.Decimal;
+  };
+  rule: SupplierSlaFinancialRuleSnapshot;
+  latestOpenBreach: {
+    id: number;
+    status: Prisma.SupplierSlaEvaluationStatus;
+    severity: Prisma.SupplierSlaSeverity;
+    breachCount: number;
+    issues: Prisma.JsonValue | null;
+  } | null;
+}): SupplierInvoiceApDecision {
+  const { invoice, rule, latestOpenBreach } = input;
+  const holdReasons: string[] = [];
+
+  if (rule.isActive && rule.holdPaymentsOnThreeWayVariance && invoice.matchStatus !== "MATCHED") {
+    holdReasons.push("Payment held because invoice is not MATCHED in 3-way match.");
+  }
+  if (rule.isActive && rule.holdPaymentsOnOpenSlaAction && latestOpenBreach) {
+    holdReasons.push(
+      `Payment held due to open supplier SLA action (breach id ${latestOpenBreach.id}).`,
+    );
+  }
+
+  const hasHoldReasons = holdReasons.length > 0;
+  let holdStatus: Prisma.SupplierInvoicePaymentHoldStatus = invoice.paymentHoldStatus;
+  if (!hasHoldReasons) {
+    holdStatus = "CLEAR";
+  } else if (invoice.paymentHoldStatus === "OVERRIDDEN") {
+    holdStatus = "OVERRIDDEN";
+  } else {
+    holdStatus = "HELD";
+  }
+
+  let recommendedCreditAmount = new Prisma.Decimal(0);
+  let creditReason: string | null = null;
+  let creditStatus: Prisma.SupplierInvoiceSlaCreditStatus = invoice.slaCreditStatus;
+
+  if (
+    rule.isActive &&
+    rule.autoCreditRecommendationEnabled &&
+    latestOpenBreach &&
+    latestOpenBreach.breachCount >= rule.minBreachCountForCredit
+  ) {
+    const penaltyRate = getSeverityPenaltyRate(
+      rule,
+      latestOpenBreach.status,
+      latestOpenBreach.severity,
+    );
+    if (penaltyRate > 0) {
+      recommendedCreditAmount = invoice.total.mul(penaltyRate).div(100);
+      if (rule.maxCreditCapAmount && recommendedCreditAmount.gt(rule.maxCreditCapAmount)) {
+        recommendedCreditAmount = new Prisma.Decimal(rule.maxCreditCapAmount);
+      }
+      if (recommendedCreditAmount.gt(0)) {
+        creditReason = `Recommended ${penaltyRate}% SLA credit based on ${latestOpenBreach.status}/${latestOpenBreach.severity} breach.`;
+      }
+    }
+  }
+
+  if (invoice.slaCreditStatus !== "APPLIED" && invoice.slaCreditStatus !== "WAIVED") {
+    creditStatus = recommendedCreditAmount.gt(0) ? "RECOMMENDED" : "NONE";
+  }
+  if (!recommendedCreditAmount.gt(0) && creditStatus === "NONE") {
+    creditReason = null;
+  }
+
+  return {
+    holdStatus,
+    holdReason: hasHoldReasons ? holdReasons.join(" ") : null,
+    recommendedCreditAmount,
+    creditStatus,
+    creditReason,
+    shouldUpdateHoldAt: holdStatus === "HELD" && !invoice.paymentHoldAt,
+    shouldUpdateReleasedAt:
+      holdStatus === "CLEAR" &&
+      (invoice.paymentHoldStatus === "HELD" || invoice.paymentHoldStatus === "OVERRIDDEN"),
+    shouldClearOverrideNote: holdStatus === "CLEAR",
+  };
+}
+
+export async function evaluateSupplierInvoiceApControls(
+  tx: DbClient,
+  supplierInvoiceId: number,
+  actorUserId: string | null = null,
+) {
+  const invoice = await tx.supplierInvoice.findUnique({
+    where: { id: supplierInvoiceId },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      supplierId: true,
+      total: true,
+      matchStatus: true,
+      paymentHoldStatus: true,
+      paymentHoldReason: true,
+      paymentHoldAt: true,
+      paymentHoldReleasedAt: true,
+      paymentHoldReleasedById: true,
+      paymentHoldOverrideNote: true,
+      slaRecommendedCredit: true,
+      slaCreditStatus: true,
+      slaCreditReason: true,
+      slaCreditUpdatedAt: true,
+    },
+  });
+  if (!invoice) {
+    throw new Error("Supplier invoice not found.");
+  }
+
+  const financialContext = await getSupplierSlaFinancialContext(tx, invoice.supplierId);
+  const decision = decideInvoiceApControls({
+    invoice,
+    rule: financialContext.effectiveRule,
+    latestOpenBreach: financialContext.latestOpenBreach,
+  });
+
+  const now = new Date();
+  return tx.supplierInvoice.update({
+    where: { id: invoice.id },
+    data: {
+      paymentHoldStatus: decision.holdStatus,
+      paymentHoldReason: decision.holdReason,
+      paymentHoldAt: decision.shouldUpdateHoldAt ? now : decision.holdStatus === "CLEAR" ? null : invoice.paymentHoldAt,
+      paymentHoldReleasedAt: decision.shouldUpdateReleasedAt
+        ? now
+        : decision.holdStatus === "HELD"
+          ? null
+          : invoice.paymentHoldReleasedAt,
+      paymentHoldReleasedById: decision.shouldUpdateReleasedAt
+        ? actorUserId
+        : decision.holdStatus === "HELD"
+          ? null
+          : invoice.paymentHoldReleasedById,
+      paymentHoldOverrideNote: decision.shouldClearOverrideNote
+        ? null
+        : invoice.paymentHoldOverrideNote,
+      slaRecommendedCredit: decision.recommendedCreditAmount,
+      slaCreditStatus: decision.creditStatus,
+      slaCreditReason: decision.creditReason,
+      slaCreditUpdatedAt: now,
+    },
+    include: {
+      supplier: {
+        select: { id: true, name: true, code: true },
+      },
+      paymentHoldReleasedBy: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+  });
 }
 
 export async function runSupplierSlaEvaluation({
@@ -410,6 +722,19 @@ export async function runSupplierSlaEvaluation({
         },
       });
     }
+
+    const candidateInvoices = await prisma.supplierInvoice.findMany({
+      where: {
+        supplierId: policy.supplierId,
+        status: {
+          in: ["POSTED", "PARTIALLY_PAID"],
+        },
+      },
+      select: { id: true },
+    });
+    for (const invoice of candidateInvoices) {
+      await evaluateSupplierInvoiceApControls(prisma, invoice.id, actorUserId);
+    }
   }
 
   return {
@@ -437,6 +762,22 @@ export function toSupplierSlaPolicyLogSnapshot(policy: SupplierSlaPolicyWithRela
     autoEvaluationEnabled: policy.autoEvaluationEnabled,
     warningActionDueDays: policy.warningActionDueDays,
     breachActionDueDays: policy.breachActionDueDays,
+    financialRule: policy.financialRule
+      ? {
+          id: policy.financialRule.id,
+          isActive: policy.financialRule.isActive,
+          holdPaymentsOnThreeWayVariance: policy.financialRule.holdPaymentsOnThreeWayVariance,
+          holdPaymentsOnOpenSlaAction: policy.financialRule.holdPaymentsOnOpenSlaAction,
+          allowPaymentHoldOverride: policy.financialRule.allowPaymentHoldOverride,
+          autoCreditRecommendationEnabled: policy.financialRule.autoCreditRecommendationEnabled,
+          warningPenaltyRatePercent: policy.financialRule.warningPenaltyRatePercent.toString(),
+          breachPenaltyRatePercent: policy.financialRule.breachPenaltyRatePercent.toString(),
+          criticalPenaltyRatePercent: policy.financialRule.criticalPenaltyRatePercent.toString(),
+          minBreachCountForCredit: policy.financialRule.minBreachCountForCredit,
+          maxCreditCapAmount: policy.financialRule.maxCreditCapAmount?.toString() ?? null,
+          note: policy.financialRule.note ?? null,
+        }
+      : null,
     note: policy.note ?? null,
   };
 }
