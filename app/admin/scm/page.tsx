@@ -8,6 +8,7 @@ import {
   BookOpen,
   ClipboardList,
   Clock3,
+  FileSearch,
   GitCompareArrows,
   RotateCcw,
   PackageCheck,
@@ -48,6 +49,13 @@ const cards = [
     description: "Capture internal purchase demand and route it for procurement approval.",
     icon: ClipboardList,
     permission: "purchase_requisitions.read",
+  },
+  {
+    title: "RFQs",
+    href: "/admin/scm/rfqs",
+    description: "Invite suppliers, compare quotations, and award procurement opportunities.",
+    icon: FileSearch,
+    permission: "rfq.read",
   },
   {
     title: "Purchase Orders",

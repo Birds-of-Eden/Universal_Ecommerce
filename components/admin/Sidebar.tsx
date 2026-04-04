@@ -173,6 +173,11 @@ const menuItems: MenuItem[] = [
         ],
       },
       {
+        name: "RFQs",
+        href: "/admin/scm/rfqs",
+        requiredPermissions: ["rfq.read", "rfq.manage", "rfq.approve"],
+      },
+      {
         name: "Purchase Orders",
         href: "/admin/scm/purchase-orders",
         requiredPermissions: [

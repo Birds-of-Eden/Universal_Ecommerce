@@ -36,6 +36,19 @@ export async function generatePurchaseRequisitionNumber(tx: TransactionClient) {
   return `${prefix}-${String(count + 1).padStart(4, "0")}`;
 }
 
+export async function generateRfqNumber(tx: TransactionClient) {
+  const today = new Date();
+  const prefix = `RFQ-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const count = await tx.rfq.count({
+    where: {
+      rfqNumber: {
+        startsWith: prefix,
+      },
+    },
+  });
+  return `${prefix}-${String(count + 1).padStart(4, "0")}`;
+}
+
 export async function generateGoodsReceiptNumber(tx: TransactionClient) {
   const today = new Date();
   const prefix = `GRN-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -239,6 +252,153 @@ export const purchaseRequisitionInclude = Prisma.validator<Prisma.PurchaseRequis
       },
     },
     orderBy: { id: "desc" },
+  },
+});
+
+export const rfqInclude = Prisma.validator<Prisma.RfqInclude>()({
+  warehouse: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+    },
+  },
+  purchaseRequisition: {
+    select: {
+      id: true,
+      requisitionNumber: true,
+      status: true,
+    },
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  approvedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  items: {
+    orderBy: { id: "asc" },
+    include: {
+      productVariant: {
+        select: {
+          id: true,
+          productId: true,
+          sku: true,
+          stock: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  supplierInvites: {
+    orderBy: [{ invitedAt: "asc" }, { id: "asc" }],
+    include: {
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          currency: true,
+        },
+      },
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
+  quotations: {
+    orderBy: [{ quotedAt: "desc" }, { id: "desc" }],
+    include: {
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          currency: true,
+        },
+      },
+      submittedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      items: {
+        orderBy: { id: "asc" },
+        include: {
+          rfqItem: {
+            select: {
+              id: true,
+              quantityRequested: true,
+              productVariantId: true,
+            },
+          },
+          productVariant: {
+            select: {
+              id: true,
+              sku: true,
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  award: {
+    include: {
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+        },
+      },
+      supplierQuotation: {
+        select: {
+          id: true,
+          status: true,
+          total: true,
+          quotedAt: true,
+        },
+      },
+      purchaseOrder: {
+        select: {
+          id: true,
+          poNumber: true,
+          status: true,
+        },
+      },
+      awardedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
   },
 });
 
@@ -529,6 +689,10 @@ export type PurchaseRequisitionWithRelations = Prisma.PurchaseRequisitionGetPayl
   include: typeof purchaseRequisitionInclude;
 }>;
 
+export type RfqWithRelations = Prisma.RfqGetPayload<{
+  include: typeof rfqInclude;
+}>;
+
 export type GoodsReceiptWithRelations = Prisma.GoodsReceiptGetPayload<{
   include: typeof goodsReceiptInclude;
 }>;
@@ -607,6 +771,79 @@ export function toPurchaseRequisitionLogSnapshot(
       quantityRequested: item.quantityRequested,
       quantityApproved: item.quantityApproved,
     })),
+  };
+}
+
+export function toRfqLogSnapshot(rfq: RfqWithRelations) {
+  return {
+    rfqNumber: rfq.rfqNumber,
+    status: rfq.status,
+    warehouseId: rfq.warehouseId,
+    warehouseCode: rfq.warehouse.code,
+    purchaseRequisitionId: rfq.purchaseRequisitionId,
+    purchaseRequisitionNumber: rfq.purchaseRequisition?.requisitionNumber ?? null,
+    requestedAt: rfq.requestedAt.toISOString(),
+    submissionDeadline: rfq.submissionDeadline?.toISOString() ?? null,
+    submittedAt: rfq.submittedAt?.toISOString() ?? null,
+    closedAt: rfq.closedAt?.toISOString() ?? null,
+    awardedAt: rfq.awardedAt?.toISOString() ?? null,
+    cancelledAt: rfq.cancelledAt?.toISOString() ?? null,
+    currency: rfq.currency,
+    note: rfq.note ?? null,
+    items: rfq.items.map((item) => ({
+      id: item.id,
+      variantId: item.productVariantId,
+      sku: item.productVariant.sku,
+      productName: item.productVariant.product.name,
+      quantityRequested: item.quantityRequested,
+      targetUnitCost: item.targetUnitCost?.toString() ?? null,
+    })),
+    supplierInvites: rfq.supplierInvites.map((invite) => ({
+      id: invite.id,
+      supplierId: invite.supplierId,
+      supplierCode: invite.supplier.code,
+      supplierName: invite.supplier.name,
+      status: invite.status,
+      invitedAt: invite.invitedAt.toISOString(),
+      respondedAt: invite.respondedAt?.toISOString() ?? null,
+      note: invite.note ?? null,
+    })),
+    quotations: rfq.quotations.map((quotation) => ({
+      id: quotation.id,
+      supplierId: quotation.supplierId,
+      supplierCode: quotation.supplier.code,
+      supplierName: quotation.supplier.name,
+      status: quotation.status,
+      quotedAt: quotation.quotedAt.toISOString(),
+      validUntil: quotation.validUntil?.toISOString() ?? null,
+      subtotal: quotation.subtotal.toString(),
+      taxTotal: quotation.taxTotal.toString(),
+      total: quotation.total.toString(),
+      items: quotation.items.map((item) => ({
+        id: item.id,
+        rfqItemId: item.rfqItemId,
+        variantId: item.productVariantId,
+        sku: item.productVariant.sku,
+        productName: item.productVariant.product.name,
+        quantityQuoted: item.quantityQuoted,
+        unitCost: item.unitCost.toString(),
+        lineTotal: item.lineTotal.toString(),
+      })),
+    })),
+    award: rfq.award
+      ? {
+          id: rfq.award.id,
+          supplierId: rfq.award.supplierId,
+          supplierCode: rfq.award.supplier.code,
+          supplierName: rfq.award.supplier.name,
+          status: rfq.award.status,
+          awardedAt: rfq.award.awardedAt.toISOString(),
+          purchaseOrderId: rfq.award.purchaseOrderId,
+          purchaseOrderNumber: rfq.award.purchaseOrder?.poNumber ?? null,
+          quotationId: rfq.award.supplierQuotationId,
+          quotationTotal: rfq.award.supplierQuotation.total.toString(),
+        }
+      : null,
   };
 }
 

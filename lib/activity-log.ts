@@ -110,6 +110,10 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     ],
   },
   {
+    match: ["rfq", "rfq_item", "rfq_supplier_invite", "supplier_quotation", "rfq_award"],
+    permissions: ["rfq.read", "rfq.manage", "rfq.approve", "scm.access"],
+  },
+  {
     match: ["purchase_order", "purchaseorder"],
     permissions: ["purchase_orders.read", "purchase_orders.manage", "purchase_orders.approve", "scm.access"],
   },

@@ -72,6 +72,10 @@ const adminPagePermissionRules: PermissionRule[] = [
     ],
   },
   {
+    prefix: "/admin/scm/rfqs",
+    permissions: ["rfq.read", "rfq.manage", "rfq.approve"],
+  },
+  {
     prefix: "/admin/scm/purchase-orders",
     permissions: [
       "purchase_orders.read",
@@ -130,6 +134,9 @@ const adminPagePermissionRules: PermissionRule[] = [
       "purchase_requisitions.read",
       "purchase_requisitions.manage",
       "purchase_requisitions.approve",
+      "rfq.read",
+      "rfq.manage",
+      "rfq.approve",
       "purchase_orders.read",
       "purchase_orders.manage",
       "purchase_orders.approve",
@@ -302,6 +309,21 @@ const apiPermissionRules: PermissionRule[] = [
       "purchase_requisitions.manage",
       "purchase_requisitions.approve",
     ],
+  },
+  {
+    prefix: "/api/scm/rfqs",
+    methods: ["GET"],
+    permissions: ["rfq.read", "rfq.manage", "rfq.approve"],
+  },
+  {
+    prefix: "/api/scm/rfqs",
+    methods: ["POST"],
+    permissions: ["rfq.manage"],
+  },
+  {
+    prefix: "/api/scm/rfqs",
+    methods: ["PATCH", "PUT"],
+    permissions: ["rfq.manage", "rfq.approve", "purchase_orders.manage"],
   },
   {
     prefix: "/api/scm/purchase-requisitions",
