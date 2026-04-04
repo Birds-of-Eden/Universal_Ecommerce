@@ -59,6 +59,11 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/scm/sla",
+    permissions: ["sla.read", "sla.manage"],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/scm/purchase-requisitions",
     permissions: [
       "purchase_requisitions.read",
@@ -120,6 +125,8 @@ const adminPagePermissionRules: PermissionRule[] = [
       "suppliers.read",
       "suppliers.manage",
       "supplier_performance.read",
+      "sla.read",
+      "sla.manage",
       "purchase_requisitions.read",
       "purchase_requisitions.manage",
       "purchase_requisitions.approve",
@@ -231,6 +238,30 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/supplier-intelligence",
     methods: ["GET"],
     permissions: ["supplier_performance.read"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/sla/policies",
+    methods: ["GET"],
+    permissions: ["sla.read", "sla.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/sla/policies",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["sla.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/sla/breaches",
+    methods: ["GET"],
+    permissions: ["sla.read", "sla.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/sla/breaches",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["sla.manage"],
     globalOnly: true,
   },
   {

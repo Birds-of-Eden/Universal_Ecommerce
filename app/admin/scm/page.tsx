@@ -12,6 +12,7 @@ import {
   RotateCcw,
   PackageCheck,
   Radar,
+  ShieldCheck,
   ShoppingCart,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +33,14 @@ const cards = [
     icon: Clock3,
     permission: "supplier_performance.read",
     globalPermission: "supplier_performance.read",
+  },
+  {
+    title: "SLA Policies",
+    href: "/admin/scm/sla",
+    description: "Define supplier SLA targets and evaluate breach trends by policy window.",
+    icon: ShieldCheck,
+    permission: "sla.read",
+    globalPermission: "sla.read",
   },
   {
     title: "Purchase Requisitions",

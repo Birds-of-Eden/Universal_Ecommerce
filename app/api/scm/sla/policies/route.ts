@@ -1,0 +1,214 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { getAccessContext } from "@/lib/rbac";
+import { logActivity } from "@/lib/activity-log";
+import { toDecimalAmount } from "@/lib/scm";
+import {
+  supplierSlaPolicyInclude,
+  toSupplierSlaPolicyLogSnapshot,
+} from "@/lib/supplier-sla";
+
+const SLA_POLICY_READ_PERMISSIONS = ["sla.read", "sla.manage"] as const;
+
+function canRead(access: Awaited<ReturnType<typeof getAccessContext>>) {
+  return SLA_POLICY_READ_PERMISSIONS.some((permission) => access.hasGlobal(permission));
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!canRead(access)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const supplierId = Number(request.nextUrl.searchParams.get("supplierId") || "");
+    const includeInactive = request.nextUrl.searchParams.get("includeInactive") === "1";
+
+    const policies = await prisma.supplierSlaPolicy.findMany({
+      where: {
+        ...(Number.isInteger(supplierId) && supplierId > 0 ? { supplierId } : {}),
+        ...(includeInactive ? {} : { isActive: true }),
+      },
+      orderBy: [{ supplier: { name: "asc" } }, { id: "asc" }],
+      include: supplierSlaPolicyInclude,
+    });
+
+    return NextResponse.json(policies);
+  } catch (error) {
+    console.error("SCM SLA POLICIES GET ERROR:", error);
+    return NextResponse.json(
+      { error: "Failed to load SLA policies." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!access.hasGlobal("sla.manage")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      supplierId?: unknown;
+      isActive?: unknown;
+      effectiveFrom?: unknown;
+      effectiveTo?: unknown;
+      evaluationWindowDays?: unknown;
+      minTrackedPoCount?: unknown;
+      targetLeadTimeDays?: unknown;
+      minimumOnTimeRate?: unknown;
+      minimumFillRate?: unknown;
+      maxOpenLatePoCount?: unknown;
+      note?: unknown;
+    };
+
+    const supplierId = Number(body.supplierId);
+    if (!Number.isInteger(supplierId) || supplierId <= 0) {
+      return NextResponse.json({ error: "Supplier is required." }, { status: 400 });
+    }
+
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
+      select: { id: true, name: true, code: true },
+    });
+    if (!supplier) {
+      return NextResponse.json({ error: "Supplier not found." }, { status: 404 });
+    }
+
+    const evaluationWindowDays = Number(body.evaluationWindowDays ?? 90);
+    const minTrackedPoCount = Number(body.minTrackedPoCount ?? 3);
+    const targetLeadTimeDays = Number(body.targetLeadTimeDays ?? 0);
+    const maxOpenLatePoCount = Number(body.maxOpenLatePoCount ?? 0);
+
+    if (!Number.isInteger(evaluationWindowDays) || evaluationWindowDays < 7 || evaluationWindowDays > 730) {
+      return NextResponse.json(
+        { error: "Evaluation window must be between 7 and 730 days." },
+        { status: 400 },
+      );
+    }
+    if (!Number.isInteger(minTrackedPoCount) || minTrackedPoCount < 1 || minTrackedPoCount > 100) {
+      return NextResponse.json(
+        { error: "Minimum tracked PO count must be between 1 and 100." },
+        { status: 400 },
+      );
+    }
+    if (!Number.isInteger(targetLeadTimeDays) || targetLeadTimeDays < 1 || targetLeadTimeDays > 365) {
+      return NextResponse.json(
+        { error: "Target lead time must be between 1 and 365 days." },
+        { status: 400 },
+      );
+    }
+    if (!Number.isInteger(maxOpenLatePoCount) || maxOpenLatePoCount < 0 || maxOpenLatePoCount > 999) {
+      return NextResponse.json(
+        { error: "Maximum open late PO count must be between 0 and 999." },
+        { status: 400 },
+      );
+    }
+
+    const minimumOnTimeRate = toDecimalAmount(body.minimumOnTimeRate ?? 90, "Minimum on-time rate");
+    const minimumFillRate = toDecimalAmount(body.minimumFillRate ?? 95, "Minimum fill rate");
+
+    if (minimumOnTimeRate.gt(100) || minimumFillRate.gt(100)) {
+      return NextResponse.json(
+        { error: "SLA percentage thresholds cannot exceed 100." },
+        { status: 400 },
+      );
+    }
+
+    const effectiveFrom = body.effectiveFrom ? new Date(String(body.effectiveFrom)) : new Date();
+    const effectiveTo = body.effectiveTo ? new Date(String(body.effectiveTo)) : null;
+    if (Number.isNaN(effectiveFrom.getTime())) {
+      return NextResponse.json({ error: "Effective from date is invalid." }, { status: 400 });
+    }
+    if (effectiveTo && Number.isNaN(effectiveTo.getTime())) {
+      return NextResponse.json({ error: "Effective to date is invalid." }, { status: 400 });
+    }
+    if (effectiveTo && effectiveTo.getTime() < effectiveFrom.getTime()) {
+      return NextResponse.json(
+        { error: "Effective to date cannot be before effective from date." },
+        { status: 400 },
+      );
+    }
+
+    const existing = await prisma.supplierSlaPolicy.findUnique({
+      where: { supplierId },
+      include: supplierSlaPolicyInclude,
+    });
+
+    const saved = await prisma.supplierSlaPolicy.upsert({
+      where: { supplierId },
+      create: {
+        supplierId,
+        isActive: body.isActive !== false,
+        effectiveFrom,
+        effectiveTo,
+        evaluationWindowDays,
+        minTrackedPoCount,
+        targetLeadTimeDays,
+        minimumOnTimeRate,
+        minimumFillRate,
+        maxOpenLatePoCount,
+        note:
+          typeof body.note === "string" && body.note.trim().length > 0
+            ? body.note.trim().slice(0, 500)
+            : null,
+        createdById: access.userId,
+        updatedById: access.userId,
+      },
+      update: {
+        isActive: body.isActive !== false,
+        effectiveFrom,
+        effectiveTo,
+        evaluationWindowDays,
+        minTrackedPoCount,
+        targetLeadTimeDays,
+        minimumOnTimeRate,
+        minimumFillRate,
+        maxOpenLatePoCount,
+        note:
+          typeof body.note === "string" && body.note.trim().length > 0
+            ? body.note.trim().slice(0, 500)
+            : null,
+        updatedById: access.userId,
+      },
+      include: supplierSlaPolicyInclude,
+    });
+
+    await logActivity({
+      action: existing ? "update" : "create",
+      entity: "supplier_sla_policy",
+      entityId: saved.id,
+      access,
+      request,
+      metadata: {
+        message: `${existing ? "Updated" : "Created"} SLA policy for supplier ${saved.supplier.name} (${saved.supplier.code})`,
+      },
+      before: existing ? toSupplierSlaPolicyLogSnapshot(existing) : null,
+      after: toSupplierSlaPolicyLogSnapshot(saved),
+    });
+
+    return NextResponse.json(saved);
+  } catch (error: any) {
+    console.error("SCM SLA POLICIES POST ERROR:", error);
+    return NextResponse.json(
+      { error: error?.message || "Failed to save SLA policy." },
+      { status: 500 },
+    );
+  }
+}

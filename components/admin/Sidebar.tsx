@@ -159,6 +159,11 @@ const menuItems: MenuItem[] = [
         requiredGlobalPermissions: ["supplier_performance.read"],
       },
       {
+        name: "SLA Policies",
+        href: "/admin/scm/sla",
+        requiredGlobalPermissions: ["sla.read", "sla.manage"],
+      },
+      {
         name: "Purchase Requisitions",
         href: "/admin/scm/purchase-requisitions",
         requiredPermissions: [

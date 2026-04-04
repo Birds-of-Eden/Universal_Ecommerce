@@ -88,6 +88,10 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     permissions: ["suppliers.read", "suppliers.manage", "scm.access"],
   },
   {
+    match: ["supplier_sla_policy", "supplier_sla_breach", "sla_policy", "sla_breach", "sla"],
+    permissions: ["sla.read", "sla.manage", "scm.access"],
+  },
+  {
     match: ["purchase_requisition", "purchaserequisition"],
     permissions: [
       "purchase_requisitions.read",
