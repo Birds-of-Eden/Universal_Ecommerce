@@ -68,6 +68,8 @@ model User {
   supplierSlaPoliciesCreated    SupplierSlaPolicy[]     @relation("SupplierSlaPoliciesCreated")
   supplierSlaPoliciesUpdated    SupplierSlaPolicy[]     @relation("SupplierSlaPoliciesUpdated")
   supplierSlaBreachesEvaluated  SupplierSlaBreach[]     @relation("SupplierSlaBreachesEvaluated")
+  supplierSlaBreachesOwned      SupplierSlaBreach[]     @relation("SupplierSlaBreachesOwned")
+  supplierSlaBreachesResolved   SupplierSlaBreach[]     @relation("SupplierSlaBreachesResolved")
   wishlist                      Wishlist[]
   analyticsEvents               AnalyticsEvent[]
   deliveryManProfile            DeliveryManProfile?
@@ -1449,6 +1451,9 @@ model SupplierSlaPolicy {
   minimumOnTimeRate  Decimal   @default(90) @db.Decimal(5, 2)
   minimumFillRate    Decimal   @default(95) @db.Decimal(5, 2)
   maxOpenLatePoCount Int       @default(0)
+  autoEvaluationEnabled Boolean @default(true)
+  warningActionDueDays Int      @default(7)
+  breachActionDueDays  Int      @default(3)
   note               String?
   createdById        String?
   updatedById        String?
@@ -1480,10 +1485,22 @@ model SupplierSlaBreach {
   observedLeadTimeDays  Decimal?                   @db.Decimal(8, 2)
   onTimeRatePercent     Decimal?                   @db.Decimal(5, 2)
   fillRatePercent       Decimal?                   @db.Decimal(5, 2)
+  actionStatus          SupplierSlaActionStatus    @default(NOT_REQUIRED)
+  ownerUserId           String?
+  dueDate               DateTime?
+  startedAt             DateTime?
+  resolvedAt            DateTime?
+  resolvedById          String?
+  resolutionNote        String?
+  alertTriggeredAt      DateTime?
+  alertMessage          String?
+  alertAcknowledgedAt   DateTime?
   issues                Json?
   evaluatedById         String?
   createdAt             DateTime                   @default(now())
   updatedAt             DateTime                   @updatedAt
+  owner                 User?                      @relation("SupplierSlaBreachesOwned", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  resolvedBy            User?                      @relation("SupplierSlaBreachesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
   evaluatedBy           User?                      @relation("SupplierSlaBreachesEvaluated", fields: [evaluatedById], references: [id], onDelete: SetNull)
   policy                SupplierSlaPolicy          @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
   supplier              Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
@@ -1491,6 +1508,9 @@ model SupplierSlaBreach {
   @@index([supplierId, evaluationDate])
   @@index([supplierSlaPolicyId, evaluationDate])
   @@index([status, evaluationDate])
+  @@index([actionStatus, dueDate])
+  @@index([ownerUserId, actionStatus])
+  @@index([resolvedById])
   @@index([evaluatedById])
 }
 
@@ -2152,6 +2172,14 @@ enum SupplierSlaSeverity {
   MEDIUM
   HIGH
   CRITICAL
+}
+
+enum SupplierSlaActionStatus {
+  NOT_REQUIRED
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DISMISSED
 }
 
 enum SupplierCompanyType {

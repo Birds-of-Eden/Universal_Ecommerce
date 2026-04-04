@@ -75,6 +75,9 @@ export async function POST(request: NextRequest) {
       minimumOnTimeRate?: unknown;
       minimumFillRate?: unknown;
       maxOpenLatePoCount?: unknown;
+      autoEvaluationEnabled?: unknown;
+      warningActionDueDays?: unknown;
+      breachActionDueDays?: unknown;
       note?: unknown;
     };
 
@@ -95,6 +98,8 @@ export async function POST(request: NextRequest) {
     const minTrackedPoCount = Number(body.minTrackedPoCount ?? 3);
     const targetLeadTimeDays = Number(body.targetLeadTimeDays ?? 0);
     const maxOpenLatePoCount = Number(body.maxOpenLatePoCount ?? 0);
+    const warningActionDueDays = Number(body.warningActionDueDays ?? 7);
+    const breachActionDueDays = Number(body.breachActionDueDays ?? 3);
 
     if (!Number.isInteger(evaluationWindowDays) || evaluationWindowDays < 7 || evaluationWindowDays > 730) {
       return NextResponse.json(
@@ -117,6 +122,18 @@ export async function POST(request: NextRequest) {
     if (!Number.isInteger(maxOpenLatePoCount) || maxOpenLatePoCount < 0 || maxOpenLatePoCount > 999) {
       return NextResponse.json(
         { error: "Maximum open late PO count must be between 0 and 999." },
+        { status: 400 },
+      );
+    }
+    if (!Number.isInteger(warningActionDueDays) || warningActionDueDays < 1 || warningActionDueDays > 60) {
+      return NextResponse.json(
+        { error: "Warning action due days must be between 1 and 60." },
+        { status: 400 },
+      );
+    }
+    if (!Number.isInteger(breachActionDueDays) || breachActionDueDays < 1 || breachActionDueDays > 60) {
+      return NextResponse.json(
+        { error: "Breach action due days must be between 1 and 60." },
         { status: 400 },
       );
     }
@@ -164,6 +181,9 @@ export async function POST(request: NextRequest) {
         minimumOnTimeRate,
         minimumFillRate,
         maxOpenLatePoCount,
+        autoEvaluationEnabled: body.autoEvaluationEnabled !== false,
+        warningActionDueDays,
+        breachActionDueDays,
         note:
           typeof body.note === "string" && body.note.trim().length > 0
             ? body.note.trim().slice(0, 500)
@@ -181,6 +201,9 @@ export async function POST(request: NextRequest) {
         minimumOnTimeRate,
         minimumFillRate,
         maxOpenLatePoCount,
+        autoEvaluationEnabled: body.autoEvaluationEnabled !== false,
+        warningActionDueDays,
+        breachActionDueDays,
         note:
           typeof body.note === "string" && body.note.trim().length > 0
             ? body.note.trim().slice(0, 500)

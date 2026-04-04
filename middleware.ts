@@ -265,6 +265,12 @@ const apiPermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/api/scm/sla/owners",
+    methods: ["GET"],
+    permissions: ["sla.read", "sla.manage"],
+    globalOnly: true,
+  },
+  {
     prefix: "/api/scm/purchase-requisitions",
     methods: ["GET"],
     permissions: [

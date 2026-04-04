@@ -37,6 +37,9 @@ type SlaPolicy = {
   minimumOnTimeRate: number | string;
   minimumFillRate: number | string;
   maxOpenLatePoCount: number;
+  autoEvaluationEnabled: boolean;
+  warningActionDueDays: number;
+  breachActionDueDays: number;
   note: string | null;
   supplier: {
     id: number;
@@ -64,6 +67,16 @@ type SlaBreach = {
   observedLeadTimeDays: number | string | null;
   onTimeRatePercent: number | string | null;
   fillRatePercent: number | string | null;
+  actionStatus: "NOT_REQUIRED" | "OPEN" | "IN_PROGRESS" | "RESOLVED" | "DISMISSED";
+  ownerUserId: string | null;
+  dueDate: string | null;
+  startedAt: string | null;
+  resolvedAt: string | null;
+  resolvedById: string | null;
+  resolutionNote: string | null;
+  alertTriggeredAt: string | null;
+  alertMessage: string | null;
+  alertAcknowledgedAt: string | null;
   issues: unknown;
   supplier: {
     id: number;
@@ -85,6 +98,32 @@ type SlaBreach = {
     name: string | null;
     email: string;
   } | null;
+  owner: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  resolvedBy: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+};
+
+type SlaOwner = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  userRoles: Array<{
+    scopeType: string;
+    warehouseId: number | null;
+    role: {
+      id: string;
+      name: string;
+      label: string;
+    };
+  }>;
 };
 
 type SlaFormState = {
@@ -98,7 +137,18 @@ type SlaFormState = {
   minimumOnTimeRate: string;
   minimumFillRate: string;
   maxOpenLatePoCount: string;
+  autoEvaluationEnabled: boolean;
+  warningActionDueDays: string;
+  breachActionDueDays: string;
   note: string;
+};
+
+type BreachActionDraft = {
+  ownerUserId: string;
+  dueDate: string;
+  actionStatus: SlaBreach["actionStatus"];
+  resolutionNote: string;
+  acknowledgeAlert: boolean;
 };
 
 const DEFAULT_FORM: SlaFormState = {
@@ -112,6 +162,9 @@ const DEFAULT_FORM: SlaFormState = {
   minimumOnTimeRate: "90",
   minimumFillRate: "95",
   maxOpenLatePoCount: "0",
+  autoEvaluationEnabled: true,
+  warningActionDueDays: "7",
+  breachActionDueDays: "3",
   note: "",
 };
 
@@ -135,6 +188,13 @@ function fmtValue(value: number | string | null, suffix = "") {
   return `${value}${suffix}`;
 }
 
+function toDateInput(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
 function getIssues(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value
@@ -155,6 +215,23 @@ function getSeverityVariant(severity: SlaBreach["severity"]) {
   return "destructive" as const;
 }
 
+function getActionVariant(status: SlaBreach["actionStatus"]) {
+  if (status === "NOT_REQUIRED") return "outline" as const;
+  if (status === "OPEN") return "secondary" as const;
+  if (status === "IN_PROGRESS") return "default" as const;
+  return "destructive" as const;
+}
+
+function toActionDraft(row: SlaBreach): BreachActionDraft {
+  return {
+    ownerUserId: row.ownerUserId ?? "",
+    dueDate: toDateInput(row.dueDate),
+    actionStatus: row.actionStatus,
+    resolutionNote: row.resolutionNote ?? "",
+    acknowledgeAlert: Boolean(row.alertTriggeredAt && !row.alertAcknowledgedAt),
+  };
+}
+
 export default function SupplierSlaPage() {
   const { data: session } = useSession();
   const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
@@ -169,36 +246,54 @@ export default function SupplierSlaPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
+  const [actionSavingId, setActionSavingId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [editingPolicyId, setEditingPolicyId] = useState<number | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [owners, setOwners] = useState<SlaOwner[]>([]);
   const [policies, setPolicies] = useState<SlaPolicy[]>([]);
   const [breaches, setBreaches] = useState<SlaBreach[]>([]);
+  const [actionDrafts, setActionDrafts] = useState<Record<number, BreachActionDraft>>({});
   const [form, setForm] = useState<SlaFormState>(DEFAULT_FORM);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [supplierRes, policyRes, breachRes] = await Promise.all([
+      const responses = await Promise.all([
         fetch("/api/scm/suppliers", { cache: "no-store" }),
         fetch("/api/scm/sla/policies?includeInactive=1", { cache: "no-store" }),
         fetch("/api/scm/sla/breaches?latest=1&days=365", { cache: "no-store" }),
+        canManage ? fetch("/api/scm/sla/owners", { cache: "no-store" }) : Promise.resolve(null),
       ]);
 
-      const [supplierData, policyData, breachData] = await Promise.all([
-        readJson<Supplier[]>(supplierRes, "Failed to load suppliers"),
-        readJson<SlaPolicy[]>(policyRes, "Failed to load SLA policies"),
-        readJson<SlaBreach[]>(breachRes, "Failed to load SLA breach logs"),
-      ]);
+      const [supplierRes, policyRes, breachRes, ownerRes] = responses;
+
+      const supplierData = await readJson<Supplier[]>(
+        supplierRes,
+        "Failed to load suppliers",
+      );
+      const policyData = await readJson<SlaPolicy[]>(
+        policyRes,
+        "Failed to load SLA policies",
+      );
+      const breachData = await readJson<SlaBreach[]>(
+        breachRes,
+        "Failed to load SLA breach logs",
+      );
+      const ownerData = ownerRes
+        ? await readJson<SlaOwner[]>(ownerRes, "Failed to load SLA owners")
+        : [];
 
       setSuppliers(Array.isArray(supplierData) ? supplierData : []);
       setPolicies(Array.isArray(policyData) ? policyData : []);
       setBreaches(Array.isArray(breachData) ? breachData : []);
+      setOwners(Array.isArray(ownerData) ? ownerData : []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load SLA workspace");
       setPolicies([]);
       setBreaches([]);
+      setOwners([]);
     } finally {
       setLoading(false);
     }
@@ -209,6 +304,14 @@ export default function SupplierSlaPage() {
       void loadData();
     }
   }, [canRead]);
+
+  useEffect(() => {
+    const nextDrafts: Record<number, BreachActionDraft> = {};
+    for (const breach of breaches) {
+      nextDrafts[breach.id] = toActionDraft(breach);
+    }
+    setActionDrafts(nextDrafts);
+  }, [breaches]);
 
   const visibleBreaches = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -245,6 +348,9 @@ export default function SupplierSlaPage() {
           minimumOnTimeRate: Number(form.minimumOnTimeRate),
           minimumFillRate: Number(form.minimumFillRate),
           maxOpenLatePoCount: Number(form.maxOpenLatePoCount),
+          autoEvaluationEnabled: form.autoEvaluationEnabled,
+          warningActionDueDays: Number(form.warningActionDueDays),
+          breachActionDueDays: Number(form.breachActionDueDays),
           note: form.note || null,
         }),
       });
@@ -280,6 +386,58 @@ export default function SupplierSlaPage() {
     }
   };
 
+  const updateActionDraft = <K extends keyof BreachActionDraft>(
+    breachId: number,
+    key: K,
+    value: BreachActionDraft[K],
+  ) => {
+    setActionDrafts((current) => {
+      const existing = current[breachId] ?? {
+        ownerUserId: "",
+        dueDate: "",
+        actionStatus: "OPEN" as const,
+        resolutionNote: "",
+        acknowledgeAlert: false,
+      };
+      return {
+        ...current,
+        [breachId]: {
+          ...existing,
+          [key]: value,
+        },
+      };
+    });
+  };
+
+  const submitBreachAction = async (breachId: number) => {
+    if (!canManage) return;
+    const draft = actionDrafts[breachId];
+    if (!draft) return;
+
+    try {
+      setActionSavingId(breachId);
+      const response = await fetch("/api/scm/sla/breaches", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          breachId,
+          ownerUserId: draft.ownerUserId || null,
+          dueDate: draft.dueDate || null,
+          actionStatus: draft.actionStatus,
+          resolutionNote: draft.resolutionNote || null,
+          acknowledgeAlert: draft.acknowledgeAlert,
+        }),
+      });
+      await readJson(response, "Failed to update SLA action workflow");
+      toast.success("SLA action workflow updated");
+      await loadData();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update SLA action workflow");
+    } finally {
+      setActionSavingId(null);
+    }
+  };
+
   const populateForm = (policy: SlaPolicy) => {
     setEditingPolicyId(policy.id);
     setForm({
@@ -293,6 +451,9 @@ export default function SupplierSlaPage() {
       minimumOnTimeRate: String(policy.minimumOnTimeRate),
       minimumFillRate: String(policy.minimumFillRate),
       maxOpenLatePoCount: String(policy.maxOpenLatePoCount),
+      autoEvaluationEnabled: policy.autoEvaluationEnabled,
+      warningActionDueDays: String(policy.warningActionDueDays),
+      breachActionDueDays: String(policy.breachActionDueDays),
       note: policy.note || "",
     });
   };
@@ -430,6 +591,30 @@ export default function SupplierSlaPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label>Warning Due (days)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={form.warningActionDueDays}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, warningActionDueDays: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Breach Due (days)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={form.breachActionDueDays}
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, breachActionDueDays: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>Effective From</Label>
                 <Input
                   type="date"
@@ -449,17 +634,33 @@ export default function SupplierSlaPage() {
                   }
                 />
               </div>
-              <div className="flex items-end">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.isActive}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, isActive: event.target.checked }))
-                    }
-                  />
-                  Active Policy
-                </label>
+              <div className="space-y-2">
+                <Label>Policy Controls</Label>
+                <div className="space-y-2 rounded-md border p-3 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={form.isActive}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, isActive: event.target.checked }))
+                      }
+                    />
+                    Active Policy
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={form.autoEvaluationEnabled}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          autoEvaluationEnabled: event.target.checked,
+                        }))
+                      }
+                    />
+                    Auto Daily Evaluation
+                  </label>
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -510,6 +711,8 @@ export default function SupplierSlaPage() {
                   <TableHead>Fill %</TableHead>
                   <TableHead>Late PO</TableHead>
                   <TableHead>Window</TableHead>
+                  <TableHead>Auto Eval</TableHead>
+                  <TableHead>Due SLA</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -526,6 +729,19 @@ export default function SupplierSlaPage() {
                     <TableCell>{policy.minimumFillRate}%</TableCell>
                     <TableCell>{policy.maxOpenLatePoCount}</TableCell>
                     <TableCell>{policy.evaluationWindowDays}d</TableCell>
+                    <TableCell>
+                      <Badge variant={policy.autoEvaluationEnabled ? "default" : "outline"}>
+                        {policy.autoEvaluationEnabled ? "ON" : "OFF"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-xs text-muted-foreground">
+                        Warning: {policy.warningActionDueDays}d
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Breach: {policy.breachActionDueDays}d
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={policy.isActive ? "default" : "outline"}>
                         {policy.isActive ? "ACTIVE" : "INACTIVE"}
@@ -593,12 +809,18 @@ export default function SupplierSlaPage() {
                   <TableHead>Observed LT</TableHead>
                   <TableHead>On-Time</TableHead>
                   <TableHead>Fill Rate</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>Due</TableHead>
+                  <TableHead>Alert</TableHead>
                   <TableHead>Issues</TableHead>
+                  {canManage ? <TableHead>Workflow</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visibleBreaches.map((row) => {
                   const issues = getIssues(row.issues);
+                  const draft = actionDrafts[row.id] ?? toActionDraft(row);
                   return (
                     <TableRow key={row.id}>
                       <TableCell>
@@ -617,6 +839,37 @@ export default function SupplierSlaPage() {
                       <TableCell>{fmtValue(row.onTimeRatePercent, "%")}</TableCell>
                       <TableCell>{fmtValue(row.fillRatePercent, "%")}</TableCell>
                       <TableCell>
+                        <Badge variant={getActionVariant(row.actionStatus)}>{row.actionStatus}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {row.owner ? (
+                          <div>
+                            <div className="text-xs font-medium">{row.owner.name || "Unnamed"}</div>
+                            <div className="text-xs text-muted-foreground">{row.owner.email}</div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{fmtDate(row.dueDate)}</TableCell>
+                      <TableCell>
+                        {row.alertTriggeredAt ? (
+                          <div>
+                            <div className="text-xs">{fmtDate(row.alertTriggeredAt)}</div>
+                            <Badge variant={row.alertAcknowledgedAt ? "default" : "secondary"}>
+                              {row.alertAcknowledgedAt ? "ACKNOWLEDGED" : "PENDING"}
+                            </Badge>
+                            {row.alertMessage ? (
+                              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                                {row.alertMessage}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">No alert</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {issues.length === 0 ? (
                           <span className="text-muted-foreground">No issues</span>
                         ) : (
@@ -627,6 +880,87 @@ export default function SupplierSlaPage() {
                           </div>
                         )}
                       </TableCell>
+                      {canManage ? (
+                        <TableCell className="space-y-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Owner</Label>
+                            <select
+                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
+                              value={draft.ownerUserId}
+                              onChange={(event) =>
+                                updateActionDraft(row.id, "ownerUserId", event.target.value)
+                              }
+                            >
+                              <option value="">Unassigned</option>
+                              {owners.map((owner) => (
+                                <option key={owner.id} value={owner.id}>
+                                  {(owner.name || owner.email).slice(0, 38)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Due Date</Label>
+                            <Input
+                              type="date"
+                              className="h-8 w-44 text-xs"
+                              value={draft.dueDate}
+                              onChange={(event) =>
+                                updateActionDraft(row.id, "dueDate", event.target.value)
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Action Status</Label>
+                            <select
+                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
+                              value={draft.actionStatus}
+                              onChange={(event) =>
+                                updateActionDraft(
+                                  row.id,
+                                  "actionStatus",
+                                  event.target.value as BreachActionDraft["actionStatus"],
+                                )
+                              }
+                            >
+                              <option value="NOT_REQUIRED">NOT_REQUIRED</option>
+                              <option value="OPEN">OPEN</option>
+                              <option value="IN_PROGRESS">IN_PROGRESS</option>
+                              <option value="RESOLVED">RESOLVED</option>
+                              <option value="DISMISSED">DISMISSED</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Resolution Note</Label>
+                            <Textarea
+                              rows={2}
+                              className="w-44 text-xs"
+                              value={draft.resolutionNote}
+                              onChange={(event) =>
+                                updateActionDraft(row.id, "resolutionNote", event.target.value)
+                              }
+                            />
+                          </div>
+                          <label className="flex items-center gap-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={draft.acknowledgeAlert}
+                              onChange={(event) =>
+                                updateActionDraft(row.id, "acknowledgeAlert", event.target.checked)
+                              }
+                            />
+                            Acknowledge Alert
+                          </label>
+                          <Button
+                            size="sm"
+                            className="h-8"
+                            disabled={actionSavingId === row.id}
+                            onClick={() => void submitBreachAction(row.id)}
+                          >
+                            {actionSavingId === row.id ? "Saving..." : "Save Action"}
+                          </Button>
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   );
                 })}

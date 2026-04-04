@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "email": "email dev",
+    "cron:sla:trigger": "node scripts/cron/trigger-sla-eval.mjs",
     "postinstall": "prisma generate && copyfiles node_modules/pdfjs-dist/build/pdf.worker.min.js public"
   },
   "prisma": {
