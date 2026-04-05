@@ -7,6 +7,13 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import UserDetailSkeleton from "@/components/ui/UserDetailSkeleton";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ArrowLeft,
   Edit,
   Save,
@@ -85,6 +92,7 @@ export default function UserDetailPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [roles, setRoles] = useState<Array<{id: string; name: string; label: string}>>([]);
   const [formData, setFormData] = useState({
     name: "",
     role: "user",
@@ -96,7 +104,21 @@ export default function UserDetailPage() {
     ? ((session?.user as any).globalPermissions as string[]).includes("users.manage")
     : false;
 
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch('/api/admin/rbac/roles');
+      if (response.ok) {
+        const rolesData = await response.json();
+        setRoles(rolesData);
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+    }
+  };
+
   useEffect(() => {
+    fetchRoles();
+    
     const fetchUser = async () => {
       try {
         const response = await fetch(`/api/users/${params.id}`);
@@ -575,16 +597,26 @@ export default function UserDetailPage() {
                     <Shield className="h-4 w-4 mr-2" />
                     Legacy Role
                   </label>
-                  <input
-                    type="text"
+                  <Select
                     value={formData.role}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, role: e.target.value }))
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, role: value }))
                     }
                     disabled={!editing}
-                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300"
-                    placeholder="e.g. user, admin, content_manager"
-                  />
+                  >
+                    <SelectTrigger className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.name}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>

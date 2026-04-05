@@ -44,6 +44,18 @@ export async function GET(
         documents: {
           orderBy: { createdAt: "desc" },
         },
+        deliveryAssignments: {
+          include: {
+            warehouse: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+          distinct: ['warehouseId'],
+        },
       },
     });
 

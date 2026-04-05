@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,6 +88,15 @@ interface DeliveryMan {
     name: string;
     code: string;
   } | null;
+  deliveryAssignments: Array<{
+    id: number;
+    warehouseId: number;
+    warehouse: {
+      id: number;
+      name: string;
+      code: string;
+    };
+  }>;
   references: Array<{
     id: number;
     name: string;
@@ -119,6 +127,26 @@ export default function DeliveryManEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [formData, setFormData] = useState({
+    phone: '',
+    alternatePhone: '',
+    presentAddress: '',
+    warehouseId: ''
+  });
+
+  const [warehouses, setWarehouses] = useState<Array<{id: number; name: string; code: string}>>([]);
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await fetch('/api/warehouses');
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  };
 
   const fetchDeliveryMan = async () => {
     if (!id) return;
@@ -141,6 +169,12 @@ export default function DeliveryManEditPage() {
 
       if (data.success) {
         setDeliveryMan(data.data);
+        setFormData({
+          phone: data.data.phone || '',
+          alternatePhone: data.data.alternatePhone || '',
+          presentAddress: data.data.presentAddress || '',
+          warehouseId: data.data.warehouseId?.toString() || ''
+        });
       } else {
         toast.error(data.message || "Failed to fetch delivery man");
         router.push("/admin/delivery-men");
@@ -155,6 +189,7 @@ export default function DeliveryManEditPage() {
   };
 
   useEffect(() => {
+    fetchWarehouses();
     fetchDeliveryMan();
   }, [id]);
 
@@ -203,6 +238,46 @@ export default function DeliveryManEditPage() {
       toast.error("Failed to upload file");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async () => {
+    if (!deliveryMan) return;
+
+    try {
+      setSaving(true);
+      const response = await fetch(`/api/delivery-men/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Delivery man updated successfully");
+        // Update deliveryMan with correct types
+        const updateData: Partial<DeliveryMan> = {
+          phone: formData.phone,
+          alternatePhone: formData.alternatePhone,
+          presentAddress: formData.presentAddress,
+          warehouseId: formData.warehouseId ? parseInt(formData.warehouseId, 10) : deliveryMan.warehouseId
+        };
+        setDeliveryMan(prev => prev ? { ...prev, ...updateData } : null);
+      } else {
+        toast.error(data.message || "Failed to update delivery man");
+      }
+    } catch (error) {
+      console.error("Error updating delivery man:", error);
+      toast.error("Failed to update delivery man");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -319,6 +394,14 @@ export default function DeliveryManEditPage() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2"
+          >
+            <Save className="h-4 w-4" />
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
           <Select
             value={deliveryMan.status}
             onValueChange={handleStatusChange}
@@ -359,11 +442,19 @@ export default function DeliveryManEditPage() {
               </div>
               <div>
                 <label className="text-sm font-medium">Phone</label>
-                <Input value={deliveryMan.phone} disabled />
+                <Input 
+                  value={formData.phone} 
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  disabled={saving}
+                />
               </div>
               <div>
                 <label className="text-sm font-medium">Alternate Phone</label>
-                <Input value={deliveryMan.alternatePhone || ""} disabled />
+                <Input 
+                  value={formData.alternatePhone} 
+                  onChange={(e) => handleInputChange('alternatePhone', e.target.value)}
+                  disabled={saving}
+                />
               </div>
               <div>
                 <label className="text-sm font-medium">Email</label>
@@ -385,7 +476,11 @@ export default function DeliveryManEditPage() {
 
             <div>
               <label className="text-sm font-medium">Present Address</label>
-              <Input value={deliveryMan.presentAddress} disabled />
+              <Input 
+                value={formData.presentAddress} 
+                onChange={(e) => handleInputChange('presentAddress', e.target.value)}
+                disabled={saving}
+              />
             </div>
 
             <div>
@@ -420,8 +515,57 @@ export default function DeliveryManEditPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Warehouse</label>
-              <Input value={deliveryMan.warehouse?.name || "N/A"} disabled />
+              <label className="text-sm font-medium">Warehouse Assignments</label>
+              <div className="mt-2 space-y-2">
+                {/* Primary warehouse (current assignment) */}
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-primary/5 border-primary/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div>
+                      <p className="font-medium text-sm">
+                        {deliveryMan.warehouse?.name || "N/A"} ({deliveryMan.warehouse?.code || ""})
+                      </p>
+                      <p className="text-xs text-muted-foreground">Primary Warehouse</p>
+                    </div>
+                  </div>
+                  <Select
+                    value={formData.warehouseId}
+                    onValueChange={(value) => handleInputChange('warehouseId', value)}
+                    disabled={saving}
+                  >
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Change primary" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {warehouses.map((warehouse) => (
+                        <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                          {warehouse.name} ({warehouse.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* Additional warehouses from delivery assignments */}
+                {deliveryMan.deliveryAssignments && deliveryMan.deliveryAssignments.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground mt-3">Additional warehouse access:</p>
+                    {deliveryMan.deliveryAssignments
+                      .filter(assignment => assignment.warehouseId !== deliveryMan.warehouseId)
+                      .map((assignment) => (
+                        <div key={assignment.id} className="flex items-center gap-3 p-2 border rounded-lg bg-muted/30">
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full"></div>
+                          <div>
+                            <p className="text-sm font-medium">
+                              {assignment.warehouse.name} ({assignment.warehouse.code})
+                            </p>
+                            <p className="text-xs text-muted-foreground">Delivery Assignment</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium">Application Status</label>
