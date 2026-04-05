@@ -53,12 +53,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 
-const DeliveryManEnlistmentForm = dynamic(() => import("@/components/delivery-men/DeliveryManEnlistmentForm"), {
-  ssr: false,
-  loading: () => <div className="flex items-center justify-center h-64">Loading form...</div>
-});
+const DeliveryManEnlistmentForm = dynamic(
+  () => import("@/components/delivery-men/DeliveryManEnlistmentForm"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-64">
+        Loading form...
+      </div>
+    ),
+  },
+);
 
 interface DeliveryMan {
   id: string;
@@ -162,12 +169,15 @@ export default function DeliveryMenList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
-  const [selectedDeliveryMan, setSelectedDeliveryMan] = useState<DeliveryMan | null>(null);
+  const [selectedDeliveryMan, setSelectedDeliveryMan] =
+    useState<DeliveryMan | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState<string>("");
-  const [warehouses, setWarehouses] = useState<Array<{id: number; name: string; code: string}>>([]);
+  const [warehouses, setWarehouses] = useState<
+    Array<{ id: number; name: string; code: string }>
+  >([]);
 
   const fetchDeliveryMen = async () => {
     try {
@@ -178,8 +188,10 @@ export default function DeliveryMenList() {
       });
 
       if (search) params.append("search", search);
-      if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
-      if (warehouseFilter && warehouseFilter !== "all") params.append("warehouseId", warehouseFilter);
+      if (statusFilter && statusFilter !== "all")
+        params.append("status", statusFilter);
+      if (warehouseFilter && warehouseFilter !== "all")
+        params.append("warehouseId", warehouseFilter);
 
       const response = await fetch(`/api/delivery-men?${params}`);
       const data = await response.json();
@@ -200,16 +212,20 @@ export default function DeliveryMenList() {
 
   const fetchWarehouses = async () => {
     try {
-      const response = await fetch('/api/warehouses');
-      
+      const response = await fetch("/api/warehouses");
+
       if (!response.ok) {
-        console.error('Failed to fetch warehouses:', response.status, response.statusText);
+        console.error(
+          "Failed to fetch warehouses:",
+          response.status,
+          response.statusText,
+        );
         return;
       }
-      
+
       const data = await response.json();
-      console.log('Warehouses API response:', data); // Debug log
-      
+      console.log("Warehouses API response:", data); // Debug log
+
       // Handle different response formats
       let warehousesData = [];
       if (Array.isArray(data)) {
@@ -219,32 +235,44 @@ export default function DeliveryMenList() {
       } else if (data && Array.isArray(data.data)) {
         warehousesData = data.data;
       } else {
-        console.error('Unexpected warehouses API response format:', data);
+        console.error("Unexpected warehouses API response format:", data);
         return;
       }
-      
+
       // Map to the expected format
       const formattedWarehouses = warehousesData.map((warehouse: any) => ({
         id: warehouse.id,
         name: warehouse.name,
         code: warehouse.code,
       }));
-      
-      console.log('Formatted warehouses:', formattedWarehouses); // Debug log
+
+      console.log("Formatted warehouses:", formattedWarehouses); // Debug log
       setWarehouses(formattedWarehouses);
     } catch (error) {
-      console.error('Error fetching warehouses:', error);
-      toast.error('Failed to fetch warehouses');
+      console.error("Error fetching warehouses:", error);
+      toast.error("Failed to fetch warehouses");
     }
   };
 
   useEffect(() => {
     fetchDeliveryMen();
     fetchWarehouses();
-  }, [pagination.page, pagination.limit, search, statusFilter, warehouseFilter]);
+  }, [
+    pagination.page,
+    pagination.limit,
+    search,
+    statusFilter,
+    warehouseFilter,
+  ]);
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+    const variants: Record<
+      string,
+      {
+        variant: "default" | "secondary" | "destructive" | "outline";
+        label: string;
+      }
+    > = {
       PENDING: { variant: "outline", label: "Pending" },
       ACTIVE: { variant: "default", label: "Active" },
       SUSPENDED: { variant: "destructive", label: "Suspended" },
@@ -257,7 +285,13 @@ export default function DeliveryMenList() {
   };
 
   const getApplicationStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+    const variants: Record<
+      string,
+      {
+        variant: "default" | "secondary" | "destructive" | "outline";
+        label: string;
+      }
+    > = {
       DRAFT: { variant: "outline", label: "Draft" },
       SUBMITTED: { variant: "secondary", label: "Submitted" },
       UNDER_REVIEW: { variant: "default", label: "Under Review" },
@@ -275,7 +309,7 @@ export default function DeliveryMenList() {
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
+    setPagination((prev) => ({ ...prev, page: newPage }));
   };
 
   const handleEdit = (deliveryMan: DeliveryMan) => {
@@ -286,7 +320,7 @@ export default function DeliveryMenList() {
   const handleViewDetails = async (deliveryMan: DeliveryMan) => {
     try {
       const response = await fetch(`/api/delivery-men/${deliveryMan.id}`);
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           toast.error("Delivery man not found");
@@ -297,7 +331,7 @@ export default function DeliveryMenList() {
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         setSelectedDeliveryMan(data.data);
         setIsModalOpen(true);
@@ -315,15 +349,18 @@ export default function DeliveryMenList() {
 
     try {
       setStatusUpdating(true);
-      const response = await fetch(`/api/delivery-men/${selectedDeliveryMan.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `/api/delivery-men/${selectedDeliveryMan.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: newStatus,
+          }),
         },
-        body: JSON.stringify({
-          status: newStatus,
-        }),
-      });
+      );
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -340,17 +377,23 @@ export default function DeliveryMenList() {
 
       if (data.success) {
         toast.success(`Status updated to ${newStatus} successfully`);
-        
+
         // Update selected delivery man in modal
-        setSelectedDeliveryMan(prev => prev ? { ...prev, status: newStatus } : null);
-        
+        setSelectedDeliveryMan((prev) =>
+          prev ? { ...prev, status: newStatus } : null,
+        );
+
         // Update delivery man in list
-        setDeliveryMen(prev => prev.map(dm => 
-          dm.id === selectedDeliveryMan.id ? { ...dm, status: newStatus } : dm
-        ));
-        
+        setDeliveryMen((prev) =>
+          prev.map((dm) =>
+            dm.id === selectedDeliveryMan.id
+              ? { ...dm, status: newStatus }
+              : dm,
+          ),
+        );
+
         // Close modal if approved
-        if (newStatus === 'ACTIVE') {
+        if (newStatus === "ACTIVE") {
           setIsModalOpen(false);
           setSelectedDeliveryMan(null);
         }
@@ -375,28 +418,37 @@ export default function DeliveryMenList() {
 
     try {
       setStatusUpdating(true);
-      const response = await fetch(`/api/delivery-men/${selectedDeliveryMan.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `/api/delivery-men/${selectedDeliveryMan.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            [field]: tempValue,
+          }),
         },
-        body: JSON.stringify({
-          [field]: tempValue,
-        }),
-      });
+      );
 
       const data = await response.json();
 
       if (data.success) {
         toast.success(`${field} updated successfully`);
-        
+
         // Update selected delivery man in modal
-        setSelectedDeliveryMan(prev => prev ? { ...prev, [field]: tempValue } : null);
-        
+        setSelectedDeliveryMan((prev) =>
+          prev ? { ...prev, [field]: tempValue } : null,
+        );
+
         // Update delivery man in list
-        setDeliveryMen(prev => prev.map(dm => 
-          dm.id === selectedDeliveryMan.id ? { ...dm, [field]: tempValue } : dm
-        ));
+        setDeliveryMen((prev) =>
+          prev.map((dm) =>
+            dm.id === selectedDeliveryMan.id
+              ? { ...dm, [field]: tempValue }
+              : dm,
+          ),
+        );
       } else {
         toast.error(data.message || "Failed to update field");
       }
@@ -420,7 +472,9 @@ export default function DeliveryMenList() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Delivery Men Management</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+            Delivery Men Management
+          </h1>
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
             Manage delivery personnel and enlist new team members
           </p>
@@ -495,7 +549,10 @@ export default function DeliveryMenList() {
                   <SelectItem value="RESIGNED">Resigned</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
+              <Select
+                value={warehouseFilter}
+                onValueChange={setWarehouseFilter}
+              >
                 <SelectTrigger className="w-[180px]">
                   <Building className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Filter by warehouse" />
@@ -503,7 +560,10 @@ export default function DeliveryMenList() {
                 <SelectContent>
                   <SelectItem value="all">All Warehouses</SelectItem>
                   {warehouses.map((warehouse) => (
-                    <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                    <SelectItem
+                      key={warehouse.id}
+                      value={warehouse.id.toString()}
+                    >
                       {warehouse.name} ({warehouse.code})
                     </SelectItem>
                   ))}
@@ -528,16 +588,17 @@ export default function DeliveryMenList() {
                         <TableHead>Application</TableHead>
                         <TableHead>Joined Date</TableHead>
                         <TableHead>Documents</TableHead>
-                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {deliveryMen.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
+                          <TableCell colSpan={7} className="text-center py-8">
                             <div className="flex flex-col items-center gap-2">
                               <User className="h-12 w-12 text-muted-foreground" />
-                              <p className="text-muted-foreground">No delivery men found</p>
+                              <p className="text-muted-foreground">
+                                No delivery men found
+                              </p>
                               <Button
                                 variant="outline"
                                 onClick={() => setActiveTab("enlist")}
@@ -550,10 +611,20 @@ export default function DeliveryMenList() {
                         </TableRow>
                       ) : (
                         deliveryMen.map((deliveryMan) => (
-                          <TableRow key={deliveryMan.id} className="hover:bg-muted/50">
+                          <TableRow
+                            key={deliveryMan.id}
+                            className="hover:bg-muted/50"
+                            onClick={() =>
+                              router.push(
+                                `/admin/delivery-men/${deliveryMan.id}`,
+                              )
+                            }
+                          >
                             <TableCell>
                               <div className="space-y-1">
-                                <div className="font-medium">{deliveryMan.fullName}</div>
+                                <div className="font-medium">
+                                  {deliveryMan.fullName}
+                                </div>
                                 {deliveryMan.employeeCode && (
                                   <div className="text-sm text-muted-foreground">
                                     Code: {deliveryMan.employeeCode}
@@ -585,7 +656,9 @@ export default function DeliveryMenList() {
                               {getStatusBadge(deliveryMan.status)}
                             </TableCell>
                             <TableCell>
-                              {getApplicationStatusBadge(deliveryMan.applicationStatus)}
+                              {getApplicationStatusBadge(
+                                deliveryMan.applicationStatus,
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1 text-sm">
@@ -598,25 +671,9 @@ export default function DeliveryMenList() {
                                 <FileText className="h-3 w-3" />
                                 <span>{deliveryMan._count.documents}</span>
                                 <span className="text-muted-foreground">/</span>
-                                <span>{deliveryMan._count.references} Refs</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleViewDetails(deliveryMan)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(deliveryMan)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
+                                <span>
+                                  {deliveryMan._count.references} Refs
+                                </span>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -630,9 +687,12 @@ export default function DeliveryMenList() {
                 {pagination.pages > 1 && (
                   <div className="flex items-center justify-between mt-4">
                     <div className="text-sm text-muted-foreground">
-                      Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
-                      {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-                      {pagination.total} results
+                      Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                      {Math.min(
+                        pagination.page * pagination.limit,
+                        pagination.total,
+                      )}{" "}
+                      of {pagination.total} results
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -689,75 +749,95 @@ export default function DeliveryMenList() {
               </DialogTitle>
             </div>
           </DialogHeader>
-          
+
           {selectedDeliveryMan && (
-              <div className="space-y-6">
-                {/* Header Section */}
-                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                      <User className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">{selectedDeliveryMan.fullName}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedDeliveryMan.employeeCode || "No Employee Code"}
-                      </p>
-                    </div>
+            <div className="space-y-6">
+              {/* Header Section */}
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <User className="h-6 w-6 text-primary" />
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Select
-                      value={selectedDeliveryMan.status}
-                      onValueChange={handleStatusChange}
-                      disabled={statusUpdating}
-                    >
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PENDING">Pending</SelectItem>
-                        <SelectItem value="ACTIVE">Active</SelectItem>
-                        <SelectItem value="SUSPENDED">Suspended</SelectItem>
-                        <SelectItem value="REJECTED">Rejected</SelectItem>
-                        <SelectItem value="RESIGNED">Resigned</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {getStatusBadge(selectedDeliveryMan.status)}
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {selectedDeliveryMan.fullName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedDeliveryMan.employeeCode || "No Employee Code"}
+                    </p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  <Select
+                    value={selectedDeliveryMan.status}
+                    onValueChange={handleStatusChange}
+                    disabled={statusUpdating}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                      <SelectItem value="REJECTED">Rejected</SelectItem>
+                      <SelectItem value="RESIGNED">Resigned</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {getStatusBadge(selectedDeliveryMan.status)}
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Basic Information */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Basic Information</CardTitle>
+                    <CardTitle className="text-base">
+                      Basic Information
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <span className="font-medium">Phone:</span>
-                        <p className="text-muted-foreground">{selectedDeliveryMan.phone}</p>
+                        <p className="text-muted-foreground">
+                          {selectedDeliveryMan.phone}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Email:</span>
-                        <p className="text-muted-foreground">{selectedDeliveryMan.email || "N/A"}</p>
+                        <p className="text-muted-foreground">
+                          {selectedDeliveryMan.email || "N/A"}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Date of Birth:</span>
-                        <p className="text-muted-foreground">{formatDate(selectedDeliveryMan.dateOfBirth)}</p>
+                        <p className="text-muted-foreground">
+                          {formatDate(selectedDeliveryMan.dateOfBirth)}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Gender:</span>
-                        <p className="text-muted-foreground">{selectedDeliveryMan.gender || "N/A"}</p>
+                        <p className="text-muted-foreground">
+                          {selectedDeliveryMan.gender || "N/A"}
+                        </p>
                       </div>
                     </div>
                     <div>
-                      <span className="font-medium text-sm">Present Address:</span>
-                      <p className="text-sm text-muted-foreground">{selectedDeliveryMan.presentAddress}</p>
+                      <span className="font-medium text-sm">
+                        Present Address:
+                      </span>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedDeliveryMan.presentAddress}
+                      </p>
                     </div>
                     <div>
-                      <span className="font-medium text-sm">Permanent Address:</span>
-                      <p className="text-sm text-muted-foreground">{selectedDeliveryMan.permanentAddress}</p>
+                      <span className="font-medium text-sm">
+                        Permanent Address:
+                      </span>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedDeliveryMan.permanentAddress}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -765,13 +845,15 @@ export default function DeliveryMenList() {
                 {/* Status & Warehouse */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-base">Status & Warehouse</CardTitle>
+                    <CardTitle className="text-base">
+                      Status & Warehouse
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <span className="font-medium">Warehouse:</span>
-                        {editingField === 'warehouseId' ? (
+                        {editingField === "warehouseId" ? (
                           <div className="mt-1 space-y-2">
                             <Select
                               value={tempValue}
@@ -783,7 +865,10 @@ export default function DeliveryMenList() {
                               </SelectTrigger>
                               <SelectContent>
                                 {warehouses.map((warehouse) => (
-                                  <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                                  <SelectItem
+                                    key={warehouse.id}
+                                    value={warehouse.id.toString()}
+                                  >
                                     {warehouse.name} ({warehouse.code})
                                   </SelectItem>
                                 ))}
@@ -792,7 +877,7 @@ export default function DeliveryMenList() {
                             <div className="flex gap-2">
                               <Button
                                 size="sm"
-                                onClick={() => handleFieldSave('warehouseId')}
+                                onClick={() => handleFieldSave("warehouseId")}
                                 disabled={statusUpdating}
                               >
                                 Save
@@ -809,13 +894,20 @@ export default function DeliveryMenList() {
                         ) : (
                           <div className="flex items-center justify-between mt-1">
                             <p className="text-muted-foreground">
-                              {selectedDeliveryMan.warehouse?.name || "N/A"} 
-                              {selectedDeliveryMan.warehouse?.code && ` (${selectedDeliveryMan.warehouse.code})`}
+                              {selectedDeliveryMan.warehouse?.name || "N/A"}
+                              {selectedDeliveryMan.warehouse?.code &&
+                                ` (${selectedDeliveryMan.warehouse.code})`}
                             </p>
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleFieldEdit('warehouseId', selectedDeliveryMan.warehouseId?.toString() || '')}
+                              onClick={() =>
+                                handleFieldEdit(
+                                  "warehouseId",
+                                  selectedDeliveryMan.warehouseId?.toString() ||
+                                    "",
+                                )
+                              }
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
@@ -825,24 +917,34 @@ export default function DeliveryMenList() {
                       <div>
                         <span className="font-medium">Application Status:</span>
                         <div className="mt-1">
-                          {getApplicationStatusBadge(selectedDeliveryMan.applicationStatus)}
+                          {getApplicationStatusBadge(
+                            selectedDeliveryMan.applicationStatus,
+                          )}
                         </div>
                       </div>
                       <div>
                         <span className="font-medium">Identity Type:</span>
-                        <p className="text-muted-foreground mt-1">{selectedDeliveryMan.identityType}</p>
+                        <p className="text-muted-foreground mt-1">
+                          {selectedDeliveryMan.identityType}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Identity Number:</span>
-                        <p className="text-muted-foreground mt-1">{selectedDeliveryMan.identityNumber}</p>
+                        <p className="text-muted-foreground mt-1">
+                          {selectedDeliveryMan.identityNumber}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Joining Date:</span>
-                        <p className="text-muted-foreground mt-1">{formatDate(selectedDeliveryMan.joiningDate)}</p>
+                        <p className="text-muted-foreground mt-1">
+                          {formatDate(selectedDeliveryMan.joiningDate)}
+                        </p>
                       </div>
                       <div>
                         <span className="font-medium">Emergency Contact:</span>
-                        <p className="text-muted-foreground mt-1">{selectedDeliveryMan.emergencyContactName || "N/A"}</p>
+                        <p className="text-muted-foreground mt-1">
+                          {selectedDeliveryMan.emergencyContactName || "N/A"}
+                        </p>
                       </div>
                     </div>
                     {selectedDeliveryMan.note && (
@@ -867,18 +969,25 @@ export default function DeliveryMenList() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {selectedDeliveryMan?.documents && selectedDeliveryMan.documents.length > 0 ? (
+                    {selectedDeliveryMan?.documents &&
+                    selectedDeliveryMan.documents.length > 0 ? (
                       selectedDeliveryMan.documents.map((document) => (
-                        <div key={document.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div
+                          key={document.id}
+                          className="flex items-center justify-between p-3 border rounded-lg"
+                        >
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                               <FileText className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                              <p className="font-medium text-sm">{document.type}</p>
+                              <p className="font-medium text-sm">
+                                {document.type}
+                              </p>
                               <p className="text-xs text-muted-foreground">
                                 {document.fileName || "Unknown file"}
-                                {document.fileSize && ` • ${(document.fileSize / 1024).toFixed(1)} KB`}
+                                {document.fileSize &&
+                                  ` • ${(document.fileSize / 1024).toFixed(1)} KB`}
                               </p>
                             </div>
                           </div>
@@ -892,7 +1001,7 @@ export default function DeliveryMenList() {
                               <Eye className="h-3 w-3" />
                               View
                             </a>
-                            {document.mimeType?.startsWith('image/') && (
+                            {document.mimeType?.startsWith("image/") && (
                               <div className="w-8 h-8 rounded border overflow-hidden">
                                 <img
                                   src={document.fileUrl}
@@ -924,29 +1033,44 @@ export default function DeliveryMenList() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {selectedDeliveryMan?.references && selectedDeliveryMan.references.length > 0 ? (
+                    {selectedDeliveryMan?.references &&
+                    selectedDeliveryMan.references.length > 0 ? (
                       selectedDeliveryMan.references.map((reference) => (
-                        <div key={reference.id} className="p-3 border rounded-lg">
+                        <div
+                          key={reference.id}
+                          className="p-3 border rounded-lg"
+                        >
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="font-medium">{reference.name}</h4>
-                            <Badge variant="outline">{reference.relation || "No Relation"}</Badge>
+                            <Badge variant="outline">
+                              {reference.relation || "No Relation"}
+                            </Badge>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                             <div>
                               <span className="font-medium">Phone:</span>
-                              <p className="text-muted-foreground">{reference.phone}</p>
+                              <p className="text-muted-foreground">
+                                {reference.phone}
+                              </p>
                             </div>
                             <div>
                               <span className="font-medium">Occupation:</span>
-                              <p className="text-muted-foreground">{reference.occupation || "N/A"}</p>
+                              <p className="text-muted-foreground">
+                                {reference.occupation || "N/A"}
+                              </p>
                             </div>
                             <div>
                               <span className="font-medium">Address:</span>
-                              <p className="text-muted-foreground">{reference.address || "N/A"}</p>
+                              <p className="text-muted-foreground">
+                                {reference.address || "N/A"}
+                              </p>
                             </div>
                             <div>
                               <span className="font-medium">Identity:</span>
-                              <p className="text-muted-foreground">{reference.identityType} - {reference.identityNumber}</p>
+                              <p className="text-muted-foreground">
+                                {reference.identityType} -{" "}
+                                {reference.identityNumber}
+                              </p>
                             </div>
                           </div>
                         </div>

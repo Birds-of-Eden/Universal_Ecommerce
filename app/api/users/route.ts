@@ -23,8 +23,8 @@ const createUserSchema = z.object({
 });
 
 const querySchema = z.object({
-  page: z.coerce.number().min(1).default(1),
-  limit: z.coerce.number().min(1).max(100).default(10),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
   search: z.string().optional().nullable(),
   role: z.string().trim().min(1).max(40).optional().nullable(),
 });
@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
     
     // Validate query parameters
     const queryValidation = querySchema.safeParse({
-      page: searchParams.get('page'),
-      limit: searchParams.get('limit'),
+      page: searchParams.get('page') ?? undefined,
+      limit: searchParams.get('limit') ?? undefined,
       search: searchParams.get('search'),
       role: searchParams.get('role'),
     });
