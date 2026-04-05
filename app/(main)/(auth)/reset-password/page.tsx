@@ -34,12 +34,12 @@ export default function ResetPasswordPage() {
 
   const validateForm = () => {
     if (password.length < 8) {
-      setError("পাসওয়ার্ড কমপক্ষে 8 অক্ষর হতে হবে");
+      setError("Password must be at least 8 characters");
       return false;
     }
 
     if (password !== confirmPassword) {
-      setError("পাসওয়ার্ড মিলছে না");
+      setError("Passwords do not match");
       return false;
     }
 
@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "পাসওয়ার্ড রিসেট ব্যর্থ হয়েছে");
+        setError(data.error || "Password reset failed");
         setLoading(false);
         return;
       }
@@ -74,30 +74,30 @@ export default function ResetPasswordPage() {
         router.push("/signin");
       }, 2000);
     } catch {
-      setError("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।");
+      setError("Network error. Please try again.");
       setLoading(false);
     }
   };
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0E4B4B]/5 to-[#086666]/5 p-4">
-        <Card className="w-full max-w-md border-[#D1D8BE] shadow-lg">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+        <Card className="w-full max-w-md border-border shadow-lg">
           <CardContent className="pt-6">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3 mb-4">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-red-900 mb-1">
-                  অবৈধ রিসেট লিঙ্ক
+                  Invalid Reset Link
                 </h3>
                 <p className="text-sm text-red-800">
-                  এই রিসেট লিঙ্ক অবৈধ বা মেয়াদ উত্তীর্ণ হয়েছে।
+                  This reset link is invalid or has expired.
                 </p>
               </div>
             </div>
             <Link href="/forgot-password" className="block">
-              <Button className="w-full bg-[#C0704D] hover:bg-[#A85D3F] text-white rounded-lg">
-                নতুন লিঙ্ক অনুরোধ করুন
+              <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-lg">
+                Request New Link
               </Button>
             </Link>
           </CardContent>
@@ -107,22 +107,22 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <Card className="w-full max-w-md border-[#D1D8BE] shadow-lg">
-      <CardHeader className="bg-gradient-to-r from-[#0E4B4B]/10 to-[#086666]/10 border-b border-[#D1D8BE]">
-        <CardTitle className="text-2xl text-[#0D1414]">
-          নতুন পাসওয়ার্ড সেট করুন
+    <Card className="w-full max-w-md border-border shadow-lg">
+      <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/20 border-b border-border">
+        <CardTitle className="text-2xl text-foreground">
+          Set New Password
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6">
         {success ? (
           <div className="space-y-4">
-            <div className="bg-[#A7C1A8]/10 border border-[#A7C1A8] rounded-lg p-4 flex gap-3">
-              <CheckCircle className="w-5 h-5 text-[#0E4B4B] flex-shrink-0 mt-0.5" />
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-[#0E4B4B] mb-1">সফল!</h3>
-                <p className="text-sm text-[#2D4A3C]/80">
-                  আপনার পাসওয়ার্ড সফলভাবে রিসেট হয়েছে। লগইন পৃষ্ঠায়
-                  পুনর্নির্দেশিত হচ্ছে...
+                <h3 className="font-semibold text-green-900 mb-1">Success!</h3>
+                <p className="text-sm text-green-800">
+                  Your password has been successfully reset. Redirecting to
+                  login page...
                 </p>
               </div>
             </div>
@@ -137,24 +137,24 @@ export default function ResetPasswordPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-[#0D1414] mb-2">
-                নতুন পাসওয়ার্ড
+              <label className="block text-sm font-medium text-foreground mb-2">
+                New Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 w-4 h-4 text-[#2D4A3C]/50" />
+                <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                 <Input
                   type={showPassword ? "text" : "password"}
-                  placeholder="কমপক্ষে 8 অক্ষর"
+                  placeholder="At least 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 bg-[#EEEFE0] border-[#D1D8BE] focus:border-[#819A91] text-[#0D1414]"
+                  className="pl-10 pr-10 bg-muted border-border focus:border-primary text-foreground"
                   required
                   minLength={8}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-[#2D4A3C]/50 hover:text-[#2D4A3C]"
+                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -171,40 +171,40 @@ export default function ResetPasswordPage() {
                       <div
                         key={i}
                         className={`h-1 flex-1 rounded-full ${
-                          i < passwordStrength ? "bg-[#0E4B4B]" : "bg-[#D1D8BE]"
+                          i < passwordStrength ? "bg-primary" : "bg-border"
                         }`}
                       />
                     ))}
                   </div>
-                  <p className="text-xs text-[#2D4A3C]/70">
-                    {passwordStrength === 1 && "দুর্বল"}
-                    {passwordStrength === 2 && "ন্যায্য"}
-                    {passwordStrength === 3 && "ভাল"}
-                    {passwordStrength === 4 && "শক্তিশালী"}
+                  <p className="text-xs text-muted-foreground">
+                    {passwordStrength === 1 && "Weak"}
+                    {passwordStrength === 2 && "Fair"}
+                    {passwordStrength === 3 && "Good"}
+                    {passwordStrength === 4 && "Strong"}
                   </p>
                 </div>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#0D1414] mb-2">
-                পাসওয়ার্ড নিশ্চিত করুন
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Confirm Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 w-4 h-4 text-[#2D4A3C]/50" />
+                <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                 <Input
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="পাসওয়ার্ড পুনরায় প্রবেশ করুন"
+                  placeholder="Re-enter password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-10 pr-10 bg-[#EEEFE0] border-[#D1D8BE] focus:border-[#819A91] text-[#0D1414]"
+                  className="pl-10 pr-10 bg-muted border-border focus:border-primary text-foreground"
                   required
                   minLength={8}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-3 text-[#2D4A3C]/50 hover:text-[#2D4A3C]"
+                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -218,9 +218,9 @@ export default function ResetPasswordPage() {
             <Button
               type="submit"
               disabled={loading || !password || !confirmPassword}
-              className="w-full bg-gradient-to-r from-[#0E4B4B] to-[#086666] hover:from-[#0A3A3A] hover:to-[#065252] text-white rounded-lg disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white rounded-lg disabled:opacity-50"
             >
-              {loading ? "প্রসেস করা হচ্ছে..." : "পাসওয়ার্ড রিসেট করুন"}
+              {loading ? "Processing..." : "Reset Password"}
             </Button>
           </form>
         )}
