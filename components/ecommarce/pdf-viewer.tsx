@@ -10,8 +10,8 @@ interface PdfViewerProps {
 }
 
 const MessageOverlay = ({ children }: { children: React.ReactNode }) => (
-  <div className="absolute inset-0 bg-gray-50/70 backdrop-blur-sm flex items-center justify-center p-4 z-10">
-    <div className="text-center bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+  <div className="absolute inset-0 bg-muted/70 backdrop-blur-sm flex items-center justify-center p-4 z-10">
+    <div className="text-center bg-background p-8 rounded-xl shadow-lg border border-border">
       {children}
     </div>
   </div>
@@ -48,7 +48,7 @@ export default function PdfViewer({ pdfUrl, onClose }: PdfViewerProps) {
 
   const handleIframeError = () => {
     setError(
-      "পিডিএফ ফাইল লোড করা যায়নি। ফাইল লিঙ্ক বা CORS সেটিংস যাচাই করুন।"
+      "PDF file could not be loaded. Please check the file link or CORS settings.",
     );
     setIsLoading(false);
   };
@@ -56,7 +56,7 @@ export default function PdfViewer({ pdfUrl, onClose }: PdfViewerProps) {
   if (!isClient) {
     return (
       <MessageOverlay>
-        <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </MessageOverlay>
     );
   }
@@ -66,10 +66,10 @@ export default function PdfViewer({ pdfUrl, onClose }: PdfViewerProps) {
       <MessageOverlay>
         <div className="relative">
           <div className="flex flex-col gap-2 mr-2">
-          <p className="text-red-600 font-semibold">পিডিএফ URL পাওয়া যায়নি</p>
-          <p className="text-gray-500 text-sm mt-1">
-            অনুগ্রহ করে একটি সঠিক ফাইল লিঙ্ক দিন।
-          </p>
+            <p className="text-red-600 font-semibold">PDF URL Not Found</p>
+            <p className="text-muted-foreground text-sm mt-1">
+              Please provide a valid file link.
+            </p>
           </div>
           <div
             onClick={onClose}
@@ -89,21 +89,19 @@ export default function PdfViewer({ pdfUrl, onClose }: PdfViewerProps) {
     : `${pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`;
 
   return (
-    <div className="h-full w-full flex flex-col p-4 bg-gray-50 rounded-lg shadow-inner">
-      <div className="flex gap-3 mb-4 flex-wrap justify-center p-2 bg-white rounded-lg shadow-md border-b border-gray-200">
-        <p className="text-sm text-gray-500 italic">
-          আপনার ব্রাউজার স্বয়ংক্রিয়ভাবে পৃষ্ঠা এবং জুম নিয়ন্ত্রণ করবে।
+    <div className="h-full w-full flex flex-col p-4 bg-muted rounded-lg shadow-inner">
+      <div className="flex gap-3 mb-4 flex-wrap justify-center p-2 bg-background rounded-lg shadow-md border-b border-border">
+        <p className="text-sm text-muted-foreground italic">
+          Your browser will automatically control page and zoom controls.
         </p>
       </div>
 
-      <div className="flex-1 relative overflow-hidden w-full flex justify-center items-start pt-0 custom-scrollbar rounded-xl border-4 border-gray-200 shadow-xl">
+      <div className="flex-1 relative overflow-hidden w-full flex justify-center items-start pt-0 custom-scrollbar rounded-xl border-4 border-border shadow-xl">
         {isLoading && (
           <MessageOverlay>
             <div className="flex flex-col items-center">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <p className="mt-3 text-gray-700 font-medium">
-                পিডিএফ লোড হচ্ছে...
-              </p>
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-3 text-foreground font-medium">PDF Loading...</p>
             </div>
           </MessageOverlay>
         )}
@@ -113,13 +111,13 @@ export default function PdfViewer({ pdfUrl, onClose }: PdfViewerProps) {
             <div className="text-center text-red-600">
               <p className="font-semibold mb-2">{error}</p>
               <Button
-                className="mt-2 bg-red-500 hover:bg-red-600"
+                className="mt-2 bg-destructive hover:bg-destructive/90"
                 onClick={() => {
                   setIsLoading(true);
                   setError(null);
                 }}
               >
-                আবার চেষ্টা করুন
+                Try Again
               </Button>
             </div>
           </MessageOverlay>

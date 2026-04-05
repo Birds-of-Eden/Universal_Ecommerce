@@ -1,6 +1,12 @@
-'use client';
+"use client";
 
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  MoreHorizontal,
+} from "lucide-react";
 
 interface PaginationProps {
   currentPage: number;
@@ -30,10 +36,10 @@ export default function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 px-2 py-4 bg-[#EEEFE0] rounded-xl border border-[#D1D8BE] shadow-sm">
+    <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 px-2 py-4 bg-muted rounded-xl border border-border shadow-sm">
       {/* Page Info */}
-      <div className="text-sm text-[#2C4A3B] font-medium">
-        পৃষ্ঠা {currentPage} এর {totalPages} - মোট {totalPages} পৃষ্ঠা
+      <div className="text-sm text-muted-foreground font-medium">
+        Page {currentPage} of {totalPages} - Total {totalPages} pages
       </div>
 
       {/* Pagination Controls */}
@@ -42,8 +48,8 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
-          className="p-2 rounded-lg border border-[#D1D8BE] bg-white text-[#819A91] hover:bg-[#819A91] hover:text-[#EEEFE0] hover:border-[#819A91] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#819A91] transition-all duration-300 shadow-sm"
-          title="প্রথম পৃষ্ঠা"
+          className="p-2 rounded-lg border border-border bg-background text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-background disabled:hover:text-muted-foreground transition-all duration-300 shadow-sm"
+          title="First Page"
         >
           <ChevronsLeft className="h-4 w-4" />
         </button>
@@ -52,8 +58,8 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="p-2 rounded-lg border border-[#D1D8BE] bg-white text-[#819A91] hover:bg-[#819A91] hover:text-[#EEEFE0] hover:border-[#819A91] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#819A91] transition-all duration-300 shadow-sm"
-          title="আগের পৃষ্ঠা"
+          className="p-2 rounded-lg border border-border bg-background text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-background disabled:hover:text-muted-foreground transition-all duration-300 shadow-sm"
+          title="Previous Page"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -63,12 +69,12 @@ export default function Pagination({
           <div className="flex items-center space-x-1">
             <button
               onClick={() => onPageChange(1)}
-              className="px-3 py-2 rounded-lg border border-[#D1D8BE] bg-white text-[#2C4A3B] hover:bg-[#819A91] hover:text-[#EEEFE0] hover:border-[#819A91] transition-all duration-300 shadow-sm text-sm font-medium"
+              className="px-3 py-2 rounded-lg border border-border bg-background text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 shadow-sm text-sm font-medium"
             >
               1
             </button>
             {startPage > 2 && (
-              <span className="px-2 text-[#819A91]">
+              <span className="px-2 text-muted-foreground">
                 <MoreHorizontal className="h-4 w-4" />
               </span>
             )}
@@ -82,8 +88,8 @@ export default function Pagination({
             onClick={() => onPageChange(page)}
             className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-300 shadow-sm ${
               page === currentPage
-                ? 'bg-gradient-to-r from-[#2C4A3B] to-[#819A91] text-[#EEEFE0] border-[#2C4A3B] shadow-md transform scale-105'
-                : 'border-[#D1D8BE] bg-white text-[#2C4A3B] hover:bg-[#819A91] hover:text-[#EEEFE0] hover:border-[#819A91]'
+                ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground border-primary shadow-md transform scale-105"
+                : "border-border bg-background text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary"
             }`}
           >
             {page}
@@ -94,13 +100,13 @@ export default function Pagination({
         {endPage < totalPages && (
           <div className="flex items-center space-x-1">
             {endPage < totalPages - 1 && (
-              <span className="px-2 text-[#819A91]">
+              <span className="px-2 text-muted-foreground">
                 <MoreHorizontal className="h-4 w-4" />
               </span>
             )}
             <button
               onClick={() => onPageChange(totalPages)}
-              className="px-3 py-2 rounded-lg border border-[#D1D8BE] bg-white text-[#2C4A3B] hover:bg-[#819A91] hover:text-[#EEEFE0] hover:border-[#819A91] transition-all duration-300 shadow-sm text-sm font-medium"
+              className="px-3 py-2 rounded-lg border border-border bg-background text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 shadow-sm text-sm font-medium"
             >
               {totalPages}
             </button>
@@ -111,8 +117,8 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="p-2 rounded-lg border border-[#D1D8BE] bg-white text-[#819A91] hover:bg-[#819A91] hover:text-[#EEEFE0] hover:border-[#819A91] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#819A91] transition-all duration-300 shadow-sm"
-          title="পরের পৃষ্ঠা"
+          className="p-2 rounded-lg border border-border bg-background text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-background disabled:hover:text-muted-foreground transition-all duration-300 shadow-sm"
+          title="Next Page"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -121,8 +127,8 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
-          className="p-2 rounded-lg border border-[#D1D8BE] bg-white text-[#819A91] hover:bg-[#819A91] hover:text-[#EEEFE0] hover:border-[#819A91] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#819A91] transition-all duration-300 shadow-sm"
-          title="শেষ পৃষ্ঠা"
+          className="p-2 rounded-lg border border-border bg-background text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-background disabled:hover:text-muted-foreground transition-all duration-300 shadow-sm"
+          title="Last Page"
         >
           <ChevronsRight className="h-4 w-4" />
         </button>
