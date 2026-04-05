@@ -27,6 +27,21 @@ function toDateKey(value: Date) {
   return value.toISOString().slice(0, 10);
 }
 
+function toJsonSafe(value: unknown): unknown {
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => toJsonSafe(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, toJsonSafe(entry)]),
+    );
+  }
+  return value;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -237,7 +252,7 @@ export async function GET(request: NextRequest) {
       ACTIVE_TERMINATION_CASE_STATUSES.includes(row.status),
     );
 
-    return NextResponse.json({
+    const payload = {
       range: {
         from: from.toISOString(),
         to: now.toISOString(),
@@ -296,7 +311,9 @@ export async function GET(request: NextRequest) {
         entity: row.entity,
         createdAt: row.createdAt.toISOString(),
       })),
-    });
+    };
+
+    return NextResponse.json(toJsonSafe(payload));
   } catch (error) {
     console.error("SCM SLA ANALYTICS GET ERROR:", error);
     return NextResponse.json({ error: "Failed to load SLA analytics." }, { status: 500 });
