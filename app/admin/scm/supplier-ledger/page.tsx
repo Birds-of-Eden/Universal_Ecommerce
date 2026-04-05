@@ -153,6 +153,14 @@ export default function SupplierLedgerPage() {
   const canManageInvoices = globalPermissions.includes("supplier_invoices.manage");
   const canManagePayments = globalPermissions.includes("supplier_payments.manage");
   const canOverridePaymentHold = globalPermissions.includes("supplier_payments.override_hold");
+  const canReadPurchaseOrders = globalPermissions.some((permission) =>
+    [
+      "purchase_orders.read",
+      "purchase_orders.manage",
+      "purchase_orders.approve",
+      "goods_receipts.manage",
+    ].includes(permission),
+  );
 
   const [suppliers, setSuppliers] = useState<SupplierSummary[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<SupplierOption[]>([]);
@@ -185,14 +193,49 @@ export default function SupplierLedgerPage() {
   const loadBaseData = async () => {
     try {
       setLoading(true);
-      const [summary, supplierData, purchaseOrderData] = await Promise.all([
-        getJson<SupplierSummary[]>("/api/scm/supplier-ledger"),
-        getJson<SupplierOption[]>("/api/scm/suppliers"),
-        getJson<PurchaseOrderOption[]>("/api/scm/purchase-orders"),
-      ]);
-      setSuppliers(Array.isArray(summary) ? summary : []);
-      setSupplierOptions(Array.isArray(supplierData) ? supplierData : []);
-      setPurchaseOrders(Array.isArray(purchaseOrderData) ? purchaseOrderData : []);
+      const summary = await getJson<SupplierSummary[]>("/api/scm/supplier-ledger");
+      const normalizedSummary = Array.isArray(summary) ? summary : [];
+      setSuppliers(normalizedSummary);
+
+      let supplierData: SupplierOption[] = [];
+      try {
+        supplierData = await getJson<SupplierOption[]>("/api/scm/suppliers");
+      } catch (error: any) {
+        const message = String(error?.message || "").toLowerCase();
+        if (!message.includes("forbidden")) {
+          throw error;
+        }
+      }
+
+      if (Array.isArray(supplierData) && supplierData.length > 0) {
+        setSupplierOptions(supplierData);
+      } else {
+        // Fallback for roles that can read ledger but do not have supplier master read scope.
+        setSupplierOptions(
+          normalizedSummary.map((supplier) => ({
+            id: supplier.id,
+            code: supplier.code,
+            name: supplier.name,
+            currency: supplier.currency,
+          })),
+        );
+      }
+
+      if (canReadPurchaseOrders) {
+        try {
+          const purchaseOrderData =
+            await getJson<PurchaseOrderOption[]>("/api/scm/purchase-orders");
+          setPurchaseOrders(Array.isArray(purchaseOrderData) ? purchaseOrderData : []);
+        } catch (error: any) {
+          const message = String(error?.message || "").toLowerCase();
+          if (!message.includes("forbidden")) {
+            throw error;
+          }
+          setPurchaseOrders([]);
+        }
+      } else {
+        setPurchaseOrders([]);
+      }
     } catch (error: any) {
       toast.error(error?.message || "Failed to load supplier ledger");
     } finally {
@@ -218,7 +261,7 @@ export default function SupplierLedgerPage() {
 
   useEffect(() => {
     void loadBaseData();
-  }, []);
+  }, [canReadPurchaseOrders]);
 
   useEffect(() => {
     if (!selectedSupplierId) {
