@@ -9,7 +9,7 @@ import {
   buildDeliveryConfirmationUrl,
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
-import { shipmentDeliveryAssignmentSummaryInclude } from "@/lib/delivery-assignments";
+import { shipmentDeliveryAssignmentSummarySelect } from "@/lib/delivery-assignments";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission, resolveWarehouseScope } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
@@ -102,7 +102,7 @@ function buildShipmentInclude() {
         assignedAt: "desc",
       },
       take: 1,
-      include: shipmentDeliveryAssignmentSummaryInclude,
+      select: shipmentDeliveryAssignmentSummarySelect,
     },
   } as const;
 }

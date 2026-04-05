@@ -100,6 +100,80 @@ export function DeliveryAssignmentCard({
     }
   }
 
+  async function runActionWithLocation(
+    url: string,
+    body: Record<string, unknown> | undefined,
+    fallbackMessage: string,
+  ) {
+    try {
+      setLoadingAction(url);
+      setError("");
+
+      // Only request location for "Mark delivered" action
+      if (body && typeof body === "object" && "status" in body && body.status === "DELIVERED") {
+        let position: GeolocationPosition;
+
+        // Check if we already have permission
+        const permission = await navigator.permissions.query({ name: "geolocation" });
+        
+        if (permission.state === "granted") {
+          // Already have permission, get position without prompt
+          position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 300000, // 5 minutes cache
+            });
+          });
+        } else if (permission.state === "denied") {
+          throw new Error("Location access is required to mark delivery as delivered. Please enable location access in your browser settings.");
+        } else {
+          // Permission not determined, will prompt user
+          position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 15000,
+              maximumAge: 0,
+            });
+          });
+        }
+
+        // Add location to request body
+        body = {
+          ...body,
+          deliveredLocation: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+          },
+        };
+      }
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || fallbackMessage);
+      }
+
+      await onChanged(payload.message || fallbackMessage);
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : fallbackMessage,
+      );
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
   return (
     <>
       <article className="rounded-3xl border border-border bg-card p-5 shadow-sm">
@@ -299,7 +373,7 @@ export function DeliveryAssignmentCard({
                 type="button"
                 variant={nextStatus === "DELIVERED" ? "default" : "outline"}
                 onClick={() =>
-                  runAction(
+                  runActionWithLocation(
                     `/api/delivery-assignments/${assignment.id}/status`,
                     {
                       status: nextStatus,
