@@ -28,9 +28,16 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 type MenuItem = {
   name: string;
   href?: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   requiredPermissions?: string[];
   requiredGlobalPermissions?: string[];
+  items?: Array<{
+    name: string;
+    href: string;
+    icon?: LucideIcon;
+    requiredPermissions?: string[];
+    requiredGlobalPermissions?: string[];
+  }>;
   subItems?: Array<{
     name: string;
     href: string;
@@ -41,77 +48,120 @@ type MenuItem = {
 
 const menuItems: MenuItem[] = [
   {
-    name: "Dashboard",
-    href: "/admin",
-    icon: LayoutDashboard,
-    requiredPermissions: ["dashboard.read", "admin.panel.access"],
-  },
-  {
-    name: "Dashboard",
-    href: "/admin/warehouse",
-    icon: Warehouse,
-    requiredPermissions: [
-      "dashboard.read",
-      "inventory.manage",
-      "orders.read_all",
-      "shipments.manage",
+    name: "Overview",
+    items: [
+      {
+        name: "Dashboard",
+        href: "/admin",
+        icon: LayoutDashboard,
+        requiredPermissions: ["dashboard.read", "admin.panel.access"],
+      },
+      {
+        name: "Warehouse Dashboard",
+        href: "/admin/warehouse",
+        icon: Warehouse,
+        requiredPermissions: [
+          "dashboard.read",
+          "inventory.manage",
+          "orders.read_all",
+          "shipments.manage",
+        ],
+      },
+      {
+        name: "Analytics",
+        href: "/admin/analytics",
+        icon: BarChart3,
+        requiredPermissions: ["dashboard.read", "admin.panel.access"],
+      },
+      {
+        name: "Reports",
+        href: "/admin/reports",
+        icon: FileText,
+        requiredPermissions: ["reports.read"],
+      },
     ],
   },
   {
-    name: "Analytics",
-    href: "/admin/analytics",
-    icon: BarChart3,
-    requiredPermissions: ["dashboard.read", "admin.panel.access"],
+    name: "Operations",
+    items: [
+      {
+        name: "Users",
+        href: "/admin/users",
+        icon: Users,
+        requiredPermissions: ["users.read", "users.manage"],
+      },
+      {
+        name: "Products",
+        href: "/admin/products",
+        icon: ShoppingBag,
+        requiredPermissions: ["products.manage"],
+      },
+      {
+        name: "Orders",
+        href: "/admin/orders",
+        icon: FileText,
+        requiredPermissions: ["orders.read_all"],
+      },
+      {
+        name: "Shipments",
+        href: "/admin/shipments",
+        icon: Truck,
+        requiredPermissions: ["shipments.manage", "orders.read_all"],
+      },
+      {
+        name: "Delivery",
+        href: "/admin/delivery/dashboard",
+        icon: Truck,
+        requiredPermissions: ["delivery.dashboard.access"],
+      },
+      {
+        name: "Logistics",
+        href: "/admin/logistics",
+        icon: Forklift,
+        requiredPermissions: ["logistics.manage"],
+      },
+    ],
   },
-  {
-    name: "Reports",
-    href: "/admin/reports",
-    icon: FileText,
-    requiredPermissions: ["reports.read"],
-  },
-  {
-    name: "Users",
-    href: "/admin/users",
-    icon: Users,
-    requiredPermissions: ["users.read", "users.manage"],
-  },
-  {
-    name: "Products",
-    href: "/admin/products",
-    icon: ShoppingBag,
-    requiredPermissions: ["products.manage"],
-  },
-  {
-    name: "Orders",
-    href: "/admin/orders",
-    icon: FileText,
-    requiredPermissions: ["orders.read_all"],
-  },
-
-  {
-    name: "Shipments",
-    href: "/admin/shipments",
-    icon: Truck,
-    requiredPermissions: ["shipments.manage", "orders.read_all"],
-  },
-  {
-    name: "Delivery",
-    href: "/admin/delivery/dashboard",
-    icon: Truck,
-    requiredPermissions: ["delivery.dashboard.access"],
-  },
-  {
-    name: "Logistics",
-    href: "/admin/logistics",
-    icon: Forklift,
-    requiredPermissions: ["logistics.manage"],
-  },
-
   {
     name: "Management",
     icon: ClipboardList,
     requiredPermissions: ["products.manage", "inventory.manage"],
     subItems: [
+      {
+        name: "Warehouses Management",
+        href: "/admin/settings/warehouses",
+        requiredPermissions: ["settings.warehouse.manage", "settings.manage"],
+      },
+      {
+        name: "Stock Management",
+        href: "/admin/management/stock",
+        requiredPermissions: ["inventory.manage"],
+      },
+      {
+        name: "Shipping Rates",
+        href: "/admin/settings/shipping-rates",
+        requiredPermissions: ["settings.shipping.manage", "settings.manage"],
+      },
+      {
+        name: "Deliveryman",
+        href: "/admin/delivery-men",
+        requiredPermissions: ["delivery-men.manage", "logistics.manage"],
+      },
+      {
+        name: "Couriers",
+        href: "/admin/settings/couriers",
+        requiredPermissions: ["settings.courier.manage", "settings.manage"],
+      },
+      {
+        name: "VAT Management",
+        href: "/admin/settings/vatmanagent",
+        requiredPermissions: ["settings.vat.manage", "settings.manage"],
+      },
+      {
+        name: "Blogs Management",
+        href: "/admin/blogs",
+        requiredPermissions: ["blogs.manage"],
+      },
       {
         name: "Categories",
         href: "/admin/management/categories",
@@ -122,16 +172,7 @@ const menuItems: MenuItem[] = [
         href: "/admin/management/brands",
         requiredPermissions: ["products.manage"],
       },
-      {
-        name: "Stock Management",
-        href: "/admin/management/stock",
-        requiredPermissions: ["inventory.manage"],
-      },
-      {
-        name: "Blogs",
-        href: "/admin/blogs",
-        requiredPermissions: ["blogs.manage"],
-      },
+
       {
         name: "Newsletter",
         href: "/admin/newsletter",
@@ -256,10 +297,15 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    name: "Chats",
-    href: "/admin/chats",
-    icon: MessageCircle,
-    requiredPermissions: ["chats.manage"],
+    name: "Communication",
+    items: [
+      {
+        name: "Chats",
+        href: "/admin/chats",
+        icon: MessageCircle,
+        requiredPermissions: ["chats.manage"],
+      },
+    ],
   },
   {
     name: "Settings",
@@ -275,32 +321,6 @@ const menuItems: MenuItem[] = [
         name: "Payroll",
         href: "/admin/payroll",
         requiredPermissions: ["payroll.manage"],
-      },
-      {
-        name: "Deliveryman",
-        href: "/admin/delivery-men",
-        requiredPermissions: ["delivery-men.manage", "logistics.manage"],
-      },
-
-      {
-        name: "Warehouses",
-        href: "/admin/settings/warehouses",
-        requiredPermissions: ["settings.warehouse.manage", "settings.manage"],
-      },
-      {
-        name: "VAT Management",
-        href: "/admin/settings/vatmanagent",
-        requiredPermissions: ["settings.vat.manage", "settings.manage"],
-      },
-      {
-        name: "Couriers",
-        href: "/admin/settings/couriers",
-        requiredPermissions: ["settings.courier.manage", "settings.manage"],
-      },
-      {
-        name: "Shipping Rates",
-        href: "/admin/settings/shipping-rates",
-        requiredPermissions: ["settings.shipping.manage", "settings.manage"],
       },
       {
         name: "RBAC",
@@ -334,6 +354,7 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
 
   const [isOpen, setIsOpen] = useState(initialOpenState);
   const hasSubItems = item.subItems && item.subItems.length > 0;
+  const hasItems = item.items && item.items.length > 0;
 
   // Determine active state for parent links
   const isActive = item.href
@@ -347,23 +368,6 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
     }
   }, [hasActiveSubItem]);
 
-  // Using CSS variables from global.css
-  const baseClasses =
-    "flex items-center gap-3 px-4 py-3 transition-all duration-300 text-sm font-medium rounded-lg";
-
-  // Base link colors using theme variables
-  const defaultLinkClasses =
-    "text-muted-foreground hover:text-foreground hover:bg-accent hover:scale-105";
-
-  // Active link colors using theme variables
-  const activeLinkClasses =
-    "text-primary-foreground bg-primary font-semibold shadow-lg border border-primary/20";
-
-  // Dropdown button colors
-  const buttonActiveClasses = "text-foreground bg-accent font-semibold";
-  const buttonDefaultClasses =
-    "text-muted-foreground hover:text-foreground hover:bg-accent";
-
   return (
     <div>
       {hasSubItems ? (
@@ -371,91 +375,90 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
           <button
             onClick={() => setIsOpen(!isOpen)}
             className={cn(
-              "w-full justify-between",
-              baseClasses,
-              isOpen ? buttonActiveClasses : buttonDefaultClasses,
+              "w-full flex items-center justify-between px-4 py-2.5 transition-all duration-150 group",
+              isOpen
+                ? "text-primary bg-primary/8 border-l-2 border-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
             )}
           >
             <div className="flex items-center gap-3">
-              <div
-                className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
-                  isOpen
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-accent text-muted-foreground",
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-              </div>
-              <span>{item.name}</span>
+              {item.icon && (
+                <item.icon
+                  className={cn(
+                    "h-4 w-4 transition-all duration-150",
+                    isOpen
+                      ? "text-primary"
+                      : "text-muted-foreground/60 group-hover:text-muted-foreground",
+                  )}
+                />
+              )}
+              <span className="text-sm font-medium">{item.name}</span>
             </div>
             {isOpen ? (
-              <ChevronDown className="h-4 w-4 transition-transform duration-300" />
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             ) : (
-              <ChevronRight className="h-4 w-4 transition-transform duration-300" />
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             )}
           </button>
           {isOpen && (
-            <div className="ml-4 my-2 space-y-1">
-              {item.subItems?.map((subItem) => {
-                const isSubItemActive = pathname === subItem.href;
-                return (
-                  <Link
-                    key={subItem.name}
-                    href={subItem.href}
-                    onClick={
-                      hasSubItems ? () => onClose && onClose() : undefined
-                    }
-                    className={cn(
-                      "block px-4 py-2 text-xs transition-all duration-300 rounded-lg",
-                      isSubItemActive
-                        ? "text-primary-foreground bg-primary font-medium shadow-md border border-primary/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent hover:translate-x-1",
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
+            <div className="relative">
+              <div className="absolute left-6 top-0 bottom-0 w-px border-l border-border" />
+              <div className="ml-6 py-1 space-y-0.5">
+                {item.subItems?.map((subItem, index) => {
+                  const isSubItemActive = pathname === subItem.href;
+                  return (
+                    <Link
+                      key={subItem.name}
+                      href={subItem.href}
+                      onClick={onClose}
+                      className={cn(
+                        "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
+                        isSubItemActive
+                          ? "text-primary font-medium bg-primary/8 border-l-2 border-primary"
+                          : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/30",
+                      )}
+                    >
                       <div
                         className={cn(
-                          "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                          "w-1.5 h-1.5 rounded-full transition-all duration-150",
                           isSubItemActive
-                            ? "bg-primary-foreground"
-                            : "bg-muted-foreground",
+                            ? "bg-primary"
+                            : "bg-muted-foreground/40",
                         )}
                       />
                       {subItem.name}
-                    </div>
-                  </Link>
-                );
-              })}
+                      {isSubItemActive && (
+                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>
       ) : (
         <Link
           href={item.href || "#"}
-          onClick={onClose ? () => onClose() : undefined}
+          onClick={onClose}
           className={cn(
-            baseClasses,
-            "w-full",
-            isActive ? activeLinkClasses : defaultLinkClasses,
+            "flex items-center gap-3 px-4 py-2.5 transition-all duration-150 group",
+            isActive
+              ? "text-primary bg-primary/8 border-l-2 border-primary"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
           )}
         >
-          <div className="flex items-center gap-3 flex-1">
-            <div
+          {item.icon && (
+            <item.icon
               className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300",
+                "h-4 w-4 transition-all duration-150",
                 isActive
-                  ? "bg-primary-foreground text-primary"
-                  : "bg-accent text-muted-foreground",
+                  ? "text-primary"
+                  : "text-muted-foreground/60 group-hover:text-muted-foreground group-hover:translate-x-0.5",
               )}
-            >
-              <item.icon className="h-4 w-4" />
-            </div>
-            <span>{item.name}</span>
-          </div>
-          {isActive && (
-            <div className="w-2 h-2 bg-primary-foreground rounded-full animate-pulse" />
+            />
           )}
+          <span className="text-sm font-medium">{item.name}</span>
         </Link>
       )}
     </div>
@@ -467,20 +470,50 @@ const SidebarContent = ({
   pathname,
   items,
   onClose,
+  isWarehouseScopedOnly = false,
 }: {
   pathname: string;
   items: MenuItem[];
   onClose?: () => void;
+  isWarehouseScopedOnly?: boolean;
 }) => (
-  <nav className="mt-8 pb-8 space-y-2 px-4">
-    {items.map((item) => (
-      <MenuItem
-        key={`${item.name}:${item.href ?? "group"}`}
-        item={item}
-        pathname={pathname}
-        onClose={onClose}
-      />
-    ))}
+  <nav className="py-6 space-y-6">
+    {items.map((section) => {
+      if (section.items) {
+        // Section with items
+        const visibleItems = section.items.filter(
+          (item) => item.href !== "/admin" || !isWarehouseScopedOnly,
+        );
+        if (visibleItems.length === 0) return null;
+
+        return (
+          <div key={section.name}>
+            <div className="px-4 pb-2">
+              <h3 className="text-[10px] font-semibold tracking-widest text-muted-foreground/60 uppercase">
+                {section.name}
+              </h3>
+            </div>
+            <div className="space-y-0.5">
+              {visibleItems.map((item) => (
+                <MenuItem
+                  key={`${item.name}:${item.href ?? "item"}`}
+                  item={item}
+                  pathname={pathname}
+                  onClose={onClose}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      } else {
+        // Single menu item (collapsible or regular)
+        return (
+          <div key={`${section.name}:${section.href ?? "group"}`}>
+            <MenuItem item={section} pathname={pathname} onClose={onClose} />
+          </div>
+        );
+      }
+    })}
   </nav>
 );
 
@@ -497,7 +530,9 @@ export default function Sidebar({
   const permissionKeys = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
     : [];
-  const globalPermissionKeys = Array.isArray((session?.user as any)?.globalPermissions)
+  const globalPermissionKeys = Array.isArray(
+    (session?.user as any)?.globalPermissions,
+  )
     ? ((session?.user as any).globalPermissions as string[])
     : [];
   const warehouseIds = Array.isArray((session?.user as any)?.warehouseIds)
@@ -545,47 +580,57 @@ export default function Sidebar({
   const hasGlobalPermission = useCallback(
     (required?: string[]) => {
       if (!required || required.length === 0) return true;
-      return required.some((permission) => globalPermissionKeys.includes(permission));
+      return required.some((permission) =>
+        globalPermissionKeys.includes(permission),
+      );
     },
     [globalPermissionKeys],
   );
 
   const visibleMenuItems = useMemo<MenuItem[]>(() => {
     return menuItems
-      .map((item) => {
-        if (item.subItems && item.subItems.length > 0) {
-          const visibleSubItems = item.subItems.filter((subItem) =>
-            hasPermission(subItem.requiredPermissions) &&
-            hasGlobalPermission(subItem.requiredGlobalPermissions),
+      .map((section) => {
+        if (section.items) {
+          // Handle section with items
+          const visibleItems = section.items.filter((item) => {
+            if (item.href === "/admin" && isWarehouseScopedOnly) return false;
+            if (item.href === "/admin/warehouse" && warehouseIds.length === 0)
+              return false;
+            return (
+              hasPermission(item.requiredPermissions) &&
+              hasGlobalPermission(item.requiredGlobalPermissions)
+            );
+          });
+          if (visibleItems.length === 0) return null;
+          return { ...section, items: visibleItems };
+        } else if (section.subItems && section.subItems.length > 0) {
+          // Handle collapsible group with subItems
+          const visibleSubItems = section.subItems.filter(
+            (subItem) =>
+              hasPermission(subItem.requiredPermissions) &&
+              hasGlobalPermission(subItem.requiredGlobalPermissions),
           );
           if (
             visibleSubItems.length === 0 &&
-            (!hasPermission(item.requiredPermissions) ||
-              !hasGlobalPermission(item.requiredGlobalPermissions))
+            (!hasPermission(section.requiredPermissions) ||
+              !hasGlobalPermission(section.requiredGlobalPermissions))
           ) {
             return null;
           }
           return {
-            ...item,
+            ...section,
             subItems: visibleSubItems,
           };
+        } else {
+          // Handle single item
+          if (
+            !hasPermission(section.requiredPermissions) ||
+            !hasGlobalPermission(section.requiredGlobalPermissions)
+          ) {
+            return null;
+          }
+          return section;
         }
-
-        if (item.href === "/admin" && isWarehouseScopedOnly) {
-          return null;
-        }
-
-        if (item.href === "/admin/warehouse" && warehouseIds.length === 0) {
-          return null;
-        }
-
-        if (
-          !hasPermission(item.requiredPermissions) ||
-          !hasGlobalPermission(item.requiredGlobalPermissions)
-        ) {
-          return null;
-        }
-        return item;
       })
       .filter((item): item is MenuItem => item !== null);
   }, [
@@ -636,24 +681,76 @@ export default function Sidebar({
         themeBorder,
       )}
     >
-      {/* Modern Desktop Header */}
-      <div className="h-20 flex flex-col items-center justify-center border-b border-border sticky top-0 z-10 bg-background flex-shrink-0">
-        <div className="text-center">
-          <h2 className={cn("font-bold text-xl text-foreground")}>
-            {headerTitle}
-          </h2>
-          <p className="text-xs text-muted-foreground">{adminSubtitle}</p>
+      {/* Premium Brand Header */}
+      <div className="h-[72px] flex items-center justify-center border-b border-border sticky top-0 z-10 bg-background flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Logo Mark */}
+          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center shadow-sm">
+            <LayoutDashboard className="h-4 w-4 text-white" />
+          </div>
+
+          {/* Brand Identity */}
+          <div className="flex flex-col">
+            <h2 className="font-bold text-lg text-foreground">{siteTitle}</h2>
+            <div className="bg-primary/10 px-2 py-0.5 rounded-full">
+              <p className="text-[10px] font-medium text-primary">
+                {userRoleLabel}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <SidebarContent pathname={pathname} items={visibleMenuItems} />
+        <SidebarContent
+          pathname={pathname}
+          items={visibleMenuItems}
+          isWarehouseScopedOnly={isWarehouseScopedOnly}
+        />
       </div>
 
-      {/* Footer */}
+      {/* Premium User Card Footer */}
       <div className="p-4 border-t border-border flex-shrink-0">
-        <div className="text-center text-xs text-muted-foreground">
-          <p>{siteTitle}</p>
-          <p className="mt-1">V1.1.0</p>
+        <div className="bg-muted/40 rounded-lg p-3">
+          <div className="flex items-center gap-3">
+            {/* Avatar with gradient */}
+            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold">
+              {(session?.user as any)?.name?.charAt(0)?.toUpperCase() || "A"}
+            </div>
+
+            {/* User Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {(session?.user as any)?.name || "Super Admin"}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {(session?.user as any)?.email || "superadmin"}
+              </p>
+            </div>
+
+            {/* Menu Trigger */}
+            <button className="text-muted-foreground hover:text-foreground transition-colors">
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                />
+              </svg>
+            </button>
+          </div>
+
+          {/* Version */}
+          <div className="mt-2 pt-2 border-t border-border/50">
+            <p className="text-[10px] text-muted-foreground/40 text-center">
+              V1.1.0
+            </p>
+          </div>
         </div>
       </div>
     </aside>
