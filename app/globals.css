@@ -90,9 +90,9 @@ body {
     --delivery-status-text: 0 0% 40%; /* Muted text */
 
     /* Custom Gradients */
-    --gradient-primary: linear-gradient(135deg, #6DBE45, #8B6B2E); /* Main Brand Gradient */
+    --gradient-primary: linear-gradient(135deg, #6DBE45, #2a8313); /* Main Brand Gradient */
     --gradient-soft: linear-gradient(135deg, #E8F5E9, #FFF8E1); /* Soft UI Gradient */
-    --gradient-premium: linear-gradient(135deg, #4CAF50, #A1883F); /* Premium Gradient */
+    --gradient-premium: linear-gradient(135deg, #4CAF50, #32a016); /* Premium Gradient */
   }
 
   /* ========================

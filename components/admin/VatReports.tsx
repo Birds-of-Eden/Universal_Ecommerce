@@ -397,7 +397,7 @@ export default function VatReports() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary" className="px-3 py-1">
+              <Badge className="px-3 py-1">
                 Range: {rangeLabel}
               </Badge>
               <Badge variant="outline" className="px-3 py-1">
@@ -587,7 +587,6 @@ export default function VatReports() {
                             </TableCell>
                             <TableCell>
                               <Badge
-                                variant="secondary"
                                 className="rounded-full"
                               >
                                 {row.latestRateLabel}
