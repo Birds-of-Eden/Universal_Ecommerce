@@ -90,9 +90,9 @@ body {
     --delivery-status-text: 0 0% 40%; /* Muted text */
 
     /* Custom Gradients */
-    --gradient-primary: linear-gradient(135deg, #6DBE45, #2a8313); /* Main Brand Gradient */
+    --gradient-primary: linear-gradient(135deg, #6DBE45, #96e66e); /* Main Brand Gradient */
     --gradient-soft: linear-gradient(135deg, #E8F5E9, #FFF8E1); /* Soft UI Gradient */
-    --gradient-premium: linear-gradient(135deg, #4CAF50, #32a016); /* Premium Gradient */
+    --gradient-premium: linear-gradient(135deg, #4CAF50, #82da6d); /* Premium Gradient */
   }
 
   /* ========================
@@ -713,4 +713,35 @@ body {
     initial-value: 0deg;
     syntax: "<angle>";
   }
+}
+
+/* ========================
+   SCROLLBAR HIDE ON IDLE
+======================== */
+
+.scrollbar-hide-on-idle {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.scrollbar-hide-on-idle::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+
+.scrollbar-hide-on-idle::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-hide-on-idle::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.scrollbar-hide-on-idle:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+}
+
+.scrollbar-hide-on-idle:hover::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.1);
 }

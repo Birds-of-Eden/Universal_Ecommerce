@@ -378,7 +378,7 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
               "w-full flex items-center justify-between px-4 py-2.5 transition-all duration-150 group",
               isOpen
                 ? "text-primary bg-primary/8 border-l-2 border-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
+                : "text-muted-foreground hover:text-foreground hover:bg-primary/10 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
             )}
           >
             <div className="flex items-center gap-3">
@@ -414,8 +414,8 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
                       className={cn(
                         "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
                         isSubItemActive
-                          ? "text-primary font-medium bg-primary/8 border-l-2 border-primary"
-                          : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/30",
+                          ? "text-primary font-medium bg-primary/20 border-l-2 border-primary"
+                          : "text-muted-foreground/70 hover:text-foreground hover:bg-primary/10",
                       )}
                     >
                       <div
@@ -444,8 +444,8 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
           className={cn(
             "flex items-center gap-3 px-4 py-2.5 transition-all duration-150 group",
             isActive
-              ? "text-primary bg-primary/8 border-l-2 border-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
+              ? "text-primary bg-primary/10 hover:bg-primary/20 border-l-2 border-primary"
+              : "text-muted-foreground hover:text-foreground hover:bg-primary/10 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
           )}
         >
           {item.icon && (
@@ -453,8 +453,8 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
               className={cn(
                 "h-4 w-4 transition-all duration-150",
                 isActive
-                  ? "text-primary"
-                  : "text-muted-foreground/60 group-hover:text-muted-foreground group-hover:translate-x-0.5",
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground/60 group-hover:text-muted-foreground bg-primary/10 group-hover:translate-x-0.5",
               )}
             />
           )}
@@ -700,7 +700,7 @@ export default function Sidebar({
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-hide-on-idle">
         <SidebarContent
           pathname={pathname}
           items={visibleMenuItems}

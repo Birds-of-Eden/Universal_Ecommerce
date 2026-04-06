@@ -457,7 +457,10 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
                 <div className="text-sm">
                   <div className="font-semibold mb-1">
                     {index === 0 && "Origin warehouse"}
-                    {index === routeCoordinates.length - 1 && hasDeliveryLocation ? "Delivery location" : "Destination"}
+                    {index === routeCoordinates.length - 1 &&
+                    hasDeliveryLocation
+                      ? "Delivery location"
+                      : "Destination"}
                     {index > 0 &&
                       index < routeCoordinates.length - 1 &&
                       `Checkpoint ${index}`}
@@ -534,11 +537,15 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
                   Shipment #{shipment.id}
                 </div>
                 <div className="text-muted-foreground">
-                  Delivered at: {formatDateTime(deliveryAssignment?.deliveredAt ?? shipment.deliveredAt)}
+                  Delivered at:{" "}
+                  {formatDateTime(
+                    deliveryAssignment?.deliveredAt ?? shipment.deliveredAt,
+                  )}
                 </div>
                 {deliveryAssignment?.deliveredAccuracy && (
                   <div className="text-muted-foreground">
-                    Accuracy: +/-{Math.round(deliveryAssignment.deliveredAccuracy)}m
+                    Accuracy: +/-
+                    {Math.round(deliveryAssignment.deliveredAccuracy)}m
                   </div>
                 )}
               </div>
@@ -968,16 +975,17 @@ export default function LogisticsPage() {
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-[24px] bg-card p-4">
-                  <div className="flex items-end gap-3">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full border-[6px] border-primary border-r-primary/20 border-t-primary/40 text-center">
-                      <div>
-                        <p className="text-2xl font-semibold">{successRate}%</p>
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground/55">
-                          Delivered
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full border-[6px] border-primary border-r-primary/20 border-t-primary/40 text-center">
+                      <p className="text-3xl font-semibold leading-none">
+                        {successRate}%
+                      </p>
+                      <p className="mt-1 text-[10px] leading-none uppercase tracking-[0.08em] text-muted-foreground/70">
+                        Delivered
+                      </p>
                     </div>
-                    <div className="text-sm text-muted-foreground/70">
+
+                    <div className="text-sm leading-6 text-muted-foreground/70">
                       Delivery performance for the current selection based on
                       completed shipments.
                     </div>
@@ -1058,7 +1066,7 @@ export default function LogisticsPage() {
                   <p className="text-3xl font-semibold text-foreground">
                     {successRate}%
                   </p>
-                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                  <p className="text-xs uppercase text-muted-foreground">
                     Delivered
                   </p>
                 </div>
@@ -1195,8 +1203,10 @@ export default function LogisticsPage() {
                 <div className="space-y-3">
                   {filteredShipments.map((shipment) => {
                     const nextStatuses = NEXT_STATUS_MAP[shipment.status] || [];
-                    const hasDeliveryLocation = hasValidDeliveryLocation(shipment);
-                    const deliveryAssignment = getCurrentDeliveryAssignment(shipment);
+                    const hasDeliveryLocation =
+                      hasValidDeliveryLocation(shipment);
+                    const deliveryAssignment =
+                      getCurrentDeliveryAssignment(shipment);
                     const isSelected = shipment.id === selectedShipmentId;
 
                     return (
