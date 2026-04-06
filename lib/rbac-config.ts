@@ -140,6 +140,30 @@ export const SYSTEM_PERMISSIONS = [
     description: "Create and update supplier records.",
   },
   {
+    key: "supplier.portal.access",
+    description: "Access supplier self-service portal routes and dashboard.",
+  },
+  {
+    key: "supplier.rfq.read",
+    description: "Read own RFQ invitations and quote history as supplier.",
+  },
+  {
+    key: "supplier.rfq.quote.submit",
+    description: "Submit or revise quotations for invited RFQs.",
+  },
+  {
+    key: "supplier.purchase_orders.read",
+    description: "Read own awarded purchase orders and line-level delivery expectations.",
+  },
+  {
+    key: "supplier.invoices.read",
+    description: "Read own supplier invoices, payment status, and outstanding balances.",
+  },
+  {
+    key: "supplier.payments.read",
+    description: "Read own supplier payment history and settlement references.",
+  },
+  {
     key: "supplier_performance.read",
     description: "Read supplier lead-time intelligence, on-time delivery trends, and reliability scorecards.",
   },
@@ -392,6 +416,21 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
     immutable: false,
     permissions: [
       "delivery.dashboard.access",
+      "profile.manage",
+    ],
+  },
+  {
+    name: "supplier_portal",
+    label: "Supplier Portal User",
+    description: "External supplier self-service role for RFQ response and payable visibility.",
+    immutable: false,
+    permissions: [
+      "supplier.portal.access",
+      "supplier.rfq.read",
+      "supplier.rfq.quote.submit",
+      "supplier.purchase_orders.read",
+      "supplier.invoices.read",
+      "supplier.payments.read",
       "profile.manage",
     ],
   },

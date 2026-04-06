@@ -6,6 +6,7 @@ type DashboardUserLike = {
 
 export const USER_DASHBOARD_ROUTE = "/ecommerce/user/";
 export const DELIVERY_DASHBOARD_ROUTE = "/admin/delivery/dashboard";
+export const SUPPLIER_DASHBOARD_ROUTE = "/supplier";
 
 const ADMIN_DELIVERY_ROUTE = "/admin/delivery";
 const ADMIN_PROFILE_ROUTE = "/admin/profile";
@@ -28,6 +29,11 @@ export function hasDeliveryDashboardAccess(user?: DashboardUserLike) {
   return permissions.includes("delivery.dashboard.access");
 }
 
+export function hasSupplierPortalAccess(user?: DashboardUserLike) {
+  const permissions = Array.isArray(user?.permissions) ? user.permissions : [];
+  return permissions.includes("supplier.portal.access");
+}
+
 export function getDashboardRoute(user?: DashboardUserLike) {
   if (hasAdminDashboardAccess(user)) {
     return user?.defaultAdminRoute === "/admin/warehouse"
@@ -37,6 +43,10 @@ export function getDashboardRoute(user?: DashboardUserLike) {
 
   if (hasDeliveryDashboardAccess(user)) {
     return DELIVERY_DASHBOARD_ROUTE;
+  }
+
+  if (hasSupplierPortalAccess(user)) {
+    return SUPPLIER_DASHBOARD_ROUTE;
   }
 
   return USER_DASHBOARD_ROUTE;

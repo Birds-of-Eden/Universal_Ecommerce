@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   getDashboardRoute,
   hasDeliveryDashboardAccess,
+  hasSupplierPortalAccess,
   isAdminDeliveryRoute,
   isDeliveryAdminShellRoute,
   isLegacyDeliveryDashboardRoute,
@@ -56,6 +57,11 @@ const adminPagePermissionRules: PermissionRule[] = [
   {
     prefix: "/admin/scm/supplier-intelligence",
     permissions: ["supplier_performance.read"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/admin/scm/supplier-portal-access",
+    permissions: ["suppliers.manage", "users.manage"],
     globalOnly: true,
   },
   {
@@ -234,7 +240,51 @@ const adminPagePermissionRules: PermissionRule[] = [
   { prefix: "/admin", permissions: ["dashboard.read", "admin.panel.access"] },
 ];
 
+const supplierPagePermissionRules: PermissionRule[] = [
+  {
+    prefix: "/supplier/rfqs",
+    permissions: ["supplier.rfq.read"],
+  },
+  {
+    prefix: "/supplier/purchase-orders",
+    permissions: ["supplier.purchase_orders.read"],
+  },
+  {
+    prefix: "/supplier/invoices",
+    permissions: ["supplier.invoices.read"],
+  },
+  {
+    prefix: "/supplier",
+    permissions: ["supplier.portal.access"],
+  },
+];
+
 const apiPermissionRules: PermissionRule[] = [
+  {
+    prefix: "/api/supplier/overview",
+    methods: ["GET"],
+    permissions: ["supplier.portal.access"],
+  },
+  {
+    prefix: "/api/supplier/rfqs",
+    methods: ["GET"],
+    permissions: ["supplier.rfq.read"],
+  },
+  {
+    prefix: "/api/supplier/rfqs",
+    methods: ["POST"],
+    permissions: ["supplier.rfq.quote.submit"],
+  },
+  {
+    prefix: "/api/supplier/purchase-orders",
+    methods: ["GET"],
+    permissions: ["supplier.purchase_orders.read"],
+  },
+  {
+    prefix: "/api/supplier/invoices",
+    methods: ["GET"],
+    permissions: ["supplier.invoices.read"],
+  },
   {
     prefix: "/api/scm/suppliers",
     methods: ["GET", "POST", "PUT", "PATCH"],
@@ -486,6 +536,12 @@ const apiPermissionRules: PermissionRule[] = [
     permissions: ["users.manage"],
   },
   {
+    prefix: "/api/admin/supplier-portal-access",
+    methods: ["GET", "POST", "PATCH", "PUT"],
+    permissions: ["suppliers.manage", "users.manage"],
+    globalOnly: true,
+  },
+  {
     prefix: "/api/admin/activity-log",
     permissions: ["settings.activitylog.read", "settings.manage"],
   },
@@ -700,6 +756,11 @@ function hasAdminPanelAccess(session: SessionShape): boolean {
   return permissionKeys.includes("admin.panel.access");
 }
 
+function hasSupplierPortal(session: SessionShape): boolean {
+  const permissionKeys = getPermissionKeys(session);
+  return permissionKeys.includes("supplier.portal.access");
+}
+
 function getDefaultAdminRoute(
   session: SessionShape,
 ): "/admin" | "/admin/warehouse" {
@@ -782,6 +843,7 @@ export default async function authMiddleware(request: NextRequest) {
   const defaultAdminRoute = getDefaultAdminRoute(session);
   const dashboardRoute = getDashboardRoute(session?.user);
   const deliveryDashboardAccess = hasDeliveryDashboardAccess(session?.user);
+  const supplierPortalAccess = hasSupplierPortalAccess(session?.user) || hasSupplierPortal(session);
   const isAdminDeliveryDashboardRoute = isAdminDeliveryRoute(pathname);
   const isLegacyDeliveryRoute = isLegacyDeliveryDashboardRoute(pathname);
   const canUseDeliveryAdminShell =
@@ -821,12 +883,17 @@ export default async function authMiddleware(request: NextRequest) {
     isAdminDeliveryDashboardRoute || isLegacyDeliveryRoute;
   const isProtectedRoute =
     pathname.startsWith("/admin") ||
+    pathname.startsWith("/supplier") ||
     isUserDashboardRoute ||
     isDeliveryDashboardRoute;
 
   // Handle permission-aware redirection
   if (session?.user) {
     if (adminAccess && (isUserDashboardRoute || isLegacyDeliveryRoute)) {
+      return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
+    }
+
+    if (adminAccess && pathname.startsWith("/supplier")) {
       return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
     }
 
@@ -848,6 +915,24 @@ export default async function authMiddleware(request: NextRequest) {
 
     if (!deliveryDashboardAccess && isDeliveryDashboardRoute) {
       return NextResponse.redirect(new URL(dashboardRoute, request.url));
+    }
+
+    if (pathname.startsWith("/supplier")) {
+      if (!supplierPortalAccess) {
+        return NextResponse.redirect(new URL(dashboardRoute, request.url));
+      }
+
+      const matchedSupplierPageRule = findMatchedRule(
+        pathname,
+        method,
+        supplierPagePermissionRules,
+      );
+      if (
+        matchedSupplierPageRule &&
+        !hasAnyPermission(permissionKeys, matchedSupplierPageRule.permissions)
+      ) {
+        return NextResponse.redirect(new URL(dashboardRoute, request.url));
+      }
     }
 
     if (

@@ -15,6 +15,7 @@ import {
   Radar,
   ShieldCheck,
   ShoppingCart,
+  UserCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -25,6 +26,15 @@ const cards = [
     description: "Maintain approved vendors, contacts, and lead times.",
     icon: BookOpen,
     permission: "suppliers.read",
+    globalPermission: "suppliers.manage",
+  },
+  {
+    title: "Supplier Portal Access",
+    href: "/admin/scm/supplier-portal-access",
+    description:
+      "Map supplier users to a single supplier scope for external portal access.",
+    icon: UserCheck,
+    permission: "suppliers.manage",
     globalPermission: "suppliers.manage",
   },
   {
