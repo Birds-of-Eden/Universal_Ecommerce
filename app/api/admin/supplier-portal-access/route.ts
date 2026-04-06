@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.user.findMany({
         where: {
-          email: { not: null },
+          email: { not: "" },
           ...(search
             ? {
                 OR: [
