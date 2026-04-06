@@ -1445,28 +1445,6 @@ export default function LogisticsPage() {
                       </div>
                     ))}
                   </div>
-
-                  {/* Delivery Location Section */}
-                  {hasValidDeliveryLocation(highlightedShipment) && (
-                    <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                      <p className="text-xs font-semibold text-emerald-700 mb-2">
-                        Delivery Location
-                      </p>
-                      <div className="text-sm text-emerald-600">
-                        <div>
-                          Latitude: {getCurrentDeliveryAssignment(highlightedShipment)?.deliveredLatitude?.toFixed(6)}
-                        </div>
-                        <div>
-                          Longitude: {getCurrentDeliveryAssignment(highlightedShipment)?.deliveredLongitude?.toFixed(6)}
-                        </div>
-                        {getCurrentDeliveryAssignment(highlightedShipment)?.deliveredAccuracy && (
-                          <div>
-                            Accuracy: +/-{Math.round(getCurrentDeliveryAssignment(highlightedShipment)?.deliveredAccuracy as number)}m
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-16 text-center text-sm text-muted-foreground">
