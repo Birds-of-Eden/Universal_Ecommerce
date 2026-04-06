@@ -71,6 +71,15 @@ type ShipmentRow = {
     mapLabel?: string | null;
     isMapEnabled?: boolean | null;
   } | null;
+  deliveryAssignments?: Array<{
+    id: string;
+    status?: string | null;
+    assignedAt?: string | null;
+    deliveredAt?: string | null;
+    deliveredLatitude?: number | null;
+    deliveredLongitude?: number | null;
+    deliveredAccuracy?: number | null;
+  }> | null;
 };
 
 type Warehouse = {
@@ -168,6 +177,20 @@ function formatShortDate(value?: string | null) {
 
 function formatStatusLabel(status: "ALL" | ShipmentStatusType) {
   return STATUS_LABELS[status];
+}
+
+function getCurrentDeliveryAssignment(shipment: ShipmentRow) {
+  return shipment.deliveryAssignments?.[0] ?? null;
+}
+
+function hasValidDeliveryLocation(shipment: ShipmentRow) {
+  const assignment = getCurrentDeliveryAssignment(shipment);
+  return (
+    typeof assignment?.deliveredLatitude === "number" &&
+    Number.isFinite(assignment.deliveredLatitude) &&
+    typeof assignment.deliveredLongitude === "number" &&
+    Number.isFinite(assignment.deliveredLongitude)
+  );
 }
 
 function MultiShipmentsMap({ shipments }: { shipments: ShipmentRow[] }) {
@@ -305,13 +328,25 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
     typeof originLng === "number" &&
     Number.isFinite(originLng);
 
+  // Check if we have actual delivery location
+  const hasDeliveryLocation = hasValidDeliveryLocation(shipment);
+  const deliveryAssignment = getCurrentDeliveryAssignment(shipment);
+
   const routeCoordinates: [number, number][] = hasOrigin
-    ? [
-        [originLat as number, originLng as number],
-        [(originLat as number) + 0.03, (originLng as number) + 0.03],
-        [(originLat as number) + 0.06, (originLng as number) + 0.06],
-        [(originLat as number) + 0.09, (originLng as number) + 0.09],
-      ]
+    ? hasDeliveryLocation
+      ? [
+          [originLat as number, originLng as number],
+          [
+            deliveryAssignment?.deliveredLatitude as number,
+            deliveryAssignment?.deliveredLongitude as number,
+          ],
+        ]
+      : [
+          [originLat as number, originLng as number],
+          [(originLat as number) + 0.03, (originLng as number) + 0.03],
+          [(originLat as number) + 0.06, (originLng as number) + 0.06],
+          [(originLat as number) + 0.09, (originLng as number) + 0.09],
+        ]
     : [
         [23.685, 90.3563],
         [23.75, 90.4],
@@ -422,7 +457,7 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
                 <div className="text-sm">
                   <div className="font-semibold mb-1">
                     {index === 0 && "Origin warehouse"}
-                    {index === routeCoordinates.length - 1 && "Destination"}
+                    {index === routeCoordinates.length - 1 && hasDeliveryLocation ? "Delivery location" : "Destination"}
                     {index > 0 &&
                       index < routeCoordinates.length - 1 &&
                       `Checkpoint ${index}`}
@@ -470,6 +505,46 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
             </Popup>
           </Marker>
         )}
+
+        {/* Delivery location marker */}
+        {hasDeliveryLocation && shipment.status === "DELIVERED" && (
+          <Marker
+            position={[
+              deliveryAssignment?.deliveredLatitude as number,
+              deliveryAssignment?.deliveredLongitude as number,
+            ]}
+            icon={L.divIcon({
+              className: "delivery-location-marker",
+              html: `
+                <div class="relative">
+                  <div class="absolute inset-0 bg-emerald-500 rounded-full opacity-30"></div>
+                  <div class="relative w-8 h-8 bg-emerald-500 rounded-full border-2 border-emerald-600 flex items-center justify-center">
+                    <div class="w-3 h-3 bg-emerald-100 rounded-full"></div>
+                  </div>
+                </div>
+              `,
+              iconSize: [40, 40],
+              iconAnchor: [20, 20],
+            })}
+          >
+            <Popup>
+              <div className="text-sm">
+                <div className="font-semibold mb-1">Delivery location</div>
+                <div className="text-muted-foreground">
+                  Shipment #{shipment.id}
+                </div>
+                <div className="text-muted-foreground">
+                  Delivered at: {formatDateTime(deliveryAssignment?.deliveredAt ?? shipment.deliveredAt)}
+                </div>
+                {deliveryAssignment?.deliveredAccuracy && (
+                  <div className="text-muted-foreground">
+                    Accuracy: +/-{Math.round(deliveryAssignment.deliveredAccuracy)}m
+                  </div>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
 
       <style jsx>{`
@@ -479,6 +554,9 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
         }
         .current-position-marker {
           z-index: 1000 !important;
+        }
+        .delivery-location-marker {
+          z-index: 999 !important;
         }
         :global(.leaflet-popup-content-wrapper) {
           border-radius: 8px;
@@ -1117,6 +1195,8 @@ export default function LogisticsPage() {
                 <div className="space-y-3">
                   {filteredShipments.map((shipment) => {
                     const nextStatuses = NEXT_STATUS_MAP[shipment.status] || [];
+                    const hasDeliveryLocation = hasValidDeliveryLocation(shipment);
+                    const deliveryAssignment = getCurrentDeliveryAssignment(shipment);
                     const isSelected = shipment.id === selectedShipmentId;
 
                     return (
@@ -1356,7 +1436,7 @@ export default function LogisticsPage() {
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {highlightedShipment.dispatchNote ||
-                              "Shipment activity recorded in the dispatch timeline"}
+                              "Shipment activity recorded in dispatch timeline"}
                           </p>
                         </div>
                         <div className="text-right text-sm font-medium text-muted-foreground">

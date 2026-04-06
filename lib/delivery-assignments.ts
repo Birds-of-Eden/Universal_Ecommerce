@@ -244,7 +244,14 @@ export const deliveryAssignmentDetailsInclude = {
   },
 } satisfies Prisma.DeliveryAssignmentInclude;
 
-export const shipmentDeliveryAssignmentSummaryInclude = {
+export const shipmentDeliveryAssignmentSummarySelect = {
+  id: true,
+  status: true,
+  assignedAt: true,
+  deliveredAt: true,
+  deliveredLatitude: true,
+  deliveredLongitude: true,
+  deliveredAccuracy: true,
   deliveryMan: {
     select: {
       id: true,
@@ -276,7 +283,7 @@ export const shipmentDeliveryAssignmentSummaryInclude = {
       },
     },
   },
-} satisfies Prisma.DeliveryAssignmentInclude;
+} satisfies Prisma.DeliveryAssignmentSelect;
 
 export type DeliveryAssignmentWithDetails = Prisma.DeliveryAssignmentGetPayload<{
   include: typeof deliveryAssignmentDetailsInclude;
@@ -817,6 +824,11 @@ export async function transitionDeliveryAssignmentStatus(
       imageUrl?: string | null;
       note?: string | null;
     } | null;
+    deliveredLocation?: {
+      latitude: number;
+      longitude: number;
+      accuracy?: number | null;
+    } | null;
   },
 ) {
   const assignment = await client.deliveryAssignment.findUnique({
@@ -911,6 +923,11 @@ export async function transitionDeliveryAssignmentStatus(
   if (input.nextStatus === DeliveryAssignmentStatus.DELIVERED) {
     deliveryAssignmentData.deliveredAt = now;
     deliveryAssignmentData.completedAt = now;
+    if (input.deliveredLocation) {
+      deliveryAssignmentData.deliveredLatitude = input.deliveredLocation.latitude;
+      deliveryAssignmentData.deliveredLongitude = input.deliveredLocation.longitude;
+      deliveryAssignmentData.deliveredAccuracy = input.deliveredLocation.accuracy ?? null;
+    }
   }
 
   if (input.nextStatus === DeliveryAssignmentStatus.FAILED) {

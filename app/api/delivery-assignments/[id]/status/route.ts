@@ -46,6 +46,11 @@ export async function POST(
         ? body.note.trim()
         : null;
 
+    const deliveredLocationRaw =
+      body && typeof body === "object" && "deliveredLocation" in body
+        ? (body as { deliveredLocation?: unknown }).deliveredLocation
+        : undefined;
+
     if (
       !status ||
       !UPDATABLE_DELIVERY_STATUSES.some((allowedStatus) => allowedStatus === status)
@@ -54,6 +59,21 @@ export async function POST(
         {
           success: false,
           message: "A valid delivery status update is required",
+        },
+        { status: 400 },
+      );
+    }
+
+    const deliveredLocation =
+      status === DeliveryAssignmentStatus.DELIVERED
+        ? parseDeliveredLocation(deliveredLocationRaw)
+        : null;
+
+    if (status === DeliveryAssignmentStatus.DELIVERED && !deliveredLocation) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Delivery location (latitude & longitude) is required to mark delivered",
         },
         { status: 400 },
       );
@@ -92,6 +112,7 @@ export async function POST(
         nextStatus: status,
         actorUserId: access.userId,
         note,
+        deliveredLocation,
       }),
     );
 
@@ -130,4 +151,42 @@ export async function POST(
       { status: 500 },
     );
   }
+}
+
+function parseDeliveredLocation(
+  value: unknown,
+): { latitude: number; longitude: number; accuracy?: number | null } | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+
+  const latitude =
+    typeof record.latitude === "number"
+      ? record.latitude
+      : typeof record.latitude === "string"
+        ? Number(record.latitude)
+        : Number.NaN;
+
+  const longitude =
+    typeof record.longitude === "number"
+      ? record.longitude
+      : typeof record.longitude === "string"
+        ? Number(record.longitude)
+        : Number.NaN;
+
+  const accuracy =
+    typeof record.accuracy === "number"
+      ? record.accuracy
+      : typeof record.accuracy === "string"
+        ? Number(record.accuracy)
+        : null;
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    latitude,
+    longitude,
+    accuracy: Number.isFinite(accuracy as number) ? (accuracy as number) : null,
+  };
 }

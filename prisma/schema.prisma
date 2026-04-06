@@ -2096,6 +2096,9 @@ model DeliveryAssignment {
   inTransitAt          DateTime?
   outForDeliveryAt     DateTime?
   deliveredAt          DateTime?
+  deliveredLatitude    Float?
+  deliveredLongitude   Float?
+  deliveredAccuracy    Float?
   failedAt             DateTime?
   returnedAt           DateTime?
   completedAt          DateTime?

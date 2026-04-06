@@ -8,7 +8,7 @@ import {
   buildDeliveryConfirmationUrl,
   ensureShipmentDeliveryConfirmation,
 } from "@/lib/delivery-proof";
-import { shipmentDeliveryAssignmentSummaryInclude } from "@/lib/delivery-assignments";
+import { shipmentDeliveryAssignmentSummarySelect } from "@/lib/delivery-assignments";
 import { appendShipmentStatusLog } from "@/lib/report-history";
 import { canAccessWarehouseWithPermission } from "@/lib/warehouse-scope";
 import { logActivity } from "@/lib/activity-log";
@@ -37,8 +37,20 @@ function canAccessShipmentWarehouse(
 
 function buildShipmentInclude() {
   return {
-    order: true,
-    courierRef: true,
+    courierRef: {
+      select: { id: true, name: true, type: true, isActive: true },
+    },
+    warehouse: {
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        latitude: true,
+        longitude: true,
+        mapLabel: true,
+        isMapEnabled: true,
+      },
+    },
     assignedTo: {
       select: {
         id: true,
@@ -52,6 +64,16 @@ function buildShipmentInclude() {
         area: true,
         district: true,
         baseCost: true,
+      },
+    },
+    order: {
+      select: {
+        id: true,
+        userId: true,
+        name: true,
+        phone_number: true,
+        status: true,
+        paymentStatus: true,
       },
     },
     deliveryProof: {
@@ -75,7 +97,7 @@ function buildShipmentInclude() {
         assignedAt: "desc",
       },
       take: 1,
-      include: shipmentDeliveryAssignmentSummaryInclude,
+      select: shipmentDeliveryAssignmentSummarySelect,
     },
   } as const;
 }
@@ -179,14 +201,25 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 }
 
 // PATCH /api/shipments/:id
-// Body (সব optional, যা পাঠাবে তাই update হবে):
+// Body (optional, shipment update):
 // {
 //   courier?: string,
 //   trackingNumber?: string | null,
 //   status?: ShipmentStatus,
 //   shippedAt?: string | null,
 //   expectedDate?: string | null,
-//   deliveredAt?: string | null
+//   deliveredAt?: string | null,
+//   deliveredLatitude?: number | null,
+//   deliveredLongitude?: number | null,
+//   deliveredAccuracy?: number | null,
+//   estimatedCost?: string | number | null,
+//   actualCost?: string | number | null,
+//   thirdPartyCost?: string | number | null,
+//   handlingCost?: string | number | null,
+//   packagingCost?: string | number | null,
+//   fuelCost?: string | number | null,
+//   dispatchNote?: string | null,
+//   priority?: number | null,
 // }
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
@@ -262,6 +295,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       outForDeliveryAt,
       expectedDate,
       deliveredAt,
+      deliveredLatitude,
+      deliveredLongitude,
+      deliveredAccuracy,
       estimatedCost,
       actualCost,
       thirdPartyCost,
@@ -448,6 +484,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
     if (deliveredAt !== undefined) {
       data.deliveredAt = deliveredAt ? new Date(deliveredAt) : null;
+    }
+    if (deliveredLatitude !== undefined) {
+      data.deliveredLatitude = deliveredLatitude === null ? null : Number(deliveredLatitude);
+    }
+    if (deliveredLongitude !== undefined) {
+      data.deliveredLongitude = deliveredLongitude === null ? null : Number(deliveredLongitude);
+    }
+    if (deliveredAccuracy !== undefined) {
+      data.deliveredAccuracy = deliveredAccuracy === null ? null : Number(deliveredAccuracy);
     }
     if (data.status === "ASSIGNED" && data.assignedAt === undefined) {
       data.assignedAt = new Date();

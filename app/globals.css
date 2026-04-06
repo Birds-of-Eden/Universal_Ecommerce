@@ -9,77 +9,90 @@ body {
 @layer base {
   :root {
     /* ========================
-       CORE COLORS (NEUTRAL) - LIGHT MODE
+       ECOMMERCE COLOR PALETTE - LIGHT MODE
+       🌿 Green (Primary) + 🌳 Brown (Accent) Theme
     ======================== */
 
-    --background: 0 0% 98%; /* Very light gray */
-    --foreground: 0 0% 15%; /* Dark gray */
+    /* Core Colors */
+    --background: 0 0% 100%; /* Pure White #FFFFFF */
+    --foreground: 0 0% 20%; /* Dark Text #333333 */
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --card-foreground: 0 0% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --popover-foreground: 0 0% 20%;
 
-    --primary: 0 0% 20%; /* Medium dark gray */
-    --primary-foreground: 0 0% 98%; /* Very light gray */
+    /* Primary Green Theme */
+    --primary: 123 61% 45%; /* #6DBE45 - Primary Green */
+    --primary-foreground: 0 0% 100%; /* White text */
 
-    --secondary: 0 0% 95%;
-    --secondary-foreground: 0 0% 0%;
+    /* Secondary Brown Theme */
+    --secondary: 40 25% 45%; /* #8B6B2E - Primary Brown */
+    --secondary-foreground: 0 0% 100%; /* White text */
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
+    /* Muted Colors */
+    --muted: 0 0% 96%; /* #F5F5F5 - Card background */
+    --muted-foreground: 0 0% 40%; /* Gray text */
 
-    --accent: 0 0% 92%; /* Light gray */
-    --accent-foreground: 0 0% 0%;
+    /* Accent Colors */
+    --accent: 40 20% 55%; /* #A1883F - Soft Accent Brown */
+    --accent-foreground: 0 0% 100%; /* White text */
 
-    --destructive: 0 0% 20%; /* Medium dark gray */
+    /* Destructive (Error) */
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 0%;
+    /* UI Elements */
+    --border: 0 0% 88%; /* #E0E0E0 - Border */
+    --input: 0 0% 88%; /* #E0E0E0 - Input border */
+    --ring: 123 61% 45%; /* Primary green for focus rings */
 
     --radius: 0.5rem;
 
-    /* Charts Neutral */
-    --chart-1: 0 0% 20%;
-    --chart-2: 0 0% 35%;
-    --chart-3: 0 0% 50%;
-    --chart-4: 0 0% 65%;
-    --chart-5: 0 0% 80%;
+    /* Charts - eCommerce Theme */
+    --chart-1: 123 61% 45%; /* Primary Green */
+    --chart-2: 40 25% 45%; /* Primary Brown */
+    --chart-3: 122 39% 49%; /* #4CAF50 - Button Green */
+    --chart-4: 40 20% 55%; /* Soft Accent Brown */
+    --chart-5: 123 50% 65%; /* #81C784 - Light Green */
 
     /* Scrollbar Colors */
-    --scrollbar-thumb: 0 0% 40%;
-    --scrollbar-track: 0 0% 95%;
-    --scrollbar-thumb-hover: 0 0% 30%;
+    --scrollbar-thumb: 123 61% 45%; /* Primary green */
+    --scrollbar-track: 0 0% 96%; /* Light gray */
+    --scrollbar-thumb-hover: 122 39% 49%; /* Button green */
 
-    /* Analytics Theme Colors */
-    --analytics-primary: 214 44% 14%;
-    --analytics-secondary: 56 100% 96%;
-    --analytics-accent: 350 73% 64%;
-    --analytics-chart-1: 99 61% 47%;
-    --analytics-chart-2: 261 76% 53%;
-    --analytics-chart-3: 344 84% 48%;
-    --analytics-chart-4: 5 85% 57%;
-    --analytics-chart-5: 163 65% 40%;
+    /* Analytics Theme Colors - eCommerce */
+    --analytics-primary: 123 61% 45%; /* Primary Green */
+    --analytics-secondary: 0 0% 96%; /* Light background */
+    --analytics-accent: 40 25% 45%; /* Primary Brown */
+    --analytics-chart-1: 123 61% 45%; /* Primary Green */
+    --analytics-chart-2: 40 25% 45%; /* Primary Brown */
+    --analytics-chart-3: 122 39% 49%; /* Button Green */
+    --analytics-chart-4: 40 20% 55%; /* Soft Accent */
+    --analytics-chart-5: 123 50% 65%; /* Light Green */
 
-    /* Best Seller & Sold Badge Theme */
-    --best-seller-bg: 214 44% 14%; /* Use primary color */
-    --best-seller-text: 0 0% 100%;
-    --sold-count-bg: 0 0% 20%; /* Use foreground color */
-    --sold-count-text: 0 0% 100%;
-    --badge-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    /* Best Seller & Sold Badge Theme - eCommerce */
+    --best-seller-bg: 123 61% 45%; /* Primary Green */
+    --best-seller-text: 0 0% 100%; /* White text */
+    --sold-count-bg: 40 25% 45%; /* Primary Brown */
+    --sold-count-text: 0 0% 100%; /* White text */
+    --badge-shadow: 0 4px 6px -1px rgb(109 190 69 / 0.2); /* Green shadow */
 
-    /* Delivery Proof Theme */
-    --delivery-proof-bg: 214 44% 14%; /* Use primary color */
-    --delivery-proof-text: 0 0% 100%;
-    --delivery-pin-bg: 0 0% 96%; /* Use muted background */
-    --delivery-pin-text: 0 0% 20%; /* Use foreground */
-    --delivery-link-bg: 0 0% 96%; /* Use muted background */
-    --delivery-link-text: 214 44% 14%; /* Use primary color */
-    --delivery-status-bg: 0 0% 100%; /* Use card background */
-    --delivery-status-text: 0 0% 40%; /* Use muted-foreground */
+    /* Delivery Proof Theme - eCommerce */
+    --delivery-proof-bg: 123 61% 45%; /* Primary Green */
+    --delivery-proof-text: 0 0% 100%; /* White text */
+    --delivery-pin-bg: 0 0% 96%; /* Light background */
+    --delivery-pin-text: 0 0% 20%; /* Dark text */
+    --delivery-link-bg: 0 0% 96%; /* Light background */
+    --delivery-link-text: 123 61% 45%; /* Primary Green */
+    --delivery-status-bg: 0 0% 100%; /* White background */
+    --delivery-status-text: 0 0% 40%; /* Muted text */
+
+    /* Custom Gradients */
+    --gradient-primary: linear-gradient(135deg, #6DBE45, #8B6B2E); /* Main Brand Gradient */
+    --gradient-soft: linear-gradient(135deg, #E8F5E9, #FFF8E1); /* Soft UI Gradient */
+    --gradient-premium: linear-gradient(135deg, #4CAF50, #A1883F); /* Premium Gradient */
   }
 
   /* ========================
@@ -643,6 +656,49 @@ body {
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none; /* Safari and Chrome */
+  }
+
+  /* eCommerce Gradient Utilities */
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-soft {
+    background: var(--gradient-soft);
+  }
+
+  .gradient-premium {
+    background: var(--gradient-premium);
+  }
+
+  .gradient-primary-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* eCommerce Button Gradients */
+  .btn-gradient-primary {
+    background: var(--gradient-primary);
+    color: white;
+    transition: all 0.3s ease;
+  }
+
+  .btn-gradient-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(109, 190, 69, 0.3);
+  }
+
+  .btn-gradient-premium {
+    background: var(--gradient-premium);
+    color: white;
+    transition: all 0.3s ease;
+  }
+
+  .btn-gradient-premium:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
   }
 }
 
