@@ -7,16 +7,20 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { getPurchaseOrderLandedCostLockReason, toDecimalAmount } from "@/lib/scm";
 
-const LANDED_COST_COMPONENT_VALUES = new Set(
-  Object.values(Prisma.PurchaseOrderLandedCostComponent),
-);
+const LANDED_COST_COMPONENTS = [
+  "FREIGHT",
+  "CUSTOMS",
+  "HANDLING",
+  "INSURANCE",
+  "CLEARING",
+  "OTHER",
+] as const;
+const LANDED_COST_COMPONENT_VALUES = new Set<string>(LANDED_COST_COMPONENTS);
 
 function isLandedCostComponent(
   value: string,
-): value is Prisma.PurchaseOrderLandedCostComponent {
-  return LANDED_COST_COMPONENT_VALUES.has(
-    value as Prisma.PurchaseOrderLandedCostComponent,
-  );
+): value is (typeof LANDED_COST_COMPONENTS)[number] {
+  return LANDED_COST_COMPONENT_VALUES.has(value);
 }
 
 function toCleanText(value: unknown, max = 500) {
@@ -129,7 +133,7 @@ export async function PATCH(
           { status: 400 },
         );
       }
-      data.component = component;
+      data.component = component as Prisma.PurchaseOrderLandedCostComponent;
     }
 
     if (body.amount !== undefined) {

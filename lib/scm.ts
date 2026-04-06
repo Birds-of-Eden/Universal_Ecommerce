@@ -861,6 +861,25 @@ export type WarehouseTransferWithRelations = Prisma.WarehouseTransferGetPayload<
 }>;
 
 export function toPurchaseOrderLogSnapshot(purchaseOrder: PurchaseOrderWithRelations) {
+  const landedCosts = Array.isArray(
+    (purchaseOrder as PurchaseOrderWithRelations & { landedCosts?: unknown[] }).landedCosts,
+  )
+    ? (
+        purchaseOrder as PurchaseOrderWithRelations & {
+          landedCosts: Array<{
+            id: number;
+            component: string;
+            amount: Prisma.Decimal;
+            currency: string;
+            incurredAt: Date;
+            note: string | null;
+            createdById: string | null;
+            createdBy?: { name: string | null } | null;
+          }>;
+        }
+      ).landedCosts
+    : [];
+
   return {
     poNumber: purchaseOrder.poNumber,
     status: purchaseOrder.status,
@@ -879,7 +898,7 @@ export function toPurchaseOrderLogSnapshot(purchaseOrder: PurchaseOrderWithRelat
     shippingTotal: purchaseOrder.shippingTotal.toString(),
     grandTotal: purchaseOrder.grandTotal.toString(),
     notes: purchaseOrder.notes ?? null,
-    landedCosts: purchaseOrder.landedCosts.map((cost) => ({
+    landedCosts: landedCosts.map((cost) => ({
       id: cost.id,
       component: cost.component,
       amount: cost.amount.toString(),

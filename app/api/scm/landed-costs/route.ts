@@ -17,16 +17,20 @@ const LANDED_COST_READ_PERMISSIONS = [
   "landed_costs.manage",
 ] as const;
 
-const LANDED_COST_COMPONENT_VALUES = new Set(
-  Object.values(Prisma.PurchaseOrderLandedCostComponent),
-);
+const LANDED_COST_COMPONENTS = [
+  "FREIGHT",
+  "CUSTOMS",
+  "HANDLING",
+  "INSURANCE",
+  "CLEARING",
+  "OTHER",
+] as const;
+const LANDED_COST_COMPONENT_VALUES = new Set<string>(LANDED_COST_COMPONENTS);
 
 function isLandedCostComponent(
   value: string,
-): value is Prisma.PurchaseOrderLandedCostComponent {
-  return LANDED_COST_COMPONENT_VALUES.has(
-    value as Prisma.PurchaseOrderLandedCostComponent,
-  );
+): value is (typeof LANDED_COST_COMPONENTS)[number] {
+  return LANDED_COST_COMPONENT_VALUES.has(value);
 }
 
 function toCleanText(value: unknown, max = 500) {
@@ -360,7 +364,7 @@ export async function POST(request: NextRequest) {
     const created = await prisma.purchaseOrderLandedCost.create({
       data: {
         purchaseOrderId,
-        component: componentRaw,
+        component: componentRaw as Prisma.PurchaseOrderLandedCostComponent,
         amount,
         currency,
         note,

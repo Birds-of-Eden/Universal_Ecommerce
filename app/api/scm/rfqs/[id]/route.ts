@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activity-log";
 import {
   computePurchaseOrderTotals,
   generatePurchaseOrderNumber,
+  purchaseOrderInclude,
   rfqInclude,
   toDecimalAmount,
   toPurchaseOrderLogSnapshot,
@@ -758,65 +759,7 @@ export async function PATCH(
               create: purchaseOrderItems,
             },
           },
-          include: {
-            supplier: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-                currency: true,
-              },
-            },
-            warehouse: {
-              select: {
-                id: true,
-                name: true,
-                code: true,
-              },
-            },
-            createdBy: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-            approvedBy: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-            items: {
-              orderBy: { id: "asc" },
-              include: {
-                productVariant: {
-                  select: {
-                    id: true,
-                    productId: true,
-                    sku: true,
-                    stock: true,
-                    product: {
-                      select: {
-                        id: true,
-                        name: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            goodsReceipts: {
-              select: {
-                id: true,
-                receiptNumber: true,
-                status: true,
-                receivedAt: true,
-              },
-              orderBy: { receivedAt: "desc" },
-            },
-          },
+          include: purchaseOrderInclude,
         });
 
         await tx.rfqAward.update({
