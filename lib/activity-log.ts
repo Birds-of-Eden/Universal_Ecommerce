@@ -118,6 +118,10 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     permissions: ["purchase_orders.read", "purchase_orders.manage", "purchase_orders.approve", "scm.access"],
   },
   {
+    match: ["purchase_order_landed_cost", "landed_cost", "landed_costs"],
+    permissions: ["landed_costs.read", "landed_costs.manage", "scm.access"],
+  },
+  {
     match: ["goods_receipt", "goodsreceipt"],
     permissions: ["goods_receipts.read", "goods_receipts.manage", "scm.access"],
   },

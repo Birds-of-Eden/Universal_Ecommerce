@@ -130,6 +130,145 @@ export function computePurchaseOrderTotals(
   };
 }
 
+const EDITABLE_LANDED_COST_PO_STATUSES = new Set([
+  "DRAFT",
+  "SUBMITTED",
+  "APPROVED",
+]);
+
+export function getPurchaseOrderLandedCostLockReason(input: {
+  status: string;
+  hasGoodsReceipts: boolean;
+}) {
+  if (input.hasGoodsReceipts) {
+    return "Landed costs are locked after goods receipt posting.";
+  }
+  if (!EDITABLE_LANDED_COST_PO_STATUSES.has(input.status)) {
+    return `Landed costs can only be edited while purchase order is DRAFT, SUBMITTED, or APPROVED. Current status: ${input.status}.`;
+  }
+  return null;
+}
+
+export type PurchaseOrderLandedCostAllocationLine = {
+  purchaseOrderItemId: number;
+  quantityOrdered: number;
+  baseUnitCost: Prisma.Decimal;
+  baseLineTotal: Prisma.Decimal;
+  landedAllocationTotal: Prisma.Decimal;
+  landedPerUnit: Prisma.Decimal;
+  effectiveUnitCost: Prisma.Decimal;
+  effectiveLineTotal: Prisma.Decimal;
+};
+
+export type PurchaseOrderLandedCostAllocationResult = {
+  baseSubtotal: Prisma.Decimal;
+  landedTotal: Prisma.Decimal;
+  effectiveSubtotal: Prisma.Decimal;
+  lines: PurchaseOrderLandedCostAllocationLine[];
+};
+
+function toPreciseDecimal(value: Prisma.Decimal) {
+  return value.toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP);
+}
+
+export function computePurchaseOrderLandedCostAllocation(
+  items: Array<{
+    id: number;
+    quantityOrdered: number;
+    unitCost: Prisma.Decimal;
+  }>,
+  landedCosts: Array<{ amount: Prisma.Decimal }>,
+): PurchaseOrderLandedCostAllocationResult {
+  const baseSubtotal = items.reduce(
+    (sum, item) => sum.plus(item.unitCost.mul(item.quantityOrdered)),
+    new Prisma.Decimal(0),
+  );
+  const landedTotal = landedCosts.reduce((sum, item) => sum.plus(item.amount), new Prisma.Decimal(0));
+
+  if (items.length === 0) {
+    return {
+      baseSubtotal,
+      landedTotal,
+      effectiveSubtotal: baseSubtotal.plus(landedTotal),
+      lines: [],
+    };
+  }
+
+  if (landedTotal.lte(0)) {
+    return {
+      baseSubtotal,
+      landedTotal,
+      effectiveSubtotal: baseSubtotal,
+      lines: items.map((item) => {
+        const baseLineTotal = item.unitCost.mul(item.quantityOrdered);
+        return {
+          purchaseOrderItemId: item.id,
+          quantityOrdered: item.quantityOrdered,
+          baseUnitCost: item.unitCost,
+          baseLineTotal,
+          landedAllocationTotal: new Prisma.Decimal(0),
+          landedPerUnit: new Prisma.Decimal(0),
+          effectiveUnitCost: item.unitCost,
+          effectiveLineTotal: baseLineTotal,
+        };
+      }),
+    };
+  }
+
+  const totalOrderedQuantity = items.reduce((sum, item) => sum + item.quantityOrdered, 0);
+  const useValueBasis = baseSubtotal.gt(0);
+  const useQuantityBasis = !useValueBasis && totalOrderedQuantity > 0;
+  const denominator = useValueBasis
+    ? baseSubtotal
+    : useQuantityBasis
+      ? new Prisma.Decimal(totalOrderedQuantity)
+      : new Prisma.Decimal(items.length);
+
+  let allocatedSoFar = new Prisma.Decimal(0);
+  const lines = items.map((item, index) => {
+    const baseLineTotal = item.unitCost.mul(item.quantityOrdered);
+    const isLast = index === items.length - 1;
+    const weightValue = useValueBasis
+      ? baseLineTotal
+      : useQuantityBasis
+        ? new Prisma.Decimal(item.quantityOrdered)
+        : new Prisma.Decimal(1);
+
+    const landedAllocationTotal = isLast
+      ? landedTotal.minus(allocatedSoFar)
+      : toPreciseDecimal(landedTotal.mul(weightValue).div(denominator));
+
+    if (!isLast) {
+      allocatedSoFar = allocatedSoFar.plus(landedAllocationTotal);
+    }
+
+    const landedPerUnit =
+      item.quantityOrdered > 0
+        ? toPreciseDecimal(landedAllocationTotal.div(item.quantityOrdered))
+        : new Prisma.Decimal(0);
+    const effectiveUnitCost = toPreciseDecimal(item.unitCost.plus(landedPerUnit));
+    const effectiveLineTotal = toPreciseDecimal(effectiveUnitCost.mul(item.quantityOrdered));
+
+    return {
+      purchaseOrderItemId: item.id,
+      quantityOrdered: item.quantityOrdered,
+      baseUnitCost: item.unitCost,
+      baseLineTotal,
+      landedAllocationTotal,
+      landedPerUnit,
+      effectiveUnitCost,
+      effectiveLineTotal,
+    };
+  });
+
+  return {
+    baseSubtotal,
+    landedTotal,
+    effectiveSubtotal: baseSubtotal.plus(landedTotal),
+    lines,
+  };
+}
+
 export const purchaseOrderInclude = Prisma.validator<Prisma.PurchaseOrderInclude>()({
   supplier: {
     select: {
@@ -187,6 +326,18 @@ export const purchaseOrderInclude = Prisma.validator<Prisma.PurchaseOrderInclude
       receivedAt: true,
     },
     orderBy: { receivedAt: "desc" },
+  },
+  landedCosts: {
+    orderBy: [{ incurredAt: "desc" }, { id: "desc" }],
+    include: {
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
   },
 });
 
@@ -728,6 +879,16 @@ export function toPurchaseOrderLogSnapshot(purchaseOrder: PurchaseOrderWithRelat
     shippingTotal: purchaseOrder.shippingTotal.toString(),
     grandTotal: purchaseOrder.grandTotal.toString(),
     notes: purchaseOrder.notes ?? null,
+    landedCosts: purchaseOrder.landedCosts.map((cost) => ({
+      id: cost.id,
+      component: cost.component,
+      amount: cost.amount.toString(),
+      currency: cost.currency,
+      incurredAt: cost.incurredAt.toISOString(),
+      note: cost.note ?? null,
+      createdById: cost.createdById ?? null,
+      createdByName: cost.createdBy?.name ?? null,
+    })),
     items: purchaseOrder.items.map((item) => ({
       id: item.id,
       variantId: item.productVariantId,

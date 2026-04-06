@@ -47,6 +47,7 @@ model User {
   warehouseMemberships          WarehouseMembership[]   @relation("WarehouseMemberships")
   purchaseOrdersCreated         PurchaseOrder[]         @relation("PurchaseOrdersCreated")
   purchaseOrdersApproved        PurchaseOrder[]         @relation("PurchaseOrdersApproved")
+  purchaseOrderLandedCostsCreated PurchaseOrderLandedCost[] @relation("PurchaseOrderLandedCostsCreated")
   purchaseRequisitionsCreated   PurchaseRequisition[]   @relation("PurchaseRequisitionsCreated")
   purchaseRequisitionsApproved  PurchaseRequisition[]   @relation("PurchaseRequisitionsApproved")
   purchaseRequisitionsConverted PurchaseRequisition[]   @relation("PurchaseRequisitionsConverted")
@@ -1345,6 +1346,7 @@ model PurchaseOrder {
   supplierLedgerEntries SupplierLedgerEntry[]
   rfqAward              RfqAward?
   items                 PurchaseOrderItem[]
+  landedCosts           PurchaseOrderLandedCost[]
 
   @@index([supplierId, status])
   @@index([purchaseRequisitionId])
@@ -1373,6 +1375,24 @@ model PurchaseOrderItem {
 
   @@index([purchaseOrderId])
   @@index([productVariantId])
+}
+
+model PurchaseOrderLandedCost {
+  id              Int                              @id @default(autoincrement())
+  purchaseOrderId Int
+  component       PurchaseOrderLandedCostComponent
+  amount          Decimal                          @db.Decimal(12, 2)
+  currency        String                           @default("BDT") @db.VarChar(3)
+  note            String?
+  incurredAt      DateTime                         @default(now())
+  createdById     String?
+  createdAt       DateTime                         @default(now())
+  updatedAt       DateTime                         @updatedAt
+  createdBy       User?                            @relation("PurchaseOrderLandedCostsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  purchaseOrder   PurchaseOrder                    @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId, incurredAt])
+  @@index([createdById])
 }
 
 model GoodsReceipt {
@@ -2472,6 +2492,15 @@ enum PurchaseOrderStatus {
   PARTIALLY_RECEIVED
   RECEIVED
   CANCELLED
+}
+
+enum PurchaseOrderLandedCostComponent {
+  FREIGHT
+  CUSTOMS
+  HANDLING
+  INSURANCE
+  CLEARING
+  OTHER
 }
 
 enum GoodsReceiptStatus {

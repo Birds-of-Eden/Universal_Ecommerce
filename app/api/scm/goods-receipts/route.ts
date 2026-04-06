@@ -6,12 +6,15 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { receiveVariantInventory } from "@/lib/inventory";
 import {
+  computePurchaseOrderLandedCostAllocation,
   generateGoodsReceiptNumber,
+  getPurchaseOrderLandedCostLockReason,
   goodsReceiptInclude,
   purchaseOrderInclude,
   refreshPurchaseOrderReceiptStatus,
   toGoodsReceiptLogSnapshot,
 } from "@/lib/scm";
+import { Prisma } from "@/generated/prisma";
 
 const GOODS_RECEIPT_READ_PERMISSIONS = [
   "goods_receipts.read",
@@ -164,6 +167,23 @@ export async function POST(request: NextRequest) {
     const purchaseOrderItemMap = new Map(
       purchaseOrder.items.map((item) => [item.id, item]),
     );
+    const landedAllocation = computePurchaseOrderLandedCostAllocation(
+      purchaseOrder.items.map((item) => ({
+        id: item.id,
+        quantityOrdered: item.quantityOrdered,
+        unitCost: item.unitCost,
+      })),
+      purchaseOrder.landedCosts.map((cost) => ({
+        amount: cost.amount,
+      })),
+    );
+    const landedAllocationByItemId = new Map(
+      landedAllocation.lines.map((line) => [line.purchaseOrderItemId, line]),
+    );
+    const landedCostLockedReason = getPurchaseOrderLandedCostLockReason({
+      status: purchaseOrder.status,
+      hasGoodsReceipts: purchaseOrder.goodsReceipts.length > 0,
+    });
     for (const item of normalizedItems) {
       const purchaseOrderItem = purchaseOrderItemMap.get(item.purchaseOrderItemId);
       if (!purchaseOrderItem) {
@@ -217,7 +237,10 @@ export async function POST(request: NextRequest) {
             purchaseOrderItemId: purchaseOrderItem.id,
             productVariantId: purchaseOrderItem.productVariantId,
             quantityReceived: item.quantityReceived,
-            unitCost: purchaseOrderItem.unitCost,
+            unitCost: (
+              landedAllocationByItemId.get(purchaseOrderItem.id)?.effectiveUnitCost ??
+              purchaseOrderItem.unitCost
+            ).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
           },
         });
 
@@ -250,7 +273,7 @@ export async function POST(request: NextRequest) {
       access,
       request,
       metadata: {
-        message: `Received goods via ${createdReceipt.receiptNumber} for ${createdReceipt.purchaseOrder.poNumber}`,
+        message: `Received goods via ${createdReceipt.receiptNumber} for ${createdReceipt.purchaseOrder.poNumber}${landedCostLockedReason ? " (landed costs locked after receipt)" : ""}`,
       },
       after: toGoodsReceiptLogSnapshot(createdReceipt),
     });

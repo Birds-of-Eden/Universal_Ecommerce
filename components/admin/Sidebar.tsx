@@ -198,6 +198,11 @@ const menuItems: MenuItem[] = [
         requiredPermissions: ["goods_receipts.read", "goods_receipts.manage"],
       },
       {
+        name: "Landed Costs",
+        href: "/admin/scm/landed-costs",
+        requiredPermissions: ["landed_costs.read", "landed_costs.manage"],
+      },
+      {
         name: "Supplier Returns",
         href: "/admin/scm/supplier-returns",
         requiredPermissions: [

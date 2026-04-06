@@ -12,14 +12,26 @@ import {
   GitCompareArrows,
   RotateCcw,
   PackageCheck,
+  PackagePlus,
   Radar,
   ShieldCheck,
   ShoppingCart,
   UserCheck,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const cards = [
+type ScmCard = {
+  title: string;
+  href: string;
+  description: string;
+  icon: LucideIcon;
+  permission?: string;
+  permissions?: string[];
+  globalPermission?: string;
+};
+
+const cards: ScmCard[] = [
   {
     title: "Suppliers",
     href: "/admin/scm/suppliers",
@@ -82,6 +94,14 @@ const cards = [
     permission: "goods_receipts.read",
   },
   {
+    title: "Landed Costs",
+    href: "/admin/scm/landed-costs",
+    description: "Allocate freight, customs, and handling cost to purchase order unit economics before receipt.",
+    icon: PackagePlus,
+    permission: "landed_costs.read",
+    permissions: ["landed_costs.read", "landed_costs.manage"],
+  },
+  {
     title: "Supplier Returns",
     href: "/admin/scm/supplier-returns",
     description: "Control vendor returns, stock deduction, and credit-note closure from received goods.",
@@ -131,7 +151,15 @@ export default function ScmHomePage() {
 
   const visibleCards = useMemo(() => {
     return cards.filter((card) => {
-      const hasPermission = permissions.includes(card.permission);
+      const permissionCandidates =
+        card.permissions && card.permissions.length > 0
+          ? card.permissions
+          : card.permission
+            ? [card.permission]
+            : [];
+      const hasPermission = permissionCandidates.some((permission) =>
+        permissions.includes(permission),
+      );
       const hasGlobalPermission = card.globalPermission
         ? globalPermissions.includes(card.globalPermission)
         : true;
