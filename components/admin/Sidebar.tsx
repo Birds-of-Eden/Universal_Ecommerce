@@ -117,41 +117,36 @@ const menuItems: MenuItem[] = [
   },
   {
     name: "Operations",
-    items: [
+    icon: ClipboardList,
+    subItems: [
       {
         name: "Users",
         href: "/admin/users",
-        icon: Users,
         requiredPermissions: ["users.read", "users.manage"],
       },
       {
         name: "Products",
         href: "/admin/products",
-        icon: ShoppingBag,
         requiredPermissions: ["products.manage"],
       },
       {
         name: "Orders",
         href: "/admin/orders",
-        icon: FileText,
         requiredPermissions: ["orders.read_all"],
       },
       {
         name: "Shipments",
         href: "/admin/shipments",
-        icon: Truck,
         requiredPermissions: ["shipments.manage", "orders.read_all"],
       },
       {
         name: "Delivery",
         href: "/admin/delivery/dashboard",
-        icon: Truck,
         requiredPermissions: ["delivery.dashboard.access"],
       },
       {
         name: "Logistics",
         href: "/admin/logistics",
-        icon: Forklift,
         requiredPermissions: ["logistics.manage"],
       },
     ],
@@ -412,7 +407,7 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
               "w-full flex items-center justify-between px-4 py-2.5 transition-all duration-150 group",
               isOpen
                 ? "text-primary bg-primary/8 border-l-2 border-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
+                : "text-muted-foreground hover:text-foreground hover:bg-primary/10 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
             )}
           >
             <div className="flex items-center gap-3">
@@ -448,8 +443,8 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
                       className={cn(
                         "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
                         isSubItemActive
-                          ? "text-primary font-medium bg-primary/8 border-l-2 border-primary"
-                          : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/30",
+                          ? "text-primary font-medium bg-primary/20 border-l-2 border-primary"
+                          : "text-muted-foreground/70 hover:text-foreground hover:bg-primary/10",
                       )}
                     >
                       <div
@@ -478,8 +473,8 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
           className={cn(
             "flex items-center gap-3 px-4 py-2.5 transition-all duration-150 group",
             isActive
-              ? "text-primary bg-primary/8 border-l-2 border-primary"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
+              ? "text-primary bg-primary/10 hover:bg-primary/20 border-l-2 border-primary"
+              : "text-muted-foreground hover:text-foreground hover:bg-primary/10 hover:border-l-2 hover:border-primary/50 border-l-2 border-transparent",
           )}
         >
           {item.icon && (
@@ -487,8 +482,8 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
               className={cn(
                 "h-4 w-4 transition-all duration-150",
                 isActive
-                  ? "text-primary"
-                  : "text-muted-foreground/60 group-hover:text-muted-foreground group-hover:translate-x-0.5",
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground/60 group-hover:text-muted-foreground bg-primary/10 group-hover:translate-x-0.5",
               )}
             />
           )}
@@ -511,7 +506,7 @@ const SidebarContent = ({
   onClose?: () => void;
   isWarehouseScopedOnly?: boolean;
 }) => (
-  <nav className="py-6 space-y-6">
+  <nav className="py-6 space-y-2 overflow-y-auto scrollbar-hide-on-idle">
     {items.map((section) => {
       if (section.items) {
         // Section with items
@@ -734,58 +729,21 @@ export default function Sidebar({
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-hide-on-idle">
         <SidebarContent
           pathname={pathname}
           items={visibleMenuItems}
           isWarehouseScopedOnly={isWarehouseScopedOnly}
         />
       </div>
-
-      {/* Premium User Card Footer */}
-      <div className="p-4 border-t border-border flex-shrink-0">
-        <div className="bg-muted/40 rounded-lg p-3">
-          <div className="flex items-center gap-3">
-            {/* Avatar with gradient */}
-            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold">
-              {(session?.user as any)?.name?.charAt(0)?.toUpperCase() || "A"}
-            </div>
-
-            {/* User Info */}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {(session?.user as any)?.name || "Super Admin"}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {(session?.user as any)?.email || "superadmin"}
-              </p>
-            </div>
-
-            {/* Menu Trigger */}
-            <button className="text-muted-foreground hover:text-foreground transition-colors">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Version */}
-          <div className="mt-2 pt-2 border-t border-border/50">
-            <p className="text-[10px] text-muted-foreground/40 text-center">
-              V1.1.0
-            </p>
-          </div>
-        </div>
+      {/* Version */}
+      <div className="p-4 border-t border-border/50">
+        <h3 className="text-sm font-semibold text-foreground text-center">
+          BOED E-Commerce
+        </h3>
+        <p className="text-[10px] text-muted-foreground/40 text-center">
+          V1.1.0
+        </p>
       </div>
     </aside>
   );

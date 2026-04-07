@@ -5,7 +5,15 @@ import { useSession } from "next-auth/react";
 import UserTable from "@/components/admin/users/UserTable";
 import UserFilters from "@/components/admin/users/UserFilters";
 import Pagination from "@/components/admin/users/Pagination";
-import { Users, Loader2, AlertCircle, RefreshCw, UserPlus, Eye, EyeOff } from "lucide-react";
+import {
+  Users,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  UserPlus,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 interface User {
   id: string;
@@ -80,11 +88,17 @@ export default function AdminUsersPage() {
   const { data: session } = useSession();
   const initialCacheKey = getCacheKey(lastUsersQueryState);
   const initialCachedEntry = usersCache.get(initialCacheKey);
-  const canCreateUsers = Array.isArray((session?.user as any)?.globalPermissions)
-    ? ((session?.user as any).globalPermissions as string[]).includes("users.manage")
+  const canCreateUsers = Array.isArray(
+    (session?.user as any)?.globalPermissions,
+  )
+    ? ((session?.user as any).globalPermissions as string[]).includes(
+        "users.manage",
+      )
     : false;
 
-  const [users, setUsers] = useState<User[]>(() => initialCachedEntry?.users ?? []);
+  const [users, setUsers] = useState<User[]>(
+    () => initialCachedEntry?.users ?? [],
+  );
   const [pagination, setPagination] = useState<PaginationInfo>(() => ({
     page: lastUsersQueryState.page,
     limit: lastUsersQueryState.limit,
@@ -118,11 +132,11 @@ export default function AdminUsersPage() {
     try {
       setRolesLoading(true);
       const response = await fetch("/api/admin/rbac/roles");
-      
+
       if (!response.ok) {
         throw new Error("Failed to load roles");
       }
-      
+
       const rolesData = await response.json();
       setRoles(rolesData);
     } catch (err) {
@@ -141,81 +155,82 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (roles.length > 0 && newUser.role === "user") {
       // Find a suitable default role (prefer non-system roles, or first available)
-      const defaultRole = roles.find(r => !r.isSystem) || roles[0];
+      const defaultRole = roles.find((r) => !r.isSystem) || roles[0];
       if (defaultRole) {
-        setNewUser(prev => ({ ...prev, role: defaultRole.name }));
+        setNewUser((prev) => ({ ...prev, role: defaultRole.name }));
       }
     }
   }, [roles, newUser.role]);
 
   // Memoize fetch function with persistent page-level caching
-  const fetchUsers = useCallback(async (showRefresh = false) => {
-    const queryState: UsersQueryState = {
-      page: pagination.page,
-      limit: pagination.limit,
-      search: filters.search.trim(),
-      role: filters.role,
-    };
-    const cacheKey = getCacheKey(queryState);
-    lastUsersQueryState = queryState;
+  const fetchUsers = useCallback(
+    async (showRefresh = false) => {
+      const queryState: UsersQueryState = {
+        page: pagination.page,
+        limit: pagination.limit,
+        search: filters.search.trim(),
+        role: filters.role,
+      };
+      const cacheKey = getCacheKey(queryState);
+      lastUsersQueryState = queryState;
 
-    if (!showRefresh && usersCache.has(cacheKey)) {
-      const cachedData = usersCache.get(cacheKey);
-      if (cachedData) {
-        setUsers(cachedData.users);
-        setPagination(cachedData.pagination);
-        setFilters({
-          search: queryState.search,
-          role: queryState.role,
+      if (!showRefresh && usersCache.has(cacheKey)) {
+        const cachedData = usersCache.get(cacheKey);
+        if (cachedData) {
+          setUsers(cachedData.users);
+          setPagination(cachedData.pagination);
+          setFilters({
+            search: queryState.search,
+            role: queryState.role,
+          });
+          setError("");
+          setLoading(false);
+          return;
+        }
+      }
+
+      try {
+        if (showRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        const params = new URLSearchParams({
+          page: queryState.page.toString(),
+          limit: queryState.limit.toString(),
+          ...(queryState.search && { search: queryState.search }),
+          ...(queryState.role && { role: queryState.role }),
         });
+
+        const response = await fetch(`/api/users?${params}`);
+
+        if (!response.ok) {
+          throw new Error("Failed to load user data");
+        }
+
+        const data = await response.json();
+
+        usersCache.set(cacheKey, {
+          users: data.users,
+          pagination: data.pagination,
+        });
+
+        setUsers(data.users);
+        setPagination(data.pagination);
         setError("");
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Error loading user data",
+        );
+        console.error("Error fetching users:", err);
+      } finally {
         setLoading(false);
-        return;
+        setRefreshing(false);
       }
-    }
-
-    try {
-      if (showRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-
-      const params = new URLSearchParams({
-        page: queryState.page.toString(),
-        limit: queryState.limit.toString(),
-        ...(queryState.search && { search: queryState.search }),
-        ...(queryState.role && { role: queryState.role }),
-      });
-
-      const response = await fetch(`/api/users?${params}`);
-
-      if (!response.ok) {
-        throw new Error("Failed to load user data");
-      }
-
-      const data = await response.json();
-
-      usersCache.set(cacheKey, {
-        users: data.users,
-        pagination: data.pagination,
-      });
-
-      setUsers(data.users);
-      setPagination(data.pagination);
-      setError("");
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error loading user data"
-      );
-      console.error("Error fetching users:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [pagination.page, pagination.limit, filters.search, filters.role]);
+    },
+    [pagination.page, pagination.limit, filters.search, filters.role],
+  );
 
   useEffect(() => {
     fetchUsers();
@@ -240,56 +255,65 @@ export default function AdminUsersPage() {
     fetchUsers(true);
   }, [fetchUsers]);
 
-  const handleUserUpdate = useCallback((userId: string, updates: Partial<User>) => {
-    setUsers((prev) => {
-      const nextUsers = prev.map((user) =>
-        user.id === userId ? { ...user, ...updates } : user
-      );
+  const handleUserUpdate = useCallback(
+    (userId: string, updates: Partial<User>) => {
+      setUsers((prev) => {
+        const nextUsers = prev.map((user) =>
+          user.id === userId ? { ...user, ...updates } : user,
+        );
 
-      const cacheKey = getCacheKey({
-        page: pagination.page,
-        limit: pagination.limit,
-        search: filters.search.trim(),
-        role: filters.role,
-      });
-      const cached = usersCache.get(cacheKey);
-      if (cached) {
-        usersCache.set(cacheKey, {
-          ...cached,
-          users: nextUsers,
+        const cacheKey = getCacheKey({
+          page: pagination.page,
+          limit: pagination.limit,
+          search: filters.search.trim(),
+          role: filters.role,
         });
-      }
+        const cached = usersCache.get(cacheKey);
+        if (cached) {
+          usersCache.set(cacheKey, {
+            ...cached,
+            users: nextUsers,
+          });
+        }
 
-      return nextUsers;
-    });
-  }, [filters.role, filters.search, pagination.limit, pagination.page]);
-
-  const handleUserDelete = useCallback((userId: string) => {
-    setUsers((prev) => {
-      const nextUsers = prev.filter((user) => user.id !== userId);
-
-      const cacheKey = getCacheKey({
-        page: pagination.page,
-        limit: pagination.limit,
-        search: filters.search.trim(),
-        role: filters.role,
+        return nextUsers;
       });
-      const cached = usersCache.get(cacheKey);
-      if (cached) {
-        usersCache.set(cacheKey, {
-          ...cached,
-          users: nextUsers,
-          pagination: {
-            ...cached.pagination,
-            total: Math.max(0, cached.pagination.total - 1),
-          },
-        });
-      }
+    },
+    [filters.role, filters.search, pagination.limit, pagination.page],
+  );
 
-      return nextUsers;
-    });
-    setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
-  }, [filters.role, filters.search, pagination.limit, pagination.page]);
+  const handleUserDelete = useCallback(
+    (userId: string) => {
+      setUsers((prev) => {
+        const nextUsers = prev.filter((user) => user.id !== userId);
+
+        const cacheKey = getCacheKey({
+          page: pagination.page,
+          limit: pagination.limit,
+          search: filters.search.trim(),
+          role: filters.role,
+        });
+        const cached = usersCache.get(cacheKey);
+        if (cached) {
+          usersCache.set(cacheKey, {
+            ...cached,
+            users: nextUsers,
+            pagination: {
+              ...cached.pagination,
+              total: Math.max(0, cached.pagination.total - 1),
+            },
+          });
+        }
+
+        return nextUsers;
+      });
+      setPagination((prev) => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1),
+      }));
+    },
+    [filters.role, filters.search, pagination.limit, pagination.page],
+  );
 
   const handleResetFilters = useCallback(() => {
     setFilters({ search: "", role: "" });
@@ -324,7 +348,7 @@ export default function AdminUsersPage() {
 
     try {
       setCreating(true);
-      
+
       const requestData = {
         email: newUser.email,
         name: newUser.name || "",
@@ -333,35 +357,34 @@ export default function AdminUsersPage() {
         password: newUser.password,
         addresses: normalizedAddresses,
       };
-      
-      console.log('Sending user creation request:', requestData);
-      
+
+      console.log("Sending user creation request:", requestData);
+
       const response = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestData),
       });
 
-      console.log('Response status:', response.status, response.statusText);
-      
+      console.log("Response status:", response.status, response.statusText);
+
       if (!response.ok) {
         const data = await response.json().catch((e) => {
-          console.error('Error parsing JSON response:', e);
+          console.error("Error parsing JSON response:", e);
           return {};
         });
-        console.error('Create user error response:', data);
-        setCreateError(
-          data?.error || data?.message || "Failed to create user"
-        );
+        console.error("Create user error response:", data);
+        setCreateError(data?.error || data?.message || "Failed to create user");
         return;
       }
 
       const successData = await response.json();
-      console.log('User created successfully:', successData);
+      console.log("User created successfully:", successData);
       setShowCreateModal(false);
-      
+
       // Reset form with proper default role
-      const defaultRole = roles.find(r => !r.isSystem) || roles[0] || { name: "user" };
+      const defaultRole = roles.find((r) => !r.isSystem) ||
+        roles[0] || { name: "user" };
       setNewUser({
         email: "",
         name: "",
@@ -382,114 +405,86 @@ export default function AdminUsersPage() {
 
   if (loading && users.length === 0) {
     return (
-      <div className="min-h-screen bg-background p-4 sm:p-6 transition-colors duration-300">
-        <div className=" mx-auto">
+      <div className="min-h-screen bg-background transition-colors duration-300">
+        <div className="p-4 sm:p-8">
           {/* Header Skeleton */}
           <div className="mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-muted rounded-xl animate-pulse"></div>
-                <div>
-                  <div className="h-8 bg-muted rounded w-48 mb-2 animate-pulse"></div>
-                  <div className="h-4 bg-muted/60 rounded w-64 animate-pulse"></div>
-                </div>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="h-10 bg-muted rounded w-48 mb-2 animate-pulse"></div>
+                <div className="h-4 bg-muted/60 rounded w-56 animate-pulse mt-2"></div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="h-10 bg-muted rounded-xl w-32 animate-pulse"></div>
-                <div className="h-10 bg-muted rounded-xl w-20 animate-pulse"></div>
+              <div className="flex gap-2">
+                <div className="h-10 bg-muted rounded w-24 animate-pulse"></div>
+                <div className="h-10 bg-muted rounded-lg w-10 animate-pulse"></div>
               </div>
-            </div>
-          </div>
-
-          {/* Filters Skeleton */}
-          <div className="bg-card rounded-2xl shadow-lg border-border p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="h-10 bg-muted rounded-lg animate-pulse"></div>
-              <div className="h-10 bg-muted rounded-lg animate-pulse"></div>
-              <div className="h-10 bg-gray-700 rounded-lg w-24 animate-pulse"></div>
             </div>
           </div>
 
           {/* Stats Skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-card p-4 rounded-xl border-border shadow-sm">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-muted rounded-lg animate-pulse"></div>
-                <div>
-                  <div className="h-4 bg-muted/60 rounded w-20 mb-2 animate-pulse"></div>
-                  <div className="h-6 bg-muted rounded w-12 animate-pulse"></div>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-card border border-border rounded-lg p-5"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="h-3 bg-muted rounded w-24 mb-3 animate-pulse"></div>
+                    <div className="h-7 bg-muted rounded w-12 animate-pulse"></div>
+                  </div>
+                  <div className="w-12 h-12 bg-muted rounded-lg animate-pulse"></div>
                 </div>
               </div>
-            </div>
-            <div className="bg-card p-4 rounded-xl border-border shadow-sm">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-muted rounded-lg animate-pulse"></div>
-                <div>
-                  <div className="h-4 bg-muted/60 rounded w-24 mb-2 animate-pulse"></div>
-                  <div className="h-6 bg-muted rounded w-12 animate-pulse"></div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card p-4 rounded-xl border-border shadow-sm">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-muted rounded-lg animate-pulse"></div>
-                <div>
-                  <div className="h-4 bg-muted/60 rounded w-20 mb-2 animate-pulse"></div>
-                  <div className="h-6 bg-muted rounded w-12 animate-pulse"></div>
-                </div>
-              </div>
+            ))}
+          </div>
+
+          {/* Filters Skeleton */}
+          <div className="bg-card rounded-lg border border-border p-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="h-10 bg-muted rounded animate-pulse"></div>
+              <div className="h-10 bg-muted rounded animate-pulse"></div>
+              <div className="h-10 bg-muted rounded animate-pulse"></div>
             </div>
           </div>
 
           {/* Table Skeleton */}
-          <div className="bg-card rounded-2xl shadow-lg border-border overflow-hidden">
-            {/* Table Header Skeleton */}
-            <div className="p-6 border-b border-border bg-muted">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="bg-card rounded-lg border border-border overflow-hidden">
+            {/* Table Header */}
+            <div className="p-5 border-b border-border bg-muted/40">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="h-6 bg-muted rounded w-32 mb-2 animate-pulse"></div>
-                  <div className="h-4 bg-muted/60 rounded w-40 animate-pulse"></div>
+                  <div className="h-5 bg-muted rounded w-32 mb-1 animate-pulse"></div>
+                  <div className="h-3 bg-muted/60 rounded w-24 mt-2 animate-pulse"></div>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex gap-2">
                   <div className="h-8 bg-muted rounded w-20 animate-pulse"></div>
                   <div className="h-8 bg-muted rounded w-24 animate-pulse"></div>
                 </div>
               </div>
             </div>
 
-            {/* Table Rows Skeleton */}
+            {/* Table Rows */}
             <div className="divide-y divide-border">
-              {Array.from({ length: 10 }, (_, i) => (
+              {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="p-4">
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-muted rounded-full animate-pulse"></div>
-                      <div>
-                        <div className="h-4 bg-muted/60 rounded w-24 mb-1 animate-pulse"></div>
-                        <div className="h-3 bg-muted/60 rounded w-32 animate-pulse"></div>
+                      <div className="flex-1">
+                        <div className="h-3 bg-muted/60 rounded w-24 mb-2 animate-pulse"></div>
+                        <div className="h-2 bg-muted/60 rounded w-32 animate-pulse"></div>
                       </div>
                     </div>
-                    <div className="h-4 bg-muted/60 rounded w-20 animate-pulse"></div>
-                    <div className="h-4 bg-muted/60 rounded w-16 animate-pulse"></div>
-                    <div className="h-4 bg-muted/60 rounded w-24 animate-pulse"></div>
-                    <div className="h-4 bg-muted/60 rounded w-16 animate-pulse"></div>
-                    <div className="flex items-center space-x-2">
-                      <div className="h-8 bg-muted rounded w-8 animate-pulse"></div>
-                      <div className="h-8 bg-muted rounded w-8 animate-pulse"></div>
-                      <div className="h-8 bg-muted rounded w-8 animate-pulse"></div>
-                    </div>
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <div
+                        key={j}
+                        className="h-3 bg-muted/60 rounded w-20 animate-pulse"
+                      ></div>
+                    ))}
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* Pagination Skeleton */}
-            <div className="p-6 border-t border-border bg-muted">
-              <div className="flex justify-center items-center space-x-2">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <div key={i} className="h-10 bg-muted rounded w-10 animate-pulse"></div>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -498,68 +493,60 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-2 transition-colors duration-300">
-      <div>
-        {/* Header Section */}
+    <div className="min-h-screen bg-background transition-colors duration-300">
+      <div className="p-4 sm:p-8">
+        {/* Header Section - Refined */}
         <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/70 rounded-xl flex items-center justify-center shadow-lg">
-                  <Users className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <div className="absolute -inset-1 bg-primary/20 rounded-xl opacity-20 animate-pulse"></div>
-              </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start justify-between">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                  User Management
+                <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
+                  Users
                 </h1>
-                <p className="text-muted-foreground mt-1">
-                  Manage your users, view their activities, and moderate accounts
+                <p className="text-muted-foreground mt-2 text-base">
+                  Manage and monitor all user accounts
                 </p>
               </div>
-            </div>
+              <div className="flex items-center gap-2">
+                {canCreateUsers ? (
+                  <button
+                    onClick={() => {
+                      setCreateError("");
+                      setShowCreateModal(true);
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 font-medium text-sm"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span>Add User</span>
+                  </button>
+                ) : null}
 
-            {/* Actions: Add User + Refresh */}
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              {canCreateUsers ? (
                 <button
-                  onClick={() => {
-                    setCreateError("");
-                    setShowCreateModal(true);
-                  }}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 shadow-sm font-medium"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  className="p-2.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all duration-300"
+                  title="Refresh data"
                 >
-                  <UserPlus className="h-4 w-4" />
-                  <span>New User</span>
+                  <RefreshCw
+                    className={`h-5 w-5 ${refreshing ? "animate-spin" : ""}`}
+                  />
                 </button>
-              ) : null}
-
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-muted border-border text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 shadow-sm font-medium"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-                />
-                <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
-              </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl shadow-sm">
+          <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg shadow-sm">
             <div className="flex items-center space-x-3">
               <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-destructive font-medium">{error}</p>
+                <p className="text-destructive font-medium text-sm">{error}</p>
               </div>
               <button
                 onClick={() => setError("")}
-                className="text-destructive/70 hover:text-destructive transition-colors duration-200 p-1 rounded-lg hover:bg-destructive/10"
+                className="text-destructive/70 hover:text-destructive transition-colors duration-200 p-1 rounded hover:bg-destructive/10"
               >
                 ✕
               </button>
@@ -567,89 +554,87 @@ export default function AdminUsersPage() {
           </div>
         )}
 
-        {/* Filters */}
-        <UserFilters
-          search={filters.search}
-          role={filters.role}
-          roles={roles}
-          onSearchChange={handleSearchChange}
-          onRoleChange={handleRoleChange}
-          onReset={handleResetFilters}
-        />
-
-        {/* Stats Footer */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div className="bg-card p-4 rounded-xl border-border shadow-sm">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-muted rounded-lg">
-                <Users className="h-4 w-4 text-foreground" />
-              </div>
+        {/* Stats Grid - Top Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/30 transition-colors duration-300">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Users</p>
-                <p className="text-lg font-semibold text-foreground">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Total Users
+                </p>
+                <p className="text-2xl font-bold text-foreground mt-2">
                   {pagination.total}
                 </p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-primary" />
               </div>
             </div>
           </div>
 
-          <div className="bg-card p-4 rounded-xl border-border shadow-sm">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-muted rounded-lg">
-                <Users className="h-4 w-4 text-foreground" />
-              </div>
+          <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/30 transition-colors duration-300">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active Users</p>
-                <p className="text-lg font-semibold text-foreground">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Active Users
+                </p>
+                <p className="text-2xl font-bold text-foreground mt-2">
                   {
                     users.filter(
                       (u) =>
                         !u.banned ||
-                        (u.banExpires && Date.now() > u.banExpires * 1000)
+                        (u.banExpires && Date.now() > u.banExpires * 1000),
                     ).length
                   }
                 </p>
               </div>
+              <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-green-500" />
+              </div>
             </div>
           </div>
 
-          <div className="bg-card p-4 rounded-xl border-border shadow-sm">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-muted rounded-lg">
-                <Users className="h-4 w-4 text-foreground" />
-              </div>
+          <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/30 transition-colors duration-300">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Admin-Type Roles</p>
-                <p className="text-lg font-semibold text-foreground">
-                  {users.filter((u) => (u.role || "").toLowerCase().includes("admin")).length}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Admin Accounts
                 </p>
+                <p className="text-2xl font-bold text-foreground mt-2">
+                  {
+                    users.filter((u) =>
+                      (u.role || "").toLowerCase().includes("admin"),
+                    ).length
+                  }
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <Users className="h-6 w-6 text-purple-500" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Users Table Section */}
-        <div className="bg-card rounded-2xl shadow-lg border-border overflow-hidden">
-          {/* Table Header */}
-          <div className="p-6 border-b border-border bg-muted">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Users Table Section - Streamlined */}
+        <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+          {/* Table Header with Filters */}
+          <div className="p-5 border-b border-border bg-muted/40">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>User List</span>
+                <h2 className="text-lg font-semibold text-foreground">
+                  User List
                 </h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Found {pagination.total} users
+                <p className="text-xs text-muted-foreground mt-1">
+                  {pagination.total} total users
                 </p>
               </div>
 
-              <div className="flex items-center space-x-4 text-sm">
-                <div className="bg-muted px-3 py-2 rounded-lg border-border shadow-sm">
-                  <span className="text-foreground font-medium">Page </span>
-                  <span className="text-muted-foreground">
-                    {pagination.page} / {pagination.totalPages}
-                  </span>
-                </div>
+              <div className="flex items-center gap-3 text-sm">
+                {pagination.totalPages > 1 && (
+                  <div className="bg-background px-2.5 py-1.5 rounded text-xs font-medium text-foreground border border-border">
+                    Page {pagination.page} / {pagination.totalPages}
+                  </div>
+                )}
 
                 {/* Results per page */}
                 <select
@@ -661,7 +646,7 @@ export default function AdminUsersPage() {
                       page: 1,
                     }))
                   }
-                  className="px-3 py-2 rounded-lg border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                  className="px-2.5 py-1.5 rounded text-xs border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
                   <option value="10">10 per page</option>
                   <option value="25">25 per page</option>
@@ -670,28 +655,38 @@ export default function AdminUsersPage() {
                 </select>
               </div>
             </div>
+
+            {/* Filters */}
+            <UserFilters
+              search={filters.search}
+              role={filters.role}
+              roles={roles}
+              onSearchChange={handleSearchChange}
+              onRoleChange={handleRoleChange}
+              onReset={handleResetFilters}
+            />
           </div>
 
           {/* Table Content */}
           {users.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="w-20 h-20 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
-                <Users className="h-10 w-10 text-muted-foreground" />
+            <div className="p-16 text-center">
+              <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
+                <Users className="h-8 w-8 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">
                 No users found
               </h3>
-              <p className="text-muted-foreground max-w-md mx-auto mb-6">
+              <p className="text-muted-foreground max-w-md mx-auto mb-6 text-sm">
                 {filters.search || filters.role
-                  ? "No users match your current filters. Please try different filters."
-                  : "No users have registered yet."}
+                  ? "No users match your filters. Try adjusting your search criteria."
+                  : "No users have been created yet. Start by adding your first user."}
               </p>
               {(filters.search || filters.role) && (
                 <button
                   onClick={handleResetFilters}
-                  className="px-6 py-2 rounded-xl bg-muted text-foreground hover:bg-muted/80 transition-all duration-300 font-medium"
+                  className="px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-all font-medium text-sm"
                 >
-                  Clear All Filters
+                  Clear Filters
                 </button>
               )}
             </div>
@@ -705,7 +700,7 @@ export default function AdminUsersPage() {
 
               {/* Pagination */}
               {pagination.totalPages > 1 && (
-                <div className="p-6 border-t border-border bg-muted">
+                <div className="p-5 border-t border-border bg-muted/40">
                   <Pagination
                     currentPage={paginationData.page}
                     totalPages={paginationData.totalPages}
@@ -718,36 +713,33 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Add User Modal */}
+      {/* Add User Modal - Refined Design */}
       {canCreateUsers && showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl shadow-2xl border-border max-w-lg w-full mx-4 p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground">
-                  <UserPlus className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Add New User
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Quickly create a new user with email and password
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/50 backdrop-blur-sm">
+          <div className="bg-card rounded-lg shadow-lg border border-border max-w-lg w-full">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-border flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">
+                  Create New User
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Add a new user account with basic details
+                </p>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground text-xl leading-none"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="space-y-4">
+            {/* Modal Content */}
+            <form onSubmit={handleCreateUser} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Email
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Email <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="email"
@@ -755,16 +747,16 @@ export default function AdminUsersPage() {
                   onChange={(e) =>
                     setNewUser((prev) => ({ ...prev, email: e.target.value }))
                   }
-                  className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
                   placeholder="user@example.com"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Name (Optional)
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Name
                   </label>
                   <input
                     type="text"
@@ -772,21 +764,38 @@ export default function AdminUsersPage() {
                     onChange={(e) =>
                       setNewUser((prev) => ({ ...prev, name: e.target.value }))
                     }
-                    className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
-                    placeholder="User name"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
+                    placeholder="John Doe"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Role
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={newUser.phone}
+                    onChange={(e) =>
+                      setNewUser((prev) => ({ ...prev, phone: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
+                    placeholder="+1 234 567"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Role <span className="text-destructive">*</span>
                   </label>
                   <select
                     value={newUser.role}
                     onChange={(e) =>
                       setNewUser((prev) => ({ ...prev, role: e.target.value }))
                     }
-                    className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                     disabled={rolesLoading}
                   >
                     {rolesLoading ? (
@@ -802,47 +811,27 @@ export default function AdminUsersPage() {
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
                         <option value="moderator">Moderator</option>
-                        <option value="manager">Manager</option>
                       </>
                     )}
                   </select>
-                  {!rolesLoading && roles.length > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {roles.find(r => r.name === newUser.role)?.description || "Select a role for this user"}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Phone (Optional)
-                  </label>
-                  <input
-                    type="tel"
-                    value={newUser.phone}
-                    onChange={(e) =>
-                      setNewUser((prev) => ({ ...prev, phone: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
-                    placeholder="Phone number"
-                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Password
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Password <span className="text-destructive">*</span>
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={newUser.password}
                       onChange={(e) =>
-                        setNewUser((prev) => ({ ...prev, password: e.target.value }))
+                        setNewUser((prev) => ({
+                          ...prev,
+                          password: e.target.value,
+                        }))
                       }
-                      className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground pr-10"
-                      placeholder="Minimum 6 characters"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground pr-9"
+                      placeholder="Min. 6 characters"
                       required
                     />
                     <button
@@ -860,14 +849,14 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
-              {/* Address Fields - Dynamic */}
-              <div className="space-y-3">
+              {/* Address Fields */}
+              <div className="space-y-3 pt-2">
+                <label className="block text-sm font-medium text-foreground">
+                  Addresses <span className="text-destructive">*</span>
+                </label>
                 {newUser.addresses.map((addr, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                  <div key={index} className="flex items-end gap-2">
                     <div className="flex-1">
-                      <label className="block text-sm font-medium text-foreground mb-1">
-                        {index === 0 ? "Address (at least one)" : `Additional Address ${index + 1}`}
-                      </label>
                       <input
                         type="text"
                         value={addr}
@@ -881,8 +870,12 @@ export default function AdminUsersPage() {
                             return next;
                           });
                         }}
-                        className="w-full px-3 py-2 rounded-xl border-border bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
-                        placeholder="House/Street/Area"
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm placeholder-muted-foreground"
+                        placeholder={
+                          index === 0
+                            ? "Main address"
+                            : `Additional address ${index}`
+                        }
                       />
                     </div>
                     {newUser.addresses.length > 1 && (
@@ -891,12 +884,14 @@ export default function AdminUsersPage() {
                         onClick={() =>
                           setNewUser((prev) => ({
                             ...prev,
-                            addresses: prev.addresses.filter((_, i) => i !== index),
+                            addresses: prev.addresses.filter(
+                              (_, i) => i !== index,
+                            ),
                           }))
                         }
-                        className="mt-6 text-xs px-2 py-1 rounded-lg border-border text-destructive hover:bg-destructive/10"
+                        className="px-3 py-2 rounded-lg text-xs text-destructive hover:bg-destructive/10 border border-destructive/20 transition-colors"
                       >
-                        Delete
+                        Remove
                       </button>
                     )}
                   </div>
@@ -910,34 +905,33 @@ export default function AdminUsersPage() {
                       addresses: [...prev.addresses, ""],
                     }))
                   }
-                  className="text-xs px-3 py-2 rounded-xl border-border text-foreground hover:bg-muted"
+                  className="text-xs px-3 py-2 rounded-lg border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
                 >
-                  + Add More Address
+                  + Add Another Address
                 </button>
               </div>
 
               {createError && (
-                <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-                  {createError}
-                </p>
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <p className="text-xs text-destructive">{createError}</p>
+                </div>
               )}
 
-              <div className="mt-4 flex justify-end space-x-3">
+              {/* Modal Footer */}
+              <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 rounded-xl border-border text-muted-foreground hover:bg-muted transition-all duration-300 text-sm font-medium"
+                  className="px-4 py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors text-sm font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 text-sm font-medium disabled:opacity-60 flex items-center space-x-2"
+                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-60 flex items-center gap-2"
                 >
-                  {creating && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
+                  {creating && <Loader2 className="h-4 w-4 animate-spin" />}
                   <span>{creating ? "Creating..." : "Create User"}</span>
                 </button>
               </div>

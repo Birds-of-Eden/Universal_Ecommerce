@@ -89,7 +89,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     <header className="w-full h-20 bg-background border-border border-b flex items-center justify-between px-4 sm:px-6 sticky top-0 z-20 shadow-sm">
       {/* Mobile menu toggle */}
       <button
-        className="lg:hidden p-2 rounded-full bg-muted hover:bg-accent transition-all duration-300 hover:scale-105"
+        className="lg:hidden p-2 rounded-full bg-muted hover:bg-primary/80 transition-all duration-300 hover:scale-105"
         onClick={onMenuClick}
         aria-label="Toggle Menu"
       >
@@ -145,7 +145,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full bg-muted hover:bg-accent text-foreground"
+                className="rounded-full bg-muted hover:bg-primary/80 text-foreground"
                 title="Select theme"
               >
                 {darkLikeActiveTheme ? (
@@ -181,7 +181,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
           <Button
             variant="ghost"
             size="sm"
-            className="hidden sm:flex bg-muted hover:bg-accent text-foreground border-border hover:border-border rounded-full px-4"
+            className="hidden sm:flex bg-muted hover:bg-primary/80 text-foreground border-border hover:border-border rounded-full px-4"
           >
             <Home className="w-4 h-4 mr-2" />
             View Site
@@ -189,7 +189,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
           <Button
             variant="ghost"
             size="icon"
-            className="sm:hidden bg-muted hover:bg-accent text-foreground rounded-full"
+            className="sm:hidden bg-muted hover:bg-primary/80 text-foreground rounded-full"
           >
             <Home className="w-4 h-4" />
           </Button>
@@ -226,10 +226,10 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
         <Button
           onClick={handleLogout}
           disabled={isPending}
-          className="hidden sm:flex bg-destructive text-destructive-foreground hover:bg-destructive/90 font-semibold px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-destructive"
+          className="hidden sm:flex bg-destructive text-destructive-foreground hover:bg-destructive/90 font-semibold px-6 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105"
         >
           {isPending ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+            <div className="animate-spin rounded-full h-4 w-4"></div>
           ) : (
             <>
               <LogOut className="w-4 h-4 mr-2" />
@@ -242,11 +242,11 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
           disabled={isPending}
           variant="ghost"
           size="icon"
-          className="sm:hidden bg-muted hover:bg-accent text-foreground rounded-full"
+          className="sm:hidden bg-muted hover:bg-primary/80 text-foreground rounded-full"
           title="Logout"
         >
           {isPending ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+            <div className="animate-spin rounded-full h-4 w-4"></div>
           ) : (
             <LogOut className="w-4 h-4" />
           )}

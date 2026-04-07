@@ -788,10 +788,7 @@ const OrderManagement = () => {
                 ? "CANCELLED"
                 : null;
 
-      if (
-        shipmentToOrderStatus &&
-        shipmentToOrderStatus !== editOrderStatus
-      ) {
+      if (shipmentToOrderStatus && shipmentToOrderStatus !== editOrderStatus) {
         try {
           const autoRes = await fetch(`/api/orders/${orderDetail.id}`, {
             method: "PATCH",
@@ -1004,17 +1001,38 @@ const OrderManagement = () => {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="rounded-full border border-border bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm"
+              className="rounded-full border border-border bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm focus:outline-none"
             >
-              <option value="ALL">All Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="CONFIRMED">Confirmed</option>
-              <option value="PROCESSING">Processing</option>
-              <option value="SHIPPED">Shipped</option>
-              <option value="DELIVERED">Delivered</option>
-              <option value="FAILED">Failed</option>
-              <option value="RETURNED">Returned</option>
-              <option value="CANCELLED">Cancelled</option>
+              <option
+                className="bg-white text-black hover:bg-primary/20"
+                value="ALL"
+              >
+                All Status
+              </option>
+              <option className="bg-white text-black" value="PENDING">
+                Pending
+              </option>
+              <option className="bg-white text-black" value="CONFIRMED">
+                Confirmed
+              </option>
+              <option className="bg-white text-black" value="PROCESSING">
+                Processing
+              </option>
+              <option className="bg-white text-black" value="SHIPPED">
+                Shipped
+              </option>
+              <option className="bg-white text-black" value="DELIVERED">
+                Delivered
+              </option>
+              <option className="bg-white text-black" value="FAILED">
+                Failed
+              </option>
+              <option className="bg-white text-black" value="RETURNED">
+                Returned
+              </option>
+              <option className="bg-white text-black" value="CANCELLED">
+                Cancelled
+              </option>
             </select>
           </div>
         </div>

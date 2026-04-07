@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Search, RotateCcw, Shield } from "lucide-react";
 
@@ -30,12 +30,14 @@ export default function UserFilters({
   onReset,
 }: UserFiltersProps) {
   const formatRoleLabel = (roleName: string) => {
-    const role = roles.find(r => r.name === roleName);
-    return role ? role.label : roleName
-      .split("_")
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ");
+    const role = roles.find((r) => r.name === roleName);
+    return role
+      ? role.label
+      : roleName
+          .split("_")
+          .filter(Boolean)
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" ");
   };
 
   return (
@@ -43,10 +45,6 @@ export default function UserFilters({
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Search Input */}
         <div className="lg:col-span-2">
-          <label className="text-sm font-medium text-foreground mb-3 flex items-center">
-            <Search className="h-4 w-4 mr-2" />
-            Search
-          </label>
           <div className="relative">
             <input
               type="text"
@@ -58,13 +56,9 @@ export default function UserFilters({
             <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
           </div>
         </div>
-        
+
         {/* Role Filter */}
         <div>
-          <label className="text-sm font-medium text-foreground mb-3 flex items-center">
-            <Shield className="h-4 w-4 mr-2" />
-            Role
-          </label>
           <select
             value={role}
             onChange={(e) => onRoleChange(e.target.value)}
@@ -87,7 +81,7 @@ export default function UserFilters({
             )}
           </select>
         </div>
-        
+
         {/* Reset Button */}
         <div className="flex items-end">
           <button
@@ -105,11 +99,12 @@ export default function UserFilters({
         <div className="mt-4 p-3 bg-muted bg-opacity-50 rounded-lg border-border">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4 text-sm">
-              <span className="text-foreground font-medium">Active Filters:</span>
+              <span className="text-foreground font-medium">
+                Active Filters:
+              </span>
               {search && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary bg-opacity-20 text-foreground text-xs border-border border-opacity-30">
-                  <Search className="h-3 w-3 mr-1" />
-                  "{search}"
+                  <Search className="h-3 w-3 mr-1" />"{search}"
                 </span>
               )}
               {role && (

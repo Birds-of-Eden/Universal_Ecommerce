@@ -48,14 +48,20 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 function normalizeRoleKey(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 40);
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .slice(0, 40);
 }
 
 export default function RbacSettingsPage() {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
-  const [selectedPermissionKeys, setSelectedPermissionKeys] = useState<string[]>([]);
+  const [selectedPermissionKeys, setSelectedPermissionKeys] = useState<
+    string[]
+  >([]);
   const [name, setName] = useState("");
   const [label, setLabel] = useState("");
   const [description, setDescription] = useState("");
@@ -95,7 +101,10 @@ export default function RbacSettingsPage() {
   const visiblePermissions = useMemo(() => {
     const query = permissionSearch.trim().toLowerCase();
     return permissions.filter((permission) => {
-      if (showSelectedOnly && !selectedPermissionKeys.includes(permission.key)) {
+      if (
+        showSelectedOnly &&
+        !selectedPermissionKeys.includes(permission.key)
+      ) {
         return false;
       }
       if (!query) return true;
@@ -108,7 +117,9 @@ export default function RbacSettingsPage() {
 
   const selectedPermissionCount = selectedPermissionKeys.length;
   const canSubmitCreate =
-    normalizeRoleKey(name).length > 0 && label.trim().length > 0 && selectedPermissionCount > 0;
+    normalizeRoleKey(name).length > 0 &&
+    label.trim().length > 0 &&
+    selectedPermissionCount > 0;
 
   const loadRbacData = useCallback(async () => {
     setLoading(true);
@@ -121,7 +132,9 @@ export default function RbacSettingsPage() {
       setPermissions(permissionData);
       setRoles(roleData);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load RBAC.");
+      setError(
+        loadError instanceof Error ? loadError.message : "Failed to load RBAC.",
+      );
     } finally {
       setLoading(false);
     }
@@ -136,12 +149,16 @@ export default function RbacSettingsPage() {
     setName(selectedRole.name);
     setLabel(selectedRole.label);
     setDescription(selectedRole.description ?? "");
-    setSelectedPermissionKeys(selectedRole.permissions.map((permission) => permission.key));
+    setSelectedPermissionKeys(
+      selectedRole.permissions.map((permission) => permission.key),
+    );
   }, [selectedRole]);
 
   const togglePermission = (key: string) => {
     setSelectedPermissionKeys((prev) =>
-      prev.includes(key) ? prev.filter((value) => value !== key) : [...prev, key],
+      prev.includes(key)
+        ? prev.filter((value) => value !== key)
+        : [...prev, key],
     );
   };
 
@@ -170,8 +187,12 @@ export default function RbacSettingsPage() {
   };
 
   const clearVisiblePermissions = () => {
-    const visibleKeys = new Set(visiblePermissions.map((permission) => permission.key));
-    setSelectedPermissionKeys((prev) => prev.filter((key) => !visibleKeys.has(key)));
+    const visibleKeys = new Set(
+      visiblePermissions.map((permission) => permission.key),
+    );
+    setSelectedPermissionKeys((prev) =>
+      prev.filter((key) => !visibleKeys.has(key)),
+    );
   };
 
   const createRole = async () => {
@@ -197,7 +218,11 @@ export default function RbacSettingsPage() {
       setSelectedRoleId(created.id);
       await loadRbacData();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Failed to create role.");
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "Failed to create role.",
+      );
     } finally {
       setSaving(false);
     }
@@ -223,7 +248,11 @@ export default function RbacSettingsPage() {
       });
       await loadRbacData();
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : "Failed to update role.");
+      setError(
+        updateError instanceof Error
+          ? updateError.message
+          : "Failed to update role.",
+      );
     } finally {
       setSaving(false);
     }
@@ -236,11 +265,17 @@ export default function RbacSettingsPage() {
     setSaving(true);
     setError(null);
     try {
-      await fetchJson(`/api/admin/rbac/roles/${selectedRole.id}`, { method: "DELETE" });
+      await fetchJson(`/api/admin/rbac/roles/${selectedRole.id}`, {
+        method: "DELETE",
+      });
       startCreateRole();
       await loadRbacData();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete role.");
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete role.",
+      );
     } finally {
       setSaving(false);
     }
@@ -254,7 +289,11 @@ export default function RbacSettingsPage() {
       );
       setSearchResults(data.users);
     } catch (searchError) {
-      setError(searchError instanceof Error ? searchError.message : "Failed to search users.");
+      setError(
+        searchError instanceof Error
+          ? searchError.message
+          : "Failed to search users.",
+      );
     }
   };
 
@@ -268,13 +307,19 @@ export default function RbacSettingsPage() {
       setAssignableRoles(data.roles);
       setAssignedRoleIds(data.user.assignedRoles.map((role) => role.id));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load user roles.");
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to load user roles.",
+      );
     }
   };
 
   const toggleAssignedRole = (roleId: string) => {
     setAssignedRoleIds((prev) =>
-      prev.includes(roleId) ? prev.filter((id) => id !== roleId) : [...prev, roleId],
+      prev.includes(roleId)
+        ? prev.filter((id) => id !== roleId)
+        : [...prev, roleId],
     );
   };
 
@@ -289,7 +334,11 @@ export default function RbacSettingsPage() {
       });
       await loadRbacData();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Failed to assign roles.");
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to assign roles.",
+      );
     } finally {
       setSavingAssignment(false);
     }
@@ -305,7 +354,9 @@ export default function RbacSettingsPage() {
       </div>
 
       {error ? (
-        <Card className="border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</Card>
+        <Card className="border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </Card>
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
@@ -314,10 +365,16 @@ export default function RbacSettingsPage() {
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold">Roles</p>
-                <p className="text-xs text-muted-foreground">{roles.length} total roles</p>
+                <p className="text-xs text-muted-foreground">
+                  {roles.length} total roles
+                </p>
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => void loadRbacData()}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void loadRbacData()}
+                >
                   <RefreshCcw className="mr-1 h-3.5 w-3.5" />
                   Reload
                 </Button>
@@ -342,24 +399,30 @@ export default function RbacSettingsPage() {
             {loading ? (
               <p className="p-3 text-sm text-muted-foreground">Loading...</p>
             ) : visibleRoles.length === 0 ? (
-              <p className="p-3 text-sm text-muted-foreground">No roles match your search.</p>
+              <p className="p-3 text-sm text-muted-foreground">
+                No roles match your search.
+              </p>
             ) : (
               visibleRoles.map((role) => (
                 <button
                   key={role.id}
                   type="button"
                   onClick={() => setSelectedRoleId(role.id)}
-                  className={`w-full border-b p-3 text-left transition-colors hover:bg-accent/60 ${
-                    selectedRoleId === role.id ? "bg-accent" : ""
+                  className={`w-full border-b p-3 text-left transition-colors hover:bg-primary/10 ${
+                    selectedRoleId === role.id
+                      ? "bg-primary/20 text-primary"
+                      : ""
                   }`}
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold">{role.label}</p>
-                    <span className="text-[11px] text-muted-foreground">{role.userCount} users</span>
+                    <span className="text-[11px] text-primary">
+                      {role.userCount} users
+                    </span>
                   </div>
                   <div className="mb-2 flex items-center gap-1.5">
                     {role.isSystem ? (
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-primary">
                         System
                       </span>
                     ) : null}
@@ -381,14 +444,16 @@ export default function RbacSettingsPage() {
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-primary" />
               <p className="text-sm font-semibold">
-                {isCreateMode ? "Create New Role" : `Editing: ${selectedRole?.label}`}
+                {isCreateMode
+                  ? "Create New Role"
+                  : `Editing: ${selectedRole?.label}`}
               </p>
             </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {isCreateMode
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isCreateMode
                 ? "Step 1: add role key and label. Step 2: choose permissions. Step 3: click Create."
                 : "Edit label, description, and permissions to update this role."}
-              </p>
+            </p>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -409,11 +474,16 @@ export default function RbacSettingsPage() {
                 disabled={Boolean(selectedRole)}
               />
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Stored key: <span className="font-mono">{normalizeRoleKey(name) || "-"}</span>
+                Stored key:{" "}
+                <span className="font-mono">
+                  {normalizeRoleKey(name) || "-"}
+                </span>
               </p>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Label</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Label
+              </label>
               <input
                 value={label}
                 onChange={(event) => setLabel(event.target.value)}
@@ -424,7 +494,9 @@ export default function RbacSettingsPage() {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">Description</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Description
+            </label>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
@@ -449,11 +521,19 @@ export default function RbacSettingsPage() {
                   <Filter className="mr-1 h-3.5 w-3.5" />
                   Selected Only
                 </Button>
-                <Button size="sm" variant="outline" onClick={selectAllVisiblePermissions}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={selectAllVisiblePermissions}
+                >
                   <CheckSquare className="mr-1 h-3.5 w-3.5" />
                   Select Visible
                 </Button>
-                <Button size="sm" variant="outline" onClick={clearVisiblePermissions}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={clearVisiblePermissions}
+                >
                   <Square className="mr-1 h-3.5 w-3.5" />
                   Clear Visible
                 </Button>
@@ -472,10 +552,15 @@ export default function RbacSettingsPage() {
 
             <div className="grid max-h-[300px] gap-2 overflow-y-auto rounded-md border p-3 md:grid-cols-2">
               {visiblePermissions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No permissions match current filter.</p>
+                <p className="text-sm text-muted-foreground">
+                  No permissions match current filter.
+                </p>
               ) : (
                 visiblePermissions.map((permission) => (
-                  <label key={permission.key} className="flex items-start gap-2 text-sm">
+                  <label
+                    key={permission.key}
+                    className="flex items-start gap-2 text-sm"
+                  >
                     <input
                       type="checkbox"
                       checked={selectedPermissionKeys.includes(permission.key)}
@@ -483,7 +568,9 @@ export default function RbacSettingsPage() {
                       disabled={Boolean(selectedRole?.isImmutable)}
                     />
                     <span>
-                      <span className="block font-medium">{permission.key}</span>
+                      <span className="block font-medium">
+                        {permission.key}
+                      </span>
                       <span className="block text-xs text-muted-foreground">
                         {permission.description || "No description"}
                       </span>
@@ -496,13 +583,17 @@ export default function RbacSettingsPage() {
 
           {selectedRole?.isImmutable ? (
             <p className="text-xs text-yellow-700">
-              This is an immutable role. You can view but cannot modify or delete it.
+              This is an immutable role. You can view but cannot modify or
+              delete it.
             </p>
           ) : null}
 
           <div className="flex flex-wrap gap-2">
             {isCreateMode ? (
-              <Button onClick={() => void createRole()} disabled={saving || !canSubmitCreate}>
+              <Button
+                onClick={() => void createRole()}
+                disabled={saving || !canSubmitCreate}
+              >
                 <Plus className="mr-1 h-4 w-4" />
                 Create Role
               </Button>

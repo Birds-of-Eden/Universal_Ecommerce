@@ -209,7 +209,7 @@ export default function DeliveryManDetailsPage() {
 
             <div className="flex items-center gap-3">
               <Button
-                variant="outline"
+              className="bg-secondary "
                 size="sm"
                 onClick={() => router.push(`/admin/delivery-men/${deliveryManId}/edit`)}
               >
@@ -365,7 +365,7 @@ export default function DeliveryManDetailsPage() {
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
             <TabsList className="w-full justify-start overflow-x-auto rounded-2xl bg-background p-2 scrollbar-hide">
               {TAB_DEFINITIONS.map((tab) => (
-                <TabsTrigger key={tab.key} value={tab.key} className="rounded-xl">
+                <TabsTrigger key={tab.key} value={tab.key} className="rounded-xl data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground">
                   {tab.label}
                   <span className="ml-2 rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground">
                     {groupedAssignments[tab.key]?.length || 0}

@@ -457,7 +457,10 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
                 <div className="text-sm">
                   <div className="font-semibold mb-1">
                     {index === 0 && "Origin warehouse"}
-                    {index === routeCoordinates.length - 1 && hasDeliveryLocation ? "Delivery location" : "Destination"}
+                    {index === routeCoordinates.length - 1 &&
+                    hasDeliveryLocation
+                      ? "Delivery location"
+                      : "Destination"}
                     {index > 0 &&
                       index < routeCoordinates.length - 1 &&
                       `Checkpoint ${index}`}
@@ -534,11 +537,15 @@ function ShipmentTrackingMap({ shipment }: { shipment: ShipmentRow | null }) {
                   Shipment #{shipment.id}
                 </div>
                 <div className="text-muted-foreground">
-                  Delivered at: {formatDateTime(deliveryAssignment?.deliveredAt ?? shipment.deliveredAt)}
+                  Delivered at:{" "}
+                  {formatDateTime(
+                    deliveryAssignment?.deliveredAt ?? shipment.deliveredAt,
+                  )}
                 </div>
                 {deliveryAssignment?.deliveredAccuracy && (
                   <div className="text-muted-foreground">
-                    Accuracy: +/-{Math.round(deliveryAssignment.deliveredAccuracy)}m
+                    Accuracy: +/-
+                    {Math.round(deliveryAssignment.deliveredAccuracy)}m
                   </div>
                 )}
               </div>
@@ -868,8 +875,7 @@ export default function LogisticsPage() {
 
               <div className="mt-4 max-w-3xl">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                  Manage shipment activity, delivery performance, and dispatch
-                  workload from one place.
+                  Manage Shipment Activity, Delivery Performance, and Dispatch
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
                   Review shipment progress, warehouse activity, delivery costs,
@@ -968,16 +974,17 @@ export default function LogisticsPage() {
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-[24px] bg-card p-4">
-                  <div className="flex items-end gap-3">
-                    <div className="flex h-20 w-20 items-center justify-center rounded-full border-[6px] border-primary border-r-primary/20 border-t-primary/40 text-center">
-                      <div>
-                        <p className="text-2xl font-semibold">{successRate}%</p>
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground/55">
-                          Delivered
-                        </p>
-                      </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full border-[6px] border-primary border-r-primary/20 border-t-primary/40 text-center">
+                      <p className="text-3xl font-semibold leading-none">
+                        {successRate}%
+                      </p>
+                      <p className="mt-1 text-[10px] leading-none uppercase tracking-[0.08em] text-muted-foreground/70">
+                        Delivered
+                      </p>
                     </div>
-                    <div className="text-sm text-muted-foreground/70">
+
+                    <div className="text-sm leading-6 text-muted-foreground/70">
                       Delivery performance for the current selection based on
                       completed shipments.
                     </div>
@@ -1058,7 +1065,7 @@ export default function LogisticsPage() {
                   <p className="text-3xl font-semibold text-foreground">
                     {successRate}%
                   </p>
-                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                  <p className="text-xs uppercase text-muted-foreground">
                     Delivered
                   </p>
                 </div>
@@ -1195,8 +1202,10 @@ export default function LogisticsPage() {
                 <div className="space-y-3">
                   {filteredShipments.map((shipment) => {
                     const nextStatuses = NEXT_STATUS_MAP[shipment.status] || [];
-                    const hasDeliveryLocation = hasValidDeliveryLocation(shipment);
-                    const deliveryAssignment = getCurrentDeliveryAssignment(shipment);
+                    const hasDeliveryLocation =
+                      hasValidDeliveryLocation(shipment);
+                    const deliveryAssignment =
+                      getCurrentDeliveryAssignment(shipment);
                     const isSelected = shipment.id === selectedShipmentId;
 
                     return (
@@ -1521,12 +1530,12 @@ export default function LogisticsPage() {
                   <p className="text-xs uppercase tracking-[0.24em] text-primary-foreground/70">
                     Featured shipment
                   </p>
-                  <div className="mt-6 rounded-[24px] border border-border/60 bg-muted px-4 py-5">
+                  <div className="mt-6 rounded-[24px] border border-border/60 bg-primary/40 px-4 py-5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-primary-foreground/80">
                         Priority level
                       </span>
-                      <span className="rounded-full bg-muted px-3 py-1 text-xs">
+                      <span className="rounded-full bg-primary/40 px-3 py-1 text-xs border border-border/60">
                         P{highlightedShipment?.priority || 0}
                       </span>
                     </div>
@@ -1538,7 +1547,7 @@ export default function LogisticsPage() {
                         "Tracking number not assigned"}
                     </p>
                     <div className="mt-8 flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-emerald-500" />
+                      <span className="h-3 w-3 rounded-full bg-primary-foreground border border-border/60" />
                       <span className="text-sm text-primary-foreground/80">
                         {highlightedShipment?.assignedTo?.name ||
                           "Assignment pending"}

@@ -39,6 +39,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
+import { StatCard } from "@/components/StatCard";
 
 export type TimeRange = "today" | "week" | "month" | "year";
 
@@ -390,7 +391,7 @@ function SectionShell({
 }) {
   return (
     <section
-      className={`rounded-[28px] border border-border/70 bg-card/90 shadow-[0_10px_40px_rgba(0,0,0,0.06)] backdrop-blur-sm ${className}`}
+      className={`rounded-[28px] border border-border/70 bg-gradient-to-br from-white via-white to-gray-50/80 shadow-[0_10px_40px_rgba(0,0,0,0.06)] backdrop-blur-sm ${className}`}
     >
       <div className="flex items-start justify-between gap-4 border-b border-border/60 px-5 py-4 md:px-6">
         <div>
@@ -405,85 +406,6 @@ function SectionShell({
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  trend,
-  compareLabel,
-  hint,
-  tone = "default",
-}: {
-  label: string;
-  value: string;
-  icon: LucideIcon;
-  trend?: number;
-  compareLabel: string;
-  hint?: string;
-  tone?: Tone;
-}) {
-  const accent =
-    tone === "good"
-      ? "from-emerald-500/16 to-emerald-500/5 [&:where(.theme-navy)]:from-[hsl(var(--analytics-chart-1))/0.16] [&:where(.theme-navy)]:to-[hsl(var(--analytics-chart-1))/0.05] [&:where(.theme-plum)]:from-[hsl(var(--analytics-chart-1))/0.16] [&:where(.theme-plum)]:to-[hsl(var(--analytics-chart-1))/0.05] [&:where(.theme-olive)]:from-[hsl(var(--analytics-chart-2))/0.16] [&:where(.theme-olive)]:to-[hsl(var(--analytics-chart-2))/0.05] [&:where(.theme-rose)]:from-[hsl(var(--analytics-chart-2))/0.16] [&:where(.theme-rose)]:to-[hsl(var(--analytics-chart-2))/0.05]"
-      : tone === "warn"
-        ? "from-amber-500/16 to-amber-500/5 [&:where(.theme-navy)]:from-[hsl(var(--analytics-chart-3))/0.16] [&:where(.theme-navy)]:to-[hsl(var(--analytics-chart-3))/0.05] [&:where(.theme-plum)]:from-[hsl(var(--analytics-chart-3))/0.16] [&:where(.theme-plum)]:to-[hsl(var(--analytics-chart-3))/0.05] [&:where(.theme-olive)]:from-[hsl(var(--analytics-accent))/0.16] [&:where(.theme-olive)]:to-[hsl(var(--analytics-accent))/0.05] [&:where(.theme-rose)]:from-[hsl(var(--analytics-chart-4))/0.16] [&:where(.theme-rose)]:to-[hsl(var(--analytics-chart-4))/0.05]"
-        : tone === "danger"
-          ? "from-destructive/16 to-destructive/5"
-          : "from-primary/16 to-primary/5 [&:where(.theme-navy)]:from-[hsl(var(--analytics-primary))/0.16] [&:where(.theme-navy)]:to-[hsl(var(--analytics-primary))/0.05] [&:where(.theme-plum)]:from-[hsl(var(--analytics-primary))/0.16] [&:where(.theme-plum)]:to-[hsl(var(--analytics-primary))/0.05] [&:where(.theme-olive)]:from-[hsl(var(--analytics-primary))/0.16] [&:where(.theme-olive)]:to-[hsl(var(--analytics-primary))/0.05] [&:where(.theme-rose)]:from-[hsl(var(--analytics-primary))/0.16] [&:where(.theme-rose)]:to-[hsl(var(--analytics-primary))/0.05]";
-
-  const statusColor =
-    tone === "good"
-      ? "text-emerald-600 dark:text-emerald-400"
-      : tone === "warn"
-        ? "text-amber-600 dark:text-amber-400"
-        : tone === "danger"
-          ? "text-destructive"
-          : "text-foreground";
-
-  return (
-    <article className="group relative overflow-hidden rounded-[24px] border border-border/70 bg-card/95 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(0,0,0,0.09)]">
-      <div
-        className={`absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${accent}`}
-      />
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-foreground">{label}</p>
-            {tone !== "default" && (
-              <div
-                className={`h-2 w-2 rounded-full ${
-                  tone === "good"
-                    ? "bg-emerald-500"
-                    : tone === "warn"
-                      ? "bg-amber-500"
-                      : "bg-destructive"
-                }`}
-              />
-            )}
-          </div>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-foreground md:text-[30px]">
-            {value}
-          </p>
-          <div className="mt-3">
-            {typeof trend === "number" ? (
-              <MiniTrend value={trend} compareLabel={compareLabel} />
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                {hint || compareLabel}
-              </span>
-            )}
-          </div>
-        </div>
-        <div
-          className={`rounded-2xl border border-border/70 bg-background/80 p-3 shadow-sm ${statusColor}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-      </div>
-    </article>
   );
 }
 
