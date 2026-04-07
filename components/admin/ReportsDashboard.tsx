@@ -408,18 +408,24 @@ export default function ReportsDashboard() {
     <div className="space-y-6 p-6">
       <div className="rounded-[30px] border border-border/60 bg-gradient-to-br from-card via-card to-muted/35 p-6 shadow-sm">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl space-y-3">
-            <div className="inline-flex rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
-              Commerce Reports
-            </div>
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight">
-                Executive overview first, details only when needed
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Use one clean overview tab for the business pulse, then move
-                into focused sales, profit, VAT, inventory, and delivery tabs.
-              </p>
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl space-y-3">
+              <div className="inline-flex rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
+                Commerce Insights
+              </div>
+
+              <div>
+                <h1 className="text-3xl font-semibold tracking-tight">
+                  Executive Dashboard Overview
+                </h1>
+
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Get a clear, real-time view of your business performance at a
+                  glance. Monitor key metrics from sales and profitability to
+                  VAT, inventory, and delivery — all in one streamlined
+                  dashboard designed for smarter decisions.
+                </p>
+              </div>
             </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">

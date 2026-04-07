@@ -83,41 +83,36 @@ const menuItems: MenuItem[] = [
   },
   {
     name: "Operations",
-    items: [
+    icon: ClipboardList,
+    subItems: [
       {
         name: "Users",
         href: "/admin/users",
-        icon: Users,
         requiredPermissions: ["users.read", "users.manage"],
       },
       {
         name: "Products",
         href: "/admin/products",
-        icon: ShoppingBag,
         requiredPermissions: ["products.manage"],
       },
       {
         name: "Orders",
         href: "/admin/orders",
-        icon: FileText,
         requiredPermissions: ["orders.read_all"],
       },
       {
         name: "Shipments",
         href: "/admin/shipments",
-        icon: Truck,
         requiredPermissions: ["shipments.manage", "orders.read_all"],
       },
       {
         name: "Delivery",
         href: "/admin/delivery/dashboard",
-        icon: Truck,
         requiredPermissions: ["delivery.dashboard.access"],
       },
       {
         name: "Logistics",
         href: "/admin/logistics",
-        icon: Forklift,
         requiredPermissions: ["logistics.manage"],
       },
     ],
