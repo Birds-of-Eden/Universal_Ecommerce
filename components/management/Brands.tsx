@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Edit3, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import SpotlightCard from "../SpotlightCard";
 
 export default function BrandManager({
   brands,
@@ -144,7 +145,7 @@ export default function BrandManager({
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
           {[...Array(8)].map((_, index) => (
             <div key={index} className="border rounded-lg p-4 bg-card">
               <div className="h-20 bg-muted animate-pulse rounded overflow-hidden" />
@@ -166,9 +167,9 @@ export default function BrandManager({
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
           {brands.map((b: any) => (
-            <div key={b.id} className="border rounded-lg p-4 bg-card">
+            <SpotlightCard key={b.id}>
               <div className="h-20 flex items-center justify-center bg-muted rounded overflow-hidden">
                 {b.logo ? (
                   <img src={b.logo} className="h-full object-contain" alt={`${b.name} logo`} />
@@ -182,18 +183,18 @@ export default function BrandManager({
               <h3 className="mt-3 font-medium">{b.name}</h3>
 
               <div className="flex gap-2 mt-3">
-                <Button size="sm" variant="outline" onClick={() => openEdit(b)}>
+                <Button size="sm" className="btn-primary" onClick={() => openEdit(b)}>
                   <Edit3 size={14} />
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="destructive"
                   onClick={() => onDelete(b.id)}
                 >
                   <Trash2 size={14} />
                 </Button>
               </div>
-            </div>
+            </SpotlightCard>
           ))}
         </div>
       )}

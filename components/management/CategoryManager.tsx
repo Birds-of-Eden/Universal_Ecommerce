@@ -109,7 +109,7 @@ export default function CategoryManager({
       <div key={node.id}>
         <div
           className={cn(
-            "flex items-center justify-between py-2 px-3 rounded-md hover:bg-muted transition",
+            "flex items-center justify-between py-2 px-3 rounded-md hover:bg-primary/10 transition",
             hasChildren && "cursor-pointer",
           )}
           style={{ paddingLeft: `${level * 24}px` }}

@@ -37,6 +37,16 @@ const TAB_DEFINITIONS: Array<{
   { key: "exceptions", label: "Exceptions", statuses: ["FAILED", "RETURNED"] },
 ];
 
+const SUMMARY_CARD_STYLES: Record<string, string> = {
+  Assigned: "delivery-summary-card delivery-summary-card-assigned",
+  Accepted: "delivery-summary-card delivery-summary-card-accepted",
+  Rejected: "delivery-summary-card delivery-summary-card-rejected",
+  "Picked From Warehouse":
+    "delivery-summary-card delivery-summary-card-picked-from-warehouse",
+  "In Transit": "delivery-summary-card delivery-summary-card-in-transit",
+  Delivered: "delivery-summary-card delivery-summary-card-delivered",
+};
+
 export function DeliveryDashboardClient() {
   const [assignments, setAssignments] = useState<DeliveryAssignmentData[]>([]);
   const [summary, setSummary] = useState({
@@ -166,7 +176,9 @@ export function DeliveryDashboardClient() {
           {summaryCards.map((card) => (
             <article
               key={card.label}
-              className="rounded-3xl border border-border bg-card p-5 shadow-sm"
+              className={`rounded-3xl border border-border p-5 shadow-sm ${
+                SUMMARY_CARD_STYLES[card.label] ?? "delivery-summary-card"
+              }`}
             >
               <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                 {card.label}

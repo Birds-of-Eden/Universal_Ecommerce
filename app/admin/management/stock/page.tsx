@@ -539,31 +539,31 @@ const StockManagementPage = memo(function StockManagementPage() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
+        <Card className="stock-summary-card-physical-products">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Physical Products</p>
             <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : physicalProducts.length}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="stock-summary-card-variants">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Variants</p>
             <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : filteredVariants.length}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="stock-summary-card-total-stock">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Variant Stock</p>
             <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : totalVariantStock}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="stock-summary-card-low-stock">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Low Stock Variants</p>
             <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : lowStockVariants.length}</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="stock-summary-card-out-of-stock">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Out of Stock Variants</p>
             <p className="text-2xl font-semibold">{loading ? <span className="inline-block h-8 w-16 bg-muted animate-pulse rounded" /> : outOfStockVariants.length}</p>
