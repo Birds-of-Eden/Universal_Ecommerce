@@ -188,6 +188,23 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
     permissions: ["reports.read"],
   },
   {
+    match: ["investor", "investor_capital_transaction", "investor_product_allocation"],
+    permissions: [
+      "investors.read",
+      "investors.manage",
+      "investor_ledger.read",
+      "investor_ledger.manage",
+      "investor_allocations.read",
+      "investor_allocations.manage",
+      "investor_profit.read",
+      "investor_profit.manage",
+      "investor_profit.approve",
+      "investor_profit.post",
+      "investor_payout.read",
+      "investor_payout.manage",
+    ],
+  },
+  {
     match: ["payroll"],
     permissions: ["payroll.manage"],
   },

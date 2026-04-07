@@ -95,6 +95,13 @@ model User {
   pickupProofsCreated           WarehousePickupProof[]  @relation("WarehousePickupProofsCreated")
   supplierPortalAccess          SupplierPortalAccess?   @relation("SupplierPortalAccessUser")
   createdSupplierPortalAccesses SupplierPortalAccess[]  @relation("SupplierPortalAccessCreatedBy")
+  investorsCreated              Investor[]              @relation("InvestorsCreated")
+  investorCapitalTransactionsCreated InvestorCapitalTransaction[] @relation("InvestorCapitalTransactionsCreated")
+  investorProductAllocationsCreated InvestorProductAllocation[] @relation("InvestorProductAllocationsCreated")
+  investorProfitRunsCreated     InvestorProfitRun[]     @relation("InvestorProfitRunsCreated")
+  investorProfitRunsApproved    InvestorProfitRun[]     @relation("InvestorProfitRunsApproved")
+  investorProfitRunsPosted      InvestorProfitRun[]     @relation("InvestorProfitRunsPosted")
+  investorProfitPayoutsCreated  InvestorProfitPayout[]  @relation("InvestorProfitPayoutsCreated")
 }
 
 model UserAddress {
@@ -328,6 +335,10 @@ model ProductVariant {
   replenishmentRules       ReplenishmentRule[]
   warehouseTransferItems   WarehouseTransferItem[]
   stockLevels              StockLevel[]
+  investorAllocations      InvestorProductAllocation[]
+  investorCapitalTransactions InvestorCapitalTransaction[]
+  investorProfitRunVariants InvestorProfitRunVariant[]
+  investorProfitRunAllocations InvestorProfitRunAllocation[]
 }
 
 model ProductVariantOption {
@@ -1161,6 +1172,201 @@ model SupplierPortalAccess {
   user        User                       @relation("SupplierPortalAccessUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([supplierId, status])
+  @@index([createdById])
+}
+
+model Investor {
+  id           Int               @id @default(autoincrement())
+  code         String            @unique
+  name         String
+  legalName    String?
+  email        String?
+  phone        String?
+  status       InvestorStatus    @default(ACTIVE)
+  kycStatus    InvestorKycStatus @default(PENDING)
+  kycVerifiedAt DateTime?
+  kycReference String?
+  notes        String?
+  createdById  String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  createdBy    User?             @relation("InvestorsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  transactions InvestorCapitalTransaction[]
+  allocations  InvestorProductAllocation[]
+  profitRunAllocations InvestorProfitRunAllocation[]
+  payouts      InvestorProfitPayout[]
+
+  @@index([name])
+  @@index([status])
+  @@index([kycStatus])
+  @@index([createdById])
+}
+
+model InvestorCapitalTransaction {
+  id               Int                    @id @default(autoincrement())
+  transactionNumber String                @unique
+  investorId       Int
+  transactionDate  DateTime               @default(now())
+  type             InvestorTransactionType
+  direction        InvestorLedgerDirection
+  amount           Decimal                @db.Decimal(14, 2)
+  currency         String                 @default("BDT") @db.VarChar(3)
+  note             String?
+  referenceType    String?
+  referenceNumber  String?
+  productVariantId Int?
+  createdById      String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  createdBy        User?                  @relation("InvestorCapitalTransactionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  investor         Investor               @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  productVariant   ProductVariant?        @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  payout           InvestorProfitPayout?
+
+  @@index([investorId, transactionDate])
+  @@index([type])
+  @@index([direction])
+  @@index([productVariantId])
+  @@index([createdById])
+}
+
+model InvestorProductAllocation {
+  id                   Int       @id @default(autoincrement())
+  investorId           Int
+  productVariantId     Int
+  effectiveFrom        DateTime  @default(now())
+  effectiveTo          DateTime?
+  participationPercent Decimal?  @db.Decimal(5, 2)
+  committedAmount      Decimal?  @db.Decimal(14, 2)
+  status               String    @default("ACTIVE")
+  note                 String?
+  createdById          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  createdBy            User?     @relation("InvestorProductAllocationsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  investor             Investor  @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  productVariant       ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  profitRunAllocations InvestorProfitRunAllocation[] @relation("InvestorProfitRunAllocationSource")
+
+  @@index([investorId, status])
+  @@index([productVariantId, status])
+  @@index([createdById])
+}
+
+model InvestorProfitRun {
+  id                    Int                                 @id @default(autoincrement())
+  runNumber             String                              @unique
+  fromDate              DateTime
+  toDate                DateTime
+  status                InvestorProfitRunStatus             @default(PENDING_APPROVAL)
+  allocationBasis       InvestorProfitExpenseAllocationBasis
+  marketingExpense      Decimal                             @default(0) @db.Decimal(14, 2)
+  adsExpense            Decimal                             @default(0) @db.Decimal(14, 2)
+  logisticsExpense      Decimal                             @default(0) @db.Decimal(14, 2)
+  otherExpense          Decimal                             @default(0) @db.Decimal(14, 2)
+  totalOperatingExpense Decimal                             @default(0) @db.Decimal(14, 2)
+  totalNetRevenue       Decimal                             @default(0) @db.Decimal(14, 2)
+  totalNetCogs          Decimal                             @default(0) @db.Decimal(14, 2)
+  totalNetProfit        Decimal                             @default(0) @db.Decimal(14, 2)
+  note                  String?
+  createdById           String?
+  approvedById          String?
+  approvedAt            DateTime?
+  postedById            String?
+  postedAt              DateTime?
+  postingNote           String?
+  createdAt             DateTime                            @default(now())
+  updatedAt             DateTime                            @updatedAt
+  createdBy             User?                               @relation("InvestorProfitRunsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy            User?                               @relation("InvestorProfitRunsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  postedBy              User?                               @relation("InvestorProfitRunsPosted", fields: [postedById], references: [id], onDelete: SetNull)
+  variantLines          InvestorProfitRunVariant[]
+  allocationLines       InvestorProfitRunAllocation[]
+  payouts               InvestorProfitPayout[]
+
+  @@index([fromDate, toDate])
+  @@index([createdAt])
+  @@index([createdById])
+  @@index([status])
+  @@index([approvedById])
+  @@index([postedById])
+}
+
+model InvestorProfitRunVariant {
+  id                    Int              @id @default(autoincrement())
+  runId                 Int
+  productVariantId      Int
+  unitsSold             Int              @default(0)
+  unitsRefunded         Int              @default(0)
+  unitsNet              Int              @default(0)
+  grossRevenue          Decimal          @default(0) @db.Decimal(14, 2)
+  refundAmount          Decimal          @default(0) @db.Decimal(14, 2)
+  netRevenue            Decimal          @default(0) @db.Decimal(14, 2)
+  grossCogs             Decimal          @default(0) @db.Decimal(14, 2)
+  refundCogs            Decimal          @default(0) @db.Decimal(14, 2)
+  netCogs               Decimal          @default(0) @db.Decimal(14, 2)
+  allocatedExpense      Decimal          @default(0) @db.Decimal(14, 2)
+  netProfit             Decimal          @default(0) @db.Decimal(14, 2)
+  unallocatedSharePct   Decimal          @default(0) @db.Decimal(7, 4)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  productVariant        ProductVariant   @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  run                   InvestorProfitRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  allocationLines       InvestorProfitRunAllocation[]
+
+  @@unique([runId, productVariantId])
+  @@index([runId, netProfit])
+  @@index([productVariantId])
+}
+
+model InvestorProfitRunAllocation {
+  id                   Int                   @id @default(autoincrement())
+  runId                Int
+  variantLineId        Int
+  investorId           Int
+  productVariantId     Int
+  sourceAllocationId   Int?
+  participationSharePct Decimal              @default(0) @db.Decimal(7, 4)
+  allocatedRevenue     Decimal               @default(0) @db.Decimal(14, 2)
+  allocatedNetProfit   Decimal               @default(0) @db.Decimal(14, 2)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  investor             Investor              @relation(fields: [investorId], references: [id], onDelete: Restrict)
+  productVariant       ProductVariant        @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  run                  InvestorProfitRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  sourceAllocation     InvestorProductAllocation? @relation("InvestorProfitRunAllocationSource", fields: [sourceAllocationId], references: [id], onDelete: SetNull)
+  variantLine          InvestorProfitRunVariant @relation(fields: [variantLineId], references: [id], onDelete: Cascade)
+
+  @@index([runId, investorId])
+  @@index([runId, productVariantId])
+  @@index([sourceAllocationId])
+}
+
+model InvestorProfitPayout {
+  id                    Int                      @id @default(autoincrement())
+  payoutNumber           String                   @unique
+  runId                  Int
+  investorId             Int
+  transactionId          Int?                     @unique
+  currency               String                   @default("BDT") @db.VarChar(3)
+  payoutPercent          Decimal                  @default(100) @db.Decimal(5, 2)
+  holdbackPercent        Decimal                  @default(0) @db.Decimal(5, 2)
+  grossProfitAmount      Decimal                  @default(0) @db.Decimal(14, 2)
+  holdbackAmount         Decimal                  @default(0) @db.Decimal(14, 2)
+  payoutAmount           Decimal                  @default(0) @db.Decimal(14, 2)
+  status                 InvestorProfitPayoutStatus @default(PAID)
+  note                   String?
+  paidAt                 DateTime?
+  createdById            String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  createdBy              User?                    @relation("InvestorProfitPayoutsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  investor               Investor                 @relation(fields: [investorId], references: [id], onDelete: Restrict)
+  run                    InvestorProfitRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  transaction            InvestorCapitalTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([runId, investorId])
+  @@index([status, paidAt])
   @@index([createdById])
 }
 
@@ -2630,6 +2836,51 @@ enum SupplierLedgerEntryType {
 enum SupplierLedgerDirection {
   DEBIT
   CREDIT
+}
+
+enum InvestorStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum InvestorKycStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum InvestorTransactionType {
+  CAPITAL_COMMITMENT
+  CAPITAL_CONTRIBUTION
+  PROFIT_ALLOCATION
+  LOSS_ALLOCATION
+  DISTRIBUTION
+  WITHDRAWAL
+  ADJUSTMENT
+}
+
+enum InvestorLedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum InvestorProfitRunStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  POSTED
+}
+
+enum InvestorProfitExpenseAllocationBasis {
+  NET_REVENUE
+  NET_UNITS
+}
+
+enum InvestorProfitPayoutStatus {
+  PAID
+  VOID
 }
 
 enum ThreeWayMatchStatus {
