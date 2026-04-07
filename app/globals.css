@@ -90,9 +90,21 @@ body {
     --delivery-status-text: 0 0% 40%; /* Muted text */
 
     /* Custom Gradients */
-    --gradient-primary: linear-gradient(135deg, #6DBE45, #96e66e); /* Main Brand Gradient */
-    --gradient-soft: linear-gradient(135deg, #E8F5E9, #FFF8E1); /* Soft UI Gradient */
-    --gradient-premium: linear-gradient(135deg, #4CAF50, #82da6d); /* Premium Gradient */
+    --gradient-primary: linear-gradient(
+      135deg,
+      #6dbe45,
+      #96e66e
+    ); /* Main Brand Gradient */
+    --gradient-soft: linear-gradient(
+      135deg,
+      #e8f5e9,
+      #fff8e1
+    ); /* Soft UI Gradient */
+    --gradient-premium: linear-gradient(
+      135deg,
+      #4caf50,
+      #82da6d
+    ); /* Premium Gradient */
   }
 
   /* ========================
@@ -109,7 +121,7 @@ body {
     --popover: 0 0% 5%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 0 0% 95%; /* Very light gray */
+    --primary: 123 61% 55%; /* Very light gray */
     --primary-foreground: 0 0% 8%; /* Very dark gray */
 
     --secondary: 0 0% 15%;
@@ -423,13 +435,19 @@ body {
   }
 
   .btn-secondary {
-    /* eslint-disable-next-line at-rule-no-unknown */
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 transition;
+    @apply text-white transition-all duration-200 ease-in-out;
+    background-color: #f2b50b;
+  }
+
+  .btn-secondary:hover {
+    @apply scale-105 shadow-lg;
+    background-color: #d99f08;
   }
 
   .btn-accent {
     /* eslint-disable-next-line at-rule-no-unknown */
-    @apply bg-accent text-accent-foreground hover:bg-accent/90 transition;
+    @apply text-white transition-all duration-200 ease-in-out;
+    background-color: #25671e;
   }
 
   .btn-outline {

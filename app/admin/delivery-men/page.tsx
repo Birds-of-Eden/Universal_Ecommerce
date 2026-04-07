@@ -293,8 +293,8 @@ export default function DeliveryMenList() {
       }
     > = {
       DRAFT: { variant: "outline", label: "Draft" },
-      SUBMITTED: { variant: "secondary", label: "Submitted" },
-      UNDER_REVIEW: { variant: "default", label: "Under Review" },
+      SUBMITTED: { variant: "default", label: "Submitted" },
+      UNDER_REVIEW: { variant: "secondary", label: "Under Review" },
       APPROVED: { variant: "default", label: "Approved" },
       REJECTED: { variant: "destructive", label: "Rejected" },
     };

@@ -477,7 +477,7 @@ const SidebarContent = ({
   onClose?: () => void;
   isWarehouseScopedOnly?: boolean;
 }) => (
-  <nav className="py-6 space-y-6">
+  <nav className="py-6 space-y-2 overflow-y-auto scrollbar-hide-on-idle">
     {items.map((section) => {
       if (section.items) {
         // Section with items
@@ -707,51 +707,14 @@ export default function Sidebar({
           isWarehouseScopedOnly={isWarehouseScopedOnly}
         />
       </div>
-
-      {/* Premium User Card Footer */}
-      <div className="p-4 border-t border-border flex-shrink-0">
-        <div className="bg-muted/40 rounded-lg p-3">
-          <div className="flex items-center gap-3">
-            {/* Avatar with gradient */}
-            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-semibold">
-              {(session?.user as any)?.name?.charAt(0)?.toUpperCase() || "A"}
-            </div>
-
-            {/* User Info */}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {(session?.user as any)?.name || "Super Admin"}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                {(session?.user as any)?.email || "superadmin"}
-              </p>
-            </div>
-
-            {/* Menu Trigger */}
-            <button className="text-muted-foreground hover:text-foreground transition-colors">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Version */}
-          <div className="mt-2 pt-2 border-t border-border/50">
-            <p className="text-[10px] text-muted-foreground/40 text-center">
-              V1.1.0
-            </p>
-          </div>
-        </div>
+      {/* Version */}
+      <div className="p-4 border-t border-border/50">
+        <h3 className="text-sm font-semibold text-foreground text-center">
+          BOED E-Commerce
+        </h3>
+        <p className="text-[10px] text-muted-foreground/40 text-center">
+          V1.1.0
+        </p>
       </div>
     </aside>
   );

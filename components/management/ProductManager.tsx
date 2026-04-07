@@ -793,7 +793,7 @@ export default function ProductManager({
           {filtered.map((p: any) => (
             <Card
               key={p.id}
-              className="bg-card shadow-sm hover:shadow-lg transition-all duration-200 rounded-2xl overflow-hidden border hover:border-primary/50"
+              className="bg-card shadow-sm hover:shadow-lg transition-all duration-200 rounded-2xl overflow-hidden border hover:border-primary/20"
             >
               <div className="!p-0 !border-border !bg-card !rounded-xl overflow-hidden">
                 <div className="relative h-60 bg-muted">

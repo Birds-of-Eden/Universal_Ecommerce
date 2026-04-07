@@ -875,8 +875,7 @@ export default function LogisticsPage() {
 
               <div className="mt-4 max-w-3xl">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-                  Manage shipment activity, delivery performance, and dispatch
-                  workload from one place.
+                  Manage Shipment Activity, Delivery Performance, and Dispatch
                 </h1>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
                   Review shipment progress, warehouse activity, delivery costs,
@@ -1531,12 +1530,12 @@ export default function LogisticsPage() {
                   <p className="text-xs uppercase tracking-[0.24em] text-primary-foreground/70">
                     Featured shipment
                   </p>
-                  <div className="mt-6 rounded-[24px] border border-border/60 bg-muted px-4 py-5">
+                  <div className="mt-6 rounded-[24px] border border-border/60 bg-primary/40 px-4 py-5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-primary-foreground/80">
                         Priority level
                       </span>
-                      <span className="rounded-full bg-muted px-3 py-1 text-xs">
+                      <span className="rounded-full bg-primary/40 px-3 py-1 text-xs border border-border/60">
                         P{highlightedShipment?.priority || 0}
                       </span>
                     </div>
@@ -1548,7 +1547,7 @@ export default function LogisticsPage() {
                         "Tracking number not assigned"}
                     </p>
                     <div className="mt-8 flex items-center gap-2">
-                      <span className="h-3 w-3 rounded-full bg-emerald-500" />
+                      <span className="h-3 w-3 rounded-full bg-primary-foreground border border-border/60" />
                       <span className="text-sm text-primary-foreground/80">
                         {highlightedShipment?.assignedTo?.name ||
                           "Assignment pending"}
