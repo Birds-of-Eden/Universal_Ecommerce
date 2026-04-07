@@ -391,7 +391,7 @@ function SectionShell({
 }) {
   return (
     <section
-      className={`rounded-[28px] border border-border/70 bg-card/90 shadow-[0_10px_40px_rgba(0,0,0,0.06)] backdrop-blur-sm ${className}`}
+      className={`rounded-[28px] border border-border/70 bg-gradient-to-br from-white via-white to-gray-50/80 shadow-[0_10px_40px_rgba(0,0,0,0.06)] backdrop-blur-sm ${className}`}
     >
       <div className="flex items-start justify-between gap-4 border-b border-border/60 px-5 py-4 md:px-6">
         <div>
