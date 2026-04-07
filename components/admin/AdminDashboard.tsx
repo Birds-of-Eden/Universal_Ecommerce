@@ -899,7 +899,7 @@ function AdminDashboard({
           title="Business Overview"
           subtitle="Track your revenue, orders, and performance trends"
           action={
-            <div className="inline-flex rounded-2xl border border-border/70 bg-muted/20 p-1">
+            <div className="inline-flex rounded-2xl border border-border/70 bg-primary/20 p-1">
               {[
                 { key: "revenue", label: "Revenue" },
                 { key: "orders", label: "Orders" },
