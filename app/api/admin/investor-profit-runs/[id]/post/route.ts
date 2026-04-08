@@ -37,7 +37,13 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     if (!canPostInvestorProfit(access)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        {
+          error:
+            "Forbidden: missing global permission 'investor_profit.post'. Assign this permission globally and sign in again.",
+        },
+        { status: 403 },
+      );
     }
 
     const { id } = await params;
