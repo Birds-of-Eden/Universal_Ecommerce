@@ -120,11 +120,6 @@ const menuItems: MenuItem[] = [
         ],
       },
       {
-        name: "Warehouses Management",
-        href: "/admin/settings/warehouses",
-        requiredPermissions: ["settings.warehouse.manage", "settings.manage"],
-      },
-      {
         name: "Logistics",
         href: "/admin/logistics",
         requiredPermissions: ["logistics.manage"],
