@@ -481,7 +481,9 @@ export async function POST(request: NextRequest) {
       prisma.investorProductAllocation.findMany({
         where: {
           status: "ACTIVE",
-          effectiveFrom: { lte: toDate },
+          // Use end-exclusive period boundary so allocations created anytime on `toDate`
+          // are included in the same profitability run window.
+          effectiveFrom: { lt: periodEndExclusive },
           OR: [{ effectiveTo: null }, { effectiveTo: { gte: fromDate } }],
           investor: {
             status: "ACTIVE",
