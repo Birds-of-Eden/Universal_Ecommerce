@@ -593,11 +593,10 @@ export default function ProductManager({
                     <Plus className="h-4 w-4 mr-1" /> New Product
                   </Button>
                   <Button
-                    variant="outline"
                     onClick={() =>
                       (window.location.href = "/admin/products/bundles")
                     }
-                    className="border-primary/20 text-primary hover:bg-primary/10"
+                    className="text-foreground hover:bg-primary/80 hover:text-primary-foreground"
                   >
                     <Package className="h-4 w-4 mr-1" /> Bundles
                   </Button>
@@ -872,7 +871,7 @@ export default function ProductManager({
                     <Button
                       onClick={() => openDeleteModal(p)}
                       variant="outline"
-                      className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      className="border-destructive/50 text-destructive hover:bg-destructive/80 hover:text-destructive-foreground"
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>

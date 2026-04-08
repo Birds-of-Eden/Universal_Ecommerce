@@ -22,6 +22,9 @@ import {
   Warehouse,
   Forklift,
   Landmark,
+  Package,
+  Users2,
+  DollarSign,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -56,17 +59,6 @@ const menuItems: MenuItem[] = [
         href: "/admin",
         icon: LayoutDashboard,
         requiredPermissions: ["dashboard.read", "admin.panel.access"],
-      },
-      {
-        name: "Warehouse Dashboard",
-        href: "/admin/warehouse",
-        icon: Warehouse,
-        requiredPermissions: [
-          "dashboard.read",
-          "inventory.manage",
-          "orders.read_all",
-          "shipments.manage",
-        ],
       },
       {
         name: "Analytics",
@@ -111,22 +103,31 @@ const menuItems: MenuItem[] = [
         href: "/admin/delivery/dashboard",
         requiredPermissions: ["delivery.dashboard.access"],
       },
-      {
-        name: "Logistics",
-        href: "/admin/logistics",
-        requiredPermissions: ["logistics.manage"],
-      },
     ],
   },
   {
-    name: "Management",
-    icon: ClipboardList,
-    requiredPermissions: ["products.manage", "inventory.manage"],
+    name: "Warehouse",
+    icon: Warehouse,
     subItems: [
+      {
+        name: "Warehouse Dashboard",
+        href: "/admin/warehouse",
+        requiredPermissions: [
+          "dashboard.read",
+          "inventory.manage",
+          "orders.read_all",
+          "shipments.manage",
+        ],
+      },
       {
         name: "Warehouses Management",
         href: "/admin/settings/warehouses",
         requiredPermissions: ["settings.warehouse.manage", "settings.manage"],
+      },
+      {
+        name: "Logistics",
+        href: "/admin/logistics",
+        requiredPermissions: ["logistics.manage"],
       },
       {
         name: "Stock Management",
@@ -144,40 +145,9 @@ const menuItems: MenuItem[] = [
         requiredPermissions: ["delivery-men.manage", "logistics.manage"],
       },
       {
-        name: "Couriers",
-        href: "/admin/settings/couriers",
-        requiredPermissions: ["settings.courier.manage", "settings.manage"],
-      },
-      {
-        name: "VAT Management",
-        href: "/admin/settings/vatmanagent",
-        requiredPermissions: ["settings.vat.manage", "settings.manage"],
-      },
-      {
-        name: "Blogs Management",
-        href: "/admin/blogs",
-        requiredPermissions: ["blogs.manage"],
-      },
-      {
-        name: "Categories",
-        href: "/admin/management/categories",
-        requiredPermissions: ["products.manage"],
-      },
-      {
-        name: "Brands",
-        href: "/admin/management/brands",
-        requiredPermissions: ["products.manage"],
-      },
-
-      {
-        name: "Newsletter",
-        href: "/admin/newsletter",
-        requiredPermissions: ["newsletter.manage"],
-      },
-      {
-        name: "Coupons",
-        href: "/admin/coupons",
-        requiredPermissions: ["coupons.manage"],
+        name: "Payroll",
+        href: "/admin/payroll",
+        requiredPermissions: ["payroll.manage"],
       },
     ],
   },
@@ -293,79 +263,45 @@ const menuItems: MenuItem[] = [
     ],
   },
   {
-    name: "Investors",
-    icon: Landmark,
+    name: "Management",
+    icon: ClipboardList,
+    requiredPermissions: ["products.manage", "inventory.manage"],
     subItems: [
       {
-        name: "Overview",
-        href: "/admin/investors",
-        requiredGlobalPermissions: [
-          "investors.read",
-          "investors.manage",
-          "investor_ledger.read",
-          "investor_ledger.manage",
-          "investor_allocations.read",
-          "investor_allocations.manage",
-          "investor_profit.read",
-          "investor_profit.manage",
-          "investor_profit.approve",
-          "investor_profit.post",
-          "investor_payout.read",
-          "investor_payout.manage",
-          "investor_payout.approve",
-          "investor_payout.pay",
-          "investor_payout.void",
-          "investor_statement.read",
-        ],
+        name: "Couriers",
+        href: "/admin/settings/couriers",
+        requiredPermissions: ["settings.courier.manage", "settings.manage"],
       },
       {
-        name: "Registry & KYC",
-        href: "/admin/investors/registry",
-        requiredGlobalPermissions: ["investors.read", "investors.manage"],
+        name: "VAT Management",
+        href: "/admin/settings/vatmanagent",
+        requiredPermissions: ["settings.vat.manage", "settings.manage"],
       },
       {
-        name: "Capital Ledger",
-        href: "/admin/investors/ledger",
-        requiredGlobalPermissions: ["investor_ledger.read", "investor_ledger.manage"],
+        name: "Blogs Management",
+        href: "/admin/blogs",
+        requiredPermissions: ["blogs.manage"],
       },
       {
-        name: "Allocations",
-        href: "/admin/investors/allocations",
-        requiredGlobalPermissions: [
-          "investor_allocations.read",
-          "investor_allocations.manage",
-        ],
+        name: "Categories",
+        href: "/admin/management/categories",
+        requiredPermissions: ["products.manage"],
       },
       {
-        name: "Profit Runs",
-        href: "/admin/investors/profit-runs",
-        requiredGlobalPermissions: [
-          "investor_profit.read",
-          "investor_profit.manage",
-          "investor_profit.approve",
-          "investor_profit.post",
-        ],
+        name: "Brands",
+        href: "/admin/management/brands",
+        requiredPermissions: ["products.manage"],
+      },
+
+      {
+        name: "Newsletter",
+        href: "/admin/newsletter",
+        requiredPermissions: ["newsletter.manage"],
       },
       {
-        name: "Payouts",
-        href: "/admin/investors/payouts",
-        requiredGlobalPermissions: [
-          "investor_payout.read",
-          "investor_payout.manage",
-          "investor_payout.approve",
-          "investor_payout.pay",
-          "investor_payout.void",
-        ],
-      },
-      {
-        name: "Statements",
-        href: "/admin/investors/statements",
-        requiredGlobalPermissions: ["investor_statement.read"],
-      },
-      {
-        name: "Portal Access",
-        href: "/admin/investors/portal-access",
-        requiredGlobalPermissions: ["investors.manage", "users.manage"],
+        name: "Coupons",
+        href: "/admin/coupons",
+        requiredPermissions: ["coupons.manage"],
       },
     ],
   },
@@ -389,11 +325,6 @@ const menuItems: MenuItem[] = [
         name: "General Settings",
         href: "/admin/settings",
         requiredPermissions: ["settings.manage"],
-      },
-      {
-        name: "Payroll",
-        href: "/admin/payroll",
-        requiredPermissions: ["payroll.manage"],
       },
       {
         name: "RBAC",
