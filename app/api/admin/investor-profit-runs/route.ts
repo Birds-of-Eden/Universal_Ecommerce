@@ -19,7 +19,11 @@ function canReadInvestorProfit(access: Awaited<ReturnType<typeof getAccessContex
     access.hasGlobal("investor_profit.approve") ||
     access.hasGlobal("investor_profit.post") ||
     access.hasGlobal("investor_payout.read") ||
-    access.hasGlobal("investor_payout.manage")
+    access.hasGlobal("investor_payout.manage") ||
+    access.hasGlobal("investor_payout.approve") ||
+    access.hasGlobal("investor_payout.pay") ||
+    access.hasGlobal("investor_payout.void") ||
+    access.hasGlobal("investor_statement.read")
   );
 }
 
@@ -270,6 +274,34 @@ export async function GET(request: NextRequest) {
               email: true,
             },
           },
+          approvedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          rejectedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          paidBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          voidedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
         },
       }),
     ]);
@@ -313,7 +345,10 @@ export async function GET(request: NextRequest) {
         grossProfitAmount: item.grossProfitAmount.toString(),
         holdbackAmount: item.holdbackAmount.toString(),
         payoutAmount: item.payoutAmount.toString(),
+        approvedAt: toIso(item.approvedAt),
+        rejectedAt: toIso(item.rejectedAt),
         paidAt: toIso(item.paidAt),
+        voidedAt: toIso(item.voidedAt),
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
         transaction: item.transaction

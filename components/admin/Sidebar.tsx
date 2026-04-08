@@ -80,39 +80,6 @@ const menuItems: MenuItem[] = [
         icon: FileText,
         requiredPermissions: ["reports.read"],
       },
-      {
-        name: "Investors",
-        href: "/admin/investors",
-        icon: Landmark,
-        requiredPermissions: [
-          "investors.read",
-          "investors.manage",
-          "investor_ledger.read",
-          "investor_ledger.manage",
-          "investor_allocations.read",
-          "investor_allocations.manage",
-          "investor_profit.read",
-          "investor_profit.manage",
-          "investor_profit.approve",
-          "investor_profit.post",
-          "investor_payout.read",
-          "investor_payout.manage",
-        ],
-        requiredGlobalPermissions: [
-          "investors.read",
-          "investors.manage",
-          "investor_ledger.read",
-          "investor_ledger.manage",
-          "investor_allocations.read",
-          "investor_allocations.manage",
-          "investor_profit.read",
-          "investor_profit.manage",
-          "investor_profit.approve",
-          "investor_profit.post",
-          "investor_payout.read",
-          "investor_payout.manage",
-        ],
-      },
     ],
   },
   {
@@ -322,6 +289,83 @@ const menuItems: MenuItem[] = [
           "supplier_invoices.read",
           "supplier_invoices.manage",
         ],
+      },
+    ],
+  },
+  {
+    name: "Investors",
+    icon: Landmark,
+    subItems: [
+      {
+        name: "Overview",
+        href: "/admin/investors",
+        requiredGlobalPermissions: [
+          "investors.read",
+          "investors.manage",
+          "investor_ledger.read",
+          "investor_ledger.manage",
+          "investor_allocations.read",
+          "investor_allocations.manage",
+          "investor_profit.read",
+          "investor_profit.manage",
+          "investor_profit.approve",
+          "investor_profit.post",
+          "investor_payout.read",
+          "investor_payout.manage",
+          "investor_payout.approve",
+          "investor_payout.pay",
+          "investor_payout.void",
+          "investor_statement.read",
+        ],
+      },
+      {
+        name: "Registry & KYC",
+        href: "/admin/investors/registry",
+        requiredGlobalPermissions: ["investors.read", "investors.manage"],
+      },
+      {
+        name: "Capital Ledger",
+        href: "/admin/investors/ledger",
+        requiredGlobalPermissions: ["investor_ledger.read", "investor_ledger.manage"],
+      },
+      {
+        name: "Allocations",
+        href: "/admin/investors/allocations",
+        requiredGlobalPermissions: [
+          "investor_allocations.read",
+          "investor_allocations.manage",
+        ],
+      },
+      {
+        name: "Profit Runs",
+        href: "/admin/investors/profit-runs",
+        requiredGlobalPermissions: [
+          "investor_profit.read",
+          "investor_profit.manage",
+          "investor_profit.approve",
+          "investor_profit.post",
+        ],
+      },
+      {
+        name: "Payouts",
+        href: "/admin/investors/payouts",
+        requiredGlobalPermissions: [
+          "investor_payout.read",
+          "investor_payout.manage",
+          "investor_payout.approve",
+          "investor_payout.pay",
+          "investor_payout.void",
+        ],
+      },
+      {
+        name: "Statements",
+        href: "/admin/investors/statements",
+        requiredGlobalPermissions: ["investor_statement.read"],
+      },
+      {
+        name: "Portal Access",
+        href: "/admin/investors/portal-access",
+        requiredGlobalPermissions: ["investors.manage", "users.manage"],
       },
     ],
   },
@@ -639,11 +683,7 @@ export default function Sidebar({
               hasPermission(subItem.requiredPermissions) &&
               hasGlobalPermission(subItem.requiredGlobalPermissions),
           );
-          if (
-            visibleSubItems.length === 0 &&
-            (!hasPermission(section.requiredPermissions) ||
-              !hasGlobalPermission(section.requiredGlobalPermissions))
-          ) {
+          if (visibleSubItems.length === 0) {
             return null;
           }
           return {

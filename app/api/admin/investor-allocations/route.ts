@@ -15,7 +15,11 @@ function canReadInvestorAllocations(access: Awaited<ReturnType<typeof getAccessC
     access.hasGlobal("investor_profit.approve") ||
     access.hasGlobal("investor_profit.post") ||
     access.hasGlobal("investor_payout.read") ||
-    access.hasGlobal("investor_payout.manage")
+    access.hasGlobal("investor_payout.manage") ||
+    access.hasGlobal("investor_payout.approve") ||
+    access.hasGlobal("investor_payout.pay") ||
+    access.hasGlobal("investor_payout.void") ||
+    access.hasGlobal("investor_statement.read")
   );
 }
 

@@ -202,7 +202,15 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
       "investor_profit.post",
       "investor_payout.read",
       "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+      "investor_statement.read",
     ],
+  },
+  {
+    match: ["investor_portal_access"],
+    permissions: ["investors.manage", "users.manage"],
   },
   {
     match: ["payroll"],

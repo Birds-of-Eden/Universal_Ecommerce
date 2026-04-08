@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   getDashboardRoute,
   hasDeliveryDashboardAccess,
+  hasInvestorPortalAccess,
   hasSupplierPortalAccess,
   isAdminDeliveryRoute,
   isDeliveryAdminShellRoute,
@@ -175,6 +176,11 @@ const adminPagePermissionRules: PermissionRule[] = [
     permissions: ["dashboard.read", "admin.panel.access"],
   },
   {
+    prefix: "/admin/investors/portal-access",
+    permissions: ["investors.manage", "users.manage"],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/investors",
     permissions: [
       "investors.read",
@@ -189,6 +195,10 @@ const adminPagePermissionRules: PermissionRule[] = [
       "investor_profit.post",
       "investor_payout.read",
       "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+      "investor_statement.read",
     ],
     globalOnly: true,
   },
@@ -283,6 +293,37 @@ const supplierPagePermissionRules: PermissionRule[] = [
   },
 ];
 
+const investorPagePermissionRules: PermissionRule[] = [
+  {
+    prefix: "/investor/dashboard",
+    permissions: ["investor.portal.overview.read"],
+  },
+  {
+    prefix: "/investor/ledger",
+    permissions: ["investor.portal.ledger.read"],
+  },
+  {
+    prefix: "/investor/allocations",
+    permissions: ["investor.portal.allocations.read"],
+  },
+  {
+    prefix: "/investor/profit-runs",
+    permissions: ["investor.portal.profit.read"],
+  },
+  {
+    prefix: "/investor/payouts",
+    permissions: ["investor.portal.payout.read"],
+  },
+  {
+    prefix: "/investor/statements",
+    permissions: ["investor.portal.statement.read"],
+  },
+  {
+    prefix: "/investor",
+    permissions: ["investor.portal.access"],
+  },
+];
+
 const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/supplier/overview",
@@ -308,6 +349,41 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/supplier/invoices",
     methods: ["GET"],
     permissions: ["supplier.invoices.read"],
+  },
+  {
+    prefix: "/api/investor/overview",
+    methods: ["GET"],
+    permissions: ["investor.portal.overview.read"],
+  },
+  {
+    prefix: "/api/investor/ledger",
+    methods: ["GET"],
+    permissions: ["investor.portal.ledger.read"],
+  },
+  {
+    prefix: "/api/investor/allocations",
+    methods: ["GET"],
+    permissions: ["investor.portal.allocations.read"],
+  },
+  {
+    prefix: "/api/investor/profit-runs",
+    methods: ["GET"],
+    permissions: ["investor.portal.profit.read"],
+  },
+  {
+    prefix: "/api/investor/payouts",
+    methods: ["GET"],
+    permissions: ["investor.portal.payout.read"],
+  },
+  {
+    prefix: "/api/investor/statements",
+    methods: ["GET"],
+    permissions: ["investor.portal.statement.read"],
+  },
+  {
+    prefix: "/api/investor",
+    methods: ["GET"],
+    permissions: ["investor.portal.access"],
   },
   {
     prefix: "/api/scm/suppliers",
@@ -585,6 +661,10 @@ const apiPermissionRules: PermissionRule[] = [
       "investor_profit.post",
       "investor_payout.read",
       "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+      "investor_statement.read",
     ],
     globalOnly: true,
   },
@@ -606,6 +686,10 @@ const apiPermissionRules: PermissionRule[] = [
       "investor_profit.post",
       "investor_payout.read",
       "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+      "investor_statement.read",
     ],
     globalOnly: true,
   },
@@ -627,6 +711,10 @@ const apiPermissionRules: PermissionRule[] = [
       "investor_profit.post",
       "investor_payout.read",
       "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+      "investor_statement.read",
     ],
     globalOnly: true,
   },
@@ -646,6 +734,10 @@ const apiPermissionRules: PermissionRule[] = [
       "investor_profit.post",
       "investor_payout.read",
       "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+      "investor_statement.read",
     ],
     globalOnly: true,
   },
@@ -665,6 +757,35 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/admin/investor-profit-runs",
     methods: ["POST"],
     permissions: ["investor_profit.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-payouts",
+    methods: ["PATCH"],
+    permissions: [
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-statements",
+    methods: ["GET"],
+    permissions: [
+      "investor_statement.read",
+      "investor_payout.read",
+      "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-portal-access",
+    methods: ["GET", "POST", "PATCH", "PUT"],
+    permissions: ["investors.manage", "users.manage"],
     globalOnly: true,
   },
   {
@@ -893,6 +1014,11 @@ function hasSupplierPortal(session: SessionShape): boolean {
   return permissionKeys.includes("supplier.portal.access");
 }
 
+function hasInvestorPortal(session: SessionShape): boolean {
+  const permissionKeys = getPermissionKeys(session);
+  return permissionKeys.includes("investor.portal.access");
+}
+
 function getDefaultAdminRoute(
   session: SessionShape,
 ): "/admin" | "/admin/warehouse" {
@@ -976,6 +1102,7 @@ export default async function authMiddleware(request: NextRequest) {
   const dashboardRoute = getDashboardRoute(session?.user);
   const deliveryDashboardAccess = hasDeliveryDashboardAccess(session?.user);
   const supplierPortalAccess = hasSupplierPortalAccess(session?.user) || hasSupplierPortal(session);
+  const investorPortalAccess = hasInvestorPortalAccess(session?.user) || hasInvestorPortal(session);
   const isAdminDeliveryDashboardRoute = isAdminDeliveryRoute(pathname);
   const isLegacyDeliveryRoute = isLegacyDeliveryDashboardRoute(pathname);
   const canUseDeliveryAdminShell =
@@ -1016,6 +1143,7 @@ export default async function authMiddleware(request: NextRequest) {
   const isProtectedRoute =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/supplier") ||
+    pathname.startsWith("/investor") ||
     isUserDashboardRoute ||
     isDeliveryDashboardRoute;
 
@@ -1026,6 +1154,10 @@ export default async function authMiddleware(request: NextRequest) {
     }
 
     if (adminAccess && pathname.startsWith("/supplier")) {
+      return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
+    }
+
+    if (adminAccess && pathname.startsWith("/investor")) {
       return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
     }
 
@@ -1062,6 +1194,24 @@ export default async function authMiddleware(request: NextRequest) {
       if (
         matchedSupplierPageRule &&
         !hasAnyPermission(permissionKeys, matchedSupplierPageRule.permissions)
+      ) {
+        return NextResponse.redirect(new URL(dashboardRoute, request.url));
+      }
+    }
+
+    if (pathname.startsWith("/investor")) {
+      if (!investorPortalAccess) {
+        return NextResponse.redirect(new URL(dashboardRoute, request.url));
+      }
+
+      const matchedInvestorPageRule = findMatchedRule(
+        pathname,
+        method,
+        investorPagePermissionRules,
+      );
+      if (
+        matchedInvestorPageRule &&
+        !hasAnyPermission(permissionKeys, matchedInvestorPageRule.permissions)
       ) {
         return NextResponse.redirect(new URL(dashboardRoute, request.url));
       }

@@ -29,7 +29,19 @@ export const INVESTOR_PROFIT_RUN_STATUS_VALUES = [
   "REJECTED",
   "POSTED",
 ] as const;
-export const INVESTOR_PROFIT_PAYOUT_STATUS_VALUES = ["PAID", "VOID"] as const;
+export const INVESTOR_PROFIT_PAYOUT_STATUS_VALUES = [
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+  "PAID",
+  "VOID",
+] as const;
+export const INVESTOR_PAYOUT_PAYMENT_METHOD_VALUES = [
+  "BANK_TRANSFER",
+  "MOBILE_BANKING",
+  "CHEQUE",
+  "CASH",
+] as const;
 
 export type InvestorStatusValue = (typeof INVESTOR_STATUS_VALUES)[number];
 export type InvestorKycStatusValue = (typeof INVESTOR_KYC_STATUS_VALUES)[number];
@@ -43,6 +55,8 @@ export type InvestorProfitRunStatusValue =
   (typeof INVESTOR_PROFIT_RUN_STATUS_VALUES)[number];
 export type InvestorProfitPayoutStatusValue =
   (typeof INVESTOR_PROFIT_PAYOUT_STATUS_VALUES)[number];
+export type InvestorPayoutPaymentMethodValue =
+  (typeof INVESTOR_PAYOUT_PAYMENT_METHOD_VALUES)[number];
 
 export function toCleanText(value: unknown, max = 255) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -100,6 +114,16 @@ export function parseInvestorProfitAllocationBasis(
   )
     ? (raw as InvestorProfitAllocationBasisValue)
     : "NET_REVENUE";
+}
+
+export function parseInvestorPayoutPaymentMethod(
+  value: unknown,
+): InvestorPayoutPaymentMethodValue {
+  const raw = toCleanText(value, 32).toUpperCase();
+  if (INVESTOR_PAYOUT_PAYMENT_METHOD_VALUES.includes(raw as InvestorPayoutPaymentMethodValue)) {
+    return raw as InvestorPayoutPaymentMethodValue;
+  }
+  throw new Error("Invalid investor payout payment method.");
 }
 
 const INVESTOR_TYPE_DIRECTION_MAP: Record<

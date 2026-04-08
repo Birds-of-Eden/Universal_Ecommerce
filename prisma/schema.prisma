@@ -95,6 +95,8 @@ model User {
   pickupProofsCreated           WarehousePickupProof[]  @relation("WarehousePickupProofsCreated")
   supplierPortalAccess          SupplierPortalAccess?   @relation("SupplierPortalAccessUser")
   createdSupplierPortalAccesses SupplierPortalAccess[]  @relation("SupplierPortalAccessCreatedBy")
+  investorPortalAccess          InvestorPortalAccess?   @relation("InvestorPortalAccessUser")
+  createdInvestorPortalAccesses InvestorPortalAccess[]  @relation("InvestorPortalAccessCreatedBy")
   investorsCreated              Investor[]              @relation("InvestorsCreated")
   investorCapitalTransactionsCreated InvestorCapitalTransaction[] @relation("InvestorCapitalTransactionsCreated")
   investorProductAllocationsCreated InvestorProductAllocation[] @relation("InvestorProductAllocationsCreated")
@@ -102,6 +104,10 @@ model User {
   investorProfitRunsApproved    InvestorProfitRun[]     @relation("InvestorProfitRunsApproved")
   investorProfitRunsPosted      InvestorProfitRun[]     @relation("InvestorProfitRunsPosted")
   investorProfitPayoutsCreated  InvestorProfitPayout[]  @relation("InvestorProfitPayoutsCreated")
+  investorProfitPayoutsApproved InvestorProfitPayout[]  @relation("InvestorProfitPayoutsApproved")
+  investorProfitPayoutsRejected InvestorProfitPayout[]  @relation("InvestorProfitPayoutsRejected")
+  investorProfitPayoutsPaid     InvestorProfitPayout[]  @relation("InvestorProfitPayoutsPaid")
+  investorProfitPayoutsVoided   InvestorProfitPayout[]  @relation("InvestorProfitPayoutsVoided")
 }
 
 model UserAddress {
@@ -1175,6 +1181,23 @@ model SupplierPortalAccess {
   @@index([createdById])
 }
 
+model InvestorPortalAccess {
+  id          String                     @id @default(cuid())
+  userId      String                     @unique
+  investorId  Int
+  status      InvestorPortalAccessStatus @default(ACTIVE)
+  note        String?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  createdById String?
+  createdBy   User?                      @relation("InvestorPortalAccessCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  investor    Investor                   @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  user        User                       @relation("InvestorPortalAccessUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([investorId, status])
+  @@index([createdById])
+}
+
 model Investor {
   id           Int               @id @default(autoincrement())
   code         String            @unique
@@ -1195,6 +1218,7 @@ model Investor {
   allocations  InvestorProductAllocation[]
   profitRunAllocations InvestorProfitRunAllocation[]
   payouts      InvestorProfitPayout[]
+  portalAccesses InvestorPortalAccess[]
 
   @@index([name])
   @@index([status])
@@ -1354,13 +1378,30 @@ model InvestorProfitPayout {
   grossProfitAmount      Decimal                  @default(0) @db.Decimal(14, 2)
   holdbackAmount         Decimal                  @default(0) @db.Decimal(14, 2)
   payoutAmount           Decimal                  @default(0) @db.Decimal(14, 2)
-  status                 InvestorProfitPayoutStatus @default(PAID)
+  status                 InvestorProfitPayoutStatus @default(PENDING_APPROVAL)
+  approvalNote           String?
+  approvedById           String?
+  approvedAt             DateTime?
+  rejectedById           String?
+  rejectedAt             DateTime?
+  rejectionReason        String?
+  paymentMethod          InvestorPayoutPaymentMethod?
+  bankReference          String?
+  paidById               String?
   note                   String?
   paidAt                 DateTime?
+  voidedById             String?
+  voidedAt               DateTime?
+  voidReason             String?
+  voidReversalReference  String?
   createdById            String?
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
   createdBy              User?                    @relation("InvestorProfitPayoutsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy             User?                    @relation("InvestorProfitPayoutsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  rejectedBy             User?                    @relation("InvestorProfitPayoutsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
+  paidBy                 User?                    @relation("InvestorProfitPayoutsPaid", fields: [paidById], references: [id], onDelete: SetNull)
+  voidedBy               User?                    @relation("InvestorProfitPayoutsVoided", fields: [voidedById], references: [id], onDelete: SetNull)
   investor               Investor                 @relation(fields: [investorId], references: [id], onDelete: Restrict)
   run                    InvestorProfitRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
   transaction            InvestorCapitalTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
@@ -1368,6 +1409,10 @@ model InvestorProfitPayout {
   @@index([runId, investorId])
   @@index([status, paidAt])
   @@index([createdById])
+  @@index([approvedById])
+  @@index([rejectedById])
+  @@index([paidById])
+  @@index([voidedById])
 }
 
 model Rfq {
@@ -2736,6 +2781,12 @@ enum SupplierPortalAccessStatus {
   REVOKED
 }
 
+enum InvestorPortalAccessStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
 enum SupplierSlaSeverity {
   LOW
   MEDIUM
@@ -2879,8 +2930,18 @@ enum InvestorProfitExpenseAllocationBasis {
 }
 
 enum InvestorProfitPayoutStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
   PAID
   VOID
+}
+
+enum InvestorPayoutPaymentMethod {
+  BANK_TRANSFER
+  MOBILE_BANKING
+  CHEQUE
+  CASH
 }
 
 enum ThreeWayMatchStatus {

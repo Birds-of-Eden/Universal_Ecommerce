@@ -6,9 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import {
-  computeInvestorLedgerTotals,
   generateInvestorProfitPayoutNumber,
-  generateInvestorTransactionNumber,
   toCleanText,
   toDecimalAmount,
 } from "@/lib/investor";
@@ -52,11 +50,18 @@ export async function POST(
     const holdbackPercent = toDecimalAmount(body.holdbackPercent ?? 0, "Holdback percent");
     const note = toCleanText(body.note, 500) || null;
     const currency = toCleanText(body.currency, 3).toUpperCase() || "BDT";
+
     if (payoutPercent.lte(0) || payoutPercent.gt(100)) {
-      return NextResponse.json({ error: "Payout percent must be between 0 and 100." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Payout percent must be between 0 and 100." },
+        { status: 400 },
+      );
     }
     if (holdbackPercent.lt(0) || holdbackPercent.gt(100)) {
-      return NextResponse.json({ error: "Holdback percent must be between 0 and 100." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Holdback percent must be between 0 and 100." },
+        { status: 400 },
+      );
     }
 
     const run = await prisma.investorProfitRun.findUnique({
@@ -77,7 +82,7 @@ export async function POST(
       );
     }
 
-    const [profitByInvestor, paidByInvestor] = await Promise.all([
+    const [profitByInvestor, settledByInvestor] = await Promise.all([
       prisma.investorProfitRunAllocation.groupBy({
         by: ["investorId"],
         where: {
@@ -92,7 +97,9 @@ export async function POST(
         by: ["investorId"],
         where: {
           runId,
-          status: "PAID",
+          status: {
+            in: ["PENDING_APPROVAL", "APPROVED", "PAID"],
+          },
         },
         _sum: {
           payoutAmount: true,
@@ -100,9 +107,9 @@ export async function POST(
       }),
     ]);
 
-    const paidMap = new Map<number, Prisma.Decimal>();
-    for (const row of paidByInvestor) {
-      paidMap.set(row.investorId, row._sum.payoutAmount ?? new Prisma.Decimal(0));
+    const settledMap = new Map<number, Prisma.Decimal>();
+    for (const row of settledByInvestor) {
+      settledMap.set(row.investorId, row._sum.payoutAmount ?? new Prisma.Decimal(0));
     }
 
     const payoutFactor = payoutPercent.div(100);
@@ -111,8 +118,8 @@ export async function POST(
     const candidates: PayoutCandidate[] = [];
     for (const row of profitByInvestor) {
       const totalProfit = row._sum.allocatedNetProfit ?? new Prisma.Decimal(0);
-      const alreadyPaid = paidMap.get(row.investorId) ?? new Prisma.Decimal(0);
-      const remaining = totalProfit.minus(alreadyPaid);
+      const alreadySettled = settledMap.get(row.investorId) ?? new Prisma.Decimal(0);
+      const remaining = totalProfit.minus(alreadySettled);
       if (remaining.lte(0)) continue;
 
       const grossProfitAmount = remaining.mul(payoutFactor);
@@ -148,73 +155,30 @@ export async function POST(
         throw new Error("Only ACTIVE investors can receive payouts.");
       }
 
-      const groups = await tx.investorCapitalTransaction.groupBy({
-        by: ["investorId", "direction"],
-        where: { investorId: { in: investorIds } },
-        _sum: {
-          amount: true,
-        },
-      });
-      for (const candidate of candidates) {
-        const totals = computeInvestorLedgerTotals(
-          groups
-            .filter((item) => item.investorId === candidate.investorId)
-            .map((item) => ({
-              direction: item.direction,
-              amount: item._sum.amount ?? new Prisma.Decimal(0),
-            })),
-        );
-        if (candidate.payoutAmount.gt(totals.balance)) {
-          throw new Error(
-            `Payout exceeds available investor balance for investor #${candidate.investorId}.`,
-          );
-        }
-      }
-
-      const paidAt = new Date();
+      const timestamp = new Date();
       const payouts: Array<{
         id: number;
         payoutNumber: string;
         investorId: number;
         payoutAmount: string;
-        transactionNumber: string;
+        status: string;
       }> = [];
 
       for (const candidate of candidates) {
-        const payoutNumber = await generateInvestorProfitPayoutNumber(tx, paidAt);
-        const transactionNumber = await generateInvestorTransactionNumber(tx, paidAt);
-        const transaction = await tx.investorCapitalTransaction.create({
-          data: {
-            transactionNumber,
-            investorId: candidate.investorId,
-            transactionDate: paidAt,
-            type: "DISTRIBUTION",
-            direction: "DEBIT",
-            amount: candidate.payoutAmount,
-            currency,
-            note: note || `Payout from investor profit run ${run.runNumber}.`,
-            referenceType: "INVESTOR_PROFIT_PAYOUT",
-            referenceNumber: payoutNumber,
-            productVariantId: null,
-            createdById: access.userId,
-          },
-        });
-
+        const payoutNumber = await generateInvestorProfitPayoutNumber(tx, timestamp);
         const payout = await tx.investorProfitPayout.create({
           data: {
             payoutNumber,
             runId: run.id,
             investorId: candidate.investorId,
-            transactionId: transaction.id,
             currency,
             payoutPercent,
             holdbackPercent,
             grossProfitAmount: candidate.grossProfitAmount,
             holdbackAmount: candidate.holdbackAmount,
             payoutAmount: candidate.payoutAmount,
-            status: "PAID",
+            status: "PENDING_APPROVAL",
             note,
-            paidAt,
             createdById: access.userId,
           },
         });
@@ -224,24 +188,24 @@ export async function POST(
           payoutNumber: payout.payoutNumber,
           investorId: payout.investorId,
           payoutAmount: payout.payoutAmount.toString(),
-          transactionNumber: transaction.transactionNumber,
+          status: payout.status,
         });
       }
 
       return {
-        paidAt,
+        createdAt: timestamp,
         payouts,
       };
     });
 
     await logActivity({
-      action: "payout",
+      action: "create",
       entity: "investor_profit_payout",
       entityId: run.id,
       access,
       request,
       metadata: {
-        message: `Created investor payouts from run ${run.runNumber}`,
+        message: `Created payout drafts from run ${run.runNumber}`,
         payoutCount: created.payouts.length,
         payoutPercent: payoutPercent.toString(),
         holdbackPercent: holdbackPercent.toString(),
@@ -251,18 +215,17 @@ export async function POST(
     return NextResponse.json({
       runId: run.id,
       runNumber: run.runNumber,
-      paidAt: created.paidAt.toISOString(),
+      createdAt: created.createdAt.toISOString(),
       payoutCount: created.payouts.length,
       payouts: created.payouts,
     });
   } catch (error: any) {
-    console.error("ADMIN INVESTOR PAYOUT ERROR:", error);
+    console.error("ADMIN INVESTOR PAYOUT CREATE ERROR:", error);
     const message = String(error?.message || "");
     if (
       message.includes("must be") ||
       message.includes("No payable") ||
       message.includes("Run must be POSTED") ||
-      message.includes("available investor balance") ||
       message.includes("ACTIVE investors")
     ) {
       return NextResponse.json({ error: message }, { status: 400 });
@@ -270,6 +233,6 @@ export async function POST(
     if (message.includes("not found")) {
       return NextResponse.json({ error: message }, { status: 404 });
     }
-    return NextResponse.json({ error: message || "Failed to create payout." }, { status: 500 });
+    return NextResponse.json({ error: message || "Failed to create payout drafts." }, { status: 500 });
   }
 }
