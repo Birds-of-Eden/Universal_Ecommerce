@@ -96,11 +96,32 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="site">Site Settings</TabsTrigger>
-          <TabsTrigger value="banners">Banner Management</TabsTrigger>
-          <TabsTrigger value="payments">Payment Settings</TabsTrigger>
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-4"
+      >
+        <TabsList className="grid w-full grid-cols-3 bg-primary/10 rounded-md">
+          <TabsTrigger
+            value="site"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            Site Settings
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="banners"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            Banner Management
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="payments"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            Payment Settings
+          </TabsTrigger>
         </TabsList>
 
         {/* SITE SETTINGS */}

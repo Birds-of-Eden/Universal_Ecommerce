@@ -304,7 +304,10 @@ function MobileCategoryTree({
     return (
       <div className="space-y-2">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-10 w-full rounded-lg bg-muted animate-pulse" />
+          <div
+            key={i}
+            className="h-10 w-full rounded-lg bg-muted animate-pulse"
+          />
         ))}
       </div>
     );
@@ -399,7 +402,7 @@ export default function Header({
 
   // Site settings
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(
-    siteSettingsData ?? {}
+    siteSettingsData ?? {},
   );
 
   // Mobile drawer
@@ -592,15 +595,13 @@ export default function Header({
     }
   };
 
-  const sessionUser = (session?.user ?? null) as
-    | {
-        name?: string | null;
-        role?: string;
-        roleNames?: string[];
-        permissions?: string[];
-        defaultAdminRoute?: "/admin" | "/admin/warehouse";
-      }
-    | null;
+  const sessionUser = (session?.user ?? null) as {
+    name?: string | null;
+    role?: string;
+    roleNames?: string[];
+    permissions?: string[];
+    defaultAdminRoute?: "/admin" | "/admin/warehouse";
+  } | null;
   const userName = sessionUser?.name || "User";
   const userRole = sessionUser?.role || "user";
   const displayRole =
@@ -610,7 +611,7 @@ export default function Header({
   const dashboardHref = getDashboardRoute(sessionUser);
 
   const topBtnClass =
-    "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent";
+    "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent hover:text-primary-foreground";
 
   const goCategoryFromMobile = (slug: string) => {
     setMobileMenuOpen(false);
@@ -744,7 +745,7 @@ export default function Header({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="rounded-lg bg-muted hover:bg-accent text-foreground h-11 w-11 flex items-center justify-center border border-border"
+                      className="rounded-lg bg-muted hover:bg-accent hover:text-primary-foreground text-foreground h-11 w-11 flex items-center justify-center border border-border"
                       title="Select theme"
                     >
                       {darkLikeActiveTheme ? (
@@ -783,7 +784,7 @@ export default function Header({
 
               <Link
                 href="/ecommerce/cart"
-                className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
+                className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent hover:text-primary-foreground"
               >
                 <ShoppingCart className="h-5 w-5" />
                 {hasMounted && cartCount > 0 && (
@@ -795,7 +796,7 @@ export default function Header({
 
               <Link
                 href="/ecommerce/wishlist"
-                className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
+                className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent hover:text-primary-foreground"
               >
                 <Heart className="h-5 w-5" />
                 {hasMounted && wishlistCount > 0 && (
@@ -809,7 +810,7 @@ export default function Header({
                 <button
                   type="button"
                   onClick={() => setProfileOpen((p) => !p)}
-                  className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
+                  className="relative h-11 w-11 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent hover:text-primary-foreground"
                   aria-label="Profile"
                 >
                   <UserIcon className="h-5 w-5" />
@@ -820,7 +821,9 @@ export default function Header({
                     {hasMounted && session ? (
                       <>
                         <div className="px-4 py-3 border-b border-border">
-                          <div className="text-sm font-semibold">{userName}</div>
+                          <div className="text-sm font-semibold">
+                            {userName}
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {displayRole}
                           </div>
@@ -1001,7 +1004,9 @@ export default function Header({
                   <>
                     <div className="px-4 py-3 border-b border-border">
                       <div className="text-sm font-semibold">{userName}</div>
-                      <div className="text-xs text-muted-foreground">{displayRole}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {displayRole}
+                      </div>
                     </div>
 
                     <Link

@@ -126,12 +126,15 @@ export default function FeaturedProducts({
 
   const [active, setActive] = useState<"ALL" | string>("ALL");
   const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = useState(false);
-  const [canScrollCategoriesRight, setCanScrollCategoriesRight] = useState(false);
+  const [canScrollCategoriesRight, setCanScrollCategoriesRight] =
+    useState(false);
   const [showCategoryScrollbar, setShowCategoryScrollbar] = useState(false);
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const categoryScrollerRef = useRef<HTMLDivElement | null>(null);
-  const categoryScrollbarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const categoryScrollbarTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -203,8 +206,8 @@ export default function FeaturedProducts({
 
         if (!mounted) return;
 
-        const pList: any[] = Array.isArray(pData) ? pData : pData?.data ?? [];
-        const cList: any[] = Array.isArray(cData) ? cData : cData?.data ?? [];
+        const pList: any[] = Array.isArray(pData) ? pData : (pData?.data ?? []);
+        const cList: any[] = Array.isArray(cData) ? cData : (cData?.data ?? []);
         const rList = normalizeReviewsPayload(rData);
 
         const mappedCats: CategoryDTO[] = cList.map((c) => ({
@@ -520,14 +523,14 @@ export default function FeaturedProducts({
                 onClick={() => {
                   console.log("Ask AI clicked");
                 }}
-                className="group relative flex w-full items-center gap-2 rounded-full bg-secondary px-4 py-2 transition-all duration-200 hover:bg-secondary/90"
+                className="group relative flex w-full items-center gap-2 rounded-full bg-primary px-4 py-2 transition-all duration-200 hover:bg-secondary/90"
               >
                 <div className="relative">
-                  <FaRobot className="h-4 w-4 text-foreground transition-transform group-hover:scale-110" />
+                  <FaRobot className="h-4 w-4 text-primary-foreground transition-transform group-hover:scale-110" />
                   <div className="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full border border-background bg-primary" />
                 </div>
 
-                <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
+                <span className="text-sm font-medium text-primary-foreground transition-colors group-hover:text-primary-foreground">
                   Ask AI
                 </span>
               </button>

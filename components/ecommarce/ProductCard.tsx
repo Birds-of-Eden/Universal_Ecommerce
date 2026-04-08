@@ -69,7 +69,7 @@ function Stars({ value }: { value: number }) {
             key={i}
             className={cn(
               "text-[12px]",
-              isFull || isHalf ? "text-yellow-400" : "text-muted-foreground/40"
+              isFull || isHalf ? "text-yellow-400" : "text-muted-foreground/40",
             )}
           >
             ★
@@ -96,8 +96,9 @@ export default function ProductCardCompact({
       ? Number(product.bundleStockLimit ?? product.stock ?? 0)
       : Number(product.stock ?? 0);
 
-  const bundleItemCount =
-    Number(product.bundleItemCount ?? product.bundleItems?.length ?? 0);
+  const bundleItemCount = Number(
+    product.bundleItemCount ?? product.bundleItems?.length ?? 0,
+  );
 
   const isOutOfStock = effectiveStock === 0;
   const ratingAvg = Number(product.ratingAvg ?? 0);
@@ -107,7 +108,7 @@ export default function ProductCardCompact({
     (product.originalPrice ?? 0) > (product.price ?? 0) && !isOutOfStock;
 
   const handleAddToCart = async (
-    e: React.MouseEvent<HTMLButtonElement, MouseEvent>
+    e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -125,9 +126,7 @@ export default function ProductCardCompact({
   };
 
   return (
-    <div
-      className="group !p-0 !border-border !bg-card !rounded-2xl min-w-[220px] max-w-[220px] sm:min-w-[240px] sm:max-w-[240px] overflow-hidden shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl"
-    >
+    <div className="group !p-0 !border-border !bg-card !rounded-2xl min-w-[220px] max-w-[220px] sm:min-w-[240px] sm:max-w-[240px] overflow-hidden shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl">
       <Link href={product.href} className="block h-full">
         <div className={cn("h-full", className)}>
           {/* Image Area */}
@@ -154,7 +153,7 @@ export default function ProductCardCompact({
                   e.stopPropagation();
                   onWishlistClick();
                 }}
-                className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 backdrop-blur transition-all duration-300 hover:scale-105 hover:bg-accent hover:text-accent-foreground"
+                className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 backdrop-blur transition-all duration-300 hover:scale-105 hover:bg-accent hover:text-primary-foreground"
                 aria-label={
                   wishlisted ? "Remove from wishlist" : "Add to wishlist"
                 }
@@ -164,7 +163,7 @@ export default function ProductCardCompact({
                     "h-5 w-5 transition-colors",
                     wishlisted
                       ? "fill-primary text-primary"
-                      : "text-muted-foreground"
+                      : "text-muted-foreground",
                   )}
                 />
               </button>
@@ -212,7 +211,6 @@ export default function ProductCardCompact({
             {/* Bundle-specific info */}
             {product.type === "BUNDLE" && (
               <div className="mt-2 space-y-1">
-                
                 {product.bundleSavings && (
                   <div className="text-xs text-green-600 font-medium">
                     Save {product.bundleSavings}
@@ -220,8 +218,13 @@ export default function ProductCardCompact({
                 )}
                 {product.bundleItems && product.bundleItems.length > 0 && (
                   <div className="text-xs text-muted-foreground">
-                    Includes: {product.bundleItems.slice(0, 2).map(item => item.product.name).join(", ")}
-                    {product.bundleItems.length > 2 && ` +${product.bundleItems.length - 2} more`}
+                    Includes:{" "}
+                    {product.bundleItems
+                      .slice(0, 2)
+                      .map((item) => item.product.name)
+                      .join(", ")}
+                    {product.bundleItems.length > 2 &&
+                      ` +${product.bundleItems.length - 2} more`}
                   </div>
                 )}
               </div>
@@ -254,7 +257,7 @@ export default function ProductCardCompact({
                     "group/cart relative mx-2 mt-1.5 flex h-[42px] w-[calc(100%-16px)] items-center justify-center overflow-hidden rounded-[6px] text-[13px] font-semibold shadow-sm transition-all duration-300",
                     isOutOfStock || isAddingToCart
                       ? "cursor-not-allowed bg-destructive text-destructive-foreground"
-                      : "bg-primary text-primary-foreground hover:bg-primary/95"
+                      : "bg-primary text-primary-foreground hover:bg-primary/95",
                   )}
                 >
                   {isOutOfStock ? (

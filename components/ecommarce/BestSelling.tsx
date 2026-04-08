@@ -144,7 +144,7 @@ export default function BestSelling({
         console.error(err);
       }
     },
-    [isAuthenticated, isInWishlist, addToWishlist, removeFromWishlist]
+    [isAuthenticated, isInWishlist, addToWishlist, removeFromWishlist],
   );
 
   const handleAddToCart = useCallback(
@@ -155,7 +155,7 @@ export default function BestSelling({
         console.error(err);
       }
     },
-    [addToCart]
+    [addToCart],
   );
 
   useEffect(() => {
@@ -177,7 +177,7 @@ export default function BestSelling({
 
         if (!mounted) return;
 
-        const pList: any[] = Array.isArray(pData) ? pData : pData?.data ?? [];
+        const pList: any[] = Array.isArray(pData) ? pData : (pData?.data ?? []);
         const rList = normalizeReviewsPayload(rData);
 
         const mappedProducts: ProductDTO[] = pList.map((p) => {
@@ -292,14 +292,14 @@ export default function BestSelling({
               onClick={() => {
                 console.log("Ask AI clicked");
               }}
-              className="group relative flex w-full items-center gap-2 rounded-full bg-secondary px-4 py-2 transition-all duration-200 hover:bg-secondary/90"
+              className="group relative flex w-full items-center gap-2 rounded-full bg-primary px-4 py-2 transition-all duration-200 hover:bg-secondary/90"
             >
               <div className="relative">
-                <FaRobot className="h-4 w-4 text-foreground transition-transform group-hover:scale-110" />
+                <FaRobot className="h-4 w-4 text-primary-foreground transition-transform group-hover:scale-110" />
                 <div className="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full border border-background bg-primary" />
               </div>
 
-              <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">
+              <span className="text-sm font-medium text-primary-foreground transition-colors group-hover:text-primary-foreground">
                 Ask AI
               </span>
             </button>
@@ -343,7 +343,7 @@ export default function BestSelling({
               : visible.map((p) => {
                   const discountPct = calcDiscountPercent(
                     p.basePrice,
-                    p.originalPrice
+                    p.originalPrice,
                   );
 
                   const stats = reviewStats[String(p.id)] ?? {
@@ -354,7 +354,11 @@ export default function BestSelling({
                   const isWishlisted = isInWishlist(p.id);
 
                   return (
-                    <div key={String(p.id)} className="snap-start" data-card="1">
+                    <div
+                      key={String(p.id)}
+                      className="snap-start"
+                      data-card="1"
+                    >
                       <ProductCardCompact
                         product={{
                           id: p.id,
