@@ -119,52 +119,35 @@ export default function WarehouseDashboardPage() {
     useState<WarehouseType | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const fetchDashboard = useCallback(
-    async (nextWarehouseId?: string, showRefresh = false) => {
-      try {
-        if (showRefresh) {
-          setRefreshing(true);
-        } else {
-          setLoading(true);
-        }
-        setError("");
-
-        const params = new URLSearchParams();
-        // Use nextWarehouseId if provided, otherwise use current warehouseId
-        // Empty string means "all warehouses" - don't set the parameter
-        const resolvedWarehouseId =
-          nextWarehouseId !== undefined ? nextWarehouseId : warehouseId;
-        if (resolvedWarehouseId) {
-          params.set("warehouseId", resolvedWarehouseId);
-        }
-
-        const response = await fetch(
-          `/api/admin/warehouse-dashboard${params.size > 0 ? `?${params}` : ""}`,
-          {
-            cache: "no-store",
-          },
-        );
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(
-            payload?.error || "Failed to load warehouse dashboard",
-          );
-        }
-
-        setData(payload);
-      } catch (fetchError) {
-        setError(
-          fetchError instanceof Error
-            ? fetchError.message
-            : "Failed to load warehouse dashboard",
-        );
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+  const fetchDashboard = useCallback(async (showRefresh = false) => {
+    try {
+      if (showRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
       }
-    },
-    [warehouseId],
-  );
+      setError("");
+
+      const response = await fetch("/api/admin/warehouse-dashboard", {
+        cache: "no-store",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to load warehouse dashboard");
+      }
+
+      setData(payload);
+    } catch (fetchError) {
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Failed to load warehouse dashboard",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   const loadMapData = useCallback(async () => {
     setMapLoading(true);
@@ -194,16 +177,8 @@ export default function WarehouseDashboardPage() {
     }
   }, []);
 
-  // Filter map data based on selected warehouse
-  const filteredMapData = useMemo(() => {
-    if (!mapData.length) return [];
-
-    if (!warehouseId || warehouseId === "all") {
-      return mapData;
-    }
-
-    return mapData.filter((warehouse) => String(warehouse.id) === warehouseId);
-  }, [mapData, warehouseId]);
+  const selectedMapWarehouseId =
+    warehouseId && warehouseId !== "all" ? warehouseId : null;
 
   useEffect(() => {
     fetchDashboard();
@@ -212,11 +187,7 @@ export default function WarehouseDashboardPage() {
   }, [fetchDashboard, loadMapData, loadWarehouses]);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([
-      fetchDashboard(undefined, true),
-      loadMapData(),
-      loadWarehouses(),
-    ]);
+    await Promise.all([fetchDashboard(true), loadMapData(), loadWarehouses()]);
   }, [fetchDashboard, loadMapData, loadWarehouses]);
 
   const selectedWarehouseLabel = useMemo(() => {
@@ -272,73 +243,92 @@ export default function WarehouseDashboardPage() {
     [data, selectedWarehouseLabel],
   );
 
+  const handleWarehouseCardClick = useCallback(
+    (selectedWarehouseId: number) => {
+      setWarehouseId(String(selectedWarehouseId));
+    },
+    [],
+  );
+
   const warehouseCardItems = useMemo(() => {
     if (!data?.warehouseCards.length) return null;
 
-    return data.warehouseCards.map((card) => (
-      <div
-        key={card.warehouseId}
-        className="grid gap-3 rounded-2xl border bg-background p-4 md:grid-cols-6"
-      >
-        <div className="md:col-span-2">
-          <p className="font-medium text-foreground">
-            {card.name} ({card.code})
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {card.isDefault ? "Default warehouse" : "Operational warehouse"}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-              {Math.max(0, card.totalUnits - card.reservedUnits)} available
-            </span>
-            <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700">
-              {card.deliveredToday} delivered today
-            </span>
+    return data.warehouseCards.map((card) => {
+      const isSelected = String(card.warehouseId) === warehouseId;
+      return (
+        <button
+          type="button"
+          key={card.warehouseId}
+          onClick={() => void handleWarehouseCardClick(card.warehouseId)}
+          className={`grid gap-3 w-full rounded-2xl border bg-background p-4 text-left transition hover:bg-accent/10 focus:outline-none md:grid-cols-6 ${
+            isSelected ? "border-primary bg-primary/5" : "border-border"
+          }`}
+        >
+          <div className="md:col-span-2">
+            <p className="font-medium text-foreground">
+              {card.name} ({card.code})
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {card.isDefault ? "Default warehouse" : "Operational warehouse"}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                {Math.max(0, card.totalUnits - card.reservedUnits)} available
+              </span>
+              <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700">
+                {card.deliveredToday} delivered today
+              </span>
+            </div>
           </div>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Units
-          </p>
-          <p className="mt-1 text-base font-semibold text-foreground">
-            {card.totalUnits}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Reserved
-          </p>
-          <p className="mt-1 text-base font-semibold text-foreground">
-            {card.reservedUnits}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Low Stock
-          </p>
-          <p className="mt-1 text-base font-semibold text-foreground">
-            {card.lowStockItems}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            Shipments
-          </p>
-          <p className="mt-1 text-base font-semibold text-foreground">
-            {card.pendingShipments} pending
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Pressure indicator
-          </p>
-        </div>
-      </div>
-    ));
-  }, [data?.warehouseCards]);
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Units
+            </p>
+            <p className="mt-1 text-base font-semibold text-foreground">
+              {card.totalUnits}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Reserved
+            </p>
+            <p className="mt-1 text-base font-semibold text-foreground">
+              {card.reservedUnits}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Low Stock
+            </p>
+            <p className="mt-1 text-base font-semibold text-foreground">
+              {card.lowStockItems}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Shipments
+            </p>
+            <p className="mt-1 text-base font-semibold text-foreground">
+              {card.pendingShipments} pending
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Pressure indicator
+            </p>
+          </div>
+        </button>
+      );
+    });
+  }, [data?.warehouseCards, handleWarehouseCardClick, warehouseId]);
 
   const lowStockItems = useMemo(() => {
     if (!data?.lowStock.length) return null;
 
-    return data.lowStock.map((item) => (
+    // Filter by selected warehouse if one is selected
+    const filteredLowStock = warehouseId
+      ? data.lowStock.filter((item) => String(item.warehouseId) === warehouseId)
+      : data.lowStock;
+
+    return filteredLowStock.map((item) => (
       <div
         key={`${item.warehouseId}:${item.variantId}`}
         className="rounded-2xl border bg-background p-4"
@@ -359,12 +349,21 @@ export default function WarehouseDashboardPage() {
         </p>
       </div>
     ));
-  }, [data?.lowStock]);
+  }, [data?.lowStock, warehouseId]);
 
   const recentShipmentItems = useMemo(() => {
     if (!data?.recentShipments.length) return null;
 
-    return data.recentShipments.map((shipment) => (
+    // Filter by selected warehouse if one is selected
+    const filteredShipments = warehouseId
+      ? data.recentShipments.filter(
+          (shipment) =>
+            shipment.warehouseId &&
+            String(shipment.warehouseId) === warehouseId,
+        )
+      : data.recentShipments;
+
+    return filteredShipments.map((shipment) => (
       <div key={shipment.id} className="rounded-2xl border bg-background p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -386,12 +385,25 @@ export default function WarehouseDashboardPage() {
         </div>
       </div>
     ));
-  }, [data?.recentShipments]);
+  }, [data?.recentShipments, warehouseId]);
 
   const recentLogItems = useMemo(() => {
     if (!data?.recentLogs.length) return null;
 
-    return data.recentLogs.map((log) => (
+    // Filter by selected warehouse if one is selected
+    let filteredLogs = data.recentLogs;
+    if (warehouseId) {
+      const selectedWarehouse = data.warehouses.find(
+        (w) => String(w.id) === warehouseId,
+      );
+      if (selectedWarehouse) {
+        filteredLogs = data.recentLogs.filter(
+          (log) => log.warehouseName === selectedWarehouse.name,
+        );
+      }
+    }
+
+    return filteredLogs.map((log) => (
       <div key={log.id} className="rounded-2xl border bg-background p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -416,7 +428,7 @@ export default function WarehouseDashboardPage() {
         </p>
       </div>
     ));
-  }, [data?.recentLogs]);
+  }, [data?.recentLogs, data?.warehouses, warehouseId]);
 
   if (loading) {
     return <WarehouseDashboardSkeleton />;
@@ -462,7 +474,6 @@ export default function WarehouseDashboardPage() {
                     onValueChange={(value) => {
                       const nextWarehouseId = value === "all" ? "" : value;
                       setWarehouseId(nextWarehouseId);
-                      void fetchDashboard(nextWarehouseId);
                     }}
                   >
                     <DropdownMenuRadioItem value="all">
@@ -610,13 +621,12 @@ export default function WarehouseDashboardPage() {
                       </p>
                     </div>
 
-                    {!mapLoading && filteredMapData.length > 0 ? (
+                    {!mapLoading && mapData.length > 0 ? (
                       <div className="mb-4 text-sm text-muted-foreground">
-                        {filteredMapData.length} warehouse(s) found with
-                        location data
+                        {mapData.length} warehouse(s) found with location data
                         {warehouseId &&
                           warehouseId !== "all" &&
-                          " for selected warehouse"}
+                          " · highlighting selected warehouse"}
                       </div>
                     ) : null}
 
@@ -627,7 +637,7 @@ export default function WarehouseDashboardPage() {
                         <div className="h-4 bg-gray-200 rounded w-2/3"></div>
                         <div className="h-96 bg-gray-200 rounded mt-4"></div>
                       </div>
-                    ) : filteredMapData.length === 0 ? (
+                    ) : mapData.length === 0 ? (
                       <div className="text-center py-8">
                         <Map className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-sm text-muted-foreground">
@@ -653,7 +663,7 @@ export default function WarehouseDashboardPage() {
 
                         <WarehouseLocationPicker
                           readonly
-                          markers={filteredMapData.map((warehouse) => ({
+                          markers={mapData.map((warehouse) => ({
                             id: warehouse.id,
                             name: warehouse.name,
                             code: warehouse.code,
@@ -665,8 +675,14 @@ export default function WarehouseDashboardPage() {
                             coverageRadiusKm:
                               warehouse.coverageRadiusKm ?? null,
                           }))}
+                          selectedMarkerId={selectedMapWarehouseId}
                           title="Warehouse Coverage Map"
                           heightClassName="h-96"
+                          onMarkerSelect={(id) => {
+                            if (id !== null) {
+                              setWarehouseId(String(id));
+                            }
+                          }}
                           onError={() => {
                             const errorBoundary =
                               document.getElementById("map-error-boundary");

@@ -20,10 +20,9 @@ const Marker = dynamic(
   { ssr: false },
 );
 
-const Popup = dynamic(
-  () => import("react-leaflet").then((mod) => mod.Popup),
-  { ssr: false },
-);
+const Popup = dynamic(() => import("react-leaflet").then((mod) => mod.Popup), {
+  ssr: false,
+});
 
 const Circle = dynamic(
   () => import("react-leaflet").then((mod) => mod.Circle),
@@ -54,6 +53,8 @@ interface WarehouseLocationPickerProps {
   emptyMessage?: string;
   coverageRadiusKm?: number | null;
   onError?: () => void;
+  selectedMarkerId?: number | string | null;
+  onMarkerSelect?: (id: number | string | null) => void;
 }
 
 function MapClickHandler({
@@ -98,34 +99,47 @@ export default function WarehouseLocationPicker({
   emptyMessage = "No valid warehouse coordinates found for the map.",
   coverageRadiusKm = null,
   onError,
+  selectedMarkerId: selectedMarkerIdProp = null,
+  onMarkerSelect,
 }: WarehouseLocationPickerProps) {
   const [isClient, setIsClient] = useState(false);
   const [leaflet, setLeaflet] = useState<any>(null);
   const [mapReady, setMapReady] = useState(false);
-  const [selectedMarkerId, setSelectedMarkerId] = useState<number | string | null>(null);
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
+  const markersRef = useRef<Map<string, any>>(new Map());
+
+  useEffect(() => {
+    if (selectedMarkerIdProp === null || selectedMarkerIdProp === undefined) {
+      setSelectedMarkerId(null);
+    } else {
+      setSelectedMarkerId(String(selectedMarkerIdProp));
+    }
+  }, [selectedMarkerIdProp]);
 
   useEffect(() => {
     setIsClient(true);
-    import("leaflet").then((leafletModule) => {
-      delete (leafletModule.Icon.Default.prototype as any)._getIconUrl;
-      leafletModule.Icon.Default.mergeOptions({
-        iconRetinaUrl:
-          "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-        iconUrl:
-          "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-        shadowUrl:
-          "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+    import("leaflet")
+      .then((leafletModule) => {
+        delete (leafletModule.Icon.Default.prototype as any)._getIconUrl;
+        leafletModule.Icon.Default.mergeOptions({
+          iconRetinaUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+          iconUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+          shadowUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+        });
+        setLeaflet(leafletModule);
+        // Add a small delay to ensure Leaflet is fully initialized
+        setTimeout(() => setMapReady(true), 100);
+      })
+      .catch((error) => {
+        console.error("Failed to load Leaflet:", error);
+        if (onError) {
+          onError();
+        }
       });
-      setLeaflet(leafletModule);
-      // Add a small delay to ensure Leaflet is fully initialized
-      setTimeout(() => setMapReady(true), 100);
-    }).catch((error) => {
-      console.error("Failed to load Leaflet:", error);
-      if (onError) {
-        onError();
-      }
-    });
   }, []);
 
   const hasSinglePoint =
@@ -150,7 +164,9 @@ export default function WarehouseLocationPicker({
     () =>
       selectedMarkerId === null
         ? null
-        : validMarkers.find((marker) => marker.id === selectedMarkerId) ?? null,
+        : (validMarkers.find(
+            (marker) => String(marker.id) === selectedMarkerId,
+          ) ?? null),
     [selectedMarkerId, validMarkers],
   );
 
@@ -176,6 +192,16 @@ export default function WarehouseLocationPicker({
       } else {
         map.setView([selectedMarker.latitude, selectedMarker.longitude], 15);
       }
+
+      setTimeout(() => {
+        const markerInstance = markersRef.current.get(
+          String(selectedMarker.id),
+        );
+        if (markerInstance && markerInstance.openPopup) {
+          markerInstance.openPopup();
+        }
+      }, 300);
+
       return;
     }
 
@@ -200,7 +226,14 @@ export default function WarehouseLocationPicker({
     }
 
     map.setView([23.8103, 90.4125], 7);
-  }, [hasSinglePoint, latitude, leaflet, longitude, selectedMarker, validMarkers]);
+  }, [
+    hasSinglePoint,
+    latitude,
+    leaflet,
+    longitude,
+    selectedMarker,
+    validMarkers,
+  ]);
 
   useEffect(() => {
     if (!readonly) {
@@ -209,7 +242,9 @@ export default function WarehouseLocationPicker({
     }
 
     if (selectedMarkerId !== null) {
-      const stillExists = validMarkers.some((marker) => marker.id === selectedMarkerId);
+      const stillExists = validMarkers.some(
+        (marker) => marker.id === selectedMarkerId,
+      );
       if (!stillExists) {
         setSelectedMarkerId(null);
       }
@@ -252,12 +287,19 @@ export default function WarehouseLocationPicker({
 
   return (
     <div className="space-y-2">
+      <style global jsx>{`
+        .leaflet-marker-icon {
+          cursor: pointer;
+        }
+      `}</style>
       {title ? <div className="text-sm font-medium">{title}</div> : null}
       {description ? (
         <p className="text-xs text-muted-foreground">{description}</p>
       ) : null}
 
-      <div className={`w-full ${heightClassName} overflow-hidden rounded-xl border border-border`}>
+      <div
+        className={`w-full ${heightClassName} overflow-hidden rounded-xl border border-border`}
+      >
         <MapContainer
           center={center}
           zoom={13}
@@ -282,18 +324,37 @@ export default function WarehouseLocationPicker({
             <Marker
               key={marker.id}
               position={[marker.latitude, marker.longitude]}
+              ref={(markerInstance) => {
+                if (markerInstance) {
+                  markersRef.current.set(String(marker.id), markerInstance);
+                }
+              }}
               eventHandlers={{
                 click: () => {
-                  setSelectedMarkerId(marker.id);
+                  const markerIdString = String(marker.id);
+                  setSelectedMarkerId(markerIdString);
+                  onMarkerSelect?.(markerIdString);
+                },
+                mouseover: (event: any) => {
+                  event.target.openPopup();
+                },
+                mouseout: (event: any) => {
+                  event.target.closePopup();
                 },
               }}
             >
               <Popup>
                 <div className="space-y-1 text-sm">
-                  <div className="font-semibold">{marker.label || marker.name}</div>
+                  <div className="font-semibold">
+                    {marker.label || marker.name}
+                  </div>
                   {marker.code ? <div>Code: {marker.code}</div> : null}
                   {marker.district || marker.area ? (
-                    <div>{[marker.area, marker.district].filter(Boolean).join(", ")}</div>
+                    <div>
+                      {[marker.area, marker.district]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </div>
                   ) : null}
                   {marker.coverageRadiusKm && marker.coverageRadiusKm > 0 ? (
                     <div>Coverage Radius: {marker.coverageRadiusKm} km</div>
@@ -329,7 +390,10 @@ export default function WarehouseLocationPicker({
             ) : null;
           })}
 
-          {readonly && selectedMarker && selectedMarker.coverageRadiusKm && selectedMarker.coverageRadiusKm > 0 ? (
+          {readonly &&
+          selectedMarker &&
+          selectedMarker.coverageRadiusKm &&
+          selectedMarker.coverageRadiusKm > 0 ? (
             <Circle
               center={[selectedMarker.latitude, selectedMarker.longitude]}
               radius={selectedMarker.coverageRadiusKm * 1000}
@@ -371,7 +435,9 @@ export default function WarehouseLocationPicker({
             </>
           ) : null}
 
-          {!readonly ? <MapClickHandler onLocationChange={onLocationChange} /> : null}
+          {!readonly ? (
+            <MapClickHandler onLocationChange={onLocationChange} />
+          ) : null}
         </MapContainer>
       </div>
     </div>
