@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
 
-import StickerPrintToolbar from "@/app/admin/products/stickers/StickerPrintToolbar";
+import StickerPrintToolbar from "@/app/admin/operations/products/stickers/StickerPrintToolbar";
 import {
   STICKER_SIZE_PRESETS,
   normalizeBooleanFlag,
   normalizeCopies,
   normalizeStickerSize,
-} from "@/app/admin/products/stickers/sticker-config";
+} from "@/app/admin/operations/products/stickers/sticker-config";
 
 export const dynamic = "force-dynamic";
 
@@ -60,9 +60,12 @@ export default async function StickerPage({
   if (variantIds.length === 0) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <p className="text-lg font-semibold text-foreground">No variants selected</p>
+        <p className="text-lg font-semibold text-foreground">
+          No variants selected
+        </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Open the product manager, choose one or more variants, then use the sticker print action.
+          Open the product manager, choose one or more variants, then use the
+          sticker print action.
         </p>
       </main>
     );
@@ -87,7 +90,9 @@ export default async function StickerPage({
 
   const sortedVariants = variantIds
     .map((variantId) => variants.find((variant) => variant.id === variantId))
-    .filter((variant): variant is NonNullable<typeof variant> => Boolean(variant));
+    .filter((variant): variant is NonNullable<typeof variant> =>
+      Boolean(variant),
+    );
 
   const labels = sortedVariants.flatMap((variant) =>
     Array.from({ length: copies }, (_, copyIndex) => ({
@@ -111,12 +116,17 @@ export default async function StickerPage({
       <section className="sticker-preview-shell">
         <section className="sticker-sheet">
           {labels.map(({ variant, copyIndex }) => {
-            const barcode = variant.codes.find((code) => code.kind === "BARCODE") ?? null;
-            const qrCode = variant.codes.find((code) => code.kind === "QRCODE") ?? null;
+            const barcode =
+              variant.codes.find((code) => code.kind === "BARCODE") ?? null;
+            const qrCode =
+              variant.codes.find((code) => code.kind === "QRCODE") ?? null;
             const optionsText = formatOptions(variant.options);
 
             return (
-              <article key={`${variant.id}-${copyIndex}`} className="sticker-card">
+              <article
+                key={`${variant.id}-${copyIndex}`}
+                className="sticker-card"
+              >
                 <div className="sticker-topline" />
                 <div className="sticker-header">
                   <div className="sticker-header-row">
@@ -130,7 +140,9 @@ export default async function StickerPage({
                   {optionsText ? (
                     <p className="sticker-options">{optionsText}</p>
                   ) : (
-                    <p className="sticker-options sticker-options-empty">Standard variant</p>
+                    <p className="sticker-options sticker-options-empty">
+                      Standard variant
+                    </p>
                   )}
                 </div>
 
@@ -146,7 +158,9 @@ export default async function StickerPage({
                     ) : (
                       <div className="sticker-missing">Barcode missing</div>
                     )}
-                    {barcode ? <p className="sticker-code-value">{barcode.value}</p> : null}
+                    {barcode ? (
+                      <p className="sticker-code-value">{barcode.value}</p>
+                    ) : null}
                   </div>
 
                   <div className="sticker-side">

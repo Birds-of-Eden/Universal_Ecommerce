@@ -128,23 +128,25 @@ export default function DeliveryManEditPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
-    phone: '',
-    alternatePhone: '',
-    presentAddress: '',
-    warehouseId: ''
+    phone: "",
+    alternatePhone: "",
+    presentAddress: "",
+    warehouseId: "",
   });
 
-  const [warehouses, setWarehouses] = useState<Array<{id: number; name: string; code: string}>>([]);
+  const [warehouses, setWarehouses] = useState<
+    Array<{ id: number; name: string; code: string }>
+  >([]);
 
   const fetchWarehouses = async () => {
     try {
-      const response = await fetch('/api/warehouses');
+      const response = await fetch("/api/warehouses");
       if (response.ok) {
         const data = await response.json();
         setWarehouses(data);
       }
     } catch (error) {
-      console.error('Error fetching warehouses:', error);
+      console.error("Error fetching warehouses:", error);
     }
   };
 
@@ -154,14 +156,14 @@ export default function DeliveryManEditPage() {
     try {
       setLoading(true);
       const response = await fetch(`/api/delivery-men/${id}`);
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           toast.error("Delivery man not found");
         } else {
           toast.error("Failed to fetch delivery man");
         }
-        router.push("/admin/delivery-men");
+        router.push("/admin/warehouse/delivery-men");
         return;
       }
 
@@ -170,19 +172,19 @@ export default function DeliveryManEditPage() {
       if (data.success) {
         setDeliveryMan(data.data);
         setFormData({
-          phone: data.data.phone || '',
-          alternatePhone: data.data.alternatePhone || '',
-          presentAddress: data.data.presentAddress || '',
-          warehouseId: data.data.warehouseId?.toString() || ''
+          phone: data.data.phone || "",
+          alternatePhone: data.data.alternatePhone || "",
+          presentAddress: data.data.presentAddress || "",
+          warehouseId: data.data.warehouseId?.toString() || "",
         });
       } else {
         toast.error(data.message || "Failed to fetch delivery man");
-        router.push("/admin/delivery-men");
+        router.push("/admin/warehouse/delivery-men");
       }
     } catch (error) {
       console.error("Error fetching delivery man:", error);
       toast.error("Failed to fetch delivery man");
-      router.push("/admin/delivery-men");
+      router.push("/admin/warehouse/delivery-men");
     } finally {
       setLoading(false);
     }
@@ -197,10 +199,10 @@ export default function DeliveryManEditPage() {
     try {
       setUploading(true);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append("file", file);
 
-      const uploadResponse = await fetch('/api/upload', {
-        method: 'POST',
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
       });
 
@@ -208,19 +210,22 @@ export default function DeliveryManEditPage() {
 
       if (uploadData.success) {
         // Update delivery man with new document
-        const documentResponse = await fetch(`/api/delivery-men/${id}/documents`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        const documentResponse = await fetch(
+          `/api/delivery-men/${id}/documents`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              type,
+              fileUrl: uploadData.fileUrl,
+              fileName: file.name,
+              mimeType: file.type,
+              fileSize: file.size,
+            }),
           },
-          body: JSON.stringify({
-            type,
-            fileUrl: uploadData.fileUrl,
-            fileName: file.name,
-            mimeType: file.type,
-            fileSize: file.size,
-          }),
-        });
+        );
 
         const documentData = await documentResponse.json();
 
@@ -242,7 +247,7 @@ export default function DeliveryManEditPage() {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
@@ -251,9 +256,9 @@ export default function DeliveryManEditPage() {
     try {
       setSaving(true);
       const response = await fetch(`/api/delivery-men/${id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
       });
@@ -267,9 +272,11 @@ export default function DeliveryManEditPage() {
           phone: formData.phone,
           alternatePhone: formData.alternatePhone,
           presentAddress: formData.presentAddress,
-          warehouseId: formData.warehouseId ? parseInt(formData.warehouseId, 10) : deliveryMan.warehouseId
+          warehouseId: formData.warehouseId
+            ? parseInt(formData.warehouseId, 10)
+            : deliveryMan.warehouseId,
         };
-        setDeliveryMan(prev => prev ? { ...prev, ...updateData } : null);
+        setDeliveryMan((prev) => (prev ? { ...prev, ...updateData } : null));
       } else {
         toast.error(data.message || "Failed to update delivery man");
       }
@@ -287,9 +294,9 @@ export default function DeliveryManEditPage() {
     try {
       setSaving(true);
       const response = await fetch(`/api/delivery-men/${id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           status: newStatus,
@@ -300,7 +307,9 @@ export default function DeliveryManEditPage() {
 
       if (data.success) {
         toast.success("Status updated successfully");
-        setDeliveryMan(prev => prev ? { ...prev, status: newStatus } : null);
+        setDeliveryMan((prev) =>
+          prev ? { ...prev, status: newStatus } : null,
+        );
       } else {
         toast.error(data.message || "Failed to update status");
       }
@@ -316,9 +325,12 @@ export default function DeliveryManEditPage() {
     if (!confirm("Are you sure you want to delete this document?")) return;
 
     try {
-      const response = await fetch(`/api/delivery-men/${id}/documents/${documentId}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(
+        `/api/delivery-men/${id}/documents/${documentId}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       const data = await response.json();
 
@@ -335,7 +347,13 @@ export default function DeliveryManEditPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
+    const variants: Record<
+      string,
+      {
+        variant: "default" | "secondary" | "destructive" | "outline";
+        label: string;
+      }
+    > = {
       ACTIVE: { variant: "default", label: "Active" },
       INACTIVE: { variant: "secondary", label: "Inactive" },
       PENDING: { variant: "outline", label: "Pending" },
@@ -365,7 +383,7 @@ export default function DeliveryManEditPage() {
         <p className="text-muted-foreground">Delivery man not found</p>
         <Button
           variant="outline"
-          onClick={() => router.push("/admin/delivery-men")}
+          onClick={() => router.push("/admin/warehouse/delivery-men")}
           className="mt-4"
         >
           Back to Delivery Men
@@ -380,14 +398,16 @@ export default function DeliveryManEditPage() {
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
-            onClick={() => router.push("/admin/delivery-men")}
+            onClick={() => router.push("/admin/warehouse/delivery-men")}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Edit Delivery Man</h1>
+            <h1 className="text-3xl font-bold text-foreground">
+              Edit Delivery Man
+            </h1>
             <p className="text-muted-foreground mt-1">
               {deliveryMan.fullName} - {deliveryMan.employeeCode || "No Code"}
             </p>
@@ -442,17 +462,19 @@ export default function DeliveryManEditPage() {
               </div>
               <div>
                 <label className="text-sm font-medium">Phone</label>
-                <Input 
-                  value={formData.phone} 
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                <Input
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange("phone", e.target.value)}
                   disabled={saving}
                 />
               </div>
               <div>
                 <label className="text-sm font-medium">Alternate Phone</label>
-                <Input 
-                  value={formData.alternatePhone} 
-                  onChange={(e) => handleInputChange('alternatePhone', e.target.value)}
+                <Input
+                  value={formData.alternatePhone}
+                  onChange={(e) =>
+                    handleInputChange("alternatePhone", e.target.value)
+                  }
                   disabled={saving}
                 />
               </div>
@@ -476,9 +498,11 @@ export default function DeliveryManEditPage() {
 
             <div>
               <label className="text-sm font-medium">Present Address</label>
-              <Input 
-                value={formData.presentAddress} 
-                onChange={(e) => handleInputChange('presentAddress', e.target.value)}
+              <Input
+                value={formData.presentAddress}
+                onChange={(e) =>
+                  handleInputChange("presentAddress", e.target.value)
+                }
                 disabled={saving}
               />
             </div>
@@ -490,16 +514,29 @@ export default function DeliveryManEditPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium">Emergency Contact Name</label>
-                <Input value={deliveryMan.emergencyContactName || ""} disabled />
+                <label className="text-sm font-medium">
+                  Emergency Contact Name
+                </label>
+                <Input
+                  value={deliveryMan.emergencyContactName || ""}
+                  disabled
+                />
               </div>
               <div>
-                <label className="text-sm font-medium">Emergency Contact Phone</label>
-                <Input value={deliveryMan.emergencyContactPhone || ""} disabled />
+                <label className="text-sm font-medium">
+                  Emergency Contact Phone
+                </label>
+                <Input
+                  value={deliveryMan.emergencyContactPhone || ""}
+                  disabled
+                />
               </div>
               <div>
                 <label className="text-sm font-medium">Relation</label>
-                <Input value={deliveryMan.emergencyContactRelation || ""} disabled />
+                <Input
+                  value={deliveryMan.emergencyContactRelation || ""}
+                  disabled
+                />
               </div>
             </div>
           </CardContent>
@@ -515,7 +552,9 @@ export default function DeliveryManEditPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Warehouse Assignments</label>
+              <label className="text-sm font-medium">
+                Warehouse Assignments
+              </label>
               <div className="mt-2 space-y-2">
                 {/* Primary warehouse (current assignment) */}
                 <div className="flex items-center justify-between p-3 border rounded-lg bg-primary/5 border-primary/20">
@@ -523,14 +562,19 @@ export default function DeliveryManEditPage() {
                     <div className="w-2 h-2 bg-primary rounded-full"></div>
                     <div>
                       <p className="font-medium text-sm">
-                        {deliveryMan.warehouse?.name || "N/A"} ({deliveryMan.warehouse?.code || ""})
+                        {deliveryMan.warehouse?.name || "N/A"} (
+                        {deliveryMan.warehouse?.code || ""})
                       </p>
-                      <p className="text-xs text-muted-foreground">Primary Warehouse</p>
+                      <p className="text-xs text-muted-foreground">
+                        Primary Warehouse
+                      </p>
                     </div>
                   </div>
                   <Select
                     value={formData.warehouseId}
-                    onValueChange={(value) => handleInputChange('warehouseId', value)}
+                    onValueChange={(value) =>
+                      handleInputChange("warehouseId", value)
+                    }
                     disabled={saving}
                   >
                     <SelectTrigger className="w-[200px]">
@@ -538,33 +582,48 @@ export default function DeliveryManEditPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {warehouses.map((warehouse) => (
-                        <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                        <SelectItem
+                          key={warehouse.id}
+                          value={warehouse.id.toString()}
+                        >
                           {warehouse.name} ({warehouse.code})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 {/* Additional warehouses from delivery assignments */}
-                {deliveryMan.deliveryAssignments && deliveryMan.deliveryAssignments.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground mt-3">Additional warehouse access:</p>
-                    {deliveryMan.deliveryAssignments
-                      .filter(assignment => assignment.warehouseId !== deliveryMan.warehouseId)
-                      .map((assignment) => (
-                        <div key={assignment.id} className="flex items-center gap-3 p-2 border rounded-lg bg-muted/30">
-                          <div className="w-2 h-2 bg-muted-foreground rounded-full"></div>
-                          <div>
-                            <p className="text-sm font-medium">
-                              {assignment.warehouse.name} ({assignment.warehouse.code})
-                            </p>
-                            <p className="text-xs text-muted-foreground">Delivery Assignment</p>
+                {deliveryMan.deliveryAssignments &&
+                  deliveryMan.deliveryAssignments.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Additional warehouse access:
+                      </p>
+                      {deliveryMan.deliveryAssignments
+                        .filter(
+                          (assignment) =>
+                            assignment.warehouseId !== deliveryMan.warehouseId,
+                        )
+                        .map((assignment) => (
+                          <div
+                            key={assignment.id}
+                            className="flex items-center gap-3 p-2 border rounded-lg bg-muted/30"
+                          >
+                            <div className="w-2 h-2 bg-muted-foreground rounded-full"></div>
+                            <div>
+                              <p className="text-sm font-medium">
+                                {assignment.warehouse.name} (
+                                {assignment.warehouse.code})
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Delivery Assignment
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                  </div>
-                )}
+                        ))}
+                    </div>
+                  )}
               </div>
             </div>
             <div>
@@ -614,7 +673,9 @@ export default function DeliveryManEditPage() {
               disabled={uploading}
             />
             <Button
-              onClick={() => document.getElementById('document-upload')?.click()}
+              onClick={() =>
+                document.getElementById("document-upload")?.click()
+              }
               disabled={uploading}
               className="flex items-center gap-2"
             >
@@ -625,7 +686,10 @@ export default function DeliveryManEditPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {deliveryMan.documents.map((document) => (
-              <div key={document.id} className="border rounded-lg p-4 space-y-2">
+              <div
+                key={document.id}
+                className="border rounded-lg p-4 space-y-2"
+              >
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium">{document.type}</h4>
                   <Button
@@ -678,7 +742,10 @@ export default function DeliveryManEditPage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {deliveryMan.references.map((reference) => (
-              <div key={reference.id} className="border rounded-lg p-4 space-y-2">
+              <div
+                key={reference.id}
+                className="border rounded-lg p-4 space-y-2"
+              >
                 <h4 className="font-medium">{reference.name}</h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex items-center gap-2">
@@ -697,7 +764,10 @@ export default function DeliveryManEditPage() {
                       {reference.address}
                     </div>
                   )}
-                  <div>Identity: {reference.identityType} - {reference.identityNumber}</div>
+                  <div>
+                    Identity: {reference.identityType} -{" "}
+                    {reference.identityNumber}
+                  </div>
                 </div>
               </div>
             ))}

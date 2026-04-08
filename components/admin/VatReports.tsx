@@ -397,9 +397,7 @@ export default function VatReports() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge className="px-3 py-1">
-                Range: {rangeLabel}
-              </Badge>
+              <Badge className="px-3 py-1">Range: {rangeLabel}</Badge>
               <Badge variant="outline" className="px-3 py-1">
                 {loading
                   ? "Refreshing"
@@ -586,9 +584,7 @@ export default function VatReports() {
                               {fmtMoney(row.totalTaxCharge)}
                             </TableCell>
                             <TableCell>
-                              <Badge
-                                className="rounded-full"
-                              >
+                              <Badge className="rounded-full">
                                 {row.latestRateLabel}
                               </Badge>
                             </TableCell>
@@ -596,7 +592,7 @@ export default function VatReports() {
                               <div className="flex justify-end gap-2">
                                 <Button asChild size="sm" variant="outline">
                                   <Link
-                                    href={`/admin/settings/vatmanagent/${row.id}`}
+                                    href={`/admin/management/vatmanagent/${row.id}`}
                                   >
                                     View Report
                                   </Link>
@@ -707,7 +703,7 @@ export default function VatReports() {
 
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Button size="sm" variant="outline" asChild>
-                      <Link href={`/admin/settings/vatmanagent/${vat.id}`}>
+                      <Link href={`/admin/management/vatmanagent/${vat.id}`}>
                         Report
                       </Link>
                     </Button>

@@ -94,13 +94,13 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
 
       if (response.ok) {
         toast.success(
-          blog ? "Blog updated successfully" : "Blog created successfully"
+          blog ? "Blog updated successfully" : "Blog created successfully",
         );
 
         if (onSuccess) {
           onSuccess();
         } else {
-          router.push("/admin/blogs");
+          router.push("/admin/management/blogs");
           router.refresh();
         }
       } else {
@@ -125,7 +125,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -235,7 +235,9 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
 
   return (
     <div className="bg-card rounded-lg shadow border-border">
-      <h2 className="text-lg font-semibold p-4 text-foreground">{blog ? "Edit Blog" : "Create New Blog"}</h2>
+      <h2 className="text-lg font-semibold p-4 text-foreground">
+        {blog ? "Edit Blog" : "Create New Blog"}
+      </h2>
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         <div>
           <label
@@ -258,7 +260,9 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
           {/* Slug Preview */}
           <div className="mt-2 p-3 bg-muted rounded-lg border border-border">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Slug:</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                Slug:
+              </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               URL: /ecommerce/blogs/{slug}
@@ -338,7 +342,7 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
 
           {/* Preview */}
           {formData.image && (
-              <div className="mb-3 flex items-center gap-4">
+            <div className="mb-3 flex items-center gap-4">
               <img
                 src={formData.image}
                 alt="Blog featured"
@@ -369,7 +373,9 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
                 </span>
                 <span className="pl-1">or drag and drop</span>
               </div>
-              <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 5MB</p>
+              <p className="text-xs text-muted-foreground">
+                PNG, JPG, GIF up to 5MB
+              </p>
             </div>
             <input
               id="blog-image-upload"
@@ -382,7 +388,9 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
           </label>
 
           {uploadingImage && (
-            <p className="text-xs text-muted-foreground mt-1">Uploading image...</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Uploading image...
+            </p>
           )}
 
           {/* Optional: manual URL input */}
@@ -397,7 +405,9 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-foreground">Advertisement Image (optional)</Label>
+          <Label className="text-foreground">
+            Advertisement Image (optional)
+          </Label>
 
           {formData.ads && (
             <div className="mb-3 flex items-center gap-4">
@@ -430,7 +440,9 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
                 </span>
                 <span className="pl-1">or drag and drop</span>
               </div>
-              <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 5MB</p>
+              <p className="text-xs text-muted-foreground">
+                PNG, JPG, GIF up to 5MB
+              </p>
             </div>
             <input
               id="blog-ad-image-upload"
@@ -443,7 +455,9 @@ export default function BlogForm({ blog, onSuccess }: BlogFormProps) {
           </label>
 
           {uploadingAdImage && (
-            <p className="text-xs text-muted-foreground mt-1">Uploading ad image...</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Uploading ad image...
+            </p>
           )}
 
           <input

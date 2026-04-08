@@ -125,7 +125,7 @@ export async function VatClassDetailSection({
 
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
-              <Link href="/admin/settings/vatmanagent">
+              <Link href="/admin/management/vatmanagent">
                 Back to VAT Management
               </Link>
             </Button>
@@ -171,7 +171,9 @@ export async function VatClassDetailSection({
               <div className="flex gap-2">
                 <Button type="submit">Apply</Button>
                 <Button asChild variant="outline">
-                  <Link href={`/admin/settings/vatmanagent/${id}`}>Clear</Link>
+                  <Link href={`/admin/management/vatmanagent/${id}`}>
+                    Clear
+                  </Link>
                 </Button>
               </div>
             </form>
@@ -181,153 +183,155 @@ export async function VatClassDetailSection({
 
       <div id="vat-class-export" className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <MetricCard
-          title="Collected VAT"
-          value={fmtMoney(report.summary.totalVatAmount)}
-          hint="From saved order VAT snapshots"
-          className="bg-card/90"
-        />
-        <MetricCard
-          title="Taxable Value"
-          value={fmtMoney(report.summary.totalTaxableValue)}
-          hint="Output tax base for this class"
-          className="bg-card/90"
-        />
-        <MetricCard
-          title="Taxed Orders"
-          value={fmtNumber(report.summary.totalOrders)}
-          hint="Orders where this class contributed VAT"
-          className="bg-card/90"
-        />
-        <MetricCard
-          title="Products Assigned"
-          value={fmtNumber(report.vatClass.productCount)}
-          hint={`${fmtNumber(report.summary.totalQuantitySold)} units sold`}
-          className="bg-card/90"
-        />
-        <MetricCard
-          title="Tax Charge"
-          value={fmtMoney(report.summary.totalTaxCharge)}
-          hint="Added VAT where prices are exclusive"
-          className="bg-card/90"
-        />
+          <MetricCard
+            title="Collected VAT"
+            value={fmtMoney(report.summary.totalVatAmount)}
+            hint="From saved order VAT snapshots"
+            className="bg-card/90"
+          />
+          <MetricCard
+            title="Taxable Value"
+            value={fmtMoney(report.summary.totalTaxableValue)}
+            hint="Output tax base for this class"
+            className="bg-card/90"
+          />
+          <MetricCard
+            title="Taxed Orders"
+            value={fmtNumber(report.summary.totalOrders)}
+            hint="Orders where this class contributed VAT"
+            className="bg-card/90"
+          />
+          <MetricCard
+            title="Products Assigned"
+            value={fmtNumber(report.vatClass.productCount)}
+            hint={`${fmtNumber(report.summary.totalQuantitySold)} units sold`}
+            className="bg-card/90"
+          />
+          <MetricCard
+            title="Tax Charge"
+            value={fmtMoney(report.summary.totalTaxCharge)}
+            hint="Added VAT where prices are exclusive"
+            className="bg-card/90"
+          />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr_1.8fr]">
           <Card className="border-border/70">
-          <CardHeader>
-            <CardTitle>Configured Rates</CardTitle>
-            <CardDescription>
-              Current and historical rates mapped to this VAT class.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Region</TableHead>
-                    <TableHead className="text-right">Rate</TableHead>
-                    <TableHead className="text-right">Inclusive</TableHead>
-                    <TableHead>Effective</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report.rates.length === 0 ? (
+            <CardHeader>
+              <CardTitle>Configured Rates</CardTitle>
+              <CardDescription>
+                Current and historical rates mapped to this VAT class.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={4}
-                        className="py-8 text-center text-muted-foreground"
-                      >
-                        No rates configured for this class.
-                      </TableCell>
+                      <TableHead>Region</TableHead>
+                      <TableHead className="text-right">Rate</TableHead>
+                      <TableHead className="text-right">Inclusive</TableHead>
+                      <TableHead>Effective</TableHead>
                     </TableRow>
-                  ) : (
-                    report.rates.map((rate) => (
-                      <TableRow key={rate.id}>
-                        <TableCell>
-                          {rate.countryCode}
-                          {rate.regionCode ? `-${rate.regionCode}` : ""}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {rate.ratePercent.toFixed(2)}%
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {rate.inclusive ? "Yes" : "No"}
-                        </TableCell>
-                        <TableCell>
-                          {rate.startDate || "Open"} -{" "}
-                          {rate.endDate || "Current"}
+                  </TableHeader>
+                  <TableBody>
+                    {report.rates.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="py-8 text-center text-muted-foreground"
+                        >
+                          No rates configured for this class.
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
+                    ) : (
+                      report.rates.map((rate) => (
+                        <TableRow key={rate.id}>
+                          <TableCell>
+                            {rate.countryCode}
+                            {rate.regionCode ? `-${rate.regionCode}` : ""}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {rate.ratePercent.toFixed(2)}%
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {rate.inclusive ? "Yes" : "No"}
+                          </TableCell>
+                          <TableCell>
+                            {rate.startDate || "Open"} -{" "}
+                            {rate.endDate || "Current"}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
           </Card>
 
           <Card className="border-border/70">
-          <CardHeader>
-            <CardTitle>Product-wise VAT Report</CardTitle>
-            <CardDescription>
-              Product quantity, taxable value, and VAT realized under this
-              class.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Units</TableHead>
-                    <TableHead className="text-right">Orders</TableHead>
-                    <TableHead className="text-right">Taxable Value</TableHead>
-                    <TableHead className="text-right">VAT Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {report.products.length === 0 ? (
+            <CardHeader>
+              <CardTitle>Product-wise VAT Report</CardTitle>
+              <CardDescription>
+                Product quantity, taxable value, and VAT realized under this
+                class.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="py-8 text-center text-muted-foreground"
-                      >
-                        No VAT-bearing product sales found for this class.
-                      </TableCell>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Units</TableHead>
+                      <TableHead className="text-right">Orders</TableHead>
+                      <TableHead className="text-right">
+                        Taxable Value
+                      </TableHead>
+                      <TableHead className="text-right">VAT Amount</TableHead>
                     </TableRow>
-                  ) : (
-                    report.products.map((product) => (
-                      <TableRow key={product.productId}>
-                        <TableCell>
-                          <div className="font-medium">
-                            {product.productName}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {product.slug || `Product #${product.productId}`}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {fmtNumber(product.quantitySold)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {fmtNumber(product.orderCount)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {fmtMoney(product.taxableValue)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {fmtMoney(product.totalVatAmount)}
+                  </TableHeader>
+                  <TableBody>
+                    {report.products.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={5}
+                          className="py-8 text-center text-muted-foreground"
+                        >
+                          No VAT-bearing product sales found for this class.
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
+                    ) : (
+                      report.products.map((product) => (
+                        <TableRow key={product.productId}>
+                          <TableCell>
+                            <div className="font-medium">
+                              {product.productName}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {product.slug || `Product #${product.productId}`}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {fmtNumber(product.quantitySold)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {fmtNumber(product.orderCount)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {fmtMoney(product.taxableValue)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {fmtMoney(product.totalVatAmount)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
           </Card>
         </div>
 

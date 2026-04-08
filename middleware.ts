@@ -130,7 +130,11 @@ const adminPagePermissionRules: PermissionRule[] = [
   },
   {
     prefix: "/admin/scm/three-way-match",
-    permissions: ["three_way_match.read", "supplier_invoices.read", "supplier_invoices.manage"],
+    permissions: [
+      "three_way_match.read",
+      "supplier_invoices.read",
+      "supplier_invoices.manage",
+    ],
     globalOnly: true,
   },
   {
@@ -223,15 +227,15 @@ const adminPagePermissionRules: PermissionRule[] = [
     permissions: ["settings.warehouse.manage", "settings.manage"],
   },
   {
-    prefix: "/admin/settings/couriers",
+    prefix: "/admin/management/couriers",
     permissions: ["settings.courier.manage", "settings.manage"],
   },
   {
-    prefix: "/admin/settings/vatmanagent",
+    prefix: "/admin/management/vatmanagent",
     permissions: ["settings.vat.manage", "settings.manage"],
   },
   {
-    prefix: "/admin/settings/shipping-rates",
+    prefix: "/admin/warehouse/shipping-rates",
     permissions: ["settings.shipping.manage", "settings.manage"],
   },
   {
@@ -254,21 +258,24 @@ const adminPagePermissionRules: PermissionRule[] = [
     prefix: "/admin/shipments",
     permissions: ["shipments.manage", "orders.read_all"],
   },
-  { prefix: "/admin/logistics", permissions: ["logistics.manage"] },
+  { prefix: "/admin/warehouse/logistics", permissions: ["logistics.manage"] },
   {
-    prefix: "/admin/delivery-men",
+    prefix: "/admin/warehouse/delivery-men",
     permissions: ["delivery-men.manage", "logistics.manage"],
   },
-  { prefix: "/admin/payroll", permissions: ["payroll.manage"] },
+  { prefix: "/admin/warehouse/payroll", permissions: ["payroll.manage"] },
   { prefix: "/admin/management/categories", permissions: ["products.manage"] },
   { prefix: "/admin/management/brands", permissions: ["products.manage"] },
   { prefix: "/admin/management/writers", permissions: ["products.manage"] },
   { prefix: "/admin/management/publishers", permissions: ["products.manage"] },
-  { prefix: "/admin/management/stock", permissions: ["inventory.manage"] },
+  { prefix: "/admin/warehouse/stock", permissions: ["inventory.manage"] },
   { prefix: "/admin/management", permissions: ["products.manage"] },
-  { prefix: "/admin/blogs", permissions: ["blogs.manage"] },
-  { prefix: "/admin/newsletter", permissions: ["newsletter.manage"] },
-  { prefix: "/admin/coupons", permissions: ["coupons.manage"] },
+  { prefix: "/admin/management/blogs", permissions: ["blogs.manage"] },
+  {
+    prefix: "/admin/management/newsletter",
+    permissions: ["newsletter.manage"],
+  },
+  { prefix: "/admin/management/coupons", permissions: ["coupons.manage"] },
   { prefix: "/admin/delivery", permissions: ["delivery.dashboard.access"] },
   { prefix: "/admin/profile", permissions: ["profile.manage"] },
   { prefix: "/admin", permissions: ["dashboard.read", "admin.panel.access"] },
@@ -616,13 +623,20 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/scm/supplier-invoices",
     methods: ["PATCH", "PUT"],
-    permissions: ["supplier_invoices.manage", "supplier_payments.override_hold"],
+    permissions: [
+      "supplier_invoices.manage",
+      "supplier_payments.override_hold",
+    ],
     globalOnly: true,
   },
   {
     prefix: "/api/scm/three-way-match",
     methods: ["GET"],
-    permissions: ["three_way_match.read", "supplier_invoices.read", "supplier_invoices.manage"],
+    permissions: [
+      "three_way_match.read",
+      "supplier_invoices.read",
+      "supplier_invoices.manage",
+    ],
     globalOnly: true,
   },
   {
@@ -803,7 +817,7 @@ const apiPermissionRules: PermissionRule[] = [
     permissions: ["roles.manage"],
   },
   {
-    prefix: "/api/admin/coupons",
+    prefix: "/api/admin/management/coupons",
     permissions: ["coupons.manage", "settings.manage"],
   },
   {
@@ -861,7 +875,7 @@ const apiPermissionRules: PermissionRule[] = [
     ],
   },
   {
-    prefix: "/api/admin/payroll",
+    prefix: "/api/admin/warehouse/payroll",
     permissions: ["payroll.manage"],
   },
   {
@@ -1044,14 +1058,12 @@ function findMatchedRule(
 
     if (
       rule.excludePrefixes &&
-      rule.excludePrefixes.some(
-        (excluded) => {
-          if (excluded.endsWith("/")) {
-            return pathname.startsWith(excluded);
-          }
-          return pathname === excluded || pathname.startsWith(`${excluded}/`);
-        },
-      )
+      rule.excludePrefixes.some((excluded) => {
+        if (excluded.endsWith("/")) {
+          return pathname.startsWith(excluded);
+        }
+        return pathname === excluded || pathname.startsWith(`${excluded}/`);
+      })
     ) {
       continue;
     }
@@ -1110,8 +1122,10 @@ export default async function authMiddleware(request: NextRequest) {
   const defaultAdminRoute = getDefaultAdminRoute(session);
   const dashboardRoute = getDashboardRoute(session?.user);
   const deliveryDashboardAccess = hasDeliveryDashboardAccess(session?.user);
-  const supplierPortalAccess = hasSupplierPortalAccess(session?.user) || hasSupplierPortal(session);
-  const investorPortalAccess = hasInvestorPortalAccess(session?.user) || hasInvestorPortal(session);
+  const supplierPortalAccess =
+    hasSupplierPortalAccess(session?.user) || hasSupplierPortal(session);
+  const investorPortalAccess =
+    hasInvestorPortalAccess(session?.user) || hasInvestorPortal(session);
   const isAdminDeliveryDashboardRoute = isAdminDeliveryRoute(pathname);
   const isLegacyDeliveryRoute = isLegacyDeliveryDashboardRoute(pathname);
   const canUseDeliveryAdminShell =

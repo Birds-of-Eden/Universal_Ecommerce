@@ -60,7 +60,7 @@ const CouponManagement = memo(function CouponManagement() {
 
   const fetchCoupons = async () => {
     try {
-      const response = await fetch("/api/admin/coupons");
+      const response = await fetch("/api/admin/management/coupons");
       if (response.ok) {
         const data = await response.json();
         setCoupons(data);
@@ -80,8 +80,8 @@ const CouponManagement = memo(function CouponManagement() {
     e.preventDefault();
     try {
       const url = editingCoupon
-        ? `/api/admin/coupons/${editingCoupon.id}`
-        : "/api/admin/coupons";
+        ? `/api/admin/management/coupons/${editingCoupon.id}`
+        : "/api/admin/management/coupons";
       const method = editingCoupon ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -125,7 +125,7 @@ const CouponManagement = memo(function CouponManagement() {
     if (!confirm("Are you sure you want to delete this coupon?")) return;
 
     try {
-      const response = await fetch(`/api/admin/coupons/${id}`, {
+      const response = await fetch(`/api/admin/management/coupons/${id}`, {
         method: "DELETE",
       });
       if (response.ok) {

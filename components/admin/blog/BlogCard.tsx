@@ -264,7 +264,7 @@ const BlogCard = memo(function BlogCard() {
               >
                 {/* Clickable overlay that doesn't interfere with buttons */}
                 <Link
-                  href={`/admin/blogs/edit/${blog.id}`}
+                  href={`/admin/management/blogs/edit/${blog.id}`}
                   className="absolute inset-0 z-0"
                   aria-label={`Edit ${blog.title}`}
                 />
@@ -347,7 +347,7 @@ const BlogCard = memo(function BlogCard() {
                   {/* Actions - Wrapped in a div with higher z-index to stay above the clickable overlay */}
                   <div className="relative z-10 flex items-center justify-between pt-4 border-t border-border">
                     <Link
-                      href={`/admin/blogs/edit/${blog.id}`}
+                      href={`/admin/management/blogs/edit/${blog.id}`}
                       className="flex items-center space-x-2 text-primary hover:text-primary/80 font-medium text-sm transition-colors duration-300"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -463,7 +463,9 @@ const BlogCard = memo(function BlogCard() {
                   >
                     1
                   </button>
-                  {page > 4 && <span className="text-muted-foreground/50">...</span>}
+                  {page > 4 && (
+                    <span className="text-muted-foreground/50">...</span>
+                  )}
                 </>
               )}
 

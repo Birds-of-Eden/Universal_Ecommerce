@@ -778,14 +778,14 @@ function AdminDashboard({
       icon: ShoppingCart,
     },
     {
-      href: "/admin/management/stock",
+      href: "/admin/warehouse/stock",
       label: "Check low stock",
       description:
         "Review variant inventory, reservations, and warehouse coverage.",
       icon: PackageSearch,
     },
     {
-      href: "/admin/coupons",
+      href: "/admin/management/coupons",
       label: "Create coupon",
       description: "Launch targeted discounts and monitor redemption quality.",
       icon: Percent,

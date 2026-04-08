@@ -12,7 +12,9 @@ export default async function AdminDeliveryDashboardPage() {
   );
 
   if (!access.userId) {
-    redirect(`/signin?returnUrl=${encodeURIComponent(DELIVERY_DASHBOARD_ROUTE)}`);
+    redirect(
+      `/signin?returnUrl=${encodeURIComponent(DELIVERY_DASHBOARD_ROUTE)}`,
+    );
   }
 
   if (!access.has("delivery.dashboard.access")) {

@@ -616,7 +616,7 @@ export default function DeliveryMenList() {
                             className="hover:bg-muted/50"
                             onClick={() =>
                               router.push(
-                                `/admin/delivery-men/${deliveryMan.id}`,
+                                `/admin/warehouse/delivery-men/${deliveryMan.id}`,
                               )
                             }
                           >

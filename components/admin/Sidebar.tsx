@@ -121,27 +121,27 @@ const menuItems: MenuItem[] = [
       },
       {
         name: "Logistics",
-        href: "/admin/logistics",
+        href: "/admin/warehouse/logistics",
         requiredPermissions: ["logistics.manage"],
       },
       {
         name: "Stock Management",
-        href: "/admin/management/stock",
+        href: "/admin/warehouse/stock",
         requiredPermissions: ["inventory.manage"],
       },
       {
         name: "Shipping Rates",
-        href: "/admin/settings/shipping-rates",
+        href: "/admin/warehouse/shipping-rates",
         requiredPermissions: ["settings.shipping.manage", "settings.manage"],
       },
       {
         name: "Deliveryman",
-        href: "/admin/delivery-men",
+        href: "/admin/warehouse/delivery-men",
         requiredPermissions: ["delivery-men.manage", "logistics.manage"],
       },
       {
         name: "Payroll",
-        href: "/admin/payroll",
+        href: "/admin/warehouse/payroll",
         requiredPermissions: ["payroll.manage"],
       },
     ],
@@ -309,7 +309,10 @@ const menuItems: MenuItem[] = [
       {
         name: "Capital Ledger",
         href: "/admin/investors/ledger",
-        requiredGlobalPermissions: ["investor_ledger.read", "investor_ledger.manage"],
+        requiredGlobalPermissions: [
+          "investor_ledger.read",
+          "investor_ledger.manage",
+        ],
       },
       {
         name: "Allocations",
@@ -359,17 +362,17 @@ const menuItems: MenuItem[] = [
     subItems: [
       {
         name: "Couriers",
-        href: "/admin/settings/couriers",
+        href: "/admin/management/couriers",
         requiredPermissions: ["settings.courier.manage", "settings.manage"],
       },
       {
         name: "VAT Management",
-        href: "/admin/settings/vatmanagent",
+        href: "/admin/management/vatmanagent",
         requiredPermissions: ["settings.vat.manage", "settings.manage"],
       },
       {
         name: "Blogs Management",
-        href: "/admin/blogs",
+        href: "/admin/management/blogs",
         requiredPermissions: ["blogs.manage"],
       },
       {
@@ -385,12 +388,12 @@ const menuItems: MenuItem[] = [
 
       {
         name: "Newsletter",
-        href: "/admin/newsletter",
+        href: "/admin/management/newsletter",
         requiredPermissions: ["newsletter.manage"],
       },
       {
         name: "Coupons",
-        href: "/admin/coupons",
+        href: "/admin/management/coupons",
         requiredPermissions: ["coupons.manage"],
       },
     ],

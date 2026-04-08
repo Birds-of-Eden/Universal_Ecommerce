@@ -9,12 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssignmentStatusBadge } from "@/components/delivery/AssignmentStatusBadge";
 import { DeliveryAssignmentCard } from "@/components/delivery/DeliveryAssignmentCard";
 import { DeliveryDashboardSkeleton } from "@/components/ui/DeliveryDashboardSkeleton";
-import { 
-  ArrowLeft, 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
+import {
+  ArrowLeft,
+  User,
+  Phone,
+  Mail,
+  MapPin,
   Package,
   CheckCircle,
   XCircle,
@@ -22,7 +22,7 @@ import {
   Truck,
   RefreshCw,
   Eye,
-  Edit
+  Edit,
 } from "lucide-react";
 import type {
   DeliveryAssignmentData,
@@ -89,7 +89,7 @@ export default function DeliveryManDetailsPage() {
       const response = await fetch(`/api/delivery-men/${deliveryManId}`, {
         cache: "no-store",
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to load delivery man details");
       }
@@ -116,12 +116,14 @@ export default function DeliveryManDetailsPage() {
     }
   }, [deliveryManId]);
 
-  const groupedAssignments = assignments.reduce<Record<TabKey, DeliveryAssignmentData[]>>(
+  const groupedAssignments = assignments.reduce<
+    Record<TabKey, DeliveryAssignmentData[]>
+  >(
     (accumulator, assignment) => {
-      const tabKey = TAB_DEFINITIONS.find(tab => 
-        tab.statuses.includes(assignment.status)
-      )?.key || "exceptions";
-      
+      const tabKey =
+        TAB_DEFINITIONS.find((tab) => tab.statuses.includes(assignment.status))
+          ?.key || "exceptions";
+
       accumulator[tabKey] = (accumulator[tabKey] || []).concat(assignment);
       return accumulator;
     },
@@ -137,12 +139,42 @@ export default function DeliveryManDetailsPage() {
   );
 
   const summaryCards = [
-    { label: "Assigned", value: summary.assigned, icon: Package, color: "text-blue-600" },
-    { label: "Accepted", value: summary.accepted, icon: CheckCircle, color: "text-green-600" },
-    { label: "Rejected", value: summary.rejected, icon: XCircle, color: "text-red-600" },
-    { label: "Picked From Warehouse", value: summary.pickedFromWarehouse, icon: Truck, color: "text-orange-600" },
-    { label: "In Transit", value: summary.inTransit, icon: Clock, color: "text-purple-600" },
-    { label: "Delivered", value: summary.delivered, icon: CheckCircle, color: "text-emerald-600" },
+    {
+      label: "Assigned",
+      value: summary.assigned,
+      icon: Package,
+      color: "text-blue-600",
+    },
+    {
+      label: "Accepted",
+      value: summary.accepted,
+      icon: CheckCircle,
+      color: "text-green-600",
+    },
+    {
+      label: "Rejected",
+      value: summary.rejected,
+      icon: XCircle,
+      color: "text-red-600",
+    },
+    {
+      label: "Picked From Warehouse",
+      value: summary.pickedFromWarehouse,
+      icon: Truck,
+      color: "text-orange-600",
+    },
+    {
+      label: "In Transit",
+      value: summary.inTransit,
+      icon: Clock,
+      color: "text-purple-600",
+    },
+    {
+      label: "Delivered",
+      value: summary.delivered,
+      icon: CheckCircle,
+      color: "text-emerald-600",
+    },
   ];
 
   if (loading) {
@@ -161,7 +193,7 @@ export default function DeliveryManDetailsPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          
+
           <Card className="border-destructive">
             <CardContent className="pt-6">
               <div className="text-center">
@@ -170,7 +202,9 @@ export default function DeliveryManDetailsPage() {
                   Delivery Man Not Found
                 </h3>
                 <p className="text-muted-foreground mb-4">{error}</p>
-                <Button onClick={() => router.push("/admin/delivery-men")}>
+                <Button
+                  onClick={() => router.push("/admin/warehouse/delivery-men")}
+                >
                   View All Delivery Men
                 </Button>
               </div>
@@ -196,7 +230,7 @@ export default function DeliveryManDetailsPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-              
+
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                   Delivery Personnel Management
@@ -209,9 +243,13 @@ export default function DeliveryManDetailsPage() {
 
             <div className="flex items-center gap-3">
               <Button
-              className="bg-secondary "
+                className="bg-secondary "
                 size="sm"
-                onClick={() => router.push(`/admin/delivery-men/${deliveryManId}/edit`)}
+                onClick={() =>
+                  router.push(
+                    `/admin/warehouse/delivery-men/${deliveryManId}/edit`,
+                  )
+                }
               >
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
@@ -222,7 +260,9 @@ export default function DeliveryManDetailsPage() {
                 variant="outline"
                 disabled={refreshing}
               >
-                <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                />
                 {refreshing ? "Refreshing..." : "Refresh"}
               </Button>
             </div>
@@ -248,37 +288,57 @@ export default function DeliveryManDetailsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                  <p className="font-semibold text-foreground">{deliveryMan.fullName}</p>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Full Name
+                  </label>
+                  <p className="font-semibold text-foreground">
+                    {deliveryMan.fullName}
+                  </p>
                 </div>
-                
+
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Employee Code</label>
-                  <p className="font-semibold text-foreground">{deliveryMan.employeeCode || "N/A"}</p>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Employee Code
+                  </label>
+                  <p className="font-semibold text-foreground">
+                    {deliveryMan.employeeCode || "N/A"}
+                  </p>
                 </div>
-                
+
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Phone Number</label>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Phone Number
+                  </label>
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-                    <p className="font-semibold text-foreground">{deliveryMan.phone}</p>
+                    <p className="font-semibold text-foreground">
+                      {deliveryMan.phone}
+                    </p>
                   </div>
                 </div>
-                
+
                 {deliveryMan.user?.email && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Email Address</label>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Email Address
+                    </label>
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <p className="font-semibold text-foreground">{deliveryMan.user.email}</p>
+                      <p className="font-semibold text-foreground">
+                        {deliveryMan.user.email}
+                      </p>
                     </div>
                   </div>
                 )}
-                
+
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Status</label>
-                  <Badge 
-                    variant={deliveryMan.status === "ACTIVE" ? "default" : "secondary"}
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Status
+                  </label>
+                  <Badge
+                    variant={
+                      deliveryMan.status === "ACTIVE" ? "default" : "secondary"
+                    }
                     className="mt-1"
                   >
                     {deliveryMan.status}
@@ -297,28 +357,44 @@ export default function DeliveryManDetailsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Assigned Warehouse</label>
-                  <p className="font-semibold text-foreground">{deliveryMan.warehouse?.name || "N/A"}</p>
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Assigned Warehouse
+                  </label>
+                  <p className="font-semibold text-foreground">
+                    {deliveryMan.warehouse?.name || "N/A"}
+                  </p>
                 </div>
-                
+
                 {deliveryMan.warehouse?.code && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Warehouse Code</label>
-                    <p className="font-semibold text-foreground">{deliveryMan.warehouse.code}</p>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Warehouse Code
+                    </label>
+                    <p className="font-semibold text-foreground">
+                      {deliveryMan.warehouse.code}
+                    </p>
                   </div>
                 )}
-                
+
                 {deliveryMan.warehouse?.area && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Area</label>
-                    <p className="font-semibold text-foreground">{deliveryMan.warehouse.area}</p>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Area
+                    </label>
+                    <p className="font-semibold text-foreground">
+                      {deliveryMan.warehouse.area}
+                    </p>
                   </div>
                 )}
-                
+
                 {deliveryMan.warehouse?.district && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">District</label>
-                    <p className="font-semibold text-foreground">{deliveryMan.warehouse.district}</p>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      District
+                    </label>
+                    <p className="font-semibold text-foreground">
+                      {deliveryMan.warehouse.district}
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -333,7 +409,10 @@ export default function DeliveryManDetailsPage() {
                 {summaryCards.map((card) => {
                   const IconComponent = card.icon;
                   return (
-                    <div key={card.label} className="flex items-center justify-between">
+                    <div
+                      key={card.label}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-2">
                         <IconComponent className={`h-4 w-4 ${card.color}`} />
                         <span className="text-sm font-medium text-muted-foreground">
@@ -362,10 +441,17 @@ export default function DeliveryManDetailsPage() {
             </p>
           </div>
 
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as TabKey)}
+          >
             <TabsList className="w-full justify-start overflow-x-auto rounded-2xl bg-background p-2 scrollbar-hide">
               {TAB_DEFINITIONS.map((tab) => (
-                <TabsTrigger key={tab.key} value={tab.key} className="rounded-xl data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground">
+                <TabsTrigger
+                  key={tab.key}
+                  value={tab.key}
+                  className="rounded-xl data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground"
+                >
                   {tab.label}
                   <span className="ml-2 rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground">
                     {groupedAssignments[tab.key]?.length || 0}
@@ -396,7 +482,8 @@ export default function DeliveryManDetailsPage() {
                       No deliveries in {tab.label.toLowerCase()}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      New assignments and status updates will appear here automatically.
+                      New assignments and status updates will appear here
+                      automatically.
                     </p>
                   </div>
                 )}
