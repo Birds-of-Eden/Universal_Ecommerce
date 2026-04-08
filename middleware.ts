@@ -1033,15 +1033,24 @@ function findMatchedRule(
   rules: PermissionRule[],
 ): PermissionRule | null {
   for (const rule of rules) {
-    if (!(pathname === rule.prefix || pathname.startsWith(`${rule.prefix}/`))) {
+    const requiresNestedMatch = rule.prefix.endsWith("/");
+    const matchPrefix = requiresNestedMatch
+      ? pathname.startsWith(rule.prefix)
+      : pathname === rule.prefix || pathname.startsWith(`${rule.prefix}/`);
+
+    if (!matchPrefix) {
       continue;
     }
 
     if (
       rule.excludePrefixes &&
       rule.excludePrefixes.some(
-        (excluded) =>
-          pathname === excluded || pathname.startsWith(`${excluded}/`),
+        (excluded) => {
+          if (excluded.endsWith("/")) {
+            return pathname.startsWith(excluded);
+          }
+          return pathname === excluded || pathname.startsWith(`${excluded}/`);
+        },
       )
     ) {
       continue;
