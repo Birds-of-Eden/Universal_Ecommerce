@@ -593,10 +593,11 @@ export default function ProductManager({
                     <Plus className="h-4 w-4 mr-1" /> New Product
                   </Button>
                   <Button
+                    variant="outline"
                     onClick={() =>
                       (window.location.href = "/admin/products/bundles")
                     }
-                    className="text-foreground hover:bg-primary/80 hover:text-primary-foreground"
+                    className="border-primary/20 text-primary hover:bg-primary/10"
                   >
                     <Package className="h-4 w-4 mr-1" /> Bundles
                   </Button>
