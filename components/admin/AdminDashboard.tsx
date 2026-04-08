@@ -391,7 +391,7 @@ function SectionShell({
 }) {
   return (
     <section
-      className={`rounded-[28px] border border-border/70 bg-gradient-to-br from-white via-white to-gray-50/80 shadow-[0_10px_40px_rgba(0,0,0,0.06)] backdrop-blur-sm ${className}`}
+      className={`rounded-[28px] border border-border/70 bg-gradient-to-br from-card via-card to-muted/50 shadow-[0_10px_40px_rgba(0,0,0,0.06)] backdrop-blur-sm ${className}`}
     >
       <div className="flex items-start justify-between gap-4 border-b border-border/60 px-5 py-4 md:px-6">
         <div>
@@ -829,7 +829,7 @@ function AdminDashboard({
             <button
               key={range.value}
               onClick={() => onTimeRangeChange(range.value)}
-              className={`rounded-xl px-3 py-2 text-sm transition ${timeRange === range.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              className={`rounded-xl px-3 py-2 text-sm transition hover:bg-primary/50 hover:text-primary-foreground ${timeRange === range.value ? "bg-primary/80 text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               {range.label}
             </button>
@@ -837,7 +837,7 @@ function AdminDashboard({
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-2xl border border-border/70 bg-background/75 px-4 py-2 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-2xl border border-border/70 bg-background/75 hover:bg-primary/80 hover:text-primary-foreground px-4 py-2 text-sm font-medium text-foreground shadow-sm transition disabled:opacity-60"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -899,7 +899,7 @@ function AdminDashboard({
           title="Business Overview"
           subtitle="Track your revenue, orders, and performance trends"
           action={
-            <div className="inline-flex rounded-2xl border border-border/70 bg-muted/20 p-1">
+            <div className="inline-flex rounded-2xl border border-border/70 bg-primary/10 p-1">
               {[
                 { key: "revenue", label: "Revenue" },
                 { key: "orders", label: "Orders" },
@@ -912,7 +912,7 @@ function AdminDashboard({
                       item.key as "revenue" | "orders" | "refunds",
                     )
                   }
-                  className={`rounded-xl px-3 py-1.5 text-sm transition ${primaryChart === item.key ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`rounded-xl px-3 py-1.5 text-sm transition ${primaryChart === item.key ? "bg-primary/80 text-primary-foreground foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   {item.label}
                 </button>

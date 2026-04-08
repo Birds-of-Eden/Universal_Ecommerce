@@ -432,7 +432,7 @@ export default function ReportsDashboard() {
             {QUICK_RANGES.map((item) => (
               <Button
                 key={item.label}
-                variant="outline"
+                className="btn-outline"
                 size="sm"
                 onClick={() => quick(item.days)}
               >
@@ -515,22 +515,40 @@ export default function ReportsDashboard() {
           className="space-y-6"
         >
           <TabsList className="w-full justify-start overflow-x-auto rounded-[20px] border border-border/60 bg-card/85 p-1.5">
-            <TabsTrigger value="overview" className="rounded-2xl px-4 py-2.5">
+            <TabsTrigger
+              value="overview"
+              className="rounded-2xl px-4 py-2.5 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:data-[state=active]:bg-primary/80 hover:data-[state=active]:text-primary-foreground/80  hover:bg-primary/80 hover:text-primary-foreground/80"
+            >
               Overview
             </TabsTrigger>
-            <TabsTrigger value="sales" className="rounded-2xl px-4 py-2.5">
+            <TabsTrigger
+              value="sales"
+              className="rounded-2xl px-4 py-2.5 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:data-[state=active]:bg-primary hover:data-[state=active]:text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground/80"
+            >
               Sales
             </TabsTrigger>
-            <TabsTrigger value="profit" className="rounded-2xl px-4 py-2.5">
+            <TabsTrigger
+              value="profit"
+              className="rounded-2xl px-4 py-2.5 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:data-[state=active]:bg-primary hover:data-[state=active]:text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground/80"
+            >
               Profit
             </TabsTrigger>
-            <TabsTrigger value="vat" className="rounded-2xl px-4 py-2.5">
+            <TabsTrigger
+              value="vat"
+              className="rounded-2xl px-4 py-2.5 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:data-[state=active]:bg-primary hover:data-[state=active]:text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground/80"
+            >
               VAT
             </TabsTrigger>
-            <TabsTrigger value="inventory" className="rounded-2xl px-4 py-2.5">
+            <TabsTrigger
+              value="inventory"
+              className="rounded-2xl px-4 py-2.5 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:data-[state=active]:bg-primary hover:data-[state=active]:text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground/80"
+            >
               Inventory
             </TabsTrigger>
-            <TabsTrigger value="delivery" className="rounded-2xl px-4 py-2.5">
+            <TabsTrigger
+              value="delivery"
+              className="rounded-2xl px-4 py-2.5 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:data-[state=active]:bg-primary hover:data-[state=active]:text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground/80"
+            >
               Delivery
             </TabsTrigger>
           </TabsList>

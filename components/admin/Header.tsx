@@ -51,11 +51,11 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   useEffect(() => {
     const fetchSiteSettings = async () => {
       try {
-        const response = await fetch('/api/site');
+        const response = await fetch("/api/site");
         const data = await response.json();
         setSiteSettings(data);
       } catch (error) {
-        console.error('Failed to fetch site settings:', error);
+        console.error("Failed to fetch site settings:", error);
       } finally {
         setLoadingSite(false);
       }
@@ -111,8 +111,9 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
               onError={(e) => {
                 // Fallback to default icon if image fails to load
                 const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                target.parentElement!.innerHTML = '<svg class="h-5 w-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6v6H9z"></path></svg>';
+                target.style.display = "none";
+                target.parentElement!.innerHTML =
+                  '<svg class="h-5 w-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6v6H9z"></path></svg>';
               }}
             />
           ) : (
@@ -123,15 +124,17 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
           <h1 className="text-lg font-bold text-foreground hidden sm:block">
             {loadingSite ? (
               <div className="h-5 w-24 bg-gray-200 rounded animate-pulse"></div>
+            ) : siteSettings?.siteTitle ? (
+              siteSettings.siteTitle + " Admin"
             ) : (
-              siteSettings?.siteTitle ? siteSettings.siteTitle + " Admin" : "BOED Admin"
+              "BOED Admin"
             )}
           </h1>
           <h1 className="text-lg font-bold text-foreground sm:hidden">
             {loadingSite ? (
               <div className="h-5 w-16 bg-gray-200 rounded animate-pulse"></div>
             ) : (
-              siteSettings?.siteTitle?.split(' ')[0] || "Admin"
+              siteSettings?.siteTitle?.split(" ")[0] || "Admin"
             )}
           </h1>
         </div>
@@ -145,7 +148,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full bg-muted hover:bg-primary/80 text-foreground"
+                className="rounded-full bg-primary hover:bg-primary/80 text-foreground"
                 title="Select theme"
               >
                 {darkLikeActiveTheme ? (
@@ -160,7 +163,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
                 <DropdownMenuItem
                   key={option.value}
                   onClick={() => setTheme(option.value)}
-                  className="flex items-center justify-between"
+                  className="flex items-center hover:bg-primary/80 justify-between"
                 >
                   <span>{option.label}</span>
                   {activeTheme === option.value ? (

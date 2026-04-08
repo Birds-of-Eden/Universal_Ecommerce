@@ -500,7 +500,7 @@ body {
 
   .btn-outline {
     /* eslint-disable-next-line at-rule-no-unknown */
-    @apply border border-border bg-transparent hover:bg-muted transition;
+    @apply border border-border bg-background text-foreground hover:bg-primary/80 hover:text-primary-foreground transition;
   }
 
   .btn-danger {
