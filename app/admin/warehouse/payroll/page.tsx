@@ -678,13 +678,24 @@ export default function AdminPayrollPage() {
           >
             <div className="flex flex-col gap-4 border-b border-border/60 p-4 lg:flex-row lg:items-center lg:justify-between">
               <TabsList className="justify-start rounded-2xl bg-muted p-1">
-                <TabsTrigger value="profiles" className="rounded-xl px-4 py-2">
+                <TabsTrigger
+                  value="profiles"
+                  className="rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
                   Payroll Profile
                 </TabsTrigger>
-                <TabsTrigger value="periods" className="rounded-xl px-4 py-2">
+
+                <TabsTrigger
+                  value="periods"
+                  className="rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
                   Payroll Period
                 </TabsTrigger>
-                <TabsTrigger value="entries" className="rounded-xl px-4 py-2">
+
+                <TabsTrigger
+                  value="entries"
+                  className="rounded-xl px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
                   Payroll Entry
                 </TabsTrigger>
               </TabsList>
