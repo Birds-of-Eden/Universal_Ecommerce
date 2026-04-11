@@ -66,6 +66,16 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/scm/vendor-approvals",
+    permissions: ["supplier.profile_requests.read", "supplier.profile_requests.review"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/admin/scm/vendor-feedback",
+    permissions: ["supplier.feedback.manage"],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/scm/sla",
     permissions: ["sla.read", "sla.manage"],
     globalOnly: true,
@@ -298,6 +308,31 @@ const supplierPagePermissionRules: PermissionRule[] = [
     permissions: ["supplier.invoices.read"],
   },
   {
+    prefix: "/supplier/payments",
+    permissions: ["supplier.payments.read"],
+  },
+  {
+    prefix: "/supplier/work-orders",
+    permissions: ["supplier.work_orders.read"],
+  },
+  {
+    prefix: "/supplier/profile",
+    permissions: [
+      "supplier.profile.read",
+      "supplier.profile.update_request.submit",
+      "supplier.documents.read",
+      "supplier.documents.update_request.submit",
+    ],
+  },
+  {
+    prefix: "/supplier/notifications",
+    permissions: ["supplier.notifications.read"],
+  },
+  {
+    prefix: "/supplier/feedback",
+    permissions: ["supplier.feedback.read"],
+  },
+  {
     prefix: "/supplier",
     permissions: ["supplier.portal.access"],
   },
@@ -359,6 +394,63 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/supplier/invoices",
     methods: ["GET"],
     permissions: ["supplier.invoices.read"],
+  },
+  {
+    prefix: "/api/supplier/payments",
+    methods: ["GET"],
+    permissions: ["supplier.payments.read"],
+  },
+  {
+    prefix: "/api/supplier/work-orders",
+    methods: ["GET"],
+    permissions: ["supplier.work_orders.read"],
+  },
+  {
+    prefix: "/api/supplier/profile",
+    methods: ["GET"],
+    permissions: ["supplier.profile.read", "supplier.documents.read"],
+  },
+  {
+    prefix: "/api/supplier/profile",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: [
+      "supplier.profile.update_request.submit",
+      "supplier.documents.update_request.submit",
+    ],
+  },
+  {
+    prefix: "/api/supplier/notifications",
+    methods: ["GET", "PATCH", "PUT"],
+    permissions: ["supplier.notifications.read"],
+  },
+  {
+    prefix: "/api/supplier/feedback",
+    methods: ["GET"],
+    permissions: ["supplier.feedback.read"],
+  },
+  {
+    prefix: "/api/scm/supplier-profile-requests",
+    methods: ["GET"],
+    permissions: ["supplier.profile_requests.read", "supplier.profile_requests.review"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/supplier-profile-requests",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["supplier.profile_requests.review"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/supplier-feedback",
+    methods: ["GET"],
+    permissions: ["supplier.feedback.manage", "supplier.profile_requests.read"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/scm/supplier-feedback",
+    methods: ["POST", "PATCH", "PUT", "DELETE"],
+    permissions: ["supplier.feedback.manage"],
+    globalOnly: true,
   },
   {
     prefix: "/api/investor/overview",

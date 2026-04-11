@@ -50,6 +50,23 @@ const cards: ScmCard[] = [
     globalPermission: "suppliers.manage",
   },
   {
+    title: "Vendor Approvals",
+    href: "/admin/scm/vendor-approvals",
+    description:
+      "Review supplier profile/document update requests and apply maker-checker approval.",
+    icon: ShieldCheck,
+    permissions: ["supplier.profile_requests.read", "supplier.profile_requests.review"],
+  },
+  {
+    title: "Vendor Feedback",
+    href: "/admin/scm/vendor-feedback",
+    description:
+      "Capture and monitor vendor service-quality feedback with client/internal scoring.",
+    icon: UserCheck,
+    permission: "supplier.feedback.manage",
+    globalPermission: "supplier.feedback.manage",
+  },
+  {
     title: "Supplier Intelligence",
     href: "/admin/scm/supplier-intelligence",
     description: "Track actual lead-time trends, late-order risk, and recommended supplier buffers.",

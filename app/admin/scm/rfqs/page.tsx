@@ -30,6 +30,9 @@ type Rfq = {
   status: string;
   requestedAt: string;
   submissionDeadline: string | null;
+  isBlindReviewActive?: boolean;
+  quotationSubmissionCount?: number;
+  quotationsVisibleAt?: string | null;
   note: string | null;
   scopeOfWork?: string | null;
   termsAndConditions?: string | null;
@@ -63,7 +66,25 @@ type Rfq = {
     productVariant: { sku: string; product: { name: string } };
   }>;
   supplierInvites: Array<{ supplierId: number; supplier: Supplier; status: string }>;
-  quotations: Array<{ id: number; supplierId: number; supplier: Supplier; total: string; currency: string; revisionNo?: number }>;
+  quotations: Array<{
+    id: number;
+    supplierId: number;
+    supplier: Supplier;
+    total: string;
+    currency: string;
+    revisionNo?: number;
+    quotedAt?: string;
+    technicalProposal?: string | null;
+    financialProposal?: string | null;
+    note?: string | null;
+    attachments?: Array<{
+      id: number;
+      proposalType: "TECHNICAL" | "FINANCIAL" | "SUPPORTING";
+      label: string | null;
+      fileUrl: string;
+      fileName: string | null;
+    }>;
+  }>;
   award: { purchaseOrderId: number | null; supplier: Supplier; supplierQuotationId: number } | null;
 };
 
@@ -90,6 +111,13 @@ async function readJson<T>(response: Response, fallback: string): Promise<T> {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error((payload as { error?: string }).error || fallback);
   return payload as T;
+}
+
+function fmtDate(value?: string | null) {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return date.toLocaleString();
 }
 
 export default function RfqPage() {
@@ -477,7 +505,7 @@ export default function RfqPage() {
                 <div>
                   <div className="font-semibold">{rfq.rfqNumber}</div>
                   <div className="text-sm text-muted-foreground">
-                    {rfq.warehouse.name} • {rfq.status} • Invites {rfq.supplierInvites.length} • Quotes {rfq.quotations.length}
+                    {rfq.warehouse.name} • {rfq.status} • Invites {rfq.supplierInvites.length} • Quotes {rfq.quotationSubmissionCount ?? rfq.quotations.length}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     MRF: {rfq.purchaseRequisition?.requisitionNumber || "N/A"} • Round: {rfq.resubmissionRound ?? 0}
@@ -511,6 +539,12 @@ export default function RfqPage() {
                   ))}
                 </div>
               ) : null}
+              {rfq.isBlindReviewActive ? (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                  Blind review active. Technical/financial proposal details are hidden until{" "}
+                  {fmtDate(rfq.quotationsVisibleAt || rfq.submissionDeadline)}.
+                </div>
+              ) : null}
 
               {canManage && ["DRAFT", "SUBMITTED"].includes(rfq.status) ? (
                 <div className="flex gap-2">
@@ -524,7 +558,7 @@ export default function RfqPage() {
                 </div>
               ) : null}
 
-              {canManage && ["SUBMITTED", "CLOSED", "AWARDED"].includes(rfq.status) ? (
+              {canManage && !rfq.isBlindReviewActive && ["SUBMITTED", "CLOSED", "AWARDED"].includes(rfq.status) ? (
                 <div className="grid gap-2 rounded-lg border p-3 md:grid-cols-5">
                   <select className="rounded-md border bg-background px-3 py-2 text-sm" value={quoteSupplier[rfq.id] || ""} onChange={(e) => setQuoteSupplier((cur) => ({ ...cur, [rfq.id]: e.target.value }))}>
                     <option value="">Quote supplier</option>
@@ -536,7 +570,54 @@ export default function RfqPage() {
                 </div>
               ) : null}
 
-              {canApprove && rfq.quotations.length > 0 ? (
+              {!rfq.isBlindReviewActive && rfq.quotations.length > 0 ? (
+                <div className="space-y-2 rounded-lg border p-3">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Evaluation View (post-deadline unlock)
+                  </div>
+                  <div className="space-y-2">
+                    {rfq.quotations.map((q) => (
+                      <div key={q.id} className="rounded-md border p-2 text-xs">
+                        <div className="font-medium">
+                          {q.supplier.name} ({q.supplier.code}) • {q.total} {q.currency}
+                          {q.revisionNo ? ` • Rev ${q.revisionNo}` : ""}
+                        </div>
+                        {q.technicalProposal ? (
+                          <div className="text-muted-foreground">
+                            Technical: {q.technicalProposal}
+                          </div>
+                        ) : null}
+                        {q.financialProposal ? (
+                          <div className="text-muted-foreground">
+                            Financial: {q.financialProposal}
+                          </div>
+                        ) : null}
+                        {q.note ? (
+                          <div className="text-muted-foreground">Note: {q.note}</div>
+                        ) : null}
+                        {(q.attachments?.length || 0) > 0 ? (
+                          <div className="mt-1 space-y-1">
+                            {q.attachments?.map((attachment) => (
+                              <a
+                                key={attachment.id}
+                                href={attachment.fileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block text-primary underline"
+                              >
+                                [{attachment.proposalType}]{" "}
+                                {attachment.label || attachment.fileName || "Attachment"}
+                              </a>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {canApprove && !rfq.isBlindReviewActive && rfq.quotations.length > 0 ? (
                 <div className="flex gap-2">
                   <select className="rounded-md border bg-background px-3 py-2 text-sm" value={awardQuoteId[rfq.id] || ""} onChange={(e) => setAwardQuoteId((cur) => ({ ...cur, [rfq.id]: e.target.value }))}>
                     <option value="">Select quotation</option>

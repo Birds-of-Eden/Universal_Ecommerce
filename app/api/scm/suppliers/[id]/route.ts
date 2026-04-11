@@ -141,10 +141,16 @@ export async function PATCH(
       body.documents === undefined
         ? existing.documents.map((document) => ({
             type: document.type,
+            documentNumber: document.documentNumber,
             fileUrl: document.fileUrl,
             fileName: document.fileName,
             mimeType: document.mimeType,
             fileSize: document.fileSize,
+            issuedAt: document.issuedAt,
+            expiresAt: document.expiresAt,
+            verificationStatus: document.verificationStatus,
+            verifiedAt: document.verifiedAt,
+            verificationNote: document.verificationNote,
           }))
         : parseSupplierDocuments(body.documents);
     const categoryIds =

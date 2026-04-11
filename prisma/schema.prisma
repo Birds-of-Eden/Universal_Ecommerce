@@ -79,6 +79,7 @@ model User {
   rfqNotificationsCreated       RfqNotification[]       @relation("RfqNotificationsCreated")
   rfqSupplierInvitesCreated     RfqSupplierInvite[]     @relation("RfqSupplierInvitesCreated")
   supplierQuotationsSubmitted   SupplierQuotation[]     @relation("SupplierQuotationsSubmitted")
+  supplierQuotationAttachmentsUploaded SupplierQuotationAttachment[] @relation("SupplierQuotationAttachmentsUploaded")
   rfqAwardsGranted              RfqAward[]              @relation("RfqAwardsGranted")
   supplierCategoriesCreated     SupplierCategory[]      @relation("SupplierCategoriesCreated")
   supplierCategorySuppliersCreated SupplierCategorySupplier[] @relation("SupplierCategorySuppliersCreated")
@@ -96,6 +97,12 @@ model User {
   supplierSlaTerminationCasesCreated SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationCasesCreated")
   supplierSlaTerminationCasesOwned SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationCasesOwned")
   supplierSlaTerminationCasesResolved SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationCasesResolved")
+  verifiedSupplierDocuments      SupplierDocument[]       @relation("SupplierDocumentsVerifiedBy")
+  supplierProfileUpdateRequestsSubmitted SupplierProfileUpdateRequest[] @relation("SupplierProfileUpdateRequestsSubmitted")
+  supplierProfileUpdateRequestsReviewed SupplierProfileUpdateRequest[] @relation("SupplierProfileUpdateRequestsReviewed")
+  supplierFeedbackCreated        SupplierFeedback[]       @relation("SupplierFeedbackCreated")
+  supplierPortalNotificationsCreated SupplierPortalNotification[] @relation("SupplierPortalNotificationsCreatedBy")
+  supplierPortalNotifications    SupplierPortalNotification[] @relation("SupplierPortalNotificationsUser")
   wishlist                      Wishlist[]
   analyticsEvents               AnalyticsEvent[]
   deliveryManProfile            DeliveryManProfile?
@@ -1108,6 +1115,9 @@ model Supplier {
   slaBreaches      SupplierSlaBreach[]
   slaTerminationCases SupplierSlaTerminationCase[]
   portalAccesses   SupplierPortalAccess[]
+  profileUpdateRequests SupplierProfileUpdateRequest[]
+  feedbacks         SupplierFeedback[]
+  portalNotifications SupplierPortalNotification[]
 
   @@index([companyType])
   @@index([name])
@@ -1118,17 +1128,29 @@ model SupplierDocument {
   id         Int                  @id @default(autoincrement())
   supplierId Int
   type       SupplierDocumentType
+  documentNumber String?
   fileUrl    String
   fileName   String?
   mimeType   String?
   fileSize   Int?
+  issuedAt   DateTime?
+  expiresAt  DateTime?
+  verificationStatus SupplierDocumentVerificationStatus @default(PENDING)
+  verifiedAt DateTime?
+  verifiedById String?
+  verificationNote String?
+  lastReminderAt DateTime?
   createdAt  DateTime             @default(now())
   updatedAt  DateTime             @updatedAt
   supplier   Supplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  verifiedBy User?                @relation("SupplierDocumentsVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
 
   @@unique([supplierId, type])
   @@index([supplierId])
   @@index([type])
+  @@index([expiresAt])
+  @@index([verificationStatus])
+  @@index([verifiedById])
 }
 
 model PurchaseRequisition {
@@ -1277,6 +1299,9 @@ model SupplierPortalAccess {
   userId      String                     @unique
   supplierId  Int
   status      SupplierPortalAccessStatus @default(ACTIVE)
+  twoFactorRequired Boolean              @default(false)
+  twoFactorMethod String?
+  twoFactorLastVerifiedAt DateTime?
   note        String?
   createdAt   DateTime                   @default(now())
   updatedAt   DateTime                   @updatedAt
@@ -1286,6 +1311,78 @@ model SupplierPortalAccess {
   user        User                       @relation("SupplierPortalAccessUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([supplierId, status])
+  @@index([createdById])
+}
+
+model SupplierProfileUpdateRequest {
+  id                Int                                @id @default(autoincrement())
+  supplierId        Int
+  requestedByUserId String
+  requestType       SupplierProfileUpdateRequestType   @default(PROFILE_UPDATE)
+  status            SupplierProfileUpdateRequestStatus @default(PENDING)
+  payload           Json
+  note              String?
+  reviewNote        String?
+  requestedAt       DateTime                           @default(now())
+  reviewedAt        DateTime?
+  reviewedById      String?
+  createdAt         DateTime                           @default(now())
+  updatedAt         DateTime                           @updatedAt
+  requestedBy       User                               @relation("SupplierProfileUpdateRequestsSubmitted", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+  reviewedBy        User?                              @relation("SupplierProfileUpdateRequestsReviewed", fields: [reviewedById], references: [id], onDelete: SetNull)
+  supplier          Supplier                           @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, status])
+  @@index([requestedByUserId, createdAt])
+  @@index([reviewedById])
+}
+
+model SupplierFeedback {
+  id                   Int                        @id @default(autoincrement())
+  supplierId           Int
+  sourceType           SupplierFeedbackSourceType @default(INTERNAL)
+  sourceReference      String?
+  clientName           String?
+  clientEmail          String?
+  rating               Int
+  serviceQualityRating Int?
+  deliveryRating       Int?
+  complianceRating     Int?
+  comment              String?
+  createdById          String?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  createdBy            User?                      @relation("SupplierFeedbackCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  supplier             Supplier                   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, createdAt])
+  @@index([sourceType, createdAt])
+  @@index([createdById])
+}
+
+model SupplierPortalNotification {
+  id             Int                          @id @default(autoincrement())
+  supplierId     Int
+  userId         String?
+  channel        WorkflowNotificationChannel
+  status         WorkflowNotificationStatus   @default(PENDING)
+  type           SupplierPortalNotificationType @default(GENERAL)
+  title          String
+  message        String
+  recipientEmail String?
+  metadata       Json?
+  sentAt         DateTime?
+  readAt         DateTime?
+  createdById    String?
+  createdAt      DateTime                     @default(now())
+  createdBy      User?                        @relation("SupplierPortalNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  supplier       Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  user           User?                        @relation("SupplierPortalNotificationsUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([supplierId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status, channel])
+  @@index([type, createdAt])
   @@index([createdById])
 }
 
@@ -1633,6 +1730,8 @@ model SupplierQuotation {
   taxTotal            Decimal         @default(0) @db.Decimal(12, 2)
   total               Decimal         @default(0) @db.Decimal(12, 2)
   note                String?
+  technicalProposal   String?
+  financialProposal   String?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
   invite              RfqSupplierInvite? @relation(fields: [rfqSupplierInviteId], references: [id], onDelete: SetNull)
@@ -1640,6 +1739,7 @@ model SupplierQuotation {
   submittedBy         User?           @relation("SupplierQuotationsSubmitted", fields: [submittedById], references: [id], onDelete: SetNull)
   supplier            Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   items               SupplierQuotationItem[]
+  attachments         SupplierQuotationAttachment[]
   award               RfqAward?
 
   @@unique([rfqId, supplierId])
@@ -1668,6 +1768,25 @@ model SupplierQuotationItem {
   @@index([supplierQuotationId])
   @@index([rfqItemId])
   @@index([productVariantId])
+}
+
+model SupplierQuotationAttachment {
+  id                  Int                           @id @default(autoincrement())
+  supplierQuotationId Int
+  proposalType        SupplierProposalAttachmentType @default(SUPPORTING)
+  label               String?
+  fileUrl             String
+  fileName            String?
+  mimeType            String?
+  fileSize            Int?
+  uploadedById        String?
+  createdAt           DateTime                      @default(now())
+  supplierQuotation   SupplierQuotation             @relation(fields: [supplierQuotationId], references: [id], onDelete: Cascade)
+  uploadedBy          User?                         @relation("SupplierQuotationAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([supplierQuotationId])
+  @@index([proposalType])
+  @@index([uploadedById])
 }
 
 model RfqAward {
@@ -3029,6 +3148,46 @@ enum SupplierPortalAccessStatus {
   REVOKED
 }
 
+enum SupplierDocumentVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum SupplierProfileUpdateRequestType {
+  PROFILE_UPDATE
+  DOCUMENT_UPDATE
+  ANNUAL_RENEWAL
+}
+
+enum SupplierProfileUpdateRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SupplierFeedbackSourceType {
+  INTERNAL
+  CLIENT
+  VENDOR_SELF
+}
+
+enum SupplierPortalNotificationType {
+  GENERAL
+  DOCUMENT_EXPIRY
+  APPROVAL
+  RFQ
+  WORK_ORDER
+  PAYMENT
+}
+
+enum SupplierProposalAttachmentType {
+  TECHNICAL
+  FINANCIAL
+  SUPPORTING
+}
+
 enum InvestorPortalAccessStatus {
   ACTIVE
   SUSPENDED
@@ -3091,6 +3250,8 @@ enum SupplierDocumentType {
   TAX_IDENTIFICATION_NUMBER
   BOARD_RESOLUTION
   VAT_REGISTRATION
+  TAX_COMPLIANCE_CERTIFICATE
+  BANK_INFORMATION
 }
 
 enum ReplenishmentStrategy {
