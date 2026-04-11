@@ -7,6 +7,14 @@ import { resolveSupplierPortalContext } from "@/lib/supplier-portal";
 import { toDecimalAmount } from "@/lib/scm";
 import { logActivity } from "@/lib/activity-log";
 
+type ProposalAttachmentType = "TECHNICAL" | "FINANCIAL" | "SUPPORTING";
+
+const PROPOSAL_ATTACHMENT_TYPES = new Set<ProposalAttachmentType>([
+  "TECHNICAL",
+  "FINANCIAL",
+  "SUPPORTING",
+]);
+
 function cleanText(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
@@ -14,6 +22,67 @@ function cleanText(value: unknown, max = 500) {
 function cleanCurrency(value: unknown, fallback = "BDT") {
   const raw = typeof value === "string" ? value.trim().toUpperCase() : fallback;
   return raw.length === 3 ? raw : fallback;
+}
+
+function cleanProposalAttachmentType(value: unknown): ProposalAttachmentType {
+  if (typeof value !== "string") return "SUPPORTING";
+  const parsed = value.trim().toUpperCase() as ProposalAttachmentType;
+  return PROPOSAL_ATTACHMENT_TYPES.has(parsed) ? parsed : "SUPPORTING";
+}
+
+function normalizeQuotationAttachments(attachments: unknown): Array<{
+  proposalType: ProposalAttachmentType;
+  label: string | null;
+  fileUrl: string;
+  fileName: string | null;
+  mimeType: string | null;
+  fileSize: number | null;
+}> {
+  if (!Array.isArray(attachments)) return [];
+
+  const normalized = attachments.map((attachment, index) => {
+    const item =
+      attachment && typeof attachment === "object"
+        ? (attachment as Record<string, unknown>)
+        : null;
+    const fileUrl = cleanText(item?.fileUrl, 1200);
+    if (!fileUrl) {
+      throw new Error(`Proposal attachment ${index + 1}: file URL is required.`);
+    }
+
+    const fileSizeRaw = item?.fileSize;
+    const fileSize =
+      fileSizeRaw === null || fileSizeRaw === undefined || fileSizeRaw === ""
+        ? null
+        : Number(fileSizeRaw);
+    if (fileSize !== null && (!Number.isInteger(fileSize) || fileSize < 0)) {
+      throw new Error(`Proposal attachment ${index + 1}: file size is invalid.`);
+    }
+
+    return {
+      proposalType: cleanProposalAttachmentType(item?.proposalType),
+      label: cleanText(item?.label, 160) || null,
+      fileUrl,
+      fileName: cleanText(item?.fileName, 255) || null,
+      mimeType: cleanText(item?.mimeType, 120) || null,
+      fileSize,
+    };
+  });
+
+  const seen = new Set<string>();
+  for (const attachment of normalized) {
+    const dedupeKey = [
+      attachment.proposalType,
+      attachment.fileUrl,
+      attachment.fileName ?? "",
+    ].join("|");
+    if (seen.has(dedupeKey)) {
+      throw new Error("Duplicate proposal attachment detected.");
+    }
+    seen.add(dedupeKey);
+  }
+
+  return normalized;
 }
 
 export async function GET(request: NextRequest) {
@@ -163,6 +232,8 @@ export async function GET(request: NextRequest) {
             total: true,
             currency: true,
             note: true,
+            technicalProposal: true,
+            financialProposal: true,
             items: {
               orderBy: { id: "asc" },
               select: {
@@ -173,6 +244,19 @@ export async function GET(request: NextRequest) {
                 unitCost: true,
                 lineTotal: true,
                 description: true,
+              },
+            },
+            attachments: {
+              orderBy: { id: "asc" },
+              select: {
+                id: true,
+                proposalType: true,
+                label: true,
+                fileUrl: true,
+                fileName: true,
+                mimeType: true,
+                fileSize: true,
+                createdAt: true,
               },
             },
           },
@@ -198,13 +282,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       rfqs.map((rfq) => {
+        const nowMs = Date.now();
         const invite = rfq.supplierInvites[0] ?? null;
         const latestQuote = rfq.quotations[0] ?? null;
+        const deadlineMs = rfq.submissionDeadline?.getTime() ?? null;
+        const isSubmissionWindowOpen = deadlineMs === null || nowMs <= deadlineMs;
         const canSubmitQuote =
           (rfq.status === "SUBMITTED" || rfq.status === "CLOSED") &&
           invite !== null &&
           invite.status !== "AWARDED" &&
-          invite.status !== "DECLINED";
+          invite.status !== "DECLINED" &&
+          isSubmissionWindowOpen;
         return {
           id: rfq.id,
           rfqNumber: rfq.rfqNumber,
@@ -223,6 +311,8 @@ export async function GET(request: NextRequest) {
           lastResubmissionRequestedAt:
             rfq.lastResubmissionRequestedAt?.toISOString() ?? null,
           lastResubmissionReason: rfq.lastResubmissionReason,
+          isSubmissionWindowOpen,
+          isSubmissionDeadlinePassed: !isSubmissionWindowOpen,
           canSubmitQuote,
           warehouse: rfq.warehouse,
           categories: rfq.categoryTargets.map((target) => ({
@@ -275,6 +365,8 @@ export async function GET(request: NextRequest) {
                 total: latestQuote.total.toString(),
                 currency: latestQuote.currency,
                 note: latestQuote.note,
+                technicalProposal: latestQuote.technicalProposal,
+                financialProposal: latestQuote.financialProposal,
                 items: latestQuote.items.map((item) => ({
                   id: item.id,
                   rfqItemId: item.rfqItemId,
@@ -283,6 +375,16 @@ export async function GET(request: NextRequest) {
                   unitCost: item.unitCost.toString(),
                   lineTotal: item.lineTotal.toString(),
                   description: item.description,
+                })),
+                attachments: latestQuote.attachments.map((attachment) => ({
+                  id: attachment.id,
+                  proposalType: attachment.proposalType,
+                  label: attachment.label,
+                  fileUrl: attachment.fileUrl,
+                  fileName: attachment.fileName,
+                  mimeType: attachment.mimeType,
+                  fileSize: attachment.fileSize,
+                  createdAt: attachment.createdAt.toISOString(),
                 })),
               }
             : null,
@@ -325,8 +427,11 @@ export async function POST(request: NextRequest) {
       rfqId?: unknown;
       validUntil?: unknown;
       quotationNote?: unknown;
+      technicalProposal?: unknown;
+      financialProposal?: unknown;
       taxTotal?: unknown;
       currency?: unknown;
+      attachments?: unknown;
       items?: Array<{
         rfqItemId?: unknown;
         quantityQuoted?: unknown;
@@ -376,6 +481,7 @@ export async function POST(request: NextRequest) {
         rfqNumber: true,
         status: true,
         resubmissionRound: true,
+        submissionDeadline: true,
         currency: true,
         items: {
           select: {
@@ -404,6 +510,18 @@ export async function POST(request: NextRequest) {
     if (!["SUBMITTED", "CLOSED"].includes(rfq.status)) {
       return NextResponse.json(
         { error: "Quotations are only accepted while RFQ is submitted or closed." },
+        { status: 400 },
+      );
+    }
+    if (
+      rfq.submissionDeadline &&
+      new Date().getTime() > rfq.submissionDeadline.getTime()
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Submission deadline has passed. Proposal editing is locked for this RFQ.",
+        },
         { status: 400 },
       );
     }
@@ -474,6 +592,12 @@ export async function POST(request: NextRequest) {
     if (validUntil && Number.isNaN(validUntil.getTime())) {
       return NextResponse.json({ error: "Valid-until date is invalid." }, { status: 400 });
     }
+    const attachmentsInput =
+      body.attachments === undefined
+        ? null
+        : normalizeQuotationAttachments(body.attachments);
+    const technicalProposal = cleanText(body.technicalProposal, 8000) || null;
+    const financialProposal = cleanText(body.financialProposal, 8000) || null;
 
     const updatedQuotation = await prisma.$transaction(async (tx) => {
       const existing = await tx.supplierQuotation.findUnique({
@@ -500,6 +624,11 @@ export async function POST(request: NextRequest) {
         await tx.supplierQuotationItem.deleteMany({
           where: { supplierQuotationId: existing.id },
         });
+        if (attachmentsInput !== null) {
+          await tx.supplierQuotationAttachment.deleteMany({
+            where: { supplierQuotationId: existing.id },
+          });
+        }
         return tx.supplierQuotation.update({
           where: { id: existing.id },
           data: {
@@ -515,9 +644,26 @@ export async function POST(request: NextRequest) {
             taxTotal,
             total,
             note: cleanText(body.quotationNote, 1000) || null,
+            technicalProposal,
+            financialProposal,
             items: {
               create: quotationItems,
             },
+            ...(attachmentsInput !== null
+              ? {
+                  attachments: {
+                    create: attachmentsInput.map((attachment) => ({
+                      proposalType: attachment.proposalType,
+                      label: attachment.label,
+                      fileUrl: attachment.fileUrl,
+                      fileName: attachment.fileName,
+                      mimeType: attachment.mimeType,
+                      fileSize: attachment.fileSize,
+                      uploadedById: resolved.context.userId,
+                    })),
+                  },
+                }
+              : {}),
           },
           select: {
             id: true,
@@ -534,6 +680,8 @@ export async function POST(request: NextRequest) {
             taxTotal: true,
             total: true,
             note: true,
+            technicalProposal: true,
+            financialProposal: true,
             items: {
               orderBy: { id: "asc" },
               select: {
@@ -544,6 +692,19 @@ export async function POST(request: NextRequest) {
                 unitCost: true,
                 lineTotal: true,
                 description: true,
+              },
+            },
+            attachments: {
+              orderBy: { id: "asc" },
+              select: {
+                id: true,
+                proposalType: true,
+                label: true,
+                fileUrl: true,
+                fileName: true,
+                mimeType: true,
+                fileSize: true,
+                createdAt: true,
               },
             },
           },
@@ -567,9 +728,26 @@ export async function POST(request: NextRequest) {
           taxTotal,
           total,
           note: cleanText(body.quotationNote, 1000) || null,
+          technicalProposal,
+          financialProposal,
           items: {
             create: quotationItems,
           },
+          ...(attachmentsInput !== null
+            ? {
+                attachments: {
+                  create: attachmentsInput.map((attachment) => ({
+                    proposalType: attachment.proposalType,
+                    label: attachment.label,
+                    fileUrl: attachment.fileUrl,
+                    fileName: attachment.fileName,
+                    mimeType: attachment.mimeType,
+                    fileSize: attachment.fileSize,
+                    uploadedById: resolved.context.userId,
+                  })),
+                },
+              }
+            : {}),
         },
         select: {
           id: true,
@@ -586,6 +764,8 @@ export async function POST(request: NextRequest) {
           taxTotal: true,
           total: true,
           note: true,
+          technicalProposal: true,
+          financialProposal: true,
           items: {
             orderBy: { id: "asc" },
             select: {
@@ -596,6 +776,19 @@ export async function POST(request: NextRequest) {
               unitCost: true,
               lineTotal: true,
               description: true,
+            },
+          },
+          attachments: {
+            orderBy: { id: "asc" },
+            select: {
+              id: true,
+              proposalType: true,
+              label: true,
+              fileUrl: true,
+              fileName: true,
+              mimeType: true,
+              fileSize: true,
+              createdAt: true,
             },
           },
         },
@@ -628,6 +821,8 @@ export async function POST(request: NextRequest) {
         subtotal: updatedQuotation.subtotal.toString(),
         taxTotal: updatedQuotation.taxTotal.toString(),
         total: updatedQuotation.total.toString(),
+        technicalProposal: updatedQuotation.technicalProposal,
+        financialProposal: updatedQuotation.financialProposal,
       },
     });
 
@@ -645,6 +840,8 @@ export async function POST(request: NextRequest) {
       taxTotal: updatedQuotation.taxTotal.toString(),
       total: updatedQuotation.total.toString(),
       note: updatedQuotation.note,
+      technicalProposal: updatedQuotation.technicalProposal,
+      financialProposal: updatedQuotation.financialProposal,
       items: updatedQuotation.items.map((item) => ({
         id: item.id,
         rfqItemId: item.rfqItemId,
@@ -653,6 +850,16 @@ export async function POST(request: NextRequest) {
         unitCost: item.unitCost.toString(),
         lineTotal: item.lineTotal.toString(),
         description: item.description,
+      })),
+      attachments: updatedQuotation.attachments.map((attachment) => ({
+        id: attachment.id,
+        proposalType: attachment.proposalType,
+        label: attachment.label,
+        fileUrl: attachment.fileUrl,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        fileSize: attachment.fileSize,
+        createdAt: attachment.createdAt.toISOString(),
       })),
     });
   } catch (error: any) {

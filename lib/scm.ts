@@ -685,6 +685,18 @@ export const rfqInclude = Prisma.validator<Prisma.RfqInclude>()({
           },
         },
       },
+      attachments: {
+        orderBy: { id: "asc" },
+        include: {
+          uploadedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
     },
   },
   award: {
@@ -1287,6 +1299,9 @@ export function toRfqLogSnapshot(rfq: RfqWithRelations) {
       resubmissionNote: quotation.resubmissionNote ?? null,
       quotedAt: quotation.quotedAt.toISOString(),
       validUntil: quotation.validUntil?.toISOString() ?? null,
+      technicalProposal: quotation.technicalProposal ?? null,
+      financialProposal: quotation.financialProposal ?? null,
+      note: quotation.note ?? null,
       subtotal: quotation.subtotal.toString(),
       taxTotal: quotation.taxTotal.toString(),
       total: quotation.total.toString(),
@@ -1299,6 +1314,18 @@ export function toRfqLogSnapshot(rfq: RfqWithRelations) {
         quantityQuoted: item.quantityQuoted,
         unitCost: item.unitCost.toString(),
         lineTotal: item.lineTotal.toString(),
+      })),
+      attachments: quotation.attachments.map((attachment) => ({
+        id: attachment.id,
+        proposalType: attachment.proposalType,
+        label: attachment.label ?? null,
+        fileUrl: attachment.fileUrl,
+        fileName: attachment.fileName ?? null,
+        mimeType: attachment.mimeType ?? null,
+        fileSize: attachment.fileSize ?? null,
+        createdAt: attachment.createdAt.toISOString(),
+        uploadedById: attachment.uploadedById ?? null,
+        uploadedByName: attachment.uploadedBy?.name ?? null,
       })),
     })),
     notifications: rfq.notifications.map((notification) => ({

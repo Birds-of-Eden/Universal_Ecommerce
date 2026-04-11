@@ -79,6 +79,7 @@ model User {
   rfqNotificationsCreated       RfqNotification[]       @relation("RfqNotificationsCreated")
   rfqSupplierInvitesCreated     RfqSupplierInvite[]     @relation("RfqSupplierInvitesCreated")
   supplierQuotationsSubmitted   SupplierQuotation[]     @relation("SupplierQuotationsSubmitted")
+  supplierQuotationAttachmentsUploaded SupplierQuotationAttachment[] @relation("SupplierQuotationAttachmentsUploaded")
   rfqAwardsGranted              RfqAward[]              @relation("RfqAwardsGranted")
   supplierCategoriesCreated     SupplierCategory[]      @relation("SupplierCategoriesCreated")
   supplierCategorySuppliersCreated SupplierCategorySupplier[] @relation("SupplierCategorySuppliersCreated")
@@ -1729,6 +1730,8 @@ model SupplierQuotation {
   taxTotal            Decimal         @default(0) @db.Decimal(12, 2)
   total               Decimal         @default(0) @db.Decimal(12, 2)
   note                String?
+  technicalProposal   String?
+  financialProposal   String?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
   invite              RfqSupplierInvite? @relation(fields: [rfqSupplierInviteId], references: [id], onDelete: SetNull)
@@ -1736,6 +1739,7 @@ model SupplierQuotation {
   submittedBy         User?           @relation("SupplierQuotationsSubmitted", fields: [submittedById], references: [id], onDelete: SetNull)
   supplier            Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   items               SupplierQuotationItem[]
+  attachments         SupplierQuotationAttachment[]
   award               RfqAward?
 
   @@unique([rfqId, supplierId])
@@ -1764,6 +1768,25 @@ model SupplierQuotationItem {
   @@index([supplierQuotationId])
   @@index([rfqItemId])
   @@index([productVariantId])
+}
+
+model SupplierQuotationAttachment {
+  id                  Int                           @id @default(autoincrement())
+  supplierQuotationId Int
+  proposalType        SupplierProposalAttachmentType @default(SUPPORTING)
+  label               String?
+  fileUrl             String
+  fileName            String?
+  mimeType            String?
+  fileSize            Int?
+  uploadedById        String?
+  createdAt           DateTime                      @default(now())
+  supplierQuotation   SupplierQuotation             @relation(fields: [supplierQuotationId], references: [id], onDelete: Cascade)
+  uploadedBy          User?                         @relation("SupplierQuotationAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([supplierQuotationId])
+  @@index([proposalType])
+  @@index([uploadedById])
 }
 
 model RfqAward {
@@ -3157,6 +3180,12 @@ enum SupplierPortalNotificationType {
   RFQ
   WORK_ORDER
   PAYMENT
+}
+
+enum SupplierProposalAttachmentType {
+  TECHNICAL
+  FINANCIAL
+  SUPPORTING
 }
 
 enum InvestorPortalAccessStatus {

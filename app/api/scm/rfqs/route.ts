@@ -164,6 +164,46 @@ function normalizeRfqAttachments(attachments: unknown): Array<{
   return normalized;
 }
 
+function isBlindReviewActive(rfq: {
+  status: string;
+  submissionDeadline: Date | null;
+}) {
+  if (!rfq.submissionDeadline) return false;
+  if (rfq.status === "DRAFT" || rfq.status === "CANCELLED") return false;
+  return Date.now() < rfq.submissionDeadline.getTime();
+}
+
+function toAdminRfqView<T extends { status: string; submissionDeadline: Date | null; quotations: unknown[] }>(
+  rfq: T,
+) {
+  const quotationSubmissionCount = rfq.quotations.length;
+  if (!isBlindReviewActive(rfq)) {
+    return {
+      ...rfq,
+      isBlindReviewActive: false,
+      quotationSubmissionCount,
+      quotationsVisibleAt: rfq.submissionDeadline?.toISOString() ?? null,
+    };
+  }
+  const supplierInvites = Array.isArray((rfq as any).supplierInvites)
+    ? (rfq as any).supplierInvites.map((invite: any) => ({
+        ...invite,
+        status: invite.status === "AWARDED" ? "AWARDED" : "INVITED",
+        respondedAt: null,
+        resubmissionRequestedAt: null,
+        resubmissionReason: null,
+      }))
+    : (rfq as any).supplierInvites;
+  return {
+    ...rfq,
+    quotations: [] as unknown[],
+    supplierInvites,
+    isBlindReviewActive: true,
+    quotationSubmissionCount,
+    quotationsVisibleAt: rfq.submissionDeadline?.toISOString() ?? null,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -247,7 +287,7 @@ export async function GET(request: NextRequest) {
       include: rfqInclude,
     });
 
-    return NextResponse.json(rfqs);
+    return NextResponse.json(rfqs.map((rfq) => toAdminRfqView(rfq)));
   } catch (error) {
     console.error("SCM RFQ GET ERROR:", error);
     return NextResponse.json({ error: "Failed to load RFQs." }, { status: 500 });
@@ -684,7 +724,7 @@ export async function POST(request: NextRequest) {
       after: toRfqLogSnapshot(created),
     });
 
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(toAdminRfqView(created), { status: 201 });
   } catch (error: any) {
     console.error("SCM RFQ POST ERROR:", error);
     return NextResponse.json(

@@ -102,6 +102,46 @@ function canAccessRfq(
   return hasGlobalRfqScope(access) || access.canAccessWarehouse(rfq.warehouseId);
 }
 
+function isBlindReviewActive(rfq: {
+  status: string;
+  submissionDeadline: Date | null;
+}) {
+  if (!rfq.submissionDeadline) return false;
+  if (rfq.status === "DRAFT" || rfq.status === "CANCELLED") return false;
+  return Date.now() < rfq.submissionDeadline.getTime();
+}
+
+function toAdminRfqView<T extends { status: string; submissionDeadline: Date | null; quotations: unknown[] }>(
+  rfq: T,
+) {
+  const quotationSubmissionCount = rfq.quotations.length;
+  if (!isBlindReviewActive(rfq)) {
+    return {
+      ...rfq,
+      isBlindReviewActive: false,
+      quotationSubmissionCount,
+      quotationsVisibleAt: rfq.submissionDeadline?.toISOString() ?? null,
+    };
+  }
+  const supplierInvites = Array.isArray((rfq as any).supplierInvites)
+    ? (rfq as any).supplierInvites.map((invite: any) => ({
+        ...invite,
+        status: invite.status === "AWARDED" ? "AWARDED" : "INVITED",
+        respondedAt: null,
+        resubmissionRequestedAt: null,
+        resubmissionReason: null,
+      }))
+    : (rfq as any).supplierInvites;
+  return {
+    ...rfq,
+    quotations: [] as unknown[],
+    supplierInvites,
+    isBlindReviewActive: true,
+    quotationSubmissionCount,
+    quotationsVisibleAt: rfq.submissionDeadline?.toISOString() ?? null,
+  };
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -136,7 +176,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json(rfq);
+    return NextResponse.json(toAdminRfqView(rfq));
   } catch (error) {
     console.error("SCM RFQ GET BY ID ERROR:", error);
     return NextResponse.json({ error: "Failed to load RFQ." }, { status: 500 });
@@ -314,7 +354,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "submit") {
@@ -336,6 +376,15 @@ export async function PATCH(
       if (rfq.supplierInvites.length === 0) {
         return NextResponse.json(
           { error: "Invite at least one supplier before submitting RFQ." },
+          { status: 400 },
+        );
+      }
+      if (!rfq.submissionDeadline) {
+        return NextResponse.json(
+          {
+            error:
+              "Submission deadline is required for enterprise blind-review RFQ submission.",
+          },
           { status: 400 },
         );
       }
@@ -361,7 +410,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "close") {
@@ -395,7 +444,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "cancel") {
@@ -429,7 +478,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "invite_suppliers") {
@@ -642,7 +691,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "submit_quotation") {
@@ -861,7 +910,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "request_resubmission") {
@@ -1024,7 +1073,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "award") {
@@ -1034,6 +1083,15 @@ export async function PATCH(
       if (!["SUBMITTED", "CLOSED", "AWARDED"].includes(rfq.status)) {
         return NextResponse.json(
           { error: "Only submitted/closed RFQs can be awarded." },
+          { status: 400 },
+        );
+      }
+      if (isBlindReviewActive(rfq)) {
+        return NextResponse.json(
+          {
+            error:
+              "Blind review is active until the RFQ deadline. Proposal details unlock after deadline.",
+          },
           { status: 400 },
         );
       }
@@ -1134,7 +1192,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "convert_to_po") {
@@ -1264,7 +1322,7 @@ export async function PATCH(
       });
 
       return NextResponse.json({
-        rfq: updatedRfq,
+        rfq: toAdminRfqView(updatedRfq),
         purchaseOrder: createdPurchaseOrder,
       });
     }
