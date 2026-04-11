@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import BundleFormModal from "@/components/admin/products/bundles/BundleFormModal";
+import BundleFormModal from "@/components/admin/operations/products/bundles/BundleFormModal";
 
 interface Bundle {
   id: number;
@@ -95,11 +95,11 @@ export default function BundleDetailPage({
 
   const fetchBundle = async () => {
     try {
-      const response = await fetch(`/api/admin/products/bundles/${bundleId}`);
+      const response = await fetch(`/api/admin/operations/products/bundles/${bundleId}`);
       if (!response.ok) {
         if (response.status === 404) {
           toast.error("Bundle not found");
-          router.push("/admin/products/bundles");
+          router.push("/admin/operations/products/bundles");
           return;
         }
         throw new Error("Failed to fetch bundle");
@@ -110,7 +110,7 @@ export default function BundleDetailPage({
     } catch (error) {
       console.error("Error fetching bundle:", error);
       toast.error("Failed to load bundle");
-      router.push("/admin/products/bundles");
+      router.push("/admin/operations/products/bundles");
     } finally {
       setLoading(false);
     }
@@ -159,7 +159,7 @@ export default function BundleDetailPage({
           <p className="text-muted-foreground mb-4">
             The bundle you're looking for doesn't exist or has been deleted.
           </p>
-          <Button onClick={() => router.push("/admin/products/bundles")}>
+          <Button onClick={() => router.push("/admin/operations/products/bundles")}>
             Back to Bundles
           </Button>
         </div>

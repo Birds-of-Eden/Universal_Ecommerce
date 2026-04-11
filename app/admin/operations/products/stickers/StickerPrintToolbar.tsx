@@ -31,7 +31,7 @@ export default function StickerPrintToolbar({
   includeQr,
   includePrice,
   variantIds,
-  basePath = "/admin/products/stickers",
+  basePath = "/admin/operations/products/stickers",
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();

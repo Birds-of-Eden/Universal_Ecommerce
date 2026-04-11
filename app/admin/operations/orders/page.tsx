@@ -1,4 +1,4 @@
-//app/admin/orders/page.tsx
+//app/admin/operations/orders/page.tsx
 
 "use client";
 

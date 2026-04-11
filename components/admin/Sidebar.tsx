@@ -85,22 +85,22 @@ const menuItems: MenuItem[] = [
       },
       {
         name: "Products",
-        href: "/admin/products",
+        href: "/admin/operations/products",
         requiredPermissions: ["products.manage"],
       },
       {
         name: "Orders",
-        href: "/admin/orders",
+        href: "/admin/operations/orders",
         requiredPermissions: ["orders.read_all"],
       },
       {
         name: "Shipments",
-        href: "/admin/shipments",
+        href: "/admin/operations/shipments",
         requiredPermissions: ["shipments.manage", "orders.read_all"],
       },
       {
         name: "Delivery",
-        href: "/admin/delivery/dashboard",
+        href: "/admin/operations/delivery",
         requiredPermissions: ["delivery.dashboard.access"],
       },
     ],

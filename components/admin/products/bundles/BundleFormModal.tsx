@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import ProductPicker from "@/components/admin/products/bundles/ProductPicker";
+import ProductPicker from "@/components/admin/operations/products/bundles/ProductPicker";
 import {
   calculateBundlePricing,
   mergeDuplicateBundleItems,
@@ -124,7 +124,7 @@ export default function BundleFormModal({
           isEdit && bundleId
             ? [
                 ...lookupRequests,
-                fetch(`/api/admin/products/bundles/${bundleId}`),
+                fetch(`/api/admin/operations/products/bundles/${bundleId}`),
               ]
             : lookupRequests;
 
@@ -481,8 +481,8 @@ export default function BundleFormModal({
 
       const response = await fetch(
         isEdit && bundleId
-          ? `/api/admin/products/bundles/${bundleId}`
-          : "/api/admin/products/bundles",
+          ? `/api/admin/operations/products/bundles/${bundleId}`
+          : "/api/admin/operations/products/bundles",
         {
           method: isEdit ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },

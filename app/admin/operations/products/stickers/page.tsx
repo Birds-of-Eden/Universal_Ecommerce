@@ -105,7 +105,7 @@ export default async function StickerPage({
         includeQr={includeQr}
         includePrice={includePrice}
         variantIds={variantIds}
-        basePath="/admin/products/stickers"
+        basePath="/admin/operations/products/stickers"
       />
 
       <section className="sticker-preview-shell">

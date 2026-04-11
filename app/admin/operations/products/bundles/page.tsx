@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import BundleFormModal from "@/components/admin/products/bundles/BundleFormModal";
+import BundleFormModal from "@/components/admin/operations/products/bundles/BundleFormModal";
 
 interface Bundle {
   id: number;
@@ -117,7 +117,7 @@ export default function BundlesPage() {
         status: statusFilter,
       });
 
-      const response = await fetch(`/api/admin/products/bundles?${params}`);
+      const response = await fetch(`/api/admin/operations/products/bundles?${params}`);
       if (!response.ok) throw new Error("Failed to fetch bundles");
 
       const data: BundlesResponse = await response.json();
@@ -143,7 +143,7 @@ export default function BundlesPage() {
     setIsDeleting(true);
     try {
       const response = await fetch(
-        `/api/admin/products/bundles/${deletingBundle.id}`,
+        `/api/admin/operations/products/bundles/${deletingBundle.id}`,
         {
           method: "DELETE",
         },
@@ -299,7 +299,7 @@ export default function BundlesPage() {
               key={bundle.id}
               className="overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-primary/50"
               onClick={() =>
-                router.push(`/admin/products/bundles/${bundle.id}`)
+                router.push(`/admin/operations/products/bundles/${bundle.id}`)
               }
             >
               <CardContent className="p-6 flex items-center justify-between">
@@ -400,7 +400,7 @@ export default function BundlesPage() {
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      router.push(`/admin/products/bundles/${bundle.id}`)
+                      router.push(`/admin/operations/products/bundles/${bundle.id}`)
                     }
                   >
                     <Eye className="h-4 w-4 mr-2" />
@@ -410,7 +410,7 @@ export default function BundlesPage() {
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      router.push(`/admin/products/bundles/${bundle.id}`)
+                      router.push(`/admin/operations/products/bundles/${bundle.id}`)
                     }
                   >
                     <Edit3 className="h-4 w-4 mr-2" />

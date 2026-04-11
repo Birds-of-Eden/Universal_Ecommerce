@@ -764,14 +764,14 @@ function AdminDashboard({
 
   const quickActions = [
     {
-      href: "/admin/products",
+      href: "/admin/operations/products",
       label: "Add product",
       description:
         "Create products, variants, pricing, and stock-ready listings.",
       icon: Package,
     },
     {
-      href: "/admin/orders",
+      href: "/admin/operations/orders",
       label: "View pending orders",
       description:
         "Jump into fulfillment, payment exceptions, and shipping blockers.",
@@ -1099,7 +1099,7 @@ function AdminDashboard({
           subtitle="Order pipeline, payments, shipping, and refunds"
           action={
             <Link
-              href="/admin/orders"
+              href="/admin/operations/orders"
               className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
             >
               Open orders
@@ -1481,7 +1481,7 @@ function AdminDashboard({
           subtitle="Best-selling items and variant performance"
           action={
             <Link
-              href="/admin/products"
+              href="/admin/operations/products"
               className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
             >
               Manage catalog

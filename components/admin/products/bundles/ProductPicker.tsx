@@ -117,7 +117,7 @@ export default function ProductPicker({
       }
 
       const response = await fetch(
-        `/api/admin/products/bundles/search-products?${params}`
+        `/api/admin/operations/products/bundles/search-products?${params}`
       );
       if (!response.ok) throw new Error("Failed to fetch products");
 
@@ -127,7 +127,7 @@ export default function ProductPicker({
       if (warehouseId && fetchedProducts.length > 0) {
         const productIds = fetchedProducts.map((p: Product) => p.id).join(",");
         const stockResponse = await fetch(
-          `/api/admin/products/warehouse-stock?productIds=${productIds}&warehouseId=${warehouseId}`
+          `/api/admin/operations/products/warehouse-stock?productIds=${productIds}&warehouseId=${warehouseId}`
         );
 
         if (stockResponse.ok) {

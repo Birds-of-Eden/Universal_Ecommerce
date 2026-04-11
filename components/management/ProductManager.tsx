@@ -595,7 +595,7 @@ export default function ProductManager({
                   <Button
                     variant="outline"
                     onClick={() =>
-                      (window.location.href = "/admin/products/bundles")
+                      (window.location.href = "/admin/operations/products/bundles")
                     }
                     className="border-primary/20 text-primary hover:bg-primary/10"
                   >

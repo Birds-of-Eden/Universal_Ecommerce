@@ -422,7 +422,7 @@ export default function EcommarceAdminDashboard() {
                 </div>
               ))}
               <Link
-                href="/admin/orders"
+                href="/admin/operations/orders"
                 className="text-sm text-primary hover:underline block text-center mt-2"
               >
                 View all orders

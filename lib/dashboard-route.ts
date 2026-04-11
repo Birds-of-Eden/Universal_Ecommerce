@@ -8,7 +8,7 @@ type DashboardUserLike =
   | undefined;
 
 export const USER_DASHBOARD_ROUTE = "/ecommerce/user/";
-export const DELIVERY_DASHBOARD_ROUTE = "/admin/delivery/dashboard";
+export const DELIVERY_DASHBOARD_ROUTE = "/admin/operations/delivery";
 export const SUPPLIER_DASHBOARD_ROUTE = "/supplier";
 export const INVESTOR_DASHBOARD_ROUTE = "/investor";
 
