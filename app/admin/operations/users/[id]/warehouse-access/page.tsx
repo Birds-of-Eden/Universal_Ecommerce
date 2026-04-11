@@ -247,7 +247,7 @@ export default function UserWarehouseAccessPage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <Link
-                href={`/admin/users/${data.user.id}`}
+                href={`/admin/operations/users/${data.user.id}`}
                 className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" />

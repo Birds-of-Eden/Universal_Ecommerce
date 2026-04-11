@@ -307,7 +307,7 @@ export default function UserTable({
                   <div className="flex items-center space-x-2">
                     {/* View Button */}
                     <Link
-                      href={`/admin/users/${user.id}`}
+                      href={`/admin/operations/users/${user.id}`}
                       className="inline-flex items-center px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-300 group/action shadow-sm"
                     >
                       <Eye className="h-4 w-4" />

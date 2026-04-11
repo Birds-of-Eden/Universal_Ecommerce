@@ -80,7 +80,7 @@ const menuItems: MenuItem[] = [
     subItems: [
       {
         name: "Users",
-        href: "/admin/users",
+        href: "/admin/operations/users",
         requiredPermissions: ["users.read", "users.manage"],
       },
       {

@@ -811,7 +811,7 @@ function AdminDashboard({
       icon: WalletCards,
     },
     {
-      href: "/admin/users",
+      href: "/admin/operations/users",
       label: "Manage users",
       description:
         "Inspect customers, staff roles, permissions, and account health.",

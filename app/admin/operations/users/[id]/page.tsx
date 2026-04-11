@@ -512,7 +512,7 @@ export default function UserDetailPage() {
               ) : null}
 
               <Link
-                href={`/admin/users/${user.id}/warehouse-access`}
+                href={`/admin/operations/users/${user.id}/warehouse-access`}
                 className="flex items-center space-x-2 px-4 py-2 rounded-xl border border-border bg-card text-foreground hover:bg-accent transition-all duration-300 shadow-sm font-medium"
               >
                 <Shield className="h-4 w-4" />

@@ -1,8 +1,11 @@
-type DashboardUserLike = {
-  role?: string | null;
-  permissions?: string[] | null;
-  defaultAdminRoute?: "/admin" | "/admin/warehouse" | null;
-} | null | undefined;
+type DashboardUserLike =
+  | {
+      role?: string | null;
+      permissions?: string[] | null;
+      defaultAdminRoute?: "/admin" | "/admin/warehouse" | null;
+    }
+  | null
+  | undefined;
 
 export const USER_DASHBOARD_ROUTE = "/ecommerce/user/";
 export const DELIVERY_DASHBOARD_ROUTE = "/admin/delivery/dashboard";
@@ -41,6 +44,9 @@ export function hasInvestorPortalAccess(user?: DashboardUserLike) {
 }
 
 export function getDashboardRoute(user?: DashboardUserLike) {
+  if (user?.role === "investor") {
+    return INVESTOR_DASHBOARD_ROUTE;
+  }
   if (hasAdminDashboardAccess(user)) {
     return user?.defaultAdminRoute === "/admin/warehouse"
       ? "/admin/warehouse"

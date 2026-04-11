@@ -250,7 +250,7 @@ const adminPagePermissionRules: PermissionRule[] = [
       "settings.shipping.manage",
     ],
   },
-  { prefix: "/admin/users", permissions: ["users.read", "users.manage"] },
+  { prefix: "/admin/operations/users", permissions: ["users.read", "users.manage"] },
   { prefix: "/admin/products", permissions: ["products.manage"] },
   { prefix: "/admin/orders", permissions: ["orders.read_all"] },
   { prefix: "/admin/chats", permissions: ["chats.manage"] },
@@ -1180,7 +1180,12 @@ export default async function authMiddleware(request: NextRequest) {
       return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
     }
 
-    if (adminAccess && pathname.startsWith("/investor")) {
+    if (
+      adminAccess &&
+      pathname.startsWith("/investor") &&
+      !investorPortalAccess &&
+      session?.user?.role !== "investor"
+    ) {
       return NextResponse.redirect(new URL(defaultAdminRoute, request.url));
     }
 

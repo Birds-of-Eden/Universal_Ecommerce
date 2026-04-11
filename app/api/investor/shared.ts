@@ -1,3 +1,4 @@
+//app/api/investor/shared.ts
 import { Prisma } from "@/generated/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
