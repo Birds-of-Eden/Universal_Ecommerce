@@ -638,57 +638,60 @@ export async function POST(request: NextRequest) {
     };
 
     const allocationCandidates: AllocationCandidate[] = [];
+    console.log("DEBUG: Processing allocations for profit run", {
+      totalVariants: variants.length,
+      totalActiveAllocations: activeAllocations.length,
+      allocationByVariantCount: allocationByVariant.size,
+      fromDate: fromDate.toISOString(),
+      toDate: toDate.toISOString(),
+    });
+
     for (const row of variants) {
       const linked = allocationByVariant.get(row.variantId) ?? [];
+      console.log(`DEBUG: Variant ${row.variantId} (${row.sku}) has ${linked.length} allocations`, {
+        variantId: row.variantId,
+        sku: row.sku,
+        netProfit: row.netProfit.toString(),
+        allocations: linked.map((a: typeof activeAllocations[0]) => ({
+          id: a.id,
+          investorId: a.investorId,
+          participationPercent: a.participationPercent?.toString(),
+          committedAmount: a.committedAmount?.toString(),
+        })),
+      });
+      
       if (linked.length === 0) {
         row.unallocatedSharePct = new Prisma.Decimal(1);
         continue;
       }
 
+      // Separate percentage-based and committed amount allocations
       const percentEntries = linked
         .map((item) => ({
           item,
           pct: Number(item.participationPercent?.toString() || 0) / 100,
         }))
-        .filter((item) => item.pct > 0);
+        .filter((entry: any) => entry.pct > 0);
 
-      const rawPercentTotal = percentEntries.reduce((sum, item) => sum + item.pct, 0);
-      const normalizeFactor = rawPercentTotal > 1 ? 1 / rawPercentTotal : 1;
+      const committedEntries = linked.filter((item) => {
+        const pct = Number(item.participationPercent?.toString() || 0);
+        return pct <= 0 && (item.committedAmount?.gt(0) ?? false);
+      });
 
       let assignedShare = new Prisma.Decimal(0);
-      for (const entry of percentEntries) {
-        const share = new Prisma.Decimal(entry.pct * normalizeFactor);
-        assignedShare = assignedShare.plus(share);
-        allocationCandidates.push({
-          variantId: row.variantId,
-          investorId: entry.item.investorId,
-          sourceAllocationId: entry.item.id,
-          share,
-          allocatedRevenue: row.netRevenue.mul(share),
-          allocatedNetProfit: row.netProfit.mul(share),
-        });
-      }
 
-      const remainingShare = new Prisma.Decimal(1).minus(assignedShare);
-      const poolEntries = linked.filter((item) => {
-        const pct = Number(item.participationPercent?.toString() || 0);
-        return pct <= 0;
-      });
-      const committedTotal = poolEntries.reduce(
-        (sum, item) => sum.plus(item.committedAmount ?? new Prisma.Decimal(0)),
-        new Prisma.Decimal(0),
-      );
+      // Process percentage-based allocations first
+      if (percentEntries.length > 0) {
+        const rawPercentTotal = percentEntries.reduce((sum, entry) => sum + entry.pct, 0);
+        const normalizeFactor = rawPercentTotal > 1 ? 1 / rawPercentTotal : 1;
 
-      if (remainingShare.gt(0) && poolEntries.length > 0 && committedTotal.gt(0)) {
-        for (const entry of poolEntries) {
-          const committed = entry.committedAmount ?? new Prisma.Decimal(0);
-          if (committed.lte(0)) continue;
-          const share = remainingShare.mul(committed.div(committedTotal));
+        for (const entry of percentEntries) {
+          const share = new Prisma.Decimal(entry.pct * normalizeFactor);
           assignedShare = assignedShare.plus(share);
           allocationCandidates.push({
             variantId: row.variantId,
-            investorId: entry.investorId,
-            sourceAllocationId: entry.id,
+            investorId: entry.item.investorId,
+            sourceAllocationId: entry.item.id,
             share,
             allocatedRevenue: row.netRevenue.mul(share),
             allocatedNetProfit: row.netProfit.mul(share),
@@ -696,11 +699,53 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Process committed amount allocations with remaining share
+      if (committedEntries.length > 0) {
+        const remainingShare = new Prisma.Decimal(1).minus(assignedShare);
+        const committedTotal = committedEntries.reduce(
+          (sum, item) => sum.plus(item.committedAmount ?? new Prisma.Decimal(0)),
+          new Prisma.Decimal(0),
+        );
+
+        if (remainingShare.gt(0) && committedTotal.gt(0)) {
+          for (const entry of committedEntries) {
+            const committed = entry.committedAmount ?? new Prisma.Decimal(0);
+            if (committed.gt(0)) {
+              const share = remainingShare.mul(committed.div(committedTotal));
+              assignedShare = assignedShare.plus(share);
+              allocationCandidates.push({
+                variantId: row.variantId,
+                investorId: entry.investorId,
+                sourceAllocationId: entry.id,
+                share,
+                allocatedRevenue: row.netRevenue.mul(share),
+                allocatedNetProfit: row.netProfit.mul(share),
+              });
+            }
+          }
+        }
+      }
+
+      // Calculate unallocated share (should be 0 if allocations cover everything)
       row.unallocatedSharePct = new Prisma.Decimal(1).minus(assignedShare);
       if (row.unallocatedSharePct.lt(0)) {
         row.unallocatedSharePct = new Prisma.Decimal(0);
       }
+      
+      console.log(`DEBUG: Final allocation for variant ${row.variantId}`, {
+        unallocatedSharePct: row.unallocatedSharePct.toString(),
+        assignedShare: assignedShare.toString(),
+        totalCandidates: allocationCandidates.filter(c => c.variantId === row.variantId).length,
+      });
     }
+    
+    console.log("DEBUG: Final allocation candidates summary", {
+      totalCandidates: allocationCandidates.length,
+      candidatesByVariant: allocationCandidates.reduce((acc, candidate) => {
+        acc[candidate.variantId] = (acc[candidate.variantId] || 0) + 1;
+        return acc;
+      }, {} as Record<number, number>),
+    });
 
     const totalNetRevenue = variants.reduce(
       (sum, item) => sum.plus(item.netRevenue),
@@ -764,24 +809,33 @@ export async function POST(request: NextRequest) {
       }
 
       if (allocationCandidates.length > 0) {
-        await tx.investorProfitRunAllocation.createMany({
-          data: allocationCandidates
-            .map((item) => {
-              const variantLineId = variantIdToLineId.get(item.variantId);
-              if (!variantLineId) return null;
-              return {
-                runId: run.id,
-                variantLineId,
-                investorId: item.investorId,
-                productVariantId: item.variantId,
-                sourceAllocationId: item.sourceAllocationId,
-                participationSharePct: item.share,
-                allocatedRevenue: item.allocatedRevenue,
-                allocatedNetProfit: item.allocatedNetProfit,
-              };
-            })
-            .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+        const allocationRows = allocationCandidates
+          .map((item) => {
+            const variantLineId = variantIdToLineId.get(item.variantId);
+            if (!variantLineId) return null;
+            return {
+              runId: run.id,
+              variantLineId,
+              investorId: item.investorId,
+              productVariantId: item.variantId,
+              sourceAllocationId: item.sourceAllocationId,
+              participationSharePct: item.share,
+              allocatedRevenue: item.allocatedRevenue,
+              allocatedNetProfit: item.allocatedNetProfit,
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+        if (allocationRows.length !== allocationCandidates.length) {
+          throw new Error("Failed to map all investor profit allocations to variant lines.");
+        }
+
+        const insertedAllocations = await tx.investorProfitRunAllocation.createMany({
+          data: allocationRows,
         });
+        if (insertedAllocations.count !== allocationRows.length) {
+          throw new Error("Failed to persist the full investor profit allocation snapshot.");
+        }
       }
 
       const [variantCount, allocationCount] = await Promise.all([
