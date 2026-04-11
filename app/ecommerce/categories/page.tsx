@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Heart, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/components/ecommarce/CartContext";
@@ -190,6 +191,7 @@ export default function CategoriesPage() {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { status } = useSession();
+  const searchParams = useSearchParams();
 
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -305,6 +307,62 @@ export default function CategoriesPage() {
     loadData();
   }, []);
 
+  // Handle URL slug parameter for auto-selecting category
+  useEffect(() => {
+    if (categories.length === 0) return;
+
+    const slug = searchParams.get('slug');
+    if (!slug) return;
+
+    // Find category by slug
+    const findCategoryBySlug = (categoryList: CategoryNode[], targetSlug: string): CategoryNode | null => {
+      for (const category of categoryList) {
+        if (category.slug === targetSlug) {
+          return category;
+        }
+        const foundInChildren = findCategoryBySlug(category.children, targetSlug);
+        if (foundInChildren) return foundInChildren;
+      }
+      return null;
+    };
+
+    const targetCategory = findCategoryBySlug(categories, slug);
+    if (targetCategory) {
+      // Find the root department (parent with parentId === null)
+      let rootDepartment = targetCategory;
+      while (rootDepartment.parentId !== null && rootDepartment.parentId !== undefined) {
+        const parent = categories.find(cat => cat.id === rootDepartment.parentId);
+        if (!parent) break;
+        rootDepartment = parent;
+      }
+
+      // Set the active department
+      setActiveDepartmentId(rootDepartment.id);
+
+      // If the target is a child category, set it as active
+      if (targetCategory.parentId !== null && targetCategory.parentId !== undefined) {
+        const parentDepartment = categories.find(cat => cat.id === rootDepartment.id);
+        if (parentDepartment) {
+          const childCategory = parentDepartment.children.find(child => child.id === targetCategory.id);
+          if (childCategory) {
+            setActiveChildId(childCategory.id);
+            
+            // If the target is a grandchild, set it as active
+            if (targetCategory.children.length === 0) {
+              // This might be a grandchild, find it in the child's children
+              for (const grandChild of childCategory.children) {
+                if (grandChild.slug === slug) {
+                  setActiveGrandChildId(grandChild.id);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, [categories, searchParams]);
+
   const departmentTabs = useMemo(
     () => categories.filter((category) => category.parentId === null),
     [categories],
@@ -359,15 +417,9 @@ export default function CategoriesPage() {
       return;
     }
 
-    setActiveChildId((currentId) => {
-      if (
-        currentId &&
-        activeDepartment.children.some((child) => child.id === currentId)
-      ) {
-        return currentId;
-      }
-      return activeDepartment.children[0]?.id ?? null;
-    });
+    // Always start with "All" selected when department changes
+    setActiveChildId(null);
+    setActiveGrandChildId(null);
   }, [activeDepartment]);
 
   useEffect(() => {
@@ -376,15 +428,8 @@ export default function CategoriesPage() {
       return;
     }
 
-    setActiveGrandChildId((currentId) => {
-      if (
-        currentId &&
-        activeChild.children.some((grandChild) => grandChild.id === currentId)
-      ) {
-        return currentId;
-      }
-      return activeChild.children[0]?.id ?? null;
-    });
+    // Always start with "All" selected when child changes
+    setActiveGrandChildId(null);
   }, [activeChild]);
 
   const filteredDepartmentTabs = useMemo(() => {
@@ -542,102 +587,103 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        <div className="mt-5 space-y-4">
-          <div className="group/slider relative">
-            <div
-              className="overflow-x-auto pb-2 scrollbar-hide scroll-smooth"
-              ref={scrollContainerRef}
-            >
-              <div className="flex gap-2 whitespace-nowrap snap-x snap-proximity">
-                {departmentTabs.map((department) => (
+        <div className="sticky top-24 z-40 mt-5">
+          <div className="space-y-4 rounded-xl border border-border/60 bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="group/slider relative">
+              <div
+                className="overflow-x-auto pb-2 scrollbar-hide scroll-smooth"
+                ref={scrollContainerRef}
+              >
+                <div className="flex gap-2 whitespace-nowrap snap-x snap-proximity">
+                  {departmentTabs.map((department) => (
+                    <button
+                      key={department.id}
+                      data-category="1"
+                      type="button"
+                      onClick={() => setActiveDepartmentId(department.id)}
+                      className={`snap-start rounded-full border px-4 py-1.5 text-lg font-medium transition ${
+                        activeDepartment?.id === department.id
+                          ? "border-primary bg-primary text-primary-foreground shadow-lg"
+                          : "border-border bg-card text-foreground hover:border-primary hover:bg-primary/5 dark:border-border dark:bg-card dark:text-foreground"
+                      }`}
+                    >
+                      {department.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {departmentTabs.length > 6 && (
+                <>
+                  <SliderNavButton
+                    direction="left"
+                    onClick={() => scrollByCategories("left")}
+                  />
+                  <SliderNavButton
+                    direction="right"
+                    onClick={() => scrollByCategories("right")}
+                  />
+                </>
+              )}
+
+              <div className="pointer-events-none absolute left-0 top-0 bottom-2 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
+              <div className="pointer-events-none absolute right-0 top-0 bottom-2 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
+            </div>
+
+            {/* child categories normal, sticky na */}
+            <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {activeDepartment?.children.map((child) => (
                   <button
-                    key={department.id}
-                    data-category="1"
+                    key={child.id}
                     type="button"
-                    onClick={() => setActiveDepartmentId(department.id)}
-                    className={`snap-start rounded-full border px-4 py-1.5 text-lg font-medium transition ${
-                      activeDepartment?.id === department.id
-                        ? "border-primary bg-primary text-primary-foreground shadow-lg"
-                        : "border-border bg-card text-foreground hover:border-primary hover:bg-primary/5 dark:border-border dark:bg-card dark:text-foreground"
+                    onClick={() => {
+                      setActiveChildId(child.id);
+                      setActiveGrandChildId(null);
+                    }}
+                    className={`rounded-full border px-3 py-1 text-md transition ${
+                      activeChild?.id === child.id
+                        ? "border-secondary bg-secondary text-secondary-foreground shadow-md"
+                        : "border-border bg-background text-muted-foreground hover:border-secondary hover:bg-secondary/10 dark:border-border dark:bg-background dark:text-muted-foreground"
                     }`}
                   >
-                    {department.name}
+                    {child.name}
                   </button>
                 ))}
               </div>
             </div>
 
-            {departmentTabs.length > 6 && (
-              <>
-                <SliderNavButton
-                  direction="left"
-                  onClick={() => scrollByCategories("left")}
-                />
-                <SliderNavButton
-                  direction="right"
-                  onClick={() => scrollByCategories("right")}
-                />
-              </>
-            )}
-
-            {/* Left blur effect */}
-            <div className="absolute left-0 top-0 bottom-2 w-8 bg-gradient-to-r from-background to-transparent pointer-events-none z-10"></div>
-            {/* Right blur effect */}
-            <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10"></div>
-          </div>
-
-          <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3 shadow-sm md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {activeDepartment?.children.map((child) => (
+            {/* grandchild normal, sticky na */}
+            {activeChild && activeChild.children.length > 0 && (
+              <div className="flex flex-wrap gap-2">
                 <button
-                  key={child.id}
                   type="button"
-                  onClick={() => {
-                    setActiveChildId(child.id);
-                    setActiveGrandChildId(null);
-                  }}
-                  className={`rounded-full border px-3 py-1 text-md transition ${
-                    activeChild?.id === child.id
-                      ? "border-secondary bg-secondary text-secondary-foreground shadow-md"
-                      : "border-border bg-background text-muted-foreground hover:border-secondary hover:bg-secondary/10 dark:border-border dark:bg-background dark:text-muted-foreground"
-                  }`}
-                >
-                  {child.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Grandchild Categories Navigation */}
-          {activeChild && activeChild.children.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveGrandChildId(null)}
-                className={`rounded-full border px-3 py-1 text-sm transition ${
-                  activeGrandChild === null
-                    ? "border-accent bg-accent text-accent-foreground shadow-md"
-                    : "border-border bg-card text-muted-foreground hover:border-accent hover:bg-accent/10 dark:border-border dark:bg-card dark:text-muted-foreground"
-                }`}
-              >
-                All
-              </button>
-              {activeChild.children.map((grandChild) => (
-                <button
-                  key={grandChild.id}
-                  type="button"
-                  onClick={() => setActiveGrandChildId(grandChild.id)}
+                  onClick={() => setActiveGrandChildId(null)}
                   className={`rounded-full border px-3 py-1 text-sm transition ${
-                    activeGrandChild?.id === grandChild.id
+                    activeGrandChild === null
                       ? "border-accent bg-accent text-accent-foreground shadow-md"
                       : "border-border bg-card text-muted-foreground hover:border-accent hover:bg-accent/10 dark:border-border dark:bg-card dark:text-muted-foreground"
                   }`}
                 >
-                  {grandChild.name}
+                  All
                 </button>
-              ))}
-            </div>
-          )}
+                {activeChild.children.map((grandChild) => (
+                  <button
+                    key={grandChild.id}
+                    type="button"
+                    onClick={() => setActiveGrandChildId(grandChild.id)}
+                    className={`rounded-full border px-3 py-1 text-sm transition ${
+                      activeGrandChild?.id === grandChild.id
+                        ? "border-accent bg-accent text-accent-foreground shadow-md"
+                        : "border-border bg-card text-muted-foreground hover:border-accent hover:bg-accent/10 dark:border-border dark:bg-card dark:text-muted-foreground"
+                    }`}
+                  >
+                    {grandChild.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mt-6">
@@ -649,7 +695,7 @@ export default function CategoriesPage() {
             </div>
           ) : sections.length === 0 ? (
             <div className="rounded-md border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No department products found.
+              No products found of this category.
             </div>
           ) : (
             <div className="space-y-7">

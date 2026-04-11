@@ -216,7 +216,7 @@ export default function FeaturedCategories({
             {featuredCategories.map((category, index) => (
               <Link
                 key={category.id}
-                href={`/ecommerce/categories/${category.slug}`}
+                href={`/ecommerce/categories?slug=${category.slug}`}
                 className={cn(
                   "group relative overflow-hidden rounded-[28px] border border-border/60",
                   "shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
@@ -266,7 +266,7 @@ export default function FeaturedCategories({
             {regularCategories.map((category, index) => (
               <Link
                 key={category.id}
-                href={`/ecommerce/categories/${category.slug}`}
+                href={`/ecommerce/categories?slug=${category.slug}`}
                 className={cn(
                   "group relative overflow-hidden rounded-[28px] border border-border/60",
                   "shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg",
