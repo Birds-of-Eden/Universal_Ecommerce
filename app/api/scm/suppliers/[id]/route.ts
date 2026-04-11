@@ -10,6 +10,7 @@ import {
   hasSupplierReadAccess,
   normalizeSupplierCode,
   normalizeSupplierCompanyType,
+  parseSupplierCategoryIds,
   parseSupplierDocuments,
   serializeSupplier,
   SupplierValidationError,
@@ -44,6 +45,19 @@ export async function GET(
       include: {
         documents: {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        },
+        categories: {
+          orderBy: [{ id: "asc" }],
+          include: {
+            supplierCategory: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                isActive: true,
+              },
+            },
+          },
         },
       },
     });
@@ -89,6 +103,19 @@ export async function PATCH(
         documents: {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         },
+        categories: {
+          orderBy: [{ id: "asc" }],
+          include: {
+            supplierCategory: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
     if (!existing) {
@@ -120,6 +147,10 @@ export async function PATCH(
             fileSize: document.fileSize,
           }))
         : parseSupplierDocuments(body.documents);
+    const categoryIds =
+      body.categoryIds === undefined
+        ? existing.categories.map((membership) => membership.supplierCategory.id)
+        : parseSupplierCategoryIds(body.categoryIds);
 
     assertRequiredSupplierDocuments(companyType, documents);
 
@@ -141,6 +172,26 @@ export async function PATCH(
     ) {
       return NextResponse.json(
         { error: "Lead time and payment terms must be non-negative integers." },
+        { status: 400 },
+      );
+    }
+
+    const categories =
+      categoryIds.length > 0
+        ? await prisma.supplierCategory.findMany({
+            where: {
+              id: { in: categoryIds },
+              isActive: true,
+            },
+            select: { id: true },
+          })
+        : [];
+    if (categories.length !== categoryIds.length) {
+      return NextResponse.json(
+        {
+          error:
+            "One or more supplier categories were not found or inactive.",
+        },
         { status: 400 },
       );
     }
@@ -167,10 +218,34 @@ export async function PATCH(
           deleteMany: {},
           create: documents,
         },
+        categories: {
+          deleteMany: {},
+          ...(categoryIds.length > 0
+            ? {
+                create: categoryIds.map((supplierCategoryId) => ({
+                  supplierCategoryId,
+                  createdById: access.userId,
+                })),
+              }
+            : {}),
+        },
       },
       include: {
         documents: {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        },
+        categories: {
+          orderBy: [{ id: "asc" }],
+          include: {
+            supplierCategory: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                isActive: true,
+              },
+            },
+          },
         },
       },
     });

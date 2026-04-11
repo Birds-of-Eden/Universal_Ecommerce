@@ -32,7 +32,27 @@ export async function GET(request: NextRequest) {
 
     const rfqs = await prisma.rfq.findMany({
       where: {
-        supplierInvites: { some: { supplierId: resolved.context.supplierId } },
+        AND: [
+          { supplierInvites: { some: { supplierId: resolved.context.supplierId } } },
+          {
+            OR: [
+              { categoryTargets: { none: {} } },
+              {
+                categoryTargets: {
+                  some: {
+                    supplierCategory: {
+                      suppliers: {
+                        some: {
+                          supplierId: resolved.context.supplierId,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
         ...(status
           ? {
               status: status as Prisma.EnumRfqStatusFilter["equals"],
@@ -56,6 +76,39 @@ export async function GET(request: NextRequest) {
         requestedAt: true,
         submissionDeadline: true,
         note: true,
+        scopeOfWork: true,
+        termsAndConditions: true,
+        boqDetails: true,
+        technicalSpecifications: true,
+        evaluationCriteria: true,
+        resubmissionAllowed: true,
+        resubmissionRound: true,
+        lastResubmissionRequestedAt: true,
+        lastResubmissionReason: true,
+        categoryTargets: {
+          orderBy: { id: "asc" },
+          select: {
+            supplierCategory: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+              },
+            },
+          },
+        },
+        attachments: {
+          orderBy: { id: "asc" },
+          select: {
+            id: true,
+            label: true,
+            fileUrl: true,
+            fileName: true,
+            mimeType: true,
+            fileSize: true,
+            createdAt: true,
+          },
+        },
         warehouse: {
           select: {
             id: true,
@@ -88,6 +141,9 @@ export async function GET(request: NextRequest) {
             status: true,
             invitedAt: true,
             respondedAt: true,
+            lastNotifiedAt: true,
+            resubmissionRequestedAt: true,
+            resubmissionReason: true,
             note: true,
           },
         },
@@ -97,6 +153,9 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             status: true,
+            revisionNo: true,
+            resubmissionRound: true,
+            resubmissionNote: true,
             quotedAt: true,
             validUntil: true,
             subtotal: true,
@@ -142,7 +201,10 @@ export async function GET(request: NextRequest) {
         const invite = rfq.supplierInvites[0] ?? null;
         const latestQuote = rfq.quotations[0] ?? null;
         const canSubmitQuote =
-          (rfq.status === "SUBMITTED" || rfq.status === "CLOSED") && Boolean(invite);
+          (rfq.status === "SUBMITTED" || rfq.status === "CLOSED") &&
+          invite !== null &&
+          invite.status !== "AWARDED" &&
+          invite.status !== "DECLINED";
         return {
           id: rfq.id,
           rfqNumber: rfq.rfqNumber,
@@ -151,14 +213,42 @@ export async function GET(request: NextRequest) {
           requestedAt: rfq.requestedAt.toISOString(),
           submissionDeadline: rfq.submissionDeadline?.toISOString() ?? null,
           note: rfq.note,
+          scopeOfWork: rfq.scopeOfWork,
+          termsAndConditions: rfq.termsAndConditions,
+          boqDetails: rfq.boqDetails,
+          technicalSpecifications: rfq.technicalSpecifications,
+          evaluationCriteria: rfq.evaluationCriteria,
+          resubmissionAllowed: rfq.resubmissionAllowed,
+          resubmissionRound: rfq.resubmissionRound,
+          lastResubmissionRequestedAt:
+            rfq.lastResubmissionRequestedAt?.toISOString() ?? null,
+          lastResubmissionReason: rfq.lastResubmissionReason,
           canSubmitQuote,
           warehouse: rfq.warehouse,
+          categories: rfq.categoryTargets.map((target) => ({
+            id: target.supplierCategory.id,
+            code: target.supplierCategory.code,
+            name: target.supplierCategory.name,
+          })),
+          attachments: rfq.attachments.map((attachment) => ({
+            id: attachment.id,
+            label: attachment.label,
+            fileUrl: attachment.fileUrl,
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            fileSize: attachment.fileSize,
+            createdAt: attachment.createdAt.toISOString(),
+          })),
           invite: invite
             ? {
                 id: invite.id,
                 status: invite.status,
                 invitedAt: invite.invitedAt.toISOString(),
                 respondedAt: invite.respondedAt?.toISOString() ?? null,
+                lastNotifiedAt: invite.lastNotifiedAt?.toISOString() ?? null,
+                resubmissionRequestedAt:
+                  invite.resubmissionRequestedAt?.toISOString() ?? null,
+                resubmissionReason: invite.resubmissionReason,
                 note: invite.note,
               }
             : null,
@@ -173,9 +263,12 @@ export async function GET(request: NextRequest) {
           })),
           quotation: latestQuote
             ? {
-                id: latestQuote.id,
-                status: latestQuote.status,
-                quotedAt: latestQuote.quotedAt.toISOString(),
+              id: latestQuote.id,
+              status: latestQuote.status,
+              revisionNo: latestQuote.revisionNo,
+              resubmissionRound: latestQuote.resubmissionRound,
+              resubmissionNote: latestQuote.resubmissionNote,
+              quotedAt: latestQuote.quotedAt.toISOString(),
                 validUntil: latestQuote.validUntil?.toISOString() ?? null,
                 subtotal: latestQuote.subtotal.toString(),
                 taxTotal: latestQuote.taxTotal.toString(),
@@ -249,17 +342,40 @@ export async function POST(request: NextRequest) {
 
     const rfq = await prisma.rfq.findFirst({
       where: {
-        id: rfqId,
-        supplierInvites: {
-          some: {
-            supplierId: resolved.context.supplierId,
+        AND: [
+          { id: rfqId },
+          {
+            supplierInvites: {
+              some: {
+                supplierId: resolved.context.supplierId,
+              },
+            },
           },
-        },
+          {
+            OR: [
+              { categoryTargets: { none: {} } },
+              {
+                categoryTargets: {
+                  some: {
+                    supplierCategory: {
+                      suppliers: {
+                        some: {
+                          supplierId: resolved.context.supplierId,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        ],
       },
       select: {
         id: true,
         rfqNumber: true,
         status: true,
+        resubmissionRound: true,
         currency: true,
         items: {
           select: {
@@ -274,6 +390,8 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             status: true,
+            resubmissionRequestedAt: true,
+            resubmissionReason: true,
           },
           take: 1,
         },
@@ -293,6 +411,12 @@ export async function POST(request: NextRequest) {
     const invite = rfq.supplierInvites[0];
     if (!invite) {
       return NextResponse.json({ error: "Supplier invitation not found." }, { status: 404 });
+    }
+    if (invite.status === "AWARDED" || invite.status === "DECLINED") {
+      return NextResponse.json(
+        { error: "This invitation is no longer open for quotation." },
+        { status: 400 },
+      );
     }
 
     const linesRaw = Array.isArray(body.items) ? body.items : [];
@@ -359,7 +483,7 @@ export async function POST(request: NextRequest) {
             supplierId: resolved.context.supplierId,
           },
         },
-        select: { id: true },
+        select: { id: true, revisionNo: true },
       });
 
       await tx.rfqSupplierInvite.update({
@@ -367,6 +491,8 @@ export async function POST(request: NextRequest) {
         data: {
           status: "RESPONDED",
           respondedAt: new Date(),
+          resubmissionRequestedAt: null,
+          resubmissionReason: null,
         },
       });
 
@@ -378,6 +504,9 @@ export async function POST(request: NextRequest) {
           where: { id: existing.id },
           data: {
             status: "SUBMITTED",
+            revisionNo: existing.revisionNo + 1,
+            resubmissionRound: rfq.resubmissionRound,
+            resubmissionNote: invite.resubmissionReason || null,
             quotedAt: new Date(),
             validUntil,
             submittedById: resolved.context.userId,
@@ -395,6 +524,9 @@ export async function POST(request: NextRequest) {
             rfqId: true,
             supplierId: true,
             status: true,
+            revisionNo: true,
+            resubmissionRound: true,
+            resubmissionNote: true,
             quotedAt: true,
             validUntil: true,
             currency: true,
@@ -424,6 +556,9 @@ export async function POST(request: NextRequest) {
           supplierId: resolved.context.supplierId,
           rfqSupplierInviteId: invite.id,
           status: "SUBMITTED",
+          revisionNo: 1,
+          resubmissionRound: rfq.resubmissionRound,
+          resubmissionNote: invite.resubmissionReason || null,
           quotedAt: new Date(),
           validUntil,
           submittedById: resolved.context.userId,
@@ -441,6 +576,9 @@ export async function POST(request: NextRequest) {
           rfqId: true,
           supplierId: true,
           status: true,
+          revisionNo: true,
+          resubmissionRound: true,
+          resubmissionNote: true,
           quotedAt: true,
           validUntil: true,
           currency: true,
@@ -481,6 +619,9 @@ export async function POST(request: NextRequest) {
         rfqId: updatedQuotation.rfqId,
         supplierId: updatedQuotation.supplierId,
         status: updatedQuotation.status,
+        revisionNo: updatedQuotation.revisionNo,
+        resubmissionRound: updatedQuotation.resubmissionRound,
+        resubmissionNote: updatedQuotation.resubmissionNote,
         quotedAt: updatedQuotation.quotedAt.toISOString(),
         validUntil: updatedQuotation.validUntil?.toISOString() ?? null,
         currency: updatedQuotation.currency,
@@ -494,6 +635,9 @@ export async function POST(request: NextRequest) {
       id: updatedQuotation.id,
       rfqId: updatedQuotation.rfqId,
       status: updatedQuotation.status,
+      revisionNo: updatedQuotation.revisionNo,
+      resubmissionRound: updatedQuotation.resubmissionRound,
+      resubmissionNote: updatedQuotation.resubmissionNote,
       quotedAt: updatedQuotation.quotedAt.toISOString(),
       validUntil: updatedQuotation.validUntil?.toISOString() ?? null,
       currency: updatedQuotation.currency,

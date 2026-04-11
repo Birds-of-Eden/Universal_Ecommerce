@@ -44,6 +44,14 @@ type SerializableSupplier = {
   createdAt: Date | string;
   updatedAt: Date | string;
   documents: SerializableSupplierDocument[];
+  categories?: Array<{
+    supplierCategory: {
+      id: number;
+      code: string;
+      name: string;
+      isActive: boolean;
+    };
+  }>;
 };
 
 export function toCleanText(value: unknown, max = 255) {
@@ -130,6 +138,24 @@ export function parseSupplierDocuments(raw: unknown): SupplierDocumentInput[] {
   });
 }
 
+export function parseSupplierCategoryIds(raw: unknown): number[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    throw new SupplierValidationError("Supplier categories must be an array.");
+  }
+
+  const uniqueIds = new Set<number>();
+  for (const item of raw) {
+    const id = Number(item);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new SupplierValidationError("Supplier category ids must be positive integers.");
+    }
+    uniqueIds.add(id);
+  }
+
+  return [...uniqueIds];
+}
+
 export function assertRequiredSupplierDocuments(
   companyType: SupplierCompanyType,
   documents: SupplierDocumentInput[],
@@ -154,6 +180,12 @@ export function serializeSupplier<T extends SerializableSupplier>(supplier: T) {
 
   return {
     ...supplier,
+    categories: (supplier.categories || []).map((membership) => ({
+      id: membership.supplierCategory.id,
+      code: membership.supplierCategory.code,
+      name: membership.supplierCategory.name,
+      isActive: membership.supplierCategory.isActive,
+    })),
     requiredDocumentTypes,
     missingDocumentTypes,
     requiredDocumentCount: requiredDocumentTypes.length,
@@ -180,6 +212,11 @@ export function toSupplierSnapshot(supplier: SerializableSupplier) {
     taxNumber: supplier.taxNumber,
     notes: supplier.notes,
     isActive: supplier.isActive,
+    categories: (supplier.categories || []).map((membership) => ({
+      id: membership.supplierCategory.id,
+      code: membership.supplierCategory.code,
+      name: membership.supplierCategory.name,
+    })),
     documents: supplier.documents.map((document) => ({
       type: document.type,
       fileUrl: document.fileUrl,

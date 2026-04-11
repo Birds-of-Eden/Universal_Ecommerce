@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Paperclip, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { uploadFile } from "@/lib/upload-file";
 
 type Warehouse = {
   id: number;
@@ -45,9 +46,47 @@ type PurchaseRequisition = {
   id: number;
   requisitionNumber: string;
   status: string;
+  title: string | null;
+  purpose: string | null;
+  budgetCode: string | null;
+  boqReference: string | null;
+  specification: string | null;
+  planningNote: string | null;
+  estimatedAmount: string | null;
+  endorsementRequiredCount: number;
   requestedAt: string;
   neededBy: string | null;
+  budgetClearedAt: string | null;
+  endorsedAt: string | null;
+  routedToProcurementAt: string | null;
+  assignedProcurementOfficerId: string | null;
+  assignedProcurementOfficer: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
   note: string | null;
+  attachments: Array<{
+    id: number;
+    fileUrl: string;
+    fileName: string;
+    mimeType: string | null;
+    fileSize: number | null;
+    note: string | null;
+    createdAt: string;
+  }>;
+  approvalEvents: Array<{
+    id: number;
+    stage: string;
+    decision: string;
+    note: string | null;
+    actedAt: string;
+    actedBy: {
+      id: string;
+      name: string | null;
+      email: string;
+    } | null;
+  }>;
   warehouse: Warehouse;
   items: Array<{
     id: number;
@@ -75,6 +114,15 @@ type DraftItem = {
   productVariantId: string;
   quantityRequested: string;
   description: string;
+};
+
+type RequisitionAttachmentDraft = {
+  file?: File;
+  fileUrl?: string;
+  fileName: string;
+  mimeType?: string;
+  fileSize?: number;
+  note?: string;
 };
 
 type ConversionForm = {
@@ -106,6 +154,9 @@ export default function PurchaseRequisitionsPage() {
 
   const canManage = permissions.includes("purchase_requisitions.manage");
   const canApprove = permissions.includes("purchase_requisitions.approve");
+  const canBudgetClear = permissions.includes("mrf.budget_clear");
+  const canEndorse = permissions.includes("mrf.endorse");
+  const canFinalApprove = permissions.includes("mrf.final_approve");
   const canConvert = permissions.includes("purchase_orders.manage");
 
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -118,8 +169,17 @@ export default function PurchaseRequisitionsPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   const [warehouseId, setWarehouseId] = useState("");
+  const [title, setTitle] = useState("");
+  const [purpose, setPurpose] = useState("");
+  const [budgetCode, setBudgetCode] = useState("");
+  const [boqReference, setBoqReference] = useState("");
+  const [specification, setSpecification] = useState("");
+  const [planningNote, setPlanningNote] = useState("");
+  const [estimatedAmount, setEstimatedAmount] = useState("");
+  const [endorsementRequiredCount, setEndorsementRequiredCount] = useState("1");
   const [neededBy, setNeededBy] = useState("");
   const [note, setNote] = useState("");
+  const [attachments, setAttachments] = useState<RequisitionAttachmentDraft[]>([]);
   const [items, setItems] = useState<DraftItem[]>([emptyLine()]);
   const [conversionForms, setConversionForms] = useState<Record<number, ConversionForm>>({});
 
@@ -189,8 +249,17 @@ export default function PurchaseRequisitionsPage() {
 
   const resetForm = () => {
     setWarehouseId("");
+    setTitle("");
+    setPurpose("");
+    setBudgetCode("");
+    setBoqReference("");
+    setSpecification("");
+    setPlanningNote("");
+    setEstimatedAmount("");
+    setEndorsementRequiredCount("1");
     setNeededBy("");
     setNote("");
+    setAttachments([]);
     setItems([emptyLine()]);
   };
 
@@ -206,21 +275,77 @@ export default function PurchaseRequisitionsPage() {
     );
   };
 
+  const addAttachmentRows = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const next = [...files].slice(0, 20).map((file) => ({
+      file,
+      fileName: file.name,
+      mimeType: file.type,
+      fileSize: file.size,
+      note: "",
+    }));
+    setAttachments((prev) => [...prev, ...next].slice(0, 20));
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const updateAttachmentNote = (index: number, value: string) => {
+    setAttachments((prev) =>
+      prev.map((attachment, itemIndex) =>
+        itemIndex === index ? { ...attachment, note: value } : attachment,
+      ),
+    );
+  };
+
+  const deleteLocalUpload = (fileUrl: string) => {
+    if (!fileUrl.startsWith("/upload/")) return Promise.resolve();
+    return fetch(
+      `/api/delete-file?path=${encodeURIComponent(fileUrl.replace(/^\//, ""))}`,
+      { method: "DELETE" },
+    ).catch(() => undefined);
+  };
+
   const createRequisition = async () => {
     if (!warehouseId) {
       toast.error("Warehouse is required");
       return;
     }
 
+    const uploadedFileUrls: string[] = [];
     try {
       setSaving(true);
+      const uploadedAttachments = [];
+      for (const attachment of attachments) {
+        if (!attachment.file) continue;
+        const fileUrl = await uploadFile(attachment.file);
+        uploadedFileUrls.push(fileUrl);
+        uploadedAttachments.push({
+          fileUrl,
+          fileName: attachment.fileName || attachment.file.name,
+          mimeType: attachment.mimeType || attachment.file.type || null,
+          fileSize: attachment.fileSize || attachment.file.size || null,
+          note: attachment.note?.trim() || null,
+        });
+      }
+
       const response = await fetch("/api/scm/purchase-requisitions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           warehouseId: Number(warehouseId),
+          title,
+          purpose,
+          budgetCode,
+          boqReference,
+          specification,
+          planningNote,
+          estimatedAmount: estimatedAmount || null,
+          endorsementRequiredCount: Number(endorsementRequiredCount || 1),
           neededBy: neededBy || null,
           note,
+          attachments: uploadedAttachments,
           items: items.map((item) => ({
             productVariantId: Number(item.productVariantId),
             quantityRequested: Number(item.quantityRequested),
@@ -233,6 +358,7 @@ export default function PurchaseRequisitionsPage() {
       resetForm();
       await loadPageData();
     } catch (error: any) {
+      await Promise.all(uploadedFileUrls.map((fileUrl) => deleteLocalUpload(fileUrl)));
       toast.error(error?.message || "Failed to create purchase requisition");
     } finally {
       setSaving(false);
@@ -248,7 +374,7 @@ export default function PurchaseRequisitionsPage() {
         body: JSON.stringify({ action }),
       });
       await readJson(response, `Failed to ${action} purchase requisition`);
-      toast.success(`Purchase requisition ${action}ed`);
+      toast.success(`Purchase requisition action completed: ${action}`);
       await loadPageData();
     } catch (error: any) {
       toast.error(error?.message || `Failed to ${action} purchase requisition`);
@@ -336,28 +462,94 @@ export default function PurchaseRequisitionsPage() {
             <CardTitle>Create Purchase Requisition</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-lg border border-dashed p-4">
+              <div className="mb-2 text-sm font-semibold">Project Procurement Planning</div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label>MRF Title</Label>
+                  <Input value={title} onChange={(event) => setTitle(event.target.value)} />
+                </div>
+                <div>
+                  <Label>Warehouse</Label>
+                  <select
+                    className="w-full rounded-md border bg-background px-3 py-2"
+                    value={warehouseId}
+                    onChange={(event) => setWarehouseId(event.target.value)}
+                  >
+                    <option value="">Select warehouse</option>
+                    {warehouses.map((warehouse) => (
+                      <option key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name} ({warehouse.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Purpose</Label>
+                  <Input value={purpose} onChange={(event) => setPurpose(event.target.value)} />
+                </div>
+                <div>
+                  <Label>Needed By</Label>
+                  <Input
+                    type="date"
+                    value={neededBy}
+                    onChange={(event) => setNeededBy(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Budget Code</Label>
+                  <Input
+                    value={budgetCode}
+                    onChange={(event) => setBudgetCode(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>BOQ Reference</Label>
+                  <Input
+                    value={boqReference}
+                    onChange={(event) => setBoqReference(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Estimated Amount</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={estimatedAmount}
+                    onChange={(event) => setEstimatedAmount(event.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label>Required Endorsements</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={endorsementRequiredCount}
+                    onChange={(event) => setEndorsementRequiredCount(event.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <Label>Warehouse</Label>
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2"
-                  value={warehouseId}
-                  onChange={(event) => setWarehouseId(event.target.value)}
-                >
-                  <option value="">Select warehouse</option>
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name} ({warehouse.code})
-                    </option>
-                  ))}
-                </select>
+                <Label>Specification</Label>
+                <Textarea
+                  rows={4}
+                  value={specification}
+                  onChange={(event) => setSpecification(event.target.value)}
+                  placeholder="Technical specification / quality requirements..."
+                />
               </div>
               <div>
-                <Label>Needed By</Label>
-                <Input
-                  type="date"
-                  value={neededBy}
-                  onChange={(event) => setNeededBy(event.target.value)}
+                <Label>Planning Note</Label>
+                <Textarea
+                  rows={4}
+                  value={planningNote}
+                  onChange={(event) => setPlanningNote(event.target.value)}
+                  placeholder="Procurement planning assumptions..."
                 />
               </div>
             </div>
@@ -437,6 +629,47 @@ export default function PurchaseRequisitionsPage() {
               ))}
             </div>
 
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Supporting Documents</Label>
+                <div className="text-xs text-muted-foreground">Up to 20 files</div>
+              </div>
+              <Input
+                type="file"
+                multiple
+                onChange={(event) => addAttachmentRows(event.target.files)}
+              />
+              {attachments.length > 0 ? (
+                <div className="space-y-2">
+                  {attachments.map((attachment, index) => (
+                    <div
+                      key={`${attachment.fileName}-${index}`}
+                      className="grid gap-2 rounded-md border p-2 md:grid-cols-[2fr_3fr_auto]"
+                    >
+                      <div className="text-sm text-muted-foreground">
+                        {attachment.fileName}
+                      </div>
+                      <Input
+                        placeholder="Attachment note (optional)"
+                        value={attachment.note || ""}
+                        onChange={(event) =>
+                          updateAttachmentNote(index, event.target.value)
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeAttachment(index)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
             <div>
               <Label>Notes</Label>
               <Textarea value={note} onChange={(event) => setNote(event.target.value)} rows={4} />
@@ -465,6 +698,8 @@ export default function PurchaseRequisitionsPage() {
             <option value="ALL">All Statuses</option>
             <option value="DRAFT">Draft</option>
             <option value="SUBMITTED">Submitted</option>
+            <option value="BUDGET_CLEARED">Budget Cleared</option>
+            <option value="ENDORSED">Endorsed</option>
             <option value="APPROVED">Approved</option>
             <option value="REJECTED">Rejected</option>
             <option value="CONVERTED">Converted</option>
@@ -488,59 +723,145 @@ export default function PurchaseRequisitionsPage() {
 
                 return (
                   <div key={requisition.id} className="rounded-lg border p-4">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <div className="text-lg font-semibold">{requisition.requisitionNumber}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {requisition.warehouse.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(requisition.requestedAt).toLocaleDateString()} • {requisition.status}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {requisition.status === "DRAFT" && canManage ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void changeStatus(requisition.id, "submit")}
-                          >
-                            Submit
-                          </Button>
-                        ) : null}
-                        {requisition.status === "SUBMITTED" && canApprove ? (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void changeStatus(requisition.id, "approve")}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void changeStatus(requisition.id, "reject")}
+	                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+	                      <div>
+	                        <div className="text-lg font-semibold">{requisition.requisitionNumber}</div>
+	                        {requisition.title ? (
+	                          <div className="text-sm font-medium">{requisition.title}</div>
+	                        ) : null}
+	                        <div className="text-sm text-muted-foreground">
+	                          {requisition.warehouse.name}
+	                        </div>
+	                        <div className="text-xs text-muted-foreground">
+	                          {new Date(requisition.requestedAt).toLocaleDateString()} • {requisition.status}
+	                        </div>
+	                      </div>
+	                      <div className="flex flex-wrap gap-2">
+	                        {requisition.status === "DRAFT" && canManage ? (
+	                          <Button
+	                            variant="outline"
+	                            size="sm"
+	                            onClick={() => void changeStatus(requisition.id, "submit")}
+	                          >
+	                            Submit
+	                          </Button>
+	                        ) : null}
+	                        {requisition.status === "SUBMITTED" && canBudgetClear ? (
+	                          <Button
+	                            variant="outline"
+	                            size="sm"
+	                            onClick={() => void changeStatus(requisition.id, "budget_clear")}
+	                          >
+	                            Budget Clear
+	                          </Button>
+	                        ) : null}
+	                        {requisition.status === "BUDGET_CLEARED" && canEndorse ? (
+	                          <Button
+	                            variant="outline"
+	                            size="sm"
+	                            onClick={() => void changeStatus(requisition.id, "endorse")}
+	                          >
+	                            Endorse
+	                          </Button>
+	                        ) : null}
+	                        {requisition.status === "ENDORSED" && (canFinalApprove || canApprove) ? (
+	                          <>
+	                            <Button
+	                              variant="outline"
+	                              size="sm"
+	                              onClick={() => void changeStatus(requisition.id, "final_approve")}
+	                            >
+	                              Final Approve
+	                            </Button>
+	                            <Button
+	                              variant="outline"
+	                              size="sm"
+	                              onClick={() => void changeStatus(requisition.id, "reject")}
                             >
                               Reject
                             </Button>
-                          </>
-                        ) : null}
-                        {["DRAFT", "SUBMITTED", "APPROVED"].includes(requisition.status) && canManage ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void changeStatus(requisition.id, "cancel")}
+	                          </>
+	                        ) : null}
+	                        {["SUBMITTED", "BUDGET_CLEARED"].includes(requisition.status) &&
+	                        (canBudgetClear || canEndorse || canFinalApprove || canApprove) ? (
+	                          <Button
+	                            variant="outline"
+	                            size="sm"
+	                            onClick={() => void changeStatus(requisition.id, "reject")}
+	                          >
+	                            Reject
+	                          </Button>
+	                        ) : null}
+	                        {["DRAFT", "SUBMITTED", "BUDGET_CLEARED", "ENDORSED", "APPROVED"].includes(requisition.status) && canManage ? (
+	                          <Button
+	                            variant="outline"
+	                            size="sm"
+	                            onClick={() => void changeStatus(requisition.id, "cancel")}
                           >
                             Cancel
                           </Button>
                         ) : null}
                       </div>
-                    </div>
+	                    </div>
 
-                    {requisition.note ? (
-                      <p className="mt-3 text-sm text-muted-foreground">{requisition.note}</p>
-                    ) : null}
+	                    <div className="mt-3 grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
+	                      <div>Purpose: {requisition.purpose || "-"}</div>
+	                      <div>Budget Code: {requisition.budgetCode || "-"}</div>
+	                      <div>BOQ: {requisition.boqReference || "-"}</div>
+	                      <div>
+	                        Estimated Amount: {requisition.estimatedAmount || "0.00"}
+	                      </div>
+	                      <div>
+	                        Endorsements Required: {requisition.endorsementRequiredCount}
+	                      </div>
+	                      <div>
+	                        Endorsements Done: {
+	                          requisition.approvalEvents.filter((event) => event.stage === "ENDORSEMENT").length
+	                        }
+	                      </div>
+	                      <div className="md:col-span-3">
+	                        Assigned Procurement Officer: {" "}
+	                        {requisition.assignedProcurementOfficer?.name ||
+	                          requisition.assignedProcurementOfficer?.email ||
+	                          "-"}
+	                      </div>
+	                    </div>
+
+	                    {requisition.specification ? (
+	                      <p className="mt-3 text-sm text-muted-foreground">
+	                        Specification: {requisition.specification}
+	                      </p>
+	                    ) : null}
+
+	                    {requisition.attachments.length > 0 ? (
+	                      <div className="mt-3 rounded-md border p-3">
+	                        <div className="mb-2 text-sm font-medium">Supporting Documents</div>
+	                        <div className="space-y-1 text-sm">
+	                          {requisition.attachments.map((attachment) => (
+	                            <div key={attachment.id} className="flex items-center gap-2">
+	                              <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+	                              <a
+	                                href={attachment.fileUrl}
+	                                target="_blank"
+	                                rel="noreferrer"
+	                                className="underline"
+	                              >
+	                                {attachment.fileName}
+	                              </a>
+	                              {attachment.note ? (
+	                                <span className="text-xs text-muted-foreground">
+	                                  ({attachment.note})
+	                                </span>
+	                              ) : null}
+	                            </div>
+	                          ))}
+	                        </div>
+	                      </div>
+	                    ) : null}
+
+	                    {requisition.note ? (
+	                      <p className="mt-3 text-sm text-muted-foreground">{requisition.note}</p>
+	                    ) : null}
 
                     <div className="mt-4 overflow-x-auto">
                       <Table>

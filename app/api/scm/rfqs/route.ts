@@ -5,17 +5,33 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
+import { createRfqNotifications, dispatchRfqEmailNotifications } from "@/lib/rfq-notifications";
 import { generateRfqNumber, rfqInclude, toRfqLogSnapshot } from "@/lib/scm";
 
 const RFQ_READ_PERMISSIONS = ["rfq.read", "rfq.manage", "rfq.approve"] as const;
+
+type RfqItemInput = {
+  productVariantId?: unknown;
+  quantityRequested?: unknown;
+  description?: unknown;
+  targetUnitCost?: unknown;
+};
+
+type RfqAttachmentInput = {
+  fileUrl?: unknown;
+  fileName?: unknown;
+  mimeType?: unknown;
+  fileSize?: unknown;
+  label?: unknown;
+};
 
 function cleanText(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
-function cleanCurrency(value: unknown) {
-  const raw = typeof value === "string" ? value.trim().toUpperCase() : "BDT";
-  return raw.length === 3 ? raw : "BDT";
+function cleanCurrency(value: unknown, fallback = "BDT") {
+  const raw = typeof value === "string" ? value.trim().toUpperCase() : fallback;
+  return raw.length === 3 ? raw : fallback;
 }
 
 function canReadRfqs(access: Awaited<ReturnType<typeof getAccessContext>>) {
@@ -46,6 +62,106 @@ function buildWarehouseScopedWhere(
   }
 
   return { warehouseId: { in: access.warehouseIds } };
+}
+
+function parsePositiveIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  const deduped = new Set<number>();
+  for (const item of value) {
+    const id = Number(item);
+    if (Number.isInteger(id) && id > 0) {
+      deduped.add(id);
+    }
+  }
+  return [...deduped];
+}
+
+function normalizeRfqItems(items: RfqItemInput[]) {
+  const uniqueVariantIds = new Set<number>();
+
+  return items.map((item, index) => {
+    const productVariantId = Number(item.productVariantId);
+    const quantityRequested = Number(item.quantityRequested);
+
+    if (!Number.isInteger(productVariantId) || productVariantId <= 0) {
+      throw new Error(`Item ${index + 1}: variant is required`);
+    }
+    if (uniqueVariantIds.has(productVariantId)) {
+      throw new Error(`Item ${index + 1}: duplicate variant selected`);
+    }
+    uniqueVariantIds.add(productVariantId);
+
+    if (!Number.isInteger(quantityRequested) || quantityRequested <= 0) {
+      throw new Error(`Item ${index + 1}: quantity must be greater than 0`);
+    }
+
+    const targetUnitCostRaw = item.targetUnitCost;
+    const targetUnitCost =
+      targetUnitCostRaw === null ||
+      targetUnitCostRaw === undefined ||
+      targetUnitCostRaw === ""
+        ? null
+        : new Prisma.Decimal(Number(targetUnitCostRaw));
+    if (targetUnitCost && targetUnitCost.lt(0)) {
+      throw new Error(`Item ${index + 1}: target unit cost cannot be negative`);
+    }
+
+    return {
+      productVariantId,
+      quantityRequested,
+      description: cleanText(item.description, 255),
+      targetUnitCost,
+    };
+  });
+}
+
+function normalizeRfqAttachments(attachments: unknown): Array<{
+  fileUrl: string;
+  fileName: string | null;
+  mimeType: string | null;
+  fileSize: number | null;
+  label: string | null;
+}> {
+  if (!Array.isArray(attachments)) return [];
+
+  const normalized = attachments.map((attachment, index) => {
+    const item =
+      attachment && typeof attachment === "object"
+        ? (attachment as RfqAttachmentInput)
+        : null;
+    const fileUrl = cleanText(item?.fileUrl, 1000);
+    if (!fileUrl) {
+      throw new Error(`Attachment ${index + 1}: file URL is required.`);
+    }
+
+    const fileSizeRaw = item?.fileSize;
+    const fileSize =
+      fileSizeRaw === null || fileSizeRaw === undefined || fileSizeRaw === ""
+        ? null
+        : Number(fileSizeRaw);
+    if (fileSize !== null && (!Number.isInteger(fileSize) || fileSize < 0)) {
+      throw new Error(`Attachment ${index + 1}: file size is invalid.`);
+    }
+
+    return {
+      fileUrl,
+      fileName: cleanText(item?.fileName, 255) || null,
+      mimeType: cleanText(item?.mimeType, 120) || null,
+      fileSize,
+      label: cleanText(item?.label, 120) || null,
+    };
+  });
+
+  const seen = new Set<string>();
+  for (const attachment of normalized) {
+    const dedupeKey = `${attachment.fileUrl}|${attachment.fileName ?? ""}`;
+    if (seen.has(dedupeKey)) {
+      throw new Error("Duplicate RFQ attachment detected.");
+    }
+    seen.add(dedupeKey);
+  }
+
+  return normalized;
 }
 
 export async function GET(request: NextRequest) {
@@ -109,6 +225,18 @@ export async function GET(request: NextRequest) {
               },
             },
           },
+          {
+            categoryTargets: {
+              some: {
+                supplierCategory: {
+                  OR: [
+                    { name: { contains: search, mode: "insensitive" } },
+                    { code: { contains: search, mode: "insensitive" } },
+                  ],
+                },
+              },
+            },
+          },
         ],
       });
     }
@@ -143,13 +271,16 @@ export async function POST(request: NextRequest) {
       submissionDeadline?: unknown;
       note?: unknown;
       currency?: unknown;
+      scopeOfWork?: unknown;
+      termsAndConditions?: unknown;
+      boqDetails?: unknown;
+      technicalSpecifications?: unknown;
+      evaluationCriteria?: unknown;
       supplierIds?: unknown[];
-      items?: Array<{
-        productVariantId?: unknown;
-        quantityRequested?: unknown;
-        description?: unknown;
-        targetUnitCost?: unknown;
-      }>;
+      categoryIds?: unknown[];
+      resubmissionAllowed?: unknown;
+      attachments?: unknown;
+      items?: RfqItemInput[];
     };
 
     const warehouseId = Number(body.warehouseId);
@@ -164,49 +295,12 @@ export async function POST(request: NextRequest) {
     const hasPurchaseRequisition =
       Number.isInteger(purchaseRequisitionId) && purchaseRequisitionId > 0;
 
-    const items = Array.isArray(body.items) ? body.items : [];
-    if (items.length === 0) {
-      return NextResponse.json({ error: "At least one RFQ item is required." }, { status: 400 });
-    }
+    const payloadItems = Array.isArray(body.items) ? body.items : [];
+    const categoryIds = parsePositiveIds(body.categoryIds);
+    const explicitSupplierIds = parsePositiveIds(body.supplierIds);
+    const normalizedAttachments = normalizeRfqAttachments(body.attachments);
 
-    const uniqueVariantIds = new Set<number>();
-    const normalizedItems = items.map((item, index) => {
-      const productVariantId = Number(item.productVariantId);
-      const quantityRequested = Number(item.quantityRequested);
-      if (!Number.isInteger(productVariantId) || productVariantId <= 0) {
-        throw new Error(`Item ${index + 1}: variant is required`);
-      }
-      if (uniqueVariantIds.has(productVariantId)) {
-        throw new Error(`Item ${index + 1}: duplicate variant selected`);
-      }
-      uniqueVariantIds.add(productVariantId);
-      if (!Number.isInteger(quantityRequested) || quantityRequested <= 0) {
-        throw new Error(`Item ${index + 1}: quantity must be greater than 0`);
-      }
-
-      const targetUnitCostValue = item.targetUnitCost;
-      const targetUnitCost =
-        targetUnitCostValue === null ||
-        targetUnitCostValue === undefined ||
-        targetUnitCostValue === ""
-          ? null
-          : new Prisma.Decimal(Number(targetUnitCostValue));
-      if (targetUnitCost && targetUnitCost.lt(0)) {
-        throw new Error(`Item ${index + 1}: target unit cost cannot be negative`);
-      }
-
-      return {
-        productVariantId,
-        quantityRequested,
-        description: cleanText(item.description, 255),
-        targetUnitCost,
-      };
-    });
-
-    const supplierIdsRaw = Array.isArray(body.supplierIds) ? body.supplierIds : [];
-    const supplierIds = [...new Set(supplierIdsRaw.map((value) => Number(value)).filter((id) => Number.isInteger(id) && id > 0))];
-
-    const [warehouse, requisition, variants, suppliers] = await Promise.all([
+    const [warehouse, requisition, categories] = await Promise.all([
       prisma.warehouse.findUnique({
         where: { id: warehouseId },
         select: { id: true, name: true, code: true },
@@ -216,33 +310,50 @@ export async function POST(request: NextRequest) {
             where: { id: purchaseRequisitionId },
             select: {
               id: true,
-              warehouseId: true,
+              requisitionNumber: true,
               status: true,
+              warehouseId: true,
+              title: true,
+              purpose: true,
+              budgetCode: true,
+              boqReference: true,
+              specification: true,
+              planningNote: true,
+              estimatedAmount: true,
+              note: true,
+              items: {
+                orderBy: { id: "asc" },
+                select: {
+                  id: true,
+                  productVariantId: true,
+                  quantityRequested: true,
+                  quantityApproved: true,
+                  description: true,
+                },
+              },
+              attachments: {
+                orderBy: { id: "asc" },
+                select: {
+                  id: true,
+                  fileUrl: true,
+                  fileName: true,
+                  mimeType: true,
+                  fileSize: true,
+                  note: true,
+                },
+              },
             },
           })
         : Promise.resolve(null),
-      prisma.productVariant.findMany({
-        where: {
-          id: { in: normalizedItems.map((item) => item.productVariantId) },
-        },
-        select: {
-          id: true,
-          sku: true,
-          product: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      }),
-      supplierIds.length > 0
-        ? prisma.supplier.findMany({
+      categoryIds.length > 0
+        ? prisma.supplierCategory.findMany({
             where: {
-              id: { in: supplierIds },
+              id: { in: categoryIds },
               isActive: true,
             },
             select: {
               id: true,
+              code: true,
               name: true,
             },
           })
@@ -252,12 +363,13 @@ export async function POST(request: NextRequest) {
     if (!warehouse) {
       return NextResponse.json({ error: "Warehouse not found." }, { status: 404 });
     }
-    if (variants.length !== normalizedItems.length) {
+    if (categoryIds.length > 0 && categories.length !== categoryIds.length) {
       return NextResponse.json(
-        { error: "One or more variants were not found." },
+        { error: "One or more supplier categories are invalid or inactive." },
         { status: 400 },
       );
     }
+
     if (hasPurchaseRequisition) {
       if (!requisition) {
         return NextResponse.json(
@@ -281,9 +393,104 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-    if (suppliers.length !== supplierIds.length) {
+
+    const normalizedItems =
+      payloadItems.length > 0
+        ? normalizeRfqItems(payloadItems)
+        : requisition
+          ? normalizeRfqItems(
+              requisition.items.map((item) => ({
+                productVariantId: item.productVariantId,
+                quantityRequested:
+                  item.quantityApproved && item.quantityApproved > 0
+                    ? item.quantityApproved
+                    : item.quantityRequested,
+                description: item.description,
+                targetUnitCost: "",
+              })),
+            )
+          : [];
+
+    if (normalizedItems.length === 0) {
       return NextResponse.json(
-        { error: "One or more invited suppliers were not found or inactive." },
+        { error: "At least one RFQ item is required." },
+        { status: 400 },
+      );
+    }
+
+    const selectedSupplierIds =
+      explicitSupplierIds.length > 0
+        ? explicitSupplierIds
+        : categoryIds.length > 0
+          ? (
+              await prisma.supplier.findMany({
+                where: {
+                  isActive: true,
+                  categories: {
+                    some: {
+                      supplierCategoryId: {
+                        in: categoryIds,
+                      },
+                    },
+                  },
+                },
+                select: { id: true },
+              })
+            ).map((supplier) => supplier.id)
+          : [];
+
+    const [variants, selectedSuppliers] = await Promise.all([
+      prisma.productVariant.findMany({
+        where: {
+          id: { in: normalizedItems.map((item) => item.productVariantId) },
+        },
+        select: {
+          id: true,
+          sku: true,
+          product: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      }),
+      selectedSupplierIds.length > 0
+        ? prisma.supplier.findMany({
+            where: {
+              id: { in: selectedSupplierIds },
+              isActive: true,
+              ...(categoryIds.length > 0
+                ? {
+                    categories: {
+                      some: {
+                        supplierCategoryId: { in: categoryIds },
+                      },
+                    },
+                  }
+                : {}),
+            },
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              email: true,
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    if (variants.length !== normalizedItems.length) {
+      return NextResponse.json(
+        { error: "One or more variants were not found." },
+        { status: 400 },
+      );
+    }
+    if (selectedSuppliers.length !== selectedSupplierIds.length) {
+      return NextResponse.json(
+        {
+          error:
+            "One or more selected suppliers are not active or outside selected categories.",
+        },
         { status: 400 },
       );
     }
@@ -299,16 +506,82 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const created = await prisma.$transaction(async (tx) => {
+    const derivedAttachments =
+      normalizedAttachments.length > 0
+        ? normalizedAttachments
+        : requisition
+          ? requisition.attachments.map((attachment) => ({
+              fileUrl: attachment.fileUrl,
+              fileName: attachment.fileName,
+              mimeType: attachment.mimeType,
+              fileSize: attachment.fileSize,
+              label: attachment.note
+                ? `MRF: ${attachment.note}`
+                : "MRF supporting document",
+            }))
+          : [];
+
+    const sourceRequisitionSnapshot = requisition
+      ? {
+          id: requisition.id,
+          requisitionNumber: requisition.requisitionNumber,
+          status: requisition.status,
+          title: requisition.title,
+          purpose: requisition.purpose,
+          budgetCode: requisition.budgetCode,
+          boqReference: requisition.boqReference,
+          specification: requisition.specification,
+          planningNote: requisition.planningNote,
+          estimatedAmount: requisition.estimatedAmount?.toString() ?? null,
+          note: requisition.note,
+          attachments: requisition.attachments.map((attachment) => ({
+            id: attachment.id,
+            fileUrl: attachment.fileUrl,
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            fileSize: attachment.fileSize,
+            note: attachment.note,
+          })),
+        }
+      : null;
+
+    const createdBySupplierId = new Map(
+      selectedSuppliers.map((supplier) => [supplier.id, supplier]),
+    );
+
+    const { created, emailNotificationIds } = await prisma.$transaction(async (tx) => {
       const rfqNumber = await generateRfqNumber(tx);
-      return tx.rfq.create({
+      const createdRfq = await tx.rfq.create({
         data: {
           rfqNumber,
           warehouseId,
           purchaseRequisitionId: hasPurchaseRequisition ? purchaseRequisitionId : null,
           submissionDeadline,
-          note: cleanText(body.note, 1000) || null,
+          note: cleanText(body.note, 1500) || null,
           currency: cleanCurrency(body.currency),
+          scopeOfWork:
+            cleanText(body.scopeOfWork, 4000) ||
+            cleanText(requisition?.purpose, 4000) ||
+            null,
+          termsAndConditions: cleanText(body.termsAndConditions, 4000) || null,
+          boqDetails:
+            cleanText(body.boqDetails, 4000) ||
+            cleanText(requisition?.boqReference, 4000) ||
+            null,
+          technicalSpecifications:
+            cleanText(body.technicalSpecifications, 4000) ||
+            cleanText(requisition?.specification, 4000) ||
+            null,
+          evaluationCriteria:
+            cleanText(body.evaluationCriteria, 4000) ||
+            "Technical compliance, lead time, pricing, service capability",
+          resubmissionAllowed:
+            body.resubmissionAllowed === undefined
+              ? true
+              : Boolean(body.resubmissionAllowed),
+          sourceRequisitionSnapshot: sourceRequisitionSnapshot
+            ? (sourceRequisitionSnapshot as Prisma.InputJsonValue)
+            : undefined,
           createdById: access.userId,
           items: {
             create: normalizedItems.map((item) => ({
@@ -320,12 +593,39 @@ export async function POST(request: NextRequest) {
               targetUnitCost: item.targetUnitCost,
             })),
           },
-          supplierInvites:
-            supplierIds.length > 0
+          attachments:
+            derivedAttachments.length > 0
               ? {
-                  create: supplierIds.map((supplierId) => ({
+                  create: derivedAttachments.map((attachment) => ({
+                    label: attachment.label,
+                    fileUrl: attachment.fileUrl,
+                    fileName: attachment.fileName,
+                    mimeType: attachment.mimeType,
+                    fileSize: attachment.fileSize,
+                    uploadedById: access.userId,
+                  })),
+                }
+              : undefined,
+          categoryTargets:
+            categories.length > 0
+              ? {
+                  create: categories.map((category) => ({
+                    supplierCategoryId: category.id,
+                    createdById: access.userId,
+                  })),
+                }
+              : undefined,
+          supplierInvites:
+            selectedSupplierIds.length > 0
+              ? {
+                  create: selectedSupplierIds.map((supplierId) => ({
                     supplierId,
                     status: "INVITED",
+                    note:
+                      categories.length > 0
+                        ? `Invited via category targeting (${categories.map((category) => category.code).join(", ")})`
+                        : null,
+                    lastNotifiedAt: new Date(),
                     createdById: access.userId,
                   })),
                 }
@@ -333,7 +633,39 @@ export async function POST(request: NextRequest) {
         },
         include: rfqInclude,
       });
+
+      const emailIds =
+        createdRfq.supplierInvites.length > 0
+          ? await createRfqNotifications({
+              tx,
+              rfqId: createdRfq.id,
+              recipients: createdRfq.supplierInvites.map((invite) => ({
+                supplierId: invite.supplierId,
+                inviteId: invite.id,
+                recipientEmail:
+                  createdBySupplierId.get(invite.supplierId)?.email ?? null,
+              })),
+              message:
+                `You have been invited to submit a quotation for ${createdRfq.rfqNumber}.` +
+                (submissionDeadline
+                  ? ` Submission deadline: ${submissionDeadline.toISOString()}.`
+                  : ""),
+              metadata: {
+                stage: "INVITED",
+                rfqNumber: createdRfq.rfqNumber,
+                categoryCodes: categories.map((category) => category.code),
+              },
+              createdById: access.userId,
+            })
+          : [];
+
+      return {
+        created: createdRfq,
+        emailNotificationIds: emailIds,
+      };
     });
+
+    void dispatchRfqEmailNotifications(emailNotificationIds);
 
     await logActivity({
       action: "create",
@@ -343,6 +675,11 @@ export async function POST(request: NextRequest) {
       request,
       metadata: {
         message: `Created RFQ ${created.rfqNumber}`,
+        linkedPurchaseRequisitionId: hasPurchaseRequisition
+          ? purchaseRequisitionId
+          : null,
+        supplierInviteCount: created.supplierInvites.length,
+        supplierCategoryCount: created.categoryTargets.length,
       },
       after: toRfqLogSnapshot(created),
     });

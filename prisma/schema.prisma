@@ -51,6 +51,13 @@ model User {
   purchaseRequisitionsCreated   PurchaseRequisition[]   @relation("PurchaseRequisitionsCreated")
   purchaseRequisitionsApproved  PurchaseRequisition[]   @relation("PurchaseRequisitionsApproved")
   purchaseRequisitionsConverted PurchaseRequisition[]   @relation("PurchaseRequisitionsConverted")
+  purchaseRequisitionsBudgetCleared PurchaseRequisition[] @relation("PurchaseRequisitionsBudgetCleared")
+  purchaseRequisitionsEndorsed PurchaseRequisition[] @relation("PurchaseRequisitionsEndorsed")
+  purchaseRequisitionsAssignedProcurement PurchaseRequisition[] @relation("PurchaseRequisitionsAssignedProcurement")
+  purchaseRequisitionAttachmentsUploaded PurchaseRequisitionAttachment[] @relation("PurchaseRequisitionAttachmentsUploaded")
+  purchaseRequisitionApprovalEvents PurchaseRequisitionApprovalEvent[] @relation("PurchaseRequisitionApprovalEvents")
+  purchaseRequisitionVersionsCreated PurchaseRequisitionVersion[] @relation("PurchaseRequisitionVersionsCreated")
+  purchaseRequisitionNotificationsReceived PurchaseRequisitionNotification[] @relation("PurchaseRequisitionNotificationsReceived")
   goodsReceiptsReceived         GoodsReceipt[]          @relation("GoodsReceiptsReceived")
   supplierReturnsCreated        SupplierReturn[]        @relation("SupplierReturnsCreated")
   supplierReturnsApproved       SupplierReturn[]        @relation("SupplierReturnsApproved")
@@ -67,9 +74,14 @@ model User {
   warehouseTransfersReceived    WarehouseTransfer[]     @relation("WarehouseTransfersReceived")
   rfqsCreated                   Rfq[]                   @relation("RfqsCreated")
   rfqsApproved                  Rfq[]                   @relation("RfqsApproved")
+  rfqAttachmentsUploaded        RfqAttachment[]         @relation("RfqAttachmentsUploaded")
+  rfqCategoryTargetsCreated     RfqCategoryTarget[]     @relation("RfqCategoryTargetsCreated")
+  rfqNotificationsCreated       RfqNotification[]       @relation("RfqNotificationsCreated")
   rfqSupplierInvitesCreated     RfqSupplierInvite[]     @relation("RfqSupplierInvitesCreated")
   supplierQuotationsSubmitted   SupplierQuotation[]     @relation("SupplierQuotationsSubmitted")
   rfqAwardsGranted              RfqAward[]              @relation("RfqAwardsGranted")
+  supplierCategoriesCreated     SupplierCategory[]      @relation("SupplierCategoriesCreated")
+  supplierCategorySuppliersCreated SupplierCategorySupplier[] @relation("SupplierCategorySuppliersCreated")
   replenishmentRulesCreated     ReplenishmentRule[]     @relation("ReplenishmentRulesCreated")
   replenishmentRulesUpdated     ReplenishmentRule[]     @relation("ReplenishmentRulesUpdated")
   supplierSlaPoliciesCreated    SupplierSlaPolicy[]     @relation("SupplierSlaPoliciesCreated")
@@ -1090,6 +1102,8 @@ model Supplier {
   rfqInvites       RfqSupplierInvite[]
   quotations       SupplierQuotation[]
   rfqAwards        RfqAward[]
+  categories       SupplierCategorySupplier[]
+  rfqNotifications RfqNotification[]
   slaPolicies      SupplierSlaPolicy[]
   slaBreaches      SupplierSlaBreach[]
   slaTerminationCases SupplierSlaTerminationCase[]
@@ -1122,22 +1136,43 @@ model PurchaseRequisition {
   requisitionNumber String                    @unique
   warehouseId       Int
   status            PurchaseRequisitionStatus @default(DRAFT)
+  title             String?
+  purpose           String?
+  budgetCode        String?
+  boqReference      String?
+  specification     String?
+  planningNote      String?
+  estimatedAmount   Decimal?                  @db.Decimal(14, 2)
+  endorsementRequiredCount Int                @default(1)
   requestedAt       DateTime                  @default(now())
   neededBy          DateTime?
   submittedAt       DateTime?
+  budgetClearedAt   DateTime?
+  endorsedAt        DateTime?
   approvedAt        DateTime?
   rejectedAt        DateTime?
   convertedAt       DateTime?
+  routedToProcurementAt DateTime?
   createdById       String?
+  budgetClearedById String?
+  endorsedById      String?
   approvedById      String?
   convertedById     String?
+  assignedProcurementOfficerId String?
   note              String?
   createdAt         DateTime                  @default(now())
   updatedAt         DateTime                  @updatedAt
   approvedBy        User?                     @relation("PurchaseRequisitionsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  budgetClearedBy   User?                     @relation("PurchaseRequisitionsBudgetCleared", fields: [budgetClearedById], references: [id], onDelete: SetNull)
+  endorsedBy        User?                     @relation("PurchaseRequisitionsEndorsed", fields: [endorsedById], references: [id], onDelete: SetNull)
+  assignedProcurementOfficer User?            @relation("PurchaseRequisitionsAssignedProcurement", fields: [assignedProcurementOfficerId], references: [id], onDelete: SetNull)
   convertedBy       User?                     @relation("PurchaseRequisitionsConverted", fields: [convertedById], references: [id], onDelete: SetNull)
   createdBy         User?                     @relation("PurchaseRequisitionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
   items             PurchaseRequisitionItem[]
+  attachments       PurchaseRequisitionAttachment[]
+  approvalEvents    PurchaseRequisitionApprovalEvent[]
+  versions          PurchaseRequisitionVersion[]
+  notifications     PurchaseRequisitionNotification[]
   rfqs              Rfq[]
   purchaseOrders    PurchaseOrder[]
   warehouse         Warehouse                 @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
@@ -1145,6 +1180,9 @@ model PurchaseRequisition {
   @@index([warehouseId, status])
   @@index([createdById])
   @@index([approvedById])
+  @@index([budgetClearedById])
+  @@index([endorsedById])
+  @@index([assignedProcurementOfficerId])
   @@index([requestedAt])
 }
 
@@ -1162,6 +1200,76 @@ model PurchaseRequisitionItem {
 
   @@index([purchaseRequisitionId])
   @@index([productVariantId])
+}
+
+model PurchaseRequisitionAttachment {
+  id                    Int                 @id @default(autoincrement())
+  purchaseRequisitionId Int
+  fileUrl               String
+  fileName              String
+  mimeType              String?
+  fileSize              Int?
+  note                  String?
+  uploadedById          String?
+  createdAt             DateTime            @default(now())
+  purchaseRequisition   PurchaseRequisition @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
+  uploadedBy            User?               @relation("PurchaseRequisitionAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([purchaseRequisitionId])
+  @@index([uploadedById])
+}
+
+model PurchaseRequisitionApprovalEvent {
+  id                    Int                           @id @default(autoincrement())
+  purchaseRequisitionId Int
+  stage                 PurchaseRequisitionApprovalStage
+  decision              PurchaseRequisitionApprovalDecision
+  note                  String?
+  actedById             String?
+  actedAt               DateTime                      @default(now())
+  purchaseRequisition   PurchaseRequisition           @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
+  actedBy               User?                         @relation("PurchaseRequisitionApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+
+  @@index([purchaseRequisitionId, stage])
+  @@index([actedById])
+  @@unique([purchaseRequisitionId, stage, actedById])
+}
+
+model PurchaseRequisitionVersion {
+  id                    Int                 @id @default(autoincrement())
+  purchaseRequisitionId Int
+  versionNo             Int
+  stage                 PurchaseRequisitionApprovalStage
+  action                String
+  snapshot              Json
+  createdById           String?
+  createdAt             DateTime            @default(now())
+  purchaseRequisition   PurchaseRequisition @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
+  createdBy             User?               @relation("PurchaseRequisitionVersionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([purchaseRequisitionId, createdAt])
+  @@index([createdById])
+  @@unique([purchaseRequisitionId, versionNo])
+}
+
+model PurchaseRequisitionNotification {
+  id                    Int                           @id @default(autoincrement())
+  purchaseRequisitionId Int
+  stage                 PurchaseRequisitionApprovalStage
+  channel               WorkflowNotificationChannel
+  status                WorkflowNotificationStatus    @default(PENDING)
+  recipientUserId       String?
+  recipientEmail        String?
+  message               String
+  sentAt                DateTime?
+  createdAt             DateTime                      @default(now())
+  metadata              Json?
+  purchaseRequisition   PurchaseRequisition           @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
+  recipientUser         User?                         @relation("PurchaseRequisitionNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
+
+  @@index([purchaseRequisitionId, stage, createdAt])
+  @@index([recipientUserId])
+  @@index([status, channel])
 }
 
 model SupplierPortalAccess {
@@ -1427,10 +1535,20 @@ model Rfq {
   closedAt              DateTime?
   awardedAt             DateTime?
   cancelledAt           DateTime?
+  scopeOfWork           String?
+  termsAndConditions    String?
+  boqDetails            String?
+  technicalSpecifications String?
+  evaluationCriteria    String?
+  resubmissionAllowed   Boolean   @default(true)
+  resubmissionRound     Int       @default(0)
+  lastResubmissionRequestedAt DateTime?
+  lastResubmissionReason String?
   createdById           String?
   approvedById          String?
   currency              String    @default("BDT") @db.VarChar(3)
   note                  String?
+  sourceRequisitionSnapshot Json?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   approvedBy            User?                @relation("RfqsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
@@ -1438,6 +1556,9 @@ model Rfq {
   purchaseRequisition   PurchaseRequisition? @relation(fields: [purchaseRequisitionId], references: [id], onDelete: SetNull)
   warehouse             Warehouse            @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   items                 RfqItem[]
+  attachments           RfqAttachment[]
+  categoryTargets       RfqCategoryTarget[]
+  notifications         RfqNotification[]
   supplierInvites       RfqSupplierInvite[]
   quotations            SupplierQuotation[]
   award                 RfqAward?
@@ -1448,6 +1569,7 @@ model Rfq {
   @@index([approvedById])
   @@index([requestedAt])
   @@index([submissionDeadline])
+  @@index([resubmissionRound])
 }
 
 model RfqItem {
@@ -1475,6 +1597,9 @@ model RfqSupplierInvite {
   status      RfqInvitationStatus @default(INVITED)
   invitedAt   DateTime            @default(now())
   respondedAt DateTime?
+  lastNotifiedAt DateTime?
+  resubmissionRequestedAt DateTime?
+  resubmissionReason String?
   note        String?
   createdById String?
   createdAt   DateTime            @default(now())
@@ -1483,6 +1608,7 @@ model RfqSupplierInvite {
   rfq         Rfq                 @relation(fields: [rfqId], references: [id], onDelete: Cascade)
   supplier    Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   quotation   SupplierQuotation?
+  notifications RfqNotification[]
 
   @@unique([rfqId, supplierId])
   @@index([rfqId, status])
@@ -1496,6 +1622,9 @@ model SupplierQuotation {
   supplierId          Int
   rfqSupplierInviteId Int?            @unique
   status              QuotationStatus @default(SUBMITTED)
+  revisionNo          Int             @default(1)
+  resubmissionRound   Int             @default(0)
+  resubmissionNote    String?
   quotedAt            DateTime        @default(now())
   validUntil          DateTime?
   submittedById       String?
@@ -1562,6 +1691,95 @@ model RfqAward {
   @@index([supplierId, status])
   @@index([awardedById])
   @@index([awardedAt])
+}
+
+model SupplierCategory {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   User?     @relation("SupplierCategoriesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  suppliers   SupplierCategorySupplier[]
+  rfqTargets  RfqCategoryTarget[]
+
+  @@index([isActive, name])
+  @@index([createdById])
+}
+
+model SupplierCategorySupplier {
+  id                 Int              @id @default(autoincrement())
+  supplierCategoryId Int
+  supplierId         Int
+  createdById        String?
+  createdAt          DateTime         @default(now())
+  createdBy          User?            @relation("SupplierCategorySuppliersCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  supplierCategory   SupplierCategory @relation(fields: [supplierCategoryId], references: [id], onDelete: Cascade)
+  supplier           Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierCategoryId, supplierId])
+  @@index([supplierId])
+  @@index([createdById])
+}
+
+model RfqCategoryTarget {
+  id                 Int              @id @default(autoincrement())
+  rfqId              Int
+  supplierCategoryId Int
+  createdById        String?
+  createdAt          DateTime         @default(now())
+  createdBy          User?            @relation("RfqCategoryTargetsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  rfq                Rfq              @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplierCategory   SupplierCategory @relation(fields: [supplierCategoryId], references: [id], onDelete: Restrict)
+
+  @@unique([rfqId, supplierCategoryId])
+  @@index([supplierCategoryId])
+  @@index([createdById])
+}
+
+model RfqAttachment {
+  id           Int      @id @default(autoincrement())
+  rfqId        Int
+  label        String?
+  fileUrl      String
+  fileName     String?
+  mimeType     String?
+  fileSize     Int?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+  rfq          Rfq      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  uploadedBy   User?    @relation("RfqAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([rfqId])
+  @@index([uploadedById])
+}
+
+model RfqNotification {
+  id             Int                         @id @default(autoincrement())
+  rfqId          Int
+  inviteId       Int?
+  supplierId     Int
+  channel        WorkflowNotificationChannel
+  status         WorkflowNotificationStatus  @default(PENDING)
+  recipientEmail String?
+  message        String
+  metadata       Json?
+  sentAt         DateTime?
+  createdById    String?
+  createdAt      DateTime                    @default(now())
+  createdBy      User?                       @relation("RfqNotificationsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  invite         RfqSupplierInvite?          @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+  rfq            Rfq                         @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplier       Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([rfqId, createdAt])
+  @@index([inviteId])
+  @@index([supplierId, createdAt])
+  @@index([status, channel])
+  @@index([createdById])
 }
 
 model PurchaseOrder {
@@ -2710,6 +2928,7 @@ enum RfqStatus {
 
 enum RfqInvitationStatus {
   INVITED
+  RESUBMISSION_REQUESTED
   RESPONDED
   DECLINED
   AWARDED
@@ -2730,10 +2949,39 @@ enum RfqAwardStatus {
 enum PurchaseRequisitionStatus {
   DRAFT
   SUBMITTED
+  BUDGET_CLEARED
+  ENDORSED
   APPROVED
   REJECTED
   CONVERTED
   CANCELLED
+}
+
+enum PurchaseRequisitionApprovalStage {
+  PLANNING
+  SUBMISSION
+  BUDGET_CLEARANCE
+  ENDORSEMENT
+  FINAL_APPROVAL
+  ROUTED_TO_PROCUREMENT
+  REJECTION
+  CANCELLATION
+}
+
+enum PurchaseRequisitionApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+enum WorkflowNotificationChannel {
+  SYSTEM
+  EMAIL
+}
+
+enum WorkflowNotificationStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 enum PurchaseOrderStatus {

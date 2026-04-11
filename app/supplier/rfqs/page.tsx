@@ -28,6 +28,8 @@ type SupplierRfqRow = {
     status: string;
     invitedAt: string;
     respondedAt: string | null;
+    resubmissionRequestedAt?: string | null;
+    resubmissionReason?: string | null;
     note: string | null;
   } | null;
   items: Array<{
@@ -42,6 +44,7 @@ type SupplierRfqRow = {
   quotation: {
     id: number;
     status: string;
+    revisionNo?: number;
     quotedAt: string;
     validUntil: string | null;
     subtotal: string;
@@ -293,6 +296,11 @@ export default function SupplierRfqsPage() {
                     {rfq.warehouse.name} ({rfq.warehouse.code}) | Deadline:{" "}
                     {fmtDate(rfq.submissionDeadline)}
                   </p>
+                  {rfq.invite?.resubmissionReason ? (
+                    <p className="text-xs text-amber-600">
+                      Resubmission request: {rfq.invite.resubmissionReason}
+                    </p>
+                  ) : null}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="overflow-x-auto">
@@ -407,7 +415,8 @@ export default function SupplierRfqsPage() {
                     </Button>
                     {rfq.quotation ? (
                       <p className="text-sm text-muted-foreground">
-                        Last quote total: {rfq.quotation.total} {rfq.quotation.currency} at{" "}
+                        Last quote total: {rfq.quotation.total} {rfq.quotation.currency}
+                        {rfq.quotation.revisionNo ? ` • Rev ${rfq.quotation.revisionNo}` : ""} at{" "}
                         {fmtDate(rfq.quotation.quotedAt)}
                       </p>
                     ) : null}

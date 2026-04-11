@@ -15,10 +15,60 @@ const PURCHASE_REQUISITION_READ_PERMISSIONS = [
   "purchase_requisitions.read",
   "purchase_requisitions.manage",
   "purchase_requisitions.approve",
+  "mrf.budget_clear",
+  "mrf.endorse",
+  "mrf.final_approve",
 ] as const;
 
 function toCleanText(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function toNullableDecimal(value: unknown, field: string) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    throw new Error(`${field} must be a non-negative number`);
+  }
+  return new Prisma.Decimal(numberValue);
+}
+
+type RequisitionAttachmentInput = {
+  fileUrl?: unknown;
+  fileName?: unknown;
+  mimeType?: unknown;
+  fileSize?: unknown;
+  note?: unknown;
+};
+
+function parseAttachmentInputs(raw: unknown) {
+  const attachments = Array.isArray(raw) ? raw : [];
+  return attachments
+    .map((attachment, index) => {
+      const row = attachment as RequisitionAttachmentInput;
+      const fileUrl = toCleanText(row?.fileUrl, 600);
+      const fileName = toCleanText(row?.fileName, 260);
+      if (!fileUrl || !fileName) {
+        throw new Error(`Attachment ${index + 1}: file URL and file name are required`);
+      }
+      const fileSizeRaw =
+        row.fileSize === null || row.fileSize === undefined || row.fileSize === ""
+          ? null
+          : Number(row.fileSize);
+      if (fileSizeRaw !== null && (!Number.isInteger(fileSizeRaw) || fileSizeRaw < 0)) {
+        throw new Error(`Attachment ${index + 1}: invalid file size`);
+      }
+      return {
+        fileUrl,
+        fileName,
+        mimeType: toCleanText(row?.mimeType, 160) || null,
+        fileSize: fileSizeRaw,
+        note: toCleanText(row?.note, 255) || null,
+      };
+    })
+    .slice(0, 20);
 }
 
 function canReadPurchaseRequisitions(
@@ -99,6 +149,18 @@ export async function GET(request: NextRequest) {
                   },
                 },
                 {
+                  title: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  budgetCode: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
                   warehouse: {
                     name: { contains: search, mode: "insensitive" },
                   },
@@ -135,7 +197,16 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as {
       warehouseId?: unknown;
       neededBy?: unknown;
+      title?: unknown;
+      purpose?: unknown;
+      budgetCode?: unknown;
+      boqReference?: unknown;
+      specification?: unknown;
+      planningNote?: unknown;
+      estimatedAmount?: unknown;
+      endorsementRequiredCount?: unknown;
       note?: unknown;
+      attachments?: unknown;
       items?: Array<{
         productVariantId?: unknown;
         quantityRequested?: unknown;
@@ -216,16 +287,38 @@ export async function POST(request: NextRequest) {
     if (neededBy && Number.isNaN(neededBy.getTime())) {
       return NextResponse.json({ error: "Needed-by date is invalid." }, { status: 400 });
     }
+    const endorsementRequiredCount = Math.max(
+      1,
+      Number.isInteger(Number(body.endorsementRequiredCount))
+        ? Number(body.endorsementRequiredCount)
+        : 1,
+    );
+    const attachments = parseAttachmentInputs(body.attachments);
+    const estimatedAmount = toNullableDecimal(body.estimatedAmount, "Estimated amount");
 
     const created = await prisma.$transaction(async (tx) => {
       const requisitionNumber = await generatePurchaseRequisitionNumber(tx);
-      return tx.purchaseRequisition.create({
+      const createdRequisition = await tx.purchaseRequisition.create({
         data: {
           requisitionNumber,
           warehouseId,
+          title: toCleanText(body.title, 180) || null,
+          purpose: toCleanText(body.purpose, 500) || null,
+          budgetCode: toCleanText(body.budgetCode, 120) || null,
+          boqReference: toCleanText(body.boqReference, 160) || null,
+          specification: toCleanText(body.specification, 4000) || null,
+          planningNote: toCleanText(body.planningNote, 1000) || null,
+          estimatedAmount,
+          endorsementRequiredCount,
           neededBy,
           note: toCleanText(body.note, 500) || null,
           createdById: access.userId,
+          attachments: {
+            create: attachments.map((attachment) => ({
+              ...attachment,
+              uploadedById: access.userId,
+            })),
+          },
           items: {
             create: normalizedItems.map((item) => ({
               productVariantId: item.productVariantId,
@@ -238,6 +331,19 @@ export async function POST(request: NextRequest) {
         },
         include: purchaseRequisitionInclude,
       });
+
+      await tx.purchaseRequisitionVersion.create({
+        data: {
+          purchaseRequisitionId: createdRequisition.id,
+          versionNo: 1,
+          stage: "PLANNING",
+          action: "create_draft",
+          snapshot: toPurchaseRequisitionLogSnapshot(createdRequisition),
+          createdById: access.userId,
+        },
+      });
+
+      return createdRequisition;
     });
 
     await logActivity({
@@ -255,6 +361,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(created, { status: 201 });
   } catch (error: any) {
     console.error("SCM PURCHASE REQUISITIONS POST ERROR:", error);
+    const message = String(error?.message || "");
+    if (
+      message.includes("required") ||
+      message.includes("invalid") ||
+      message.includes("must be") ||
+      message.includes("duplicate")
+    ) {
+      return NextResponse.json(
+        { error: message || "Invalid purchase requisition payload." },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
       { error: error?.message || "Failed to create purchase requisition." },
       { status: 500 },

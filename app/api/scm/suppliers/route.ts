@@ -10,6 +10,7 @@ import {
   hasSupplierReadAccess,
   normalizeSupplierCode,
   normalizeSupplierCompanyType,
+  parseSupplierCategoryIds,
   parseSupplierDocuments,
   serializeSupplier,
   SupplierValidationError,
@@ -47,6 +48,18 @@ export async function GET(request: NextRequest) {
                 { contactName: { contains: search, mode: "insensitive" } },
                 { email: { contains: search, mode: "insensitive" } },
                 { phone: { contains: search, mode: "insensitive" } },
+                {
+                  categories: {
+                    some: {
+                      supplierCategory: {
+                        OR: [
+                          { name: { contains: search, mode: "insensitive" } },
+                          { code: { contains: search, mode: "insensitive" } },
+                        ],
+                      },
+                    },
+                  },
+                },
               ],
             }
           : {}),
@@ -54,6 +67,19 @@ export async function GET(request: NextRequest) {
       include: {
         documents: {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        },
+        categories: {
+          orderBy: [{ id: "asc" }],
+          include: {
+            supplierCategory: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                isActive: true,
+              },
+            },
+          },
         },
       },
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
@@ -104,6 +130,7 @@ export async function POST(request: NextRequest) {
 
     const documents = parseSupplierDocuments(body.documents);
     assertRequiredSupplierDocuments(companyType, documents);
+    const categoryIds = parseSupplierCategoryIds(body.categoryIds);
 
     const leadTimeDays =
       body.leadTimeDays === null || body.leadTimeDays === undefined || body.leadTimeDays === ""
@@ -123,6 +150,26 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { error: "Lead time and payment terms must be non-negative integers." },
+        { status: 400 },
+      );
+    }
+
+    const categories =
+      categoryIds.length > 0
+        ? await prisma.supplierCategory.findMany({
+            where: {
+              id: { in: categoryIds },
+              isActive: true,
+            },
+            select: { id: true },
+          })
+        : [];
+    if (categories.length !== categoryIds.length) {
+      return NextResponse.json(
+        {
+          error:
+            "One or more supplier categories were not found or inactive.",
+        },
         { status: 400 },
       );
     }
@@ -147,10 +194,32 @@ export async function POST(request: NextRequest) {
         documents: {
           create: documents,
         },
+        categories:
+          categoryIds.length > 0
+            ? {
+                create: categoryIds.map((supplierCategoryId) => ({
+                  supplierCategoryId,
+                  createdById: access.userId,
+                })),
+              }
+            : undefined,
       },
       include: {
         documents: {
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        },
+        categories: {
+          orderBy: [{ id: "asc" }],
+          include: {
+            supplierCategory: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                isActive: true,
+              },
+            },
+          },
         },
       },
     });

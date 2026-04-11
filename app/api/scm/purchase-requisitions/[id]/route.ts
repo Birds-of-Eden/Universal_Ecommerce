@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import { Prisma } from "@/generated/prisma";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
@@ -18,10 +19,62 @@ const PURCHASE_REQUISITION_READ_PERMISSIONS = [
   "purchase_requisitions.read",
   "purchase_requisitions.manage",
   "purchase_requisitions.approve",
+  "mrf.budget_clear",
+  "mrf.endorse",
+  "mrf.final_approve",
 ] as const;
 
 function toCleanText(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function hasOwn(body: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(body, key);
+}
+
+function toNullableDecimal(value: unknown, field: string) {
+  if (value === undefined || value === null || value === "") return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    throw new Error(`${field} must be a non-negative number`);
+  }
+  return new Prisma.Decimal(numeric);
+}
+
+type RequisitionAttachmentInput = {
+  fileUrl?: unknown;
+  fileName?: unknown;
+  mimeType?: unknown;
+  fileSize?: unknown;
+  note?: unknown;
+};
+
+function parseAttachmentInputs(raw: unknown) {
+  const attachments = Array.isArray(raw) ? raw : [];
+  return attachments
+    .map((attachment, index) => {
+      const row = attachment as RequisitionAttachmentInput;
+      const fileUrl = toCleanText(row?.fileUrl, 600);
+      const fileName = toCleanText(row?.fileName, 260);
+      if (!fileUrl || !fileName) {
+        throw new Error(`Attachment ${index + 1}: file URL and file name are required`);
+      }
+      const fileSizeRaw =
+        row.fileSize === null || row.fileSize === undefined || row.fileSize === ""
+          ? null
+          : Number(row.fileSize);
+      if (fileSizeRaw !== null && (!Number.isInteger(fileSizeRaw) || fileSizeRaw < 0)) {
+        throw new Error(`Attachment ${index + 1}: invalid file size`);
+      }
+      return {
+        fileUrl,
+        fileName,
+        mimeType: toCleanText(row?.mimeType, 160) || null,
+        fileSize: fileSizeRaw,
+        note: toCleanText(row?.note, 255) || null,
+      };
+    })
+    .slice(0, 20);
 }
 
 function canReadPurchaseRequisitions(
@@ -36,6 +89,154 @@ function hasGlobalPurchaseRequisitionScope(
   return PURCHASE_REQUISITION_READ_PERMISSIONS.some((permission) =>
     access.hasGlobal(permission),
   );
+}
+
+function passesFinalAuthorityMatrix(
+  access: Awaited<ReturnType<typeof getAccessContext>>,
+  warehouseId: number,
+  estimatedAmount: Prisma.Decimal | null,
+) {
+  const numericAmount = Number(estimatedAmount?.toString() || 0);
+  if (!access.can("mrf.final_approve", warehouseId)) return false;
+  if (numericAmount > 500000) {
+    return access.can("purchase_orders.approve", warehouseId) && access.has("settings.manage");
+  }
+  if (numericAmount > 100000) {
+    return access.can("purchase_orders.approve", warehouseId);
+  }
+  return true;
+}
+
+async function resolveUsersByPermission(
+  tx: Prisma.TransactionClient,
+  permissionKeys: string[],
+  warehouseId: number,
+) {
+  if (permissionKeys.length === 0) {
+    return [] as Array<{ id: string; name: string | null; email: string }>;
+  }
+  return tx.user.findMany({
+    where: {
+      userRoles: {
+        some: {
+          OR: [{ scopeType: "GLOBAL" }, { scopeType: "WAREHOUSE", warehouseId }],
+          role: {
+            rolePermissions: {
+              some: {
+                permission: {
+                  key: { in: permissionKeys },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    select: { id: true, name: true, email: true },
+    orderBy: [{ name: "asc" }, { email: "asc" }],
+  });
+}
+
+async function resolveProcurementOfficerId(
+  tx: Prisma.TransactionClient,
+  warehouseId: number,
+  preferredUserId?: string | null,
+) {
+  const candidates = await resolveUsersByPermission(tx, ["purchase_orders.manage"], warehouseId);
+  if (preferredUserId) {
+    const preferred = candidates.find((candidate) => candidate.id === preferredUserId);
+    if (preferred) return preferred.id;
+  }
+  return candidates[0]?.id ?? null;
+}
+
+async function recordRequisitionVersion(
+  tx: Prisma.TransactionClient,
+  requisitionId: number,
+  action: string,
+  stage: Prisma.PurchaseRequisitionApprovalStage,
+  createdById: string,
+) {
+  const requisition = await tx.purchaseRequisition.findUnique({
+    where: { id: requisitionId },
+    include: purchaseRequisitionInclude,
+  });
+  if (!requisition) {
+    throw new Error("Purchase requisition not found while creating version snapshot.");
+  }
+  const latest = await tx.purchaseRequisitionVersion.findFirst({
+    where: { purchaseRequisitionId: requisitionId },
+    orderBy: { versionNo: "desc" },
+    select: { versionNo: true },
+  });
+  await tx.purchaseRequisitionVersion.create({
+    data: {
+      purchaseRequisitionId: requisitionId,
+      versionNo: (latest?.versionNo ?? 0) + 1,
+      stage,
+      action,
+      snapshot: toPurchaseRequisitionLogSnapshot(requisition),
+      createdById,
+    },
+  });
+}
+
+async function createWorkflowNotifications(
+  tx: Prisma.TransactionClient,
+  input: {
+    requisitionId: number;
+    stage: Prisma.PurchaseRequisitionApprovalStage;
+    warehouseId: number;
+    message: string;
+    recipientPermissionKeys?: string[];
+    explicitUserIds?: string[];
+    metadata?: Prisma.InputJsonValue;
+  },
+) {
+  const permissionRecipients = await resolveUsersByPermission(
+    tx,
+    input.recipientPermissionKeys ?? [],
+    input.warehouseId,
+  );
+  const explicitIds = new Set((input.explicitUserIds ?? []).filter(Boolean));
+  const explicitRecipients = explicitIds.size
+    ? await tx.user.findMany({
+        where: { id: { in: [...explicitIds] } },
+        select: { id: true, name: true, email: true },
+      })
+    : [];
+  const recipientMap = new Map<string, { id: string; email: string; name: string | null }>();
+  for (const user of [...permissionRecipients, ...explicitRecipients]) {
+    recipientMap.set(user.id, user);
+  }
+  if (recipientMap.size === 0) return;
+
+  const now = new Date();
+  const records: Prisma.PurchaseRequisitionNotificationCreateManyInput[] = [];
+  for (const recipient of recipientMap.values()) {
+    records.push({
+      purchaseRequisitionId: input.requisitionId,
+      stage: input.stage,
+      channel: "SYSTEM",
+      status: "SENT",
+      recipientUserId: recipient.id,
+      recipientEmail: recipient.email,
+      message: input.message,
+      sentAt: now,
+      metadata: input.metadata,
+    });
+    records.push({
+      purchaseRequisitionId: input.requisitionId,
+      stage: input.stage,
+      channel: "EMAIL",
+      status: "PENDING",
+      recipientUserId: recipient.id,
+      recipientEmail: recipient.email,
+      message: input.message,
+      metadata: input.metadata,
+    });
+  }
+  await tx.purchaseRequisitionNotification.createMany({ data: records });
 }
 
 export async function GET(
@@ -129,22 +330,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const body = (await request.json().catch(() => ({}))) as {
-      action?: unknown;
-      neededBy?: unknown;
-      note?: unknown;
-      supplierId?: unknown;
-      expectedAt?: unknown;
-      notes?: unknown;
-      unitCosts?: Array<{
-        itemId?: unknown;
-        unitCost?: unknown;
-      }>;
-    };
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const action = typeof body.action === "string" ? body.action.trim().toLowerCase() : "";
+    const normalizedAction = action === "approve" ? "final_approve" : action;
     const before = toPurchaseRequisitionLogSnapshot(requisition);
 
-    if (!action) {
+    if (!normalizedAction) {
       if (!access.can("purchase_requisitions.manage", requisition.warehouseId)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -154,21 +345,93 @@ export async function PATCH(
           { status: 400 },
         );
       }
-      const neededBy = body.neededBy ? new Date(String(body.neededBy)) : null;
-      if (neededBy && Number.isNaN(neededBy.getTime())) {
+      const neededBy = hasOwn(body, "neededBy")
+        ? body.neededBy
+          ? new Date(String(body.neededBy))
+          : null
+        : undefined;
+      if (neededBy instanceof Date && Number.isNaN(neededBy.getTime())) {
         return NextResponse.json(
           { error: "Needed-by date is invalid." },
           { status: 400 },
         );
       }
 
-      const updated = await prisma.purchaseRequisition.update({
-        where: { id: requisition.id },
-        data: {
-          neededBy,
-          note: toCleanText(body.note, 500) || null,
-        },
-        include: purchaseRequisitionInclude,
+      const attachments = hasOwn(body, "attachments")
+        ? parseAttachmentInputs(body.attachments)
+        : null;
+
+      const data: Prisma.PurchaseRequisitionUpdateInput = {
+        ...(neededBy !== undefined ? { neededBy } : {}),
+        ...(hasOwn(body, "title") ? { title: toCleanText(body.title, 180) || null } : {}),
+        ...(hasOwn(body, "purpose") ? { purpose: toCleanText(body.purpose, 500) || null } : {}),
+        ...(hasOwn(body, "budgetCode")
+          ? { budgetCode: toCleanText(body.budgetCode, 120) || null }
+          : {}),
+        ...(hasOwn(body, "boqReference")
+          ? { boqReference: toCleanText(body.boqReference, 160) || null }
+          : {}),
+        ...(hasOwn(body, "specification")
+          ? { specification: toCleanText(body.specification, 4000) || null }
+          : {}),
+        ...(hasOwn(body, "planningNote")
+          ? { planningNote: toCleanText(body.planningNote, 1000) || null }
+          : {}),
+        ...(hasOwn(body, "estimatedAmount")
+          ? {
+              estimatedAmount: toNullableDecimal(
+                body.estimatedAmount,
+                "Estimated amount",
+              ),
+            }
+          : {}),
+        ...(hasOwn(body, "endorsementRequiredCount")
+          ? {
+              endorsementRequiredCount: Math.max(
+                1,
+                Number.isInteger(Number(body.endorsementRequiredCount))
+                  ? Number(body.endorsementRequiredCount)
+                  : 1,
+              ),
+            }
+          : {}),
+        ...(hasOwn(body, "note") ? { note: toCleanText(body.note, 500) || null } : {}),
+      };
+
+      const updated = await prisma.$transaction(async (tx) => {
+        if (attachments !== null) {
+          await tx.purchaseRequisitionAttachment.deleteMany({
+            where: { purchaseRequisitionId: requisition.id },
+          });
+        }
+
+        const next = await tx.purchaseRequisition.update({
+          where: { id: requisition.id },
+          data: {
+            ...data,
+            ...(attachments !== null
+              ? {
+                  attachments: {
+                    create: attachments.map((attachment) => ({
+                      ...attachment,
+                      uploadedById: access.userId,
+                    })),
+                  },
+                }
+              : {}),
+          },
+          include: purchaseRequisitionInclude,
+        });
+
+        await recordRequisitionVersion(
+          tx,
+          next.id,
+          "update_draft",
+          "PLANNING",
+          access.userId,
+        );
+
+        return next;
       });
 
       await logActivity({
@@ -187,7 +450,7 @@ export async function PATCH(
       return NextResponse.json(updated);
     }
 
-    if (action === "submit") {
+    if (normalizedAction === "submit") {
       if (!access.can("purchase_requisitions.manage", requisition.warehouseId)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -198,13 +461,48 @@ export async function PATCH(
         );
       }
 
-      const updated = await prisma.purchaseRequisition.update({
-        where: { id: requisition.id },
-        data: {
-          status: "SUBMITTED",
-          submittedAt: new Date(),
-        },
-        include: purchaseRequisitionInclude,
+      const updated = await prisma.$transaction(async (tx) => {
+        const next = await tx.purchaseRequisition.update({
+          where: { id: requisition.id },
+          data: {
+            status: "SUBMITTED",
+            submittedAt: new Date(),
+          },
+          include: purchaseRequisitionInclude,
+        });
+
+        await tx.purchaseRequisitionApprovalEvent.create({
+          data: {
+            purchaseRequisitionId: next.id,
+            stage: "SUBMISSION",
+            decision: "APPROVED",
+            note: toCleanText(body.note, 255) || null,
+            actedById: access.userId,
+          },
+        });
+
+        await recordRequisitionVersion(
+          tx,
+          next.id,
+          "submit",
+          "SUBMISSION",
+          access.userId,
+        );
+
+        await createWorkflowNotifications(tx, {
+          requisitionId: next.id,
+          stage: "SUBMISSION",
+          warehouseId: next.warehouseId,
+          recipientPermissionKeys: ["mrf.budget_clear"],
+          explicitUserIds: [next.createdById || ""],
+          message: `MRF ${next.requisitionNumber} submitted and waiting for budget clearance.`,
+          metadata: {
+            status: next.status,
+            requisitionNumber: next.requisitionNumber,
+          },
+        });
+
+        return next;
       });
 
       await logActivity({
@@ -223,39 +521,261 @@ export async function PATCH(
       return NextResponse.json(updated);
     }
 
-    if (action === "approve") {
-      if (!access.can("purchase_requisitions.approve", requisition.warehouseId)) {
+    if (normalizedAction === "budget_clear") {
+      if (!access.can("mrf.budget_clear", requisition.warehouseId)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       if (requisition.status !== "SUBMITTED") {
         return NextResponse.json(
-          { error: "Only submitted requisitions can be approved." },
+          { error: "Budget clearance is allowed only for submitted requisitions." },
           { status: 400 },
         );
       }
 
       const updated = await prisma.$transaction(async (tx) => {
-        await Promise.all(
-          requisition.items.map((item) =>
-            tx.purchaseRequisitionItem.update({
-              where: { id: item.id },
-              data: {
-                quantityApproved: item.quantityApproved ?? item.quantityRequested,
-              },
-            }),
-          ),
+        const next = await tx.purchaseRequisition.update({
+          where: { id: requisition.id },
+          data: {
+            status: "BUDGET_CLEARED",
+            budgetClearedAt: new Date(),
+            budgetClearedById: access.userId,
+            rejectedAt: null,
+          },
+          include: purchaseRequisitionInclude,
+        });
+
+        await tx.purchaseRequisitionApprovalEvent.create({
+          data: {
+            purchaseRequisitionId: next.id,
+            stage: "BUDGET_CLEARANCE",
+            decision: "APPROVED",
+            note: toCleanText(body.note, 255) || null,
+            actedById: access.userId,
+          },
+        });
+
+        await recordRequisitionVersion(
+          tx,
+          next.id,
+          "budget_clear",
+          "BUDGET_CLEARANCE",
+          access.userId,
         );
 
-        return tx.purchaseRequisition.update({
+        await createWorkflowNotifications(tx, {
+          requisitionId: next.id,
+          stage: "BUDGET_CLEARANCE",
+          warehouseId: next.warehouseId,
+          recipientPermissionKeys: ["mrf.endorse"],
+          explicitUserIds: [next.createdById || ""],
+          message: `MRF ${next.requisitionNumber} passed budget clearance and needs endorsement sign-off.`,
+          metadata: {
+            status: next.status,
+            requisitionNumber: next.requisitionNumber,
+          },
+        });
+
+        return next;
+      });
+
+      await logActivity({
+        action: "budget_clear",
+        entity: "purchase_requisition",
+        entityId: updated.id,
+        access,
+        request,
+        metadata: {
+          message: `Budget cleared purchase requisition ${updated.requisitionNumber}`,
+        },
+        before,
+        after: toPurchaseRequisitionLogSnapshot(updated),
+      });
+
+      return NextResponse.json(updated);
+    }
+
+    if (normalizedAction === "endorse") {
+      if (!access.can("mrf.endorse", requisition.warehouseId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (requisition.status !== "BUDGET_CLEARED") {
+        return NextResponse.json(
+          { error: "Endorsement is allowed only after budget clearance." },
+          { status: 400 },
+        );
+      }
+
+      const existingEndorsement = requisition.approvalEvents.find(
+        (event) => event.stage === "ENDORSEMENT" && event.actedById === access.userId,
+      );
+      if (existingEndorsement) {
+        return NextResponse.json(
+          { error: "You already endorsed this requisition." },
+          { status: 400 },
+        );
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        await tx.purchaseRequisitionApprovalEvent.create({
+          data: {
+            purchaseRequisitionId: requisition.id,
+            stage: "ENDORSEMENT",
+            decision: "APPROVED",
+            note: toCleanText(body.note, 255) || null,
+            actedById: access.userId,
+          },
+        });
+
+        const endorsementCount = await tx.purchaseRequisitionApprovalEvent.count({
+          where: {
+            purchaseRequisitionId: requisition.id,
+            stage: "ENDORSEMENT",
+            decision: "APPROVED",
+          },
+        });
+
+        const reachedRequiredEndorsements =
+          endorsementCount >= Math.max(1, requisition.endorsementRequiredCount || 1);
+
+        const next = await tx.purchaseRequisition.update({
+          where: { id: requisition.id },
+          data: reachedRequiredEndorsements
+            ? {
+                status: "ENDORSED",
+                endorsedAt: new Date(),
+                endorsedById: access.userId,
+              }
+            : {},
+          include: purchaseRequisitionInclude,
+        });
+
+        await recordRequisitionVersion(
+          tx,
+          next.id,
+          reachedRequiredEndorsements ? "endorse_complete" : "endorse_partial",
+          "ENDORSEMENT",
+          access.userId,
+        );
+
+        if (reachedRequiredEndorsements) {
+          await createWorkflowNotifications(tx, {
+            requisitionId: next.id,
+            stage: "ENDORSEMENT",
+            warehouseId: next.warehouseId,
+            recipientPermissionKeys: ["mrf.final_approve"],
+            explicitUserIds: [next.createdById || ""],
+            message: `MRF ${next.requisitionNumber} completed endorsements and is ready for final approval.`,
+            metadata: {
+              status: next.status,
+              requisitionNumber: next.requisitionNumber,
+              endorsements: endorsementCount,
+              requiredEndorsements: requisition.endorsementRequiredCount,
+            },
+          });
+        }
+
+        return { next, endorsementCount, reachedRequiredEndorsements };
+      });
+
+      await logActivity({
+        action: "endorse",
+        entity: "purchase_requisition",
+        entityId: updated.next.id,
+        access,
+        request,
+        metadata: {
+          message: `Endorsed purchase requisition ${updated.next.requisitionNumber}`,
+          endorsementCount: updated.endorsementCount,
+          requiredEndorsements: requisition.endorsementRequiredCount,
+          reachedRequiredEndorsements: updated.reachedRequiredEndorsements,
+        },
+        before,
+        after: toPurchaseRequisitionLogSnapshot(updated.next),
+      });
+
+      return NextResponse.json({
+        ...updated.next,
+        endorsementSummary: {
+          endorsementCount: updated.endorsementCount,
+          requiredEndorsements: requisition.endorsementRequiredCount,
+          reachedRequiredEndorsements: updated.reachedRequiredEndorsements,
+        },
+      });
+    }
+
+    if (normalizedAction === "final_approve") {
+      if (!passesFinalAuthorityMatrix(access, requisition.warehouseId, requisition.estimatedAmount)) {
+        return NextResponse.json(
+          {
+            error:
+              "Final approval denied by authority matrix. Ensure mrf.final_approve and required approval authority permissions are assigned.",
+          },
+          { status: 403 },
+        );
+      }
+      if (requisition.status !== "ENDORSED") {
+        return NextResponse.json(
+          { error: "Only endorsed requisitions can be final-approved." },
+          { status: 400 },
+        );
+      }
+
+      const preferredOfficerId = toCleanText(body.assignedProcurementOfficerId, 80) || null;
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const assignedOfficerId = await resolveProcurementOfficerId(
+          tx,
+          requisition.warehouseId,
+          preferredOfficerId,
+        );
+
+        const next = await tx.purchaseRequisition.update({
           where: { id: requisition.id },
           data: {
             status: "APPROVED",
             approvedAt: new Date(),
-            rejectedAt: null,
             approvedById: access.userId,
+            rejectedAt: null,
+            assignedProcurementOfficerId: assignedOfficerId,
+            routedToProcurementAt: assignedOfficerId ? new Date() : null,
           },
           include: purchaseRequisitionInclude,
         });
+
+        await tx.purchaseRequisitionApprovalEvent.create({
+          data: {
+            purchaseRequisitionId: next.id,
+            stage: "FINAL_APPROVAL",
+            decision: "APPROVED",
+            note: toCleanText(body.note, 255) || null,
+            actedById: access.userId,
+          },
+        });
+
+        await recordRequisitionVersion(
+          tx,
+          next.id,
+          "final_approve",
+          "FINAL_APPROVAL",
+          access.userId,
+        );
+
+        await createWorkflowNotifications(tx, {
+          requisitionId: next.id,
+          stage: "ROUTED_TO_PROCUREMENT",
+          warehouseId: next.warehouseId,
+          explicitUserIds: [next.createdById || "", assignedOfficerId || ""],
+          message: assignedOfficerId
+            ? `MRF ${next.requisitionNumber} final-approved and routed to assigned procurement officer.`
+            : `MRF ${next.requisitionNumber} final-approved but no procurement officer was auto-assigned.`,
+          metadata: {
+            status: next.status,
+            requisitionNumber: next.requisitionNumber,
+            assignedProcurementOfficerId: assignedOfficerId,
+          },
+        });
+
+        return next;
       });
 
       await logActivity({
@@ -265,7 +785,9 @@ export async function PATCH(
         access,
         request,
         metadata: {
-          message: `Approved purchase requisition ${updated.requisitionNumber}`,
+          message: `Final-approved purchase requisition ${updated.requisitionNumber}`,
+          routedToProcurementAt: updated.routedToProcurementAt?.toISOString() ?? null,
+          assignedProcurementOfficerId: updated.assignedProcurementOfficerId ?? null,
         },
         before,
         after: toPurchaseRequisitionLogSnapshot(updated),
@@ -274,24 +796,63 @@ export async function PATCH(
       return NextResponse.json(updated);
     }
 
-    if (action === "reject") {
-      if (!access.can("purchase_requisitions.approve", requisition.warehouseId)) {
+    if (normalizedAction === "reject") {
+      const canReject =
+        access.can("purchase_requisitions.approve", requisition.warehouseId) ||
+        access.can("mrf.budget_clear", requisition.warehouseId) ||
+        access.can("mrf.endorse", requisition.warehouseId) ||
+        access.can("mrf.final_approve", requisition.warehouseId);
+      if (!canReject) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
-      if (requisition.status !== "SUBMITTED") {
+      if (!["SUBMITTED", "BUDGET_CLEARED", "ENDORSED"].includes(requisition.status)) {
         return NextResponse.json(
-          { error: "Only submitted requisitions can be rejected." },
+          { error: "Only submitted/budget-cleared/endorsed requisitions can be rejected." },
           { status: 400 },
         );
       }
 
-      const updated = await prisma.purchaseRequisition.update({
-        where: { id: requisition.id },
-        data: {
-          status: "REJECTED",
-          rejectedAt: new Date(),
-        },
-        include: purchaseRequisitionInclude,
+      const updated = await prisma.$transaction(async (tx) => {
+        const next = await tx.purchaseRequisition.update({
+          where: { id: requisition.id },
+          data: {
+            status: "REJECTED",
+            rejectedAt: new Date(),
+          },
+          include: purchaseRequisitionInclude,
+        });
+
+        await tx.purchaseRequisitionApprovalEvent.create({
+          data: {
+            purchaseRequisitionId: next.id,
+            stage: "REJECTION",
+            decision: "REJECTED",
+            note: toCleanText(body.note, 255) || null,
+            actedById: access.userId,
+          },
+        });
+
+        await recordRequisitionVersion(
+          tx,
+          next.id,
+          "reject",
+          "REJECTION",
+          access.userId,
+        );
+
+        await createWorkflowNotifications(tx, {
+          requisitionId: next.id,
+          stage: "REJECTION",
+          warehouseId: next.warehouseId,
+          explicitUserIds: [next.createdById || ""],
+          message: `MRF ${next.requisitionNumber} was rejected. Please review comments and resubmit if needed.`,
+          metadata: {
+            status: next.status,
+            requisitionNumber: next.requisitionNumber,
+          },
+        });
+
+        return next;
       });
 
       await logActivity({
@@ -310,23 +871,39 @@ export async function PATCH(
       return NextResponse.json(updated);
     }
 
-    if (action === "cancel") {
+    if (normalizedAction === "cancel") {
       if (!access.can("purchase_requisitions.manage", requisition.warehouseId)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
-      if (!["DRAFT", "SUBMITTED", "APPROVED"].includes(requisition.status)) {
+      if (
+        !["DRAFT", "SUBMITTED", "BUDGET_CLEARED", "ENDORSED", "APPROVED"].includes(
+          requisition.status,
+        )
+      ) {
         return NextResponse.json(
           { error: "This purchase requisition can no longer be cancelled." },
           { status: 400 },
         );
       }
 
-      const updated = await prisma.purchaseRequisition.update({
-        where: { id: requisition.id },
-        data: {
-          status: "CANCELLED",
-        },
-        include: purchaseRequisitionInclude,
+      const updated = await prisma.$transaction(async (tx) => {
+        const next = await tx.purchaseRequisition.update({
+          where: { id: requisition.id },
+          data: {
+            status: "CANCELLED",
+          },
+          include: purchaseRequisitionInclude,
+        });
+
+        await recordRequisitionVersion(
+          tx,
+          next.id,
+          "cancel",
+          "CANCELLATION",
+          access.userId,
+        );
+
+        return next;
       });
 
       await logActivity({
@@ -345,7 +922,7 @@ export async function PATCH(
       return NextResponse.json(updated);
     }
 
-    if (action === "convert") {
+    if (normalizedAction === "convert") {
       if (!access.can("purchase_orders.manage", requisition.warehouseId)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -464,6 +1041,14 @@ export async function PATCH(
             convertedById: access.userId,
           },
         });
+
+        await recordRequisitionVersion(
+          tx,
+          requisition.id,
+          "convert_to_po",
+          "FINAL_APPROVAL",
+          access.userId,
+        );
 
         return purchaseOrder;
       });

@@ -363,6 +363,27 @@ export const purchaseRequisitionInclude = Prisma.validator<Prisma.PurchaseRequis
       email: true,
     },
   },
+  budgetClearedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  endorsedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  assignedProcurementOfficer: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
   convertedBy: {
     select: {
       id: true,
@@ -385,6 +406,85 @@ export const purchaseRequisitionInclude = Prisma.validator<Prisma.PurchaseRequis
               name: true,
             },
           },
+        },
+      },
+    },
+  },
+  attachments: {
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: {
+      id: true,
+      fileUrl: true,
+      fileName: true,
+      mimeType: true,
+      fileSize: true,
+      note: true,
+      createdAt: true,
+      uploadedById: true,
+      uploadedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
+  approvalEvents: {
+    orderBy: [{ actedAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      stage: true,
+      decision: true,
+      note: true,
+      actedAt: true,
+      actedById: true,
+      actedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
+  versions: {
+    orderBy: [{ versionNo: "desc" }],
+    take: 20,
+    select: {
+      id: true,
+      versionNo: true,
+      stage: true,
+      action: true,
+      createdAt: true,
+      createdById: true,
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
+  notifications: {
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 50,
+    select: {
+      id: true,
+      stage: true,
+      channel: true,
+      status: true,
+      recipientEmail: true,
+      message: true,
+      sentAt: true,
+      createdAt: true,
+      recipientUserId: true,
+      recipientUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
         },
       },
     },
@@ -419,6 +519,35 @@ export const rfqInclude = Prisma.validator<Prisma.RfqInclude>()({
       id: true,
       requisitionNumber: true,
       status: true,
+      title: true,
+      purpose: true,
+      budgetCode: true,
+      boqReference: true,
+      specification: true,
+      planningNote: true,
+      estimatedAmount: true,
+      note: true,
+      items: {
+        orderBy: { id: "asc" },
+        select: {
+          id: true,
+          productVariantId: true,
+          quantityRequested: true,
+          quantityApproved: true,
+          description: true,
+        },
+      },
+      attachments: {
+        orderBy: { id: "asc" },
+        select: {
+          id: true,
+          fileUrl: true,
+          fileName: true,
+          mimeType: true,
+          fileSize: true,
+          note: true,
+        },
+      },
     },
   },
   createdBy: {
@@ -450,6 +579,46 @@ export const rfqInclude = Prisma.validator<Prisma.RfqInclude>()({
               name: true,
             },
           },
+        },
+      },
+    },
+  },
+  attachments: {
+    orderBy: { id: "asc" },
+    select: {
+      id: true,
+      label: true,
+      fileUrl: true,
+      fileName: true,
+      mimeType: true,
+      fileSize: true,
+      createdAt: true,
+      uploadedById: true,
+      uploadedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
+  categoryTargets: {
+    orderBy: { id: "asc" },
+    include: {
+      supplierCategory: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          isActive: true,
+        },
+      },
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
         },
       },
     },
@@ -543,6 +712,32 @@ export const rfqInclude = Prisma.validator<Prisma.RfqInclude>()({
         },
       },
       awardedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
+  notifications: {
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 200,
+    include: {
+      supplier: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
+      },
+      invite: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
+      createdBy: {
         select: {
           id: true,
           name: true,
@@ -927,15 +1122,75 @@ export function toPurchaseRequisitionLogSnapshot(
   return {
     requisitionNumber: requisition.requisitionNumber,
     status: requisition.status,
+    title: requisition.title ?? null,
+    purpose: requisition.purpose ?? null,
+    budgetCode: requisition.budgetCode ?? null,
+    boqReference: requisition.boqReference ?? null,
+    specification: requisition.specification ?? null,
+    planningNote: requisition.planningNote ?? null,
+    estimatedAmount: requisition.estimatedAmount?.toString() ?? null,
+    endorsementRequiredCount: requisition.endorsementRequiredCount,
     warehouseId: requisition.warehouseId,
     warehouseCode: requisition.warehouse.code,
     requestedAt: requisition.requestedAt.toISOString(),
     neededBy: requisition.neededBy?.toISOString() ?? null,
     submittedAt: requisition.submittedAt?.toISOString() ?? null,
+    budgetClearedAt: requisition.budgetClearedAt?.toISOString() ?? null,
+    endorsedAt: requisition.endorsedAt?.toISOString() ?? null,
     approvedAt: requisition.approvedAt?.toISOString() ?? null,
     rejectedAt: requisition.rejectedAt?.toISOString() ?? null,
     convertedAt: requisition.convertedAt?.toISOString() ?? null,
+    routedToProcurementAt: requisition.routedToProcurementAt?.toISOString() ?? null,
+    assignedProcurementOfficerId: requisition.assignedProcurementOfficerId ?? null,
+    assignedProcurementOfficer: requisition.assignedProcurementOfficer
+      ? {
+          id: requisition.assignedProcurementOfficer.id,
+          name: requisition.assignedProcurementOfficer.name,
+          email: requisition.assignedProcurementOfficer.email,
+        }
+      : null,
     note: requisition.note ?? null,
+    attachments: requisition.attachments.map((attachment) => ({
+      id: attachment.id,
+      fileUrl: attachment.fileUrl,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType ?? null,
+      fileSize: attachment.fileSize ?? null,
+      note: attachment.note ?? null,
+      createdAt: attachment.createdAt.toISOString(),
+      uploadedById: attachment.uploadedById ?? null,
+      uploadedByName: attachment.uploadedBy?.name ?? null,
+    })),
+    approvalEvents: requisition.approvalEvents.map((event) => ({
+      id: event.id,
+      stage: event.stage,
+      decision: event.decision,
+      note: event.note ?? null,
+      actedAt: event.actedAt.toISOString(),
+      actedById: event.actedById ?? null,
+      actedByName: event.actedBy?.name ?? null,
+    })),
+    versions: requisition.versions.map((version) => ({
+      id: version.id,
+      versionNo: version.versionNo,
+      stage: version.stage,
+      action: version.action,
+      createdAt: version.createdAt.toISOString(),
+      createdById: version.createdById ?? null,
+      createdByName: version.createdBy?.name ?? null,
+    })),
+    notifications: requisition.notifications.map((notification) => ({
+      id: notification.id,
+      stage: notification.stage,
+      channel: notification.channel,
+      status: notification.status,
+      recipientUserId: notification.recipientUserId ?? null,
+      recipientEmail: notification.recipientEmail ?? null,
+      recipientUserName: notification.recipientUser?.name ?? null,
+      message: notification.message,
+      sentAt: notification.sentAt?.toISOString() ?? null,
+      createdAt: notification.createdAt.toISOString(),
+    })),
     purchaseOrders: requisition.purchaseOrders.map((purchaseOrder) => ({
       id: purchaseOrder.id,
       poNumber: purchaseOrder.poNumber,
@@ -968,8 +1223,37 @@ export function toRfqLogSnapshot(rfq: RfqWithRelations) {
     closedAt: rfq.closedAt?.toISOString() ?? null,
     awardedAt: rfq.awardedAt?.toISOString() ?? null,
     cancelledAt: rfq.cancelledAt?.toISOString() ?? null,
+    scopeOfWork: rfq.scopeOfWork ?? null,
+    termsAndConditions: rfq.termsAndConditions ?? null,
+    boqDetails: rfq.boqDetails ?? null,
+    technicalSpecifications: rfq.technicalSpecifications ?? null,
+    evaluationCriteria: rfq.evaluationCriteria ?? null,
+    resubmissionAllowed: rfq.resubmissionAllowed,
+    resubmissionRound: rfq.resubmissionRound,
+    lastResubmissionRequestedAt:
+      rfq.lastResubmissionRequestedAt?.toISOString() ?? null,
+    lastResubmissionReason: rfq.lastResubmissionReason ?? null,
     currency: rfq.currency,
     note: rfq.note ?? null,
+    sourceRequisitionSnapshot: rfq.sourceRequisitionSnapshot ?? null,
+    categoryTargets: rfq.categoryTargets.map((target) => ({
+      id: target.id,
+      categoryId: target.supplierCategoryId,
+      categoryCode: target.supplierCategory.code,
+      categoryName: target.supplierCategory.name,
+      isActive: target.supplierCategory.isActive,
+    })),
+    attachments: rfq.attachments.map((attachment) => ({
+      id: attachment.id,
+      label: attachment.label ?? null,
+      fileUrl: attachment.fileUrl,
+      fileName: attachment.fileName ?? null,
+      mimeType: attachment.mimeType ?? null,
+      fileSize: attachment.fileSize ?? null,
+      createdAt: attachment.createdAt.toISOString(),
+      uploadedById: attachment.uploadedById ?? null,
+      uploadedByName: attachment.uploadedBy?.name ?? null,
+    })),
     items: rfq.items.map((item) => ({
       id: item.id,
       variantId: item.productVariantId,
@@ -986,6 +1270,10 @@ export function toRfqLogSnapshot(rfq: RfqWithRelations) {
       status: invite.status,
       invitedAt: invite.invitedAt.toISOString(),
       respondedAt: invite.respondedAt?.toISOString() ?? null,
+      lastNotifiedAt: invite.lastNotifiedAt?.toISOString() ?? null,
+      resubmissionRequestedAt:
+        invite.resubmissionRequestedAt?.toISOString() ?? null,
+      resubmissionReason: invite.resubmissionReason ?? null,
       note: invite.note ?? null,
     })),
     quotations: rfq.quotations.map((quotation) => ({
@@ -994,6 +1282,9 @@ export function toRfqLogSnapshot(rfq: RfqWithRelations) {
       supplierCode: quotation.supplier.code,
       supplierName: quotation.supplier.name,
       status: quotation.status,
+      revisionNo: quotation.revisionNo,
+      resubmissionRound: quotation.resubmissionRound,
+      resubmissionNote: quotation.resubmissionNote ?? null,
       quotedAt: quotation.quotedAt.toISOString(),
       validUntil: quotation.validUntil?.toISOString() ?? null,
       subtotal: quotation.subtotal.toString(),
@@ -1009,6 +1300,22 @@ export function toRfqLogSnapshot(rfq: RfqWithRelations) {
         unitCost: item.unitCost.toString(),
         lineTotal: item.lineTotal.toString(),
       })),
+    })),
+    notifications: rfq.notifications.map((notification) => ({
+      id: notification.id,
+      channel: notification.channel,
+      status: notification.status,
+      supplierId: notification.supplierId,
+      supplierCode: notification.supplier.code,
+      supplierName: notification.supplier.name,
+      inviteId: notification.inviteId ?? null,
+      inviteStatus: notification.invite?.status ?? null,
+      recipientEmail: notification.recipientEmail ?? null,
+      message: notification.message,
+      sentAt: notification.sentAt?.toISOString() ?? null,
+      createdAt: notification.createdAt.toISOString(),
+      createdById: notification.createdById ?? null,
+      createdByName: notification.createdBy?.name ?? null,
     })),
     award: rfq.award
       ? {

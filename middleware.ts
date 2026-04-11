@@ -76,6 +76,9 @@ const adminPagePermissionRules: PermissionRule[] = [
       "purchase_requisitions.read",
       "purchase_requisitions.manage",
       "purchase_requisitions.approve",
+      "mrf.budget_clear",
+      "mrf.endorse",
+      "mrf.final_approve",
     ],
   },
   {
@@ -399,6 +402,12 @@ const apiPermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/api/scm/supplier-categories",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    permissions: ["suppliers.read", "suppliers.manage"],
+    globalOnly: true,
+  },
+  {
     prefix: "/api/scm/supplier-intelligence",
     methods: ["GET"],
     permissions: ["supplier_performance.read"],
@@ -465,6 +474,9 @@ const apiPermissionRules: PermissionRule[] = [
       "purchase_requisitions.read",
       "purchase_requisitions.manage",
       "purchase_requisitions.approve",
+      "mrf.budget_clear",
+      "mrf.endorse",
+      "mrf.final_approve",
     ],
   },
   {
@@ -494,6 +506,9 @@ const apiPermissionRules: PermissionRule[] = [
       "purchase_requisitions.manage",
       "purchase_requisitions.approve",
       "purchase_orders.manage",
+      "mrf.budget_clear",
+      "mrf.endorse",
+      "mrf.final_approve",
     ],
   },
   {
