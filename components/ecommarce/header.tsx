@@ -620,7 +620,7 @@ export default function Header({
 
   return (
     <header className="sticky top-0 z-50">
-      <div className="bg-background text-foreground border-b border-border">
+      <div className="bg-primary text-primary-foreground border-b border-border">
         <div className="container mx-auto px-4 py-4">
           {/* ✅ Desktop: single line header */}
           <div className="hidden md:flex items-center gap-4">

@@ -1,18 +1,15 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
-  ChevronDown,
   ChevronRight,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  RefreshCcw,
-  Menu,
-  X,
+  Heart,
+  Search,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import ProductCard from "@/components/ecommarce/ProductCard";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useSession } from "@/lib/auth-client";
@@ -28,6 +25,8 @@ import {
 type ApiCategory = {
   id: number | string;
   name: string;
+  slug?: string | null;
+  image?: string | null;
   parentId?: number | string | null;
   productCount?: number;
   childrenCount?: number;
@@ -53,9 +52,16 @@ type ApiProduct = {
   variants?: ApiVariant[] | null;
 };
 
+type ReviewDTO = {
+  productId: number | string;
+  rating: number | string;
+};
+
 type CategoryNode = {
   id: number;
   name: string;
+  slug: string;
+  image: string | null;
   parentId: number | null;
   productCount: number;
   childrenCount: number;
@@ -69,19 +75,11 @@ type ProductUI = {
   price: number;
   originalPrice: number;
   discountPct: number;
-  sku: string;
-  type: string;
-  shortDesc: string;
   image: string;
   stock: number;
   ratingAvg: number;
   ratingCount: number;
   categoryId: number | null;
-};
-
-type ReviewDTO = {
-  productId: number | string;
-  rating: number | string;
 };
 
 const toNumber = (value: unknown) => {
@@ -91,12 +89,19 @@ const toNumber = (value: unknown) => {
 };
 
 const formatPrice = (value: number) =>
-  `Tk ${Math.round(value).toLocaleString("en-US")}`;
+  `৳${Math.round(value).toLocaleString("en-US")}`;
 
 function computeStock(variants?: ApiVariant[] | null) {
   const list = Array.isArray(variants) ? variants : [];
   if (!list.length) return 0;
   return list.reduce((sum, variant) => sum + toNumber(variant?.stock), 0);
+}
+
+function normalizeReviewsPayload(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.reviews)) return data.reviews;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
 }
 
 function buildCategoryTree(categories: ApiCategory[]): CategoryNode[] {
@@ -115,6 +120,8 @@ function buildCategoryTree(categories: ApiCategory[]): CategoryNode[] {
     map.set(id, {
       id,
       name: String(category.name || "Untitled"),
+      slug: String(category.slug || category.id),
+      image: category.image ?? null,
       parentId: Number.isFinite(parentId) ? parentId : null,
       productCount: toNumber(category.productCount),
       childrenCount: toNumber(category.childrenCount),
@@ -141,18 +148,6 @@ function buildCategoryTree(categories: ApiCategory[]): CategoryNode[] {
   return roots;
 }
 
-function flattenTree(tree: CategoryNode[]) {
-  const nodeMap = new Map<number, CategoryNode>();
-  const walk = (nodes: CategoryNode[]) => {
-    nodes.forEach((node) => {
-      nodeMap.set(node.id, node);
-      if (node.children.length) walk(node.children);
-    });
-  };
-  walk(tree);
-  return nodeMap;
-}
-
 function collectDescendantIds(node: CategoryNode): number[] {
   const ids: number[] = [];
   const stack = [...node.children];
@@ -166,173 +161,126 @@ function collectDescendantIds(node: CategoryNode): number[] {
   return ids;
 }
 
-function collectExpandableIds(nodes: CategoryNode[]): number[] {
-  const ids: number[] = [];
-  const stack = [...nodes];
-  while (stack.length) {
-    const node = stack.pop()!;
-    if (node.children.length > 0) ids.push(node.id);
-    if (node.children.length) stack.push(...node.children);
-  }
-  return ids;
-}
-
-function normalizeReviewsPayload(data: any): any[] {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.reviews)) return data.reviews;
-  if (Array.isArray(data?.data)) return data.data;
-  return [];
-}
-
-function CategoryTree({
-  tree,
-  selectedCategoryId,
-  onSelect,
-}: {
-  tree: CategoryNode[];
-  selectedCategoryId: number | null;
-  onSelect: (id: number | null) => void;
-}) {
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
-  const nodeMap = useMemo(() => flattenTree(tree), [tree]);
-
-  useEffect(() => {
-    const firstLevelIds = new Set<number>();
-    tree.forEach((node) => {
-      if (node.children.length) firstLevelIds.add(node.id);
-    });
-    setExpandedIds(firstLevelIds);
-  }, [tree]);
-
-  const toggleExpand = (id: number) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const expandAll = () => setExpandedIds(new Set(collectExpandableIds(tree)));
-  const collapseAll = () => setExpandedIds(new Set<number>());
-
-  const selectedNode = selectedCategoryId
-    ? (nodeMap.get(selectedCategoryId) ?? null)
-    : null;
-  const selectedParent =
-    selectedNode && selectedNode.parentId !== null
-      ? (nodeMap.get(selectedNode.parentId) ?? null)
-      : null;
-
-  const Row = ({ node, level }: { node: CategoryNode; level: number }) => {
-    const hasChildren = node.children.length > 0;
-    const isOpen = expandedIds.has(node.id);
-    const isActive = selectedCategoryId === node.id;
-
-    return (
-      <div>
-        <div
-          className={`group flex items-center justify-between rounded-md px-3 py-2 text-sm transition ${
-            isActive
-              ? "bg-primary text-primary-foreground"
-              : "text-foreground hover:bg-muted"
-          }`}
-          style={{ paddingLeft: `${12 + level * 14}px` }}
-        >
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            {hasChildren ? (
-              <button
-                type="button"
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-muted/60"
-                onClick={() => toggleExpand(node.id)}
-                aria-label={
-                  isOpen ? `Collapse ${node.name}` : `Expand ${node.name}`
-                }
+function CategorySectionSkeleton() {
+  return (
+    <div className="space-y-6">
+      {Array.from({ length: 3 }).map((_, sectionIndex) => (
+        <div key={sectionIndex} className="space-y-3">
+          <div className="h-10 rounded-md border border-border bg-card" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((__, cardIndex) => (
+              <div
+                key={cardIndex}
+                className="overflow-hidden rounded-md border border-border bg-card"
               >
-                {isOpen ? (
-                  <ChevronDown className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5" />
-                )}
-              </button>
-            ) : (
-              <span className="h-4 w-4 shrink-0" />
-            )}
-
-            <button
-              type="button"
-              className="truncate text-left font-medium"
-              onClick={() => {
-                onSelect(node.id);
-                if (hasChildren) toggleExpand(node.id);
-              }}
-            >
-              {node.name}
-            </button>
-          </div>
-
-          <span
-            className={`ml-2 shrink-0 text-xs ${
-              isActive ? "text-primary-foreground/80" : "text-muted-foreground"
-            }`}
-          >
-            {node.productCount}
-          </span>
-        </div>
-
-        {hasChildren && isOpen ? (
-          <div className="mt-1 space-y-1">
-            {node.children.map((child) => (
-              <Row key={child.id} node={child} level={level + 1} />
+                <div className="h-36 animate-pulse bg-muted" />
+                <div className="space-y-2 p-3">
+                  <div className="h-3 rounded bg-muted" />
+                  <div className="h-3 w-3/4 rounded bg-muted" />
+                  <div className="h-3 w-1/2 rounded bg-muted" />
+                  <div className="h-7 w-24 rounded border border-border bg-background" />
+                </div>
+              </div>
             ))}
           </div>
-        ) : null}
-      </div>
-    );
-  };
+        </div>
+      ))}
+    </div>
+  );
+}
 
+function CatalogCard({
+  product,
+  wishlisted,
+  onWishlistClick,
+  onAddToCart,
+}: {
+  product: ProductUI;
+  wishlisted: boolean;
+  onWishlistClick: () => void;
+  onAddToCart: () => void;
+}) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="mb-4 flex flex-col gap-3">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Categories</h2>
+    <div className="group overflow-hidden rounded-[4px] border border-[#dfe4dc] bg-white shadow-[0_1px_3px_rgba(13,20,20,0.04)] transition hover:-translate-y-0.5 hover:shadow-md dark:border-border dark:bg-card">
+      <Link href={`/ecommerce/products/${product.id}`} className="block">
+        <div className="relative border-b border-[#eef1ea] bg-white p-3 dark:border-border dark:bg-card">
+          {product.discountPct > 0 ? (
+            <div className="absolute left-2 top-2 z-10 rounded-sm border border-[#f4c9c9] bg-[#fff8f8] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#c33]">
+              -{product.discountPct}%
+            </div>
+          ) : null}
+
           <button
             type="button"
-            onClick={() => onSelect(null)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onWishlistClick();
+            }}
+            className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#e4e8df] bg-white text-muted-foreground transition hover:text-primary dark:border-border dark:bg-card"
+            aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
           >
-            <RefreshCcw className="h-3.5 w-3.5" />
-            Reset
+            <Heart
+              className={`h-3.5 w-3.5 ${
+                wishlisted ? "fill-primary text-primary" : ""
+              }`}
+            />
           </button>
+
+          <div className="relative mx-auto h-28 w-full max-w-[150px]">
+            <Image
+              src={product.image || "/placeholder.svg"}
+              alt={product.name}
+              fill
+              className="object-contain"
+              sizes="(max-width: 768px) 140px, 180px"
+            />
+          </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/50">
+        <div className="space-y-2 p-3">
+          <h3 className="line-clamp-2 min-h-[34px] text-[11px] leading-[1.45] text-foreground">
+            {product.name}
+          </h3>
+
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-semibold text-foreground">
+                {formatPrice(product.price)}
+              </span>
+              {product.originalPrice > product.price ? (
+                <span className="text-[10px] text-muted-foreground line-through">
+                  {formatPrice(product.originalPrice)}
+                </span>
+              ) : null}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {product.ratingCount > 0
+                ? `${product.ratingAvg.toFixed(1)} / 5 • ${product.ratingCount} reviews`
+                : product.stock > 0
+                ? "In stock"
+                : "Out of stock"}
+            </p>
+          </div>
+
           <button
             type="button"
-            onClick={expandAll}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-background hover:bg-accent transition-colors border border-border/50"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAddToCart();
+            }}
+            disabled={product.stock === 0}
+            className={`inline-flex h-7 items-center rounded-sm border px-2.5 text-[10px] font-semibold uppercase tracking-wide transition ${
+              product.stock === 0
+                ? "cursor-not-allowed border-border bg-muted text-muted-foreground"
+                : "border-[#edb5b5] bg-[#fff8f8] text-[#c33] hover:border-[#de8d8d] hover:bg-[#fff1f1]"
+            }`}
           >
-            <ChevronsDownUp className="h-3.5 w-3.5" />
-            Expand All
-          </button>
-          <button
-            type="button"
-            onClick={collapseAll}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md bg-background hover:bg-accent transition-colors border border-border/50"
-          >
-            <ChevronsUpDown className="h-3.5 w-3.5" />
-            Collapse All
+            Add to cart
           </button>
         </div>
-      </div>
-
-      <div className="max-h-[65vh] space-y-1 overflow-y-auto pr-1">
-        {tree.map((node) => (
-          <Row key={node.id} node={node} level={0} />
-        ))}
-      </div>
+      </Link>
     </div>
   );
 }
@@ -345,17 +293,15 @@ export default function CategoriesPage() {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [products, setProducts] = useState<ProductUI[]>([]);
-
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeDepartmentId, setActiveDepartmentId] = useState<number | null>(
     null,
   );
-  const [sortBy, setSortBy] = useState<
-    "default" | "price_low" | "price_high" | "name_az"
-  >("default");
+  const [activeChildId, setActiveChildId] = useState<number | null>(null);
+  const [activeGrandChildId, setActiveGrandChildId] = useState<number | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -377,14 +323,13 @@ export default function CategoriesPage() {
         const productsJson = (await productsRes.json()) as ApiProduct[];
         const reviewsJson = await reviewsRes.json();
         const reviewList = normalizeReviewsPayload(reviewsJson) as ReviewDTO[];
+
         const reviewStats = reviewList.reduce<
           Record<string, { sum: number; count: number }>
         >((acc, review) => {
           const productId = String(review.productId);
           const rating = toNumber(review.rating);
-          if (!acc[productId]) {
-            acc[productId] = { sum: 0, count: 0 };
-          }
+          if (!acc[productId]) acc[productId] = { sum: 0, count: 0 };
           acc[productId].sum += rating;
           acc[productId].count += 1;
           return acc;
@@ -415,9 +360,6 @@ export default function CategoriesPage() {
             price,
             originalPrice,
             discountPct,
-            sku: String(product.sku ?? ""),
-            type: String(product.type ?? ""),
-            shortDesc: String(product.shortDesc ?? product.description ?? ""),
             image: product.image ?? "/placeholder.svg",
             stock,
             ratingAvg: rating.count ? rating.sum / rating.count : 0,
@@ -431,6 +373,19 @@ export default function CategoriesPage() {
 
         setCategories(tree);
         setProducts(mappedProducts);
+        // Auto-select first department, first child, and first grandchild
+        const firstDepartment = tree[0];
+        if (firstDepartment) {
+          setActiveDepartmentId(firstDepartment.id);
+          const firstChild = firstDepartment.children[0];
+          if (firstChild) {
+            setActiveChildId(firstChild.id);
+            const firstGrandChild = firstChild.children[0];
+            if (firstGrandChild) {
+              setActiveGrandChildId(firstGrandChild.id);
+            }
+          }
+        }
       } catch (fetchError) {
         console.error(fetchError);
         setError("Failed to load categories and products.");
@@ -442,39 +397,124 @@ export default function CategoriesPage() {
     loadData();
   }, []);
 
-  const categoryMap = useMemo(() => flattenTree(categories), [categories]);
+  const departmentTabs = useMemo(
+    () => categories.filter((category) => category.children.length > 0),
+    [categories],
+  );
 
-  const allowedCategoryIds = useMemo(() => {
-    if (!selectedCategoryId) return null;
-
-    const node = categoryMap.get(selectedCategoryId);
-    if (!node) return new Set<number>([selectedCategoryId]);
-
-    return new Set<number>([selectedCategoryId, ...collectDescendantIds(node)]);
-  }, [selectedCategoryId, categoryMap]);
-
-  const selectedCategoryName = useMemo(() => {
-    if (!selectedCategoryId) return "All Products";
-    return categoryMap.get(selectedCategoryId)?.name ?? "Selected Category";
-  }, [selectedCategoryId, categoryMap]);
-
-  const filteredProducts = useMemo(() => {
-    let list = [...products];
-
-    if (allowedCategoryIds && allowedCategoryIds.size > 0) {
-      list = list.filter(
-        (product) =>
-          product.categoryId !== null &&
-          allowedCategoryIds.has(product.categoryId),
+  const activeDepartment = useMemo(() => {
+    if (activeDepartmentId) {
+      return (
+        departmentTabs.find((category) => category.id === activeDepartmentId) ??
+        departmentTabs[0] ??
+        null
       );
     }
+    return departmentTabs[0] ?? null;
+  }, [activeDepartmentId, departmentTabs]);
 
-    if (sortBy === "price_low") list.sort((a, b) => a.price - b.price);
-    if (sortBy === "price_high") list.sort((a, b) => b.price - a.price);
-    if (sortBy === "name_az") list.sort((a, b) => a.name.localeCompare(b.name));
+  const activeChild = useMemo(() => {
+    if (!activeDepartment || !activeChildId) return null;
+    return (
+      activeDepartment.children.find((child) => child.id === activeChildId) ??
+      null
+    );
+  }, [activeChildId, activeDepartment]);
 
-    return list;
-  }, [products, allowedCategoryIds, sortBy]);
+  const activeGrandChild = useMemo(() => {
+    if (!activeChild || !activeGrandChildId) return null;
+    return (
+      activeChild.children.find((grandChild) => grandChild.id === activeGrandChildId) ??
+      null
+    );
+  }, [activeGrandChildId, activeChild]);
+
+  useEffect(() => {
+    // Reset child and grandchild selection when department changes
+    setActiveChildId(null);
+    setActiveGrandChildId(null);
+    // Auto-select first child of new department
+    if (activeDepartment) {
+      const firstChild = activeDepartment.children[0];
+      if (firstChild) {
+        setActiveChildId(firstChild.id);
+        // Auto-select first grandchild of new child
+        const firstGrandChild = firstChild.children[0];
+        if (firstGrandChild) {
+          setActiveGrandChildId(firstGrandChild.id);
+        }
+      }
+    }
+  }, [activeDepartmentId]);
+
+  useEffect(() => {
+    // Reset grandchild selection when child changes
+    setActiveGrandChildId(null);
+    // Auto-select first grandchild of new child
+    if (activeChild && activeDepartment) {
+      const firstGrandChild = activeChild.children[0];
+      if (firstGrandChild) {
+        setActiveGrandChildId(firstGrandChild.id);
+      }
+    }
+  }, [activeChildId]);
+
+  const filteredDepartmentTabs = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return departmentTabs;
+    return departmentTabs.filter((department) =>
+      department.name.toLowerCase().includes(term),
+    );
+  }, [departmentTabs, searchTerm]);
+
+  const sections = useMemo(() => {
+    const sourceDepartments =
+      filteredDepartmentTabs.length > 0 ? filteredDepartmentTabs : departmentTabs;
+
+    const visibleDepartments = activeDepartment
+      ? sourceDepartments.filter((department) => department.id === activeDepartment.id)
+      : sourceDepartments;
+
+    return visibleDepartments
+      .map((department) => {
+        const categoryIds = new Set<number>([
+          department.id,
+          ...collectDescendantIds(department),
+        ]);
+
+        const childTabs = department.children;
+        const grandChildTabs = activeChild ? activeChild.children : [];
+        const sectionProducts = products.filter((product) => {
+          if (product.categoryId === null) return false;
+          if (!categoryIds.has(product.categoryId)) return false;
+
+          if (activeGrandChild && department.id === activeDepartment?.id) {
+            const activeIds = new Set<number>([
+              activeGrandChild.id,
+              ...collectDescendantIds(activeGrandChild),
+            ]);
+            return activeIds.has(product.categoryId);
+          }
+          if (activeChild && department.id === activeDepartment?.id && !activeGrandChild) {
+            const activeIds = new Set<number>([
+              activeChild.id,
+              ...collectDescendantIds(activeChild),
+            ]);
+            return activeIds.has(product.categoryId);
+          }
+
+          return true;
+        });
+
+        return {
+          department,
+          childTabs,
+          grandChildTabs,
+          products: sectionProducts.slice(0, 18),
+        };
+      })
+      .filter((section) => section.products.length > 0);
+  }, [activeChild, activeDepartment, departmentTabs, filteredDepartmentTabs, products]);
 
   const handleAddToCart = useCallback(
     (product: ProductUI) => {
@@ -484,7 +524,7 @@ export default function CategoriesPage() {
       }
 
       addToCart(product.id);
-      toast.success(`\"${product.name}\" added to cart.`);
+      toast.success(`"${product.name}" added to cart.`);
     },
     [addToCart],
   );
@@ -528,152 +568,183 @@ export default function CategoriesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background py-8 text-foreground">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Category</h1>
+    <div className="min-h-screen bg-background pb-12 text-foreground">
+      <div className="container p-6">
+        <div className="overflow-hidden rounded-md border border-[#ece7df] bg-[#fff5f3] dark:border-border dark:bg-card">
+          <div className="grid gap-4 p-4 md:grid-cols-[1.2fr_1fr] md:items-center md:p-5">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#c53333] shadow-sm dark:bg-background dark:text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                All Departments
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-[#231815] dark:text-foreground sm:text-3xl">
+                  Browse daily essentials by department
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm text-[#6d625d] dark:text-muted-foreground">
+                  Category wise product listing with quick add to cart, wishlist,
+                  and fast browsing across your full catalog.
+                </p>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              className="h-9 rounded-md border border-border bg-background px-3"
-            >
-              <option value="default">Default</option>
-              <option value="price_low">Price Low to High</option>
-              <option value="price_high">Price High to Low</option>
-              <option value="name_az">Name A-Z</option>
-            </select>
+            <div className="relative min-h-[120px] overflow-hidden rounded-md bg-[linear-gradient(135deg,#ffd7d1,#fff4f1_55%,#f7f0f0)] dark:bg-muted">
+              <div className="absolute -right-5 top-0 h-24 w-24 rounded-[24px] bg-[#fdb7ad]/70" />
+              <div className="absolute right-14 top-7 h-20 w-20 rounded-[18px] bg-[#7fa7e8]/75" />
+              <div className="absolute bottom-2 right-28 h-16 w-16 rounded-[16px] bg-[#b8ebde]/80" />
+              <div className="absolute bottom-0 right-0 h-full w-[42%] opacity-70">
+                <Image
+                  src="/logo_img.png"
+                  alt="Department showcase"
+                  fill
+                  className="object-contain p-4"
+                  sizes="400px"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden">
-            <button
-              type="button"
-              onClick={() => setIsDrawerOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 w-full rounded-lg border border-border bg-background hover:bg-muted transition-colors"
-            >
-              <Menu className="h-4 w-4" />
-              <span className="font-medium">Browse Categories</span>
-            </button>
+        <div className="mt-5 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {departmentTabs.map((department) => (
+              <button
+                key={department.id}
+                type="button"
+                onClick={() => setActiveDepartmentId(department.id)}
+                className={`rounded-full border px-3 py-1.5 text-lg font-medium transition ${
+                  activeDepartment?.id === department.id
+                    ? "border-[#c53333] bg-[#d83d3d] text-white"
+                    : "border-[#e7dfd7] bg-white text-[#4b413d] hover:border-[#d3c4bb] hover:bg-[#fff7f2] dark:border-border dark:bg-card dark:text-foreground"
+                }`}
+              >
+                {department.name}
+              </button>
+            ))}
           </div>
 
-          {/* Desktop Sidebar */}
-          <aside className="hidden lg:block">
-            {loading ? (
-              <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-                Loading categories...
-              </div>
-            ) : (
-              <CategoryTree
-                tree={categories}
-                selectedCategoryId={selectedCategoryId}
-                onSelect={setSelectedCategoryId}
-              />
-            )}
-          </aside>
-
-          {/* Main Content */}
-          <section>
-            <div className="mb-4 rounded-xl border border-border bg-card px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                {selectedCategoryName} • {filteredProducts.length} products
-              </p>
+          <div className="flex flex-col gap-3 rounded-md border border-[#ebe6de] bg-white p-3 shadow-sm dark:border-border dark:bg-card md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {activeDepartment?.children.map((child, index) => (
+                <button
+                  key={child.id}
+                  type="button"
+                  onClick={() => setActiveChildId(child.id)}
+                  className={`rounded-full border px-3 py-1 text-[11px] transition ${
+                    activeChild?.id === child.id
+                      ? "border-[#d94f4f] bg-[#d94f4f] text-white"
+                      : "border-[#ebe3db] bg-[#fffdfb] text-[#665a54] hover:border-[#d3c4bb] hover:bg-[#fff7f2] dark:border-border dark:bg-background dark:text-muted-foreground"
+                  }`}
+                >
+                  {child.name}
+                </button>
+              ))}
             </div>
 
-            {loading ? (
-              <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
-                Loading products...
-              </div>
-            ) : error ? (
-              <div className="rounded-xl border border-border bg-card p-5 text-sm text-red-500">
-                {error}
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-                No products found for this category.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={{
-                      id: product.id,
-                      name: product.name,
-                      href: `/ecommerce/products/${product.id}`,
-                      image: product.image,
-                      price: product.price,
-                      originalPrice: product.originalPrice,
-                      discountPct: product.discountPct,
-                      sku: product.sku,
-                      type: product.type,
-                      shortDesc: product.shortDesc,
-                      stock: product.stock,
-                      ratingAvg: product.ratingAvg,
-                      ratingCount: product.ratingCount,
-                      available: product.stock > 0,
-                    }}
-                    wishlisted={isInWishlist(product.id)}
-                    onWishlistClick={() => handleWishlist(product)}
-                    onAddToCart={() => handleAddToCart(product)}
-                    formatPrice={formatPrice}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
+            <div className="relative w-full md:max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search departments..."
+                className="h-10 w-full rounded-md border border-[#e5ddd5] bg-[#fffdfc] pl-10 pr-3 text-sm outline-none transition focus:border-primary dark:border-border dark:bg-background"
+              />
+            </div>
+          </div>
+
+          {/* Grandchild Categories Navigation */}
+          {activeChild && activeChild.children.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {activeChild.children.map((grandChild, index) => (
+                <button
+                  key={grandChild.id}
+                  type="button"
+                  onClick={() => setActiveGrandChildId(grandChild.id)}
+                  className={`rounded-full border px-3 py-1 text-[11px] transition ${
+                    activeGrandChild?.id === grandChild.id
+                      ? "border-[#c53333] bg-[#d83d3d] text-white"
+                      : "border-[#e7dfd7] bg-white text-[#4b413d] hover:border-[#d3c4bb] hover:bg-[#fff7f2] dark:border-border dark:bg-card dark:text-foreground"
+                  }`}
+                >
+                  {grandChild.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6">
+          {loading ? (
+            <CategorySectionSkeleton />
+          ) : error ? (
+            <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+              {error}
+            </div>
+          ) : sections.length === 0 ? (
+            <div className="rounded-md border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+              No department products found.
+            </div>
+          ) : (
+            <div className="space-y-7">
+              {sections.map((section) => (
+                <section key={section.department.id} className="space-y-3">
+                  <div className="overflow-hidden rounded-[4px] border border-[#dadfd6] bg-white dark:border-border dark:bg-card">
+                    {section.childTabs.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 border-b border-[#edf1ea] px-3 py-2 dark:border-border">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveChildId(null);
+                            setActiveGrandChildId(null);
+                          }}
+                          className={`rounded-full px-3 py-1 text-[11px] ${
+                            !activeChild ||
+                            section.department.id !== activeDepartment?.id
+                              ? "bg-[#fff4f1] text-[#c53333]"
+                              : "bg-[#f6f7f3] text-[#625751] dark:bg-background dark:text-muted-foreground"
+                          }`}
+                        >
+                          All
+                        </button>
+                        {section.childTabs.map((child) => (
+                          <button
+                            key={child.id}
+                            type="button"
+                            onClick={() => {
+                              setActiveDepartmentId(section.department.id);
+                              setActiveChildId(child.id);
+                              setActiveGrandChildId(null);
+                            }}
+                            className={`rounded-full px-3 py-1 text-[11px] transition ${
+                              activeChild?.id === child.id &&
+                              section.department.id === activeDepartment?.id
+                                ? "bg-[#fff4f1] text-[#c53333]"
+                                : "bg-[#f6f7f3] text-[#625751] hover:bg-[#fff7f4] dark:bg-background dark:text-muted-foreground"
+                            }`}
+                          >
+                            {child.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                      {section.products.map((product) => (
+                        <CatalogCard
+                          key={product.id}
+                          product={product}
+                          wishlisted={isInWishlist(product.id)}
+                          onWishlistClick={() => handleWishlist(product)}
+                          onAddToCart={() => handleAddToCart(product)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Mobile Drawer */}
-      {isDrawerOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/50"
-            onClick={() => setIsDrawerOpen(false)}
-          />
-
-          {/* Drawer Content */}
-          <div className="fixed left-0 top-0 h-full w-80 max-w-full bg-background shadow-xl">
-            <div className="flex h-full flex-col">
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between p-4 border-b border-border">
-                <h2 className="text-lg font-semibold">Categories</h2>
-                <button
-                  type="button"
-                  onClick={() => setIsDrawerOpen(false)}
-                  className="p-1 rounded-md hover:bg-muted transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Drawer Body */}
-              <div className="flex-1 overflow-y-auto">
-                {loading ? (
-                  <div className="p-4 text-sm text-muted-foreground">
-                    Loading categories...
-                  </div>
-                ) : (
-                  <CategoryTree
-                    tree={categories}
-                    selectedCategoryId={selectedCategoryId}
-                    onSelect={(id) => {
-                      setSelectedCategoryId(id);
-                      setIsDrawerOpen(false);
-                    }}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
         <DialogContent className="sm:max-w-md">
