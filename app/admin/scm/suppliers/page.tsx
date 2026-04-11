@@ -59,6 +59,15 @@ type SupplierDocument = {
   updatedAt: string;
 };
 
+type SupplierCategory = {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  supplierCount?: number;
+};
+
 type Supplier = {
   id: number;
   code: string;
@@ -84,6 +93,12 @@ type Supplier = {
   missingDocumentTypes: SupplierDocumentType[];
   requiredDocumentCount: number;
   uploadedRequiredDocumentCount: number;
+  categories: Array<{
+    id: number;
+    code: string;
+    name: string;
+    isActive: boolean;
+  }>;
 };
 
 type SupplierDocumentDraft = {
@@ -112,6 +127,7 @@ type SupplierFormState = {
   taxNumber: string;
   notes: string;
   isActive: boolean;
+  categoryIds: string[];
   documents: SupplierDocumentDraft[];
 };
 
@@ -151,6 +167,7 @@ function createEmptyForm(): SupplierFormState {
     taxNumber: "",
     notes: "",
     isActive: true,
+    categoryIds: [],
     documents: [],
   };
 }
@@ -343,24 +360,34 @@ export default function SuppliersPage() {
   const canManage = globalPermissions.includes("suppliers.manage");
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierCategories, setSupplierCategories] = useState<SupplierCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<SupplierFormState>(createEmptyForm);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryCode, setNewCategoryCode] = useState("");
+  const [newCategoryDescription, setNewCategoryDescription] = useState("");
 
   const loadSuppliers = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
       if (search.trim()) params.set("search", search.trim());
-      const data = await getJson<Supplier[]>(
-        `/api/scm/suppliers${params.size ? `?${params.toString()}` : ""}`,
-      );
+      const [data, categories] = await Promise.all([
+        getJson<Supplier[]>(
+          `/api/scm/suppliers${params.size ? `?${params.toString()}` : ""}`,
+        ),
+        getJson<SupplierCategory[]>("/api/scm/supplier-categories?active=true"),
+      ]);
       setSuppliers(Array.isArray(data) ? data : []);
+      setSupplierCategories(Array.isArray(categories) ? categories : []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load suppliers");
       setSuppliers([]);
+      setSupplierCategories([]);
     } finally {
       setLoading(false);
     }
@@ -452,6 +479,7 @@ export default function SuppliersPage() {
       taxNumber: supplier.taxNumber || "",
       notes: supplier.notes || "",
       isActive: supplier.isActive,
+      categoryIds: supplier.categories.map((category) => String(category.id)),
       documents: toDraftDocuments(supplier.documents),
     });
 
@@ -508,6 +536,61 @@ export default function SuppliersPage() {
         }),
       };
     });
+  };
+
+  const toggleCategorySelection = (categoryId: number) => {
+    setForm((prev) => {
+      const idAsString = String(categoryId);
+      const has = prev.categoryIds.includes(idAsString);
+      return {
+        ...prev,
+        categoryIds: has
+          ? prev.categoryIds.filter((item) => item !== idAsString)
+          : [...prev.categoryIds, idAsString],
+      };
+    });
+  };
+
+  const createSupplierCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) {
+      toast.error("Category name is required.");
+      return;
+    }
+
+    try {
+      setCreatingCategory(true);
+      const response = await fetch("/api/scm/supplier-categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          code: newCategoryCode.trim(),
+          description: newCategoryDescription.trim(),
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to create supplier category.");
+      }
+
+      const created = payload as SupplierCategory;
+      setSupplierCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setForm((prev) => ({
+        ...prev,
+        categoryIds: prev.categoryIds.includes(String(created.id))
+          ? prev.categoryIds
+          : [...prev.categoryIds, String(created.id)],
+      }));
+      setNewCategoryName("");
+      setNewCategoryCode("");
+      setNewCategoryDescription("");
+      toast.success("Supplier category created.");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to create supplier category.");
+    } finally {
+      setCreatingCategory(false);
+    }
   };
 
   const saveSupplier = async () => {
@@ -605,6 +688,9 @@ export default function SuppliersPage() {
           taxNumber: form.taxNumber,
           notes: form.notes,
           isActive: form.isActive,
+          categoryIds: form.categoryIds
+            .map((value) => Number(value))
+            .filter((value) => Number.isInteger(value) && value > 0),
           documents: documentsPayload,
         }),
       });
@@ -829,6 +915,68 @@ export default function SuppliersPage() {
                         placeholder="TIN / Tax reference"
                       />
                     </div>
+                    <div className="md:col-span-2 space-y-3">
+                      <div>
+                        <Label>Supplier Categories</Label>
+                        <p className="text-xs text-muted-foreground">
+                          RFQ category targeting uses these vendor categories.
+                        </p>
+                      </div>
+                      {supplierCategories.length === 0 ? (
+                        <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                          No active supplier category found. Create one below.
+                        </p>
+                      ) : (
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {supplierCategories.map((category) => {
+                            const checked = form.categoryIds.includes(String(category.id));
+                            return (
+                              <label
+                                key={category.id}
+                                className="flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleCategorySelection(category.id)}
+                                />
+                                <span>
+                                  <span className="font-medium">{category.name}</span>
+                                  <span className="ml-1 text-xs text-muted-foreground">
+                                    ({category.code})
+                                  </span>
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div className="grid gap-2 md:grid-cols-[1.2fr_0.8fr_1.2fr_auto]">
+                        <Input
+                          placeholder="New category name"
+                          value={newCategoryName}
+                          onChange={(event) => setNewCategoryName(event.target.value)}
+                        />
+                        <Input
+                          placeholder="Code (optional)"
+                          value={newCategoryCode}
+                          onChange={(event) => setNewCategoryCode(event.target.value)}
+                        />
+                        <Input
+                          placeholder="Description (optional)"
+                          value={newCategoryDescription}
+                          onChange={(event) => setNewCategoryDescription(event.target.value)}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void createSupplierCategory()}
+                          disabled={creatingCategory || !canManage}
+                        >
+                          {creatingCategory ? "Adding..." : "Add"}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1004,6 +1152,7 @@ export default function SuppliersPage() {
                   <TableRow>
                     <TableHead>Supplier</TableHead>
                     <TableHead>Business Type</TableHead>
+                    <TableHead>Categories</TableHead>
                     <TableHead>Contact</TableHead>
                     <TableHead>Lead Time</TableHead>
                     <TableHead>Payment Terms</TableHead>
@@ -1023,6 +1172,19 @@ export default function SuppliersPage() {
                         <Badge variant="outline">
                           {SUPPLIER_COMPANY_TYPE_META[supplier.companyType].shortLabel}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex max-w-[260px] flex-wrap gap-1">
+                          {supplier.categories.length > 0 ? (
+                            supplier.categories.map((category) => (
+                              <Badge key={category.id} variant="outline" className="text-xs">
+                                {category.name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Uncategorized</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div>{supplier.contactName || "-"}</div>

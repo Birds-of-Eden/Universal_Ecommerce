@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/generated/prisma";
 
 declare global {
   // This will keep the Prisma client in memory for the duration of the server process

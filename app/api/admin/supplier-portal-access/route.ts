@@ -23,6 +23,15 @@ function normalizeStatus(value: unknown) {
     : "ACTIVE";
 }
 
+function normalizeTwoFactorMethod(value: unknown) {
+  const cleaned = cleanText(value, 40).toUpperCase();
+  if (!cleaned) return null;
+  if (cleaned === "EMAIL_OTP" || cleaned === "TOTP" || cleaned === "AUTH_APP") {
+    return cleaned;
+  }
+  return "EMAIL_OTP";
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -99,6 +108,9 @@ export async function GET(request: NextRequest) {
       records: records.map((record) => ({
         id: record.id,
         status: record.status,
+        twoFactorRequired: record.twoFactorRequired,
+        twoFactorMethod: record.twoFactorMethod,
+        twoFactorLastVerifiedAt: record.twoFactorLastVerifiedAt?.toISOString() ?? null,
         note: record.note,
         createdAt: record.createdAt.toISOString(),
         updatedAt: record.updatedAt.toISOString(),
@@ -143,6 +155,8 @@ export async function POST(request: NextRequest) {
       userId?: unknown;
       supplierId?: unknown;
       status?: unknown;
+      twoFactorRequired?: unknown;
+      twoFactorMethod?: unknown;
       note?: unknown;
     };
 
@@ -154,6 +168,10 @@ export async function POST(request: NextRequest) {
         : null;
     const supplierId = Number(body.supplierId);
     const status = normalizeStatus(body.status);
+    const twoFactorRequired = Boolean(body.twoFactorRequired);
+    const twoFactorMethod = twoFactorRequired
+      ? normalizeTwoFactorMethod(body.twoFactorMethod)
+      : null;
     const note = cleanText(body.note, 500) || null;
 
     if ((!id && !userId) || !Number.isInteger(supplierId) || supplierId <= 0) {
@@ -166,11 +184,27 @@ export async function POST(request: NextRequest) {
     const target = id
       ? await prisma.supplierPortalAccess.findUnique({
           where: { id },
-          select: { id: true, userId: true, supplierId: true, status: true, note: true },
+          select: {
+            id: true,
+            userId: true,
+            supplierId: true,
+            status: true,
+            twoFactorRequired: true,
+            twoFactorMethod: true,
+            note: true,
+          },
         })
       : await prisma.supplierPortalAccess.findUnique({
           where: { userId: userId as string },
-          select: { id: true, userId: true, supplierId: true, status: true, note: true },
+          select: {
+            id: true,
+            userId: true,
+            supplierId: true,
+            status: true,
+            twoFactorRequired: true,
+            twoFactorMethod: true,
+            note: true,
+          },
         });
 
     const resolvedUserId = target?.userId ?? userId;
@@ -208,12 +242,16 @@ export async function POST(request: NextRequest) {
         userId: resolvedUserId,
         supplierId: supplier.id,
         status,
+        twoFactorRequired,
+        twoFactorMethod,
         note,
         createdById: access.userId,
       },
       update: {
         supplierId: supplier.id,
         status,
+        twoFactorRequired,
+        twoFactorMethod,
         note,
       },
       include: {
@@ -243,17 +281,23 @@ export async function POST(request: NextRequest) {
         userId: updated.user.id,
         userEmail: updated.user.email,
         status: updated.status,
+        twoFactorRequired: updated.twoFactorRequired,
+        twoFactorMethod: updated.twoFactorMethod,
       },
       before: target
         ? {
             supplierId: target.supplierId,
             status: target.status,
+            twoFactorRequired: target.twoFactorRequired,
+            twoFactorMethod: target.twoFactorMethod,
             note: target.note,
           }
         : null,
       after: {
         supplierId: updated.supplier.id,
         status: updated.status,
+        twoFactorRequired: updated.twoFactorRequired,
+        twoFactorMethod: updated.twoFactorMethod,
         note: updated.note,
       },
     });
@@ -262,6 +306,9 @@ export async function POST(request: NextRequest) {
       {
         id: updated.id,
         status: updated.status,
+        twoFactorRequired: updated.twoFactorRequired,
+        twoFactorMethod: updated.twoFactorMethod,
+        twoFactorLastVerifiedAt: updated.twoFactorLastVerifiedAt?.toISOString() ?? null,
         note: updated.note,
         createdAt: updated.createdAt.toISOString(),
         updatedAt: updated.updatedAt.toISOString(),

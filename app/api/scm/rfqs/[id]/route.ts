@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
+import { createRfqNotifications, dispatchRfqEmailNotifications } from "@/lib/rfq-notifications";
 import {
   computePurchaseOrderTotals,
   generatePurchaseOrderNumber,
@@ -26,6 +27,66 @@ function cleanCurrency(value: unknown, fallback = "BDT") {
   return raw.length === 3 ? raw : fallback;
 }
 
+function parsePositiveIds(value: unknown) {
+  if (!Array.isArray(value)) return [] as number[];
+  const deduped = new Set<number>();
+  for (const item of value) {
+    const id = Number(item);
+    if (Number.isInteger(id) && id > 0) {
+      deduped.add(id);
+    }
+  }
+  return [...deduped];
+}
+
+function normalizeRfqAttachments(attachments: unknown): Array<{
+  fileUrl: string;
+  fileName: string | null;
+  mimeType: string | null;
+  fileSize: number | null;
+  label: string | null;
+}> {
+  if (!Array.isArray(attachments)) return [];
+  const normalized = attachments.map((attachment, index) => {
+    const item =
+      attachment && typeof attachment === "object"
+        ? (attachment as Record<string, unknown>)
+        : null;
+    const fileUrl = cleanText(item?.fileUrl, 1000);
+    if (!fileUrl) {
+      throw new Error(`Attachment ${index + 1}: file URL is required.`);
+    }
+
+    const fileSizeRaw = item?.fileSize;
+    const fileSize =
+      fileSizeRaw === null || fileSizeRaw === undefined || fileSizeRaw === ""
+        ? null
+        : Number(fileSizeRaw);
+    if (fileSize !== null && (!Number.isInteger(fileSize) || fileSize < 0)) {
+      throw new Error(`Attachment ${index + 1}: file size is invalid.`);
+    }
+
+    return {
+      fileUrl,
+      fileName: cleanText(item?.fileName, 255) || null,
+      mimeType: cleanText(item?.mimeType, 120) || null,
+      fileSize,
+      label: cleanText(item?.label, 120) || null,
+    };
+  });
+
+  const seen = new Set<string>();
+  for (const attachment of normalized) {
+    const dedupeKey = `${attachment.fileUrl}|${attachment.fileName ?? ""}`;
+    if (seen.has(dedupeKey)) {
+      throw new Error("Duplicate RFQ attachment detected.");
+    }
+    seen.add(dedupeKey);
+  }
+
+  return normalized;
+}
+
 function canReadRfqs(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return access.hasAny([...RFQ_READ_PERMISSIONS]);
 }
@@ -39,6 +100,46 @@ function canAccessRfq(
   rfq: { warehouseId: number },
 ) {
   return hasGlobalRfqScope(access) || access.canAccessWarehouse(rfq.warehouseId);
+}
+
+function isBlindReviewActive(rfq: {
+  status: string;
+  submissionDeadline: Date | null;
+}) {
+  if (!rfq.submissionDeadline) return false;
+  if (rfq.status === "DRAFT" || rfq.status === "CANCELLED") return false;
+  return Date.now() < rfq.submissionDeadline.getTime();
+}
+
+function toAdminRfqView<T extends { status: string; submissionDeadline: Date | null; quotations: unknown[] }>(
+  rfq: T,
+) {
+  const quotationSubmissionCount = rfq.quotations.length;
+  if (!isBlindReviewActive(rfq)) {
+    return {
+      ...rfq,
+      isBlindReviewActive: false,
+      quotationSubmissionCount,
+      quotationsVisibleAt: rfq.submissionDeadline?.toISOString() ?? null,
+    };
+  }
+  const supplierInvites = Array.isArray((rfq as any).supplierInvites)
+    ? (rfq as any).supplierInvites.map((invite: any) => ({
+        ...invite,
+        status: invite.status === "AWARDED" ? "AWARDED" : "INVITED",
+        respondedAt: null,
+        resubmissionRequestedAt: null,
+        resubmissionReason: null,
+      }))
+    : (rfq as any).supplierInvites;
+  return {
+    ...rfq,
+    quotations: [] as unknown[],
+    supplierInvites,
+    isBlindReviewActive: true,
+    quotationSubmissionCount,
+    quotationsVisibleAt: rfq.submissionDeadline?.toISOString() ?? null,
+  };
 }
 
 export async function GET(
@@ -75,7 +176,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json(rfq);
+    return NextResponse.json(toAdminRfqView(rfq));
   } catch (error) {
     console.error("SCM RFQ GET BY ID ERROR:", error);
     return NextResponse.json({ error: "Failed to load RFQ." }, { status: 500 });
@@ -117,6 +218,15 @@ export async function PATCH(
       submissionDeadline?: unknown;
       note?: unknown;
       currency?: unknown;
+      scopeOfWork?: unknown;
+      termsAndConditions?: unknown;
+      boqDetails?: unknown;
+      technicalSpecifications?: unknown;
+      evaluationCriteria?: unknown;
+      resubmissionAllowed?: unknown;
+      resubmissionReason?: unknown;
+      categoryIds?: unknown[];
+      attachments?: unknown;
       supplierIds?: unknown[];
       supplierId?: unknown;
       quotationId?: unknown;
@@ -154,14 +264,83 @@ export async function PATCH(
         );
       }
 
-      const updated = await prisma.rfq.update({
-        where: { id: rfq.id },
-        data: {
+      const categoryIds =
+        body.categoryIds === undefined ? null : parsePositiveIds(body.categoryIds);
+      const attachments =
+        body.attachments === undefined
+          ? null
+          : normalizeRfqAttachments(body.attachments);
+
+      if (categoryIds !== null) {
+        const categories =
+          categoryIds.length > 0
+            ? await prisma.supplierCategory.findMany({
+                where: {
+                  id: { in: categoryIds },
+                  isActive: true,
+                },
+                select: { id: true },
+              })
+            : [];
+        if (categories.length !== categoryIds.length) {
+          return NextResponse.json(
+            { error: "One or more supplier categories are invalid or inactive." },
+            { status: 400 },
+          );
+        }
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const data: Prisma.RfqUpdateInput = {
           submissionDeadline,
-          note: cleanText(body.note, 1000) || null,
+          note: cleanText(body.note, 1500) || null,
           currency: cleanCurrency(body.currency, rfq.currency),
-        },
-        include: rfqInclude,
+          scopeOfWork: cleanText(body.scopeOfWork, 4000) || null,
+          termsAndConditions: cleanText(body.termsAndConditions, 4000) || null,
+          boqDetails: cleanText(body.boqDetails, 4000) || null,
+          technicalSpecifications: cleanText(body.technicalSpecifications, 4000) || null,
+          evaluationCriteria: cleanText(body.evaluationCriteria, 4000) || null,
+        };
+
+        if (body.resubmissionAllowed !== undefined) {
+          data.resubmissionAllowed = Boolean(body.resubmissionAllowed);
+        }
+        if (categoryIds !== null) {
+          data.categoryTargets = {
+            deleteMany: {},
+            ...(categoryIds.length > 0
+              ? {
+                  create: categoryIds.map((supplierCategoryId) => ({
+                    supplierCategoryId,
+                    createdById: access.userId,
+                  })),
+                }
+              : {}),
+          };
+        }
+        if (attachments !== null) {
+          data.attachments = {
+            deleteMany: {},
+            ...(attachments.length > 0
+              ? {
+                  create: attachments.map((attachment) => ({
+                    label: attachment.label,
+                    fileUrl: attachment.fileUrl,
+                    fileName: attachment.fileName,
+                    mimeType: attachment.mimeType,
+                    fileSize: attachment.fileSize,
+                    uploadedById: access.userId,
+                  })),
+                }
+              : {}),
+          };
+        }
+
+        return tx.rfq.update({
+          where: { id: rfq.id },
+          data,
+          include: rfqInclude,
+        });
       });
 
       await logActivity({
@@ -175,7 +354,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "submit") {
@@ -191,6 +370,21 @@ export async function PATCH(
       if (rfq.items.length === 0) {
         return NextResponse.json(
           { error: "RFQ must include at least one line item before submit." },
+          { status: 400 },
+        );
+      }
+      if (rfq.supplierInvites.length === 0) {
+        return NextResponse.json(
+          { error: "Invite at least one supplier before submitting RFQ." },
+          { status: 400 },
+        );
+      }
+      if (!rfq.submissionDeadline) {
+        return NextResponse.json(
+          {
+            error:
+              "Submission deadline is required for enterprise blind-review RFQ submission.",
+          },
           { status: 400 },
         );
       }
@@ -216,7 +410,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "close") {
@@ -250,7 +444,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "cancel") {
@@ -284,7 +478,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "invite_suppliers") {
@@ -298,40 +492,111 @@ export async function PATCH(
         );
       }
 
-      const supplierIdsRaw = Array.isArray(body.supplierIds) ? body.supplierIds : [];
-      const supplierIds = [
-        ...new Set(
-          supplierIdsRaw
-            .map((value) => Number(value))
-            .filter((value) => Number.isInteger(value) && value > 0),
-        ),
-      ];
-      if (supplierIds.length === 0) {
+      const supplierIds = parsePositiveIds(body.supplierIds);
+      const categoryIdsFromBody =
+        body.categoryIds === undefined ? null : parsePositiveIds(body.categoryIds);
+      const categoryIds =
+        categoryIdsFromBody === null
+          ? rfq.categoryTargets.map((target) => target.supplierCategoryId)
+          : categoryIdsFromBody;
+
+      if (categoryIds.length > 0) {
+        const categories = await prisma.supplierCategory.findMany({
+          where: {
+            id: { in: categoryIds },
+            isActive: true,
+          },
+          select: { id: true },
+        });
+        if (categories.length !== categoryIds.length) {
+          return NextResponse.json(
+            { error: "One or more supplier categories are invalid or inactive." },
+            { status: 400 },
+          );
+        }
+      }
+
+      const targetSupplierIds =
+        supplierIds.length > 0
+          ? supplierIds
+          : categoryIds.length > 0
+            ? (
+                await prisma.supplier.findMany({
+                  where: {
+                    isActive: true,
+                    categories: {
+                      some: {
+                        supplierCategoryId: {
+                          in: categoryIds,
+                        },
+                      },
+                    },
+                  },
+                  select: { id: true },
+                })
+              ).map((supplier) => supplier.id)
+            : [];
+      if (targetSupplierIds.length === 0) {
         return NextResponse.json(
-          { error: "At least one supplier is required." },
+          {
+            error:
+              "Select suppliers directly or provide supplier categories with active suppliers.",
+          },
           { status: 400 },
         );
       }
 
       const suppliers = await prisma.supplier.findMany({
         where: {
-          id: { in: supplierIds },
+          id: { in: targetSupplierIds },
           isActive: true,
+          ...(categoryIds.length > 0
+            ? {
+                categories: {
+                  some: {
+                    supplierCategoryId: {
+                      in: categoryIds,
+                    },
+                  },
+                },
+              }
+            : {}),
         },
         select: {
           id: true,
+          email: true,
         },
       });
-      if (suppliers.length !== supplierIds.length) {
+      if (suppliers.length !== targetSupplierIds.length) {
         return NextResponse.json(
-          { error: "One or more suppliers were not found or inactive." },
+          {
+            error:
+              "One or more selected suppliers are inactive or outside the selected categories.",
+          },
           { status: 400 },
         );
       }
 
       const inviteNote = cleanText(body.note, 500) || null;
-      const updated = await prisma.$transaction(async (tx) => {
-        for (const supplierId of supplierIds) {
+      const supplierMap = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
+      const { updated, emailNotificationIds } = await prisma.$transaction(async (tx) => {
+        if (categoryIdsFromBody !== null) {
+          await tx.rfqCategoryTarget.deleteMany({
+            where: { rfqId: rfq.id },
+          });
+          if (categoryIds.length > 0) {
+            await tx.rfqCategoryTarget.createMany({
+              data: categoryIds.map((supplierCategoryId) => ({
+                rfqId: rfq.id,
+                supplierCategoryId,
+                createdById: access.userId,
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
+
+        for (const supplierId of targetSupplierIds) {
           await tx.rfqSupplierInvite.upsert({
             where: {
               rfqId_supplierId: {
@@ -344,23 +609,69 @@ export async function PATCH(
               supplierId,
               status: "INVITED",
               note: inviteNote,
+              lastNotifiedAt: new Date(),
               createdById: access.userId,
             },
             update: {
               status: "INVITED",
               invitedAt: new Date(),
               respondedAt: null,
+              lastNotifiedAt: new Date(),
+              resubmissionRequestedAt: null,
+              resubmissionReason: null,
               note: inviteNote,
               createdById: access.userId,
             },
           });
         }
 
-        return tx.rfq.findUnique({
+        const invites = await tx.rfqSupplierInvite.findMany({
+          where: {
+            rfqId: rfq.id,
+            supplierId: { in: targetSupplierIds },
+          },
+          select: {
+            id: true,
+            supplierId: true,
+          },
+        });
+
+        const emailIds = await createRfqNotifications({
+          tx,
+          rfqId: rfq.id,
+          recipients: invites.map((invite) => ({
+            inviteId: invite.id,
+            supplierId: invite.supplierId,
+            recipientEmail: supplierMap.get(invite.supplierId)?.email ?? null,
+          })),
+          message:
+            `You have been invited to RFQ ${rfq.rfqNumber}.` +
+            (rfq.submissionDeadline
+              ? ` Submission deadline: ${rfq.submissionDeadline.toISOString()}.`
+              : ""),
+          metadata: {
+            stage: "INVITED",
+            rfqNumber: rfq.rfqNumber,
+            categoryIds,
+          },
+          createdById: access.userId,
+        });
+
+        const next = await tx.rfq.findUnique({
           where: { id: rfq.id },
           include: rfqInclude,
         });
+        if (!next) {
+          throw new Error("RFQ lookup failed after supplier invite");
+        }
+
+        return {
+          updated: next,
+          emailNotificationIds: emailIds,
+        };
       });
+
+      void dispatchRfqEmailNotifications(emailNotificationIds);
       if (!updated) {
         throw new Error("RFQ lookup failed after supplier invite");
       }
@@ -372,14 +683,15 @@ export async function PATCH(
         access,
         request,
         metadata: {
-          message: `Invited ${supplierIds.length} supplier(s) to RFQ ${updated.rfqNumber}`,
-          supplierIds,
+          message: `Invited ${targetSupplierIds.length} supplier(s) to RFQ ${updated.rfqNumber}`,
+          supplierIds: targetSupplierIds,
+          categoryIds,
         },
         before,
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "submit_quotation") {
@@ -397,13 +709,33 @@ export async function PATCH(
       if (!Number.isInteger(supplierId) || supplierId <= 0) {
         return NextResponse.json({ error: "Supplier is required." }, { status: 400 });
       }
-      const supplier = await prisma.supplier.findUnique({
-        where: { id: supplierId },
-        select: { id: true, isActive: true, currency: true },
+      const targetedCategoryIds = rfq.categoryTargets.map(
+        (target) => target.supplierCategoryId,
+      );
+      const supplier = await prisma.supplier.findFirst({
+        where: {
+          id: supplierId,
+          isActive: true,
+          ...(targetedCategoryIds.length > 0
+            ? {
+                categories: {
+                  some: {
+                    supplierCategoryId: { in: targetedCategoryIds },
+                  },
+                },
+              }
+            : {}),
+        },
+        select: { id: true, currency: true },
       });
-      if (!supplier || !supplier.isActive) {
+      if (!supplier) {
         return NextResponse.json(
-          { error: "Supplier not found or inactive." },
+          {
+            error:
+              targetedCategoryIds.length > 0
+                ? "Supplier is outside RFQ targeted categories."
+                : "Supplier not found or inactive.",
+          },
           { status: 404 },
         );
       }
@@ -480,6 +812,8 @@ export async function PATCH(
           update: {
             status: "RESPONDED",
             respondedAt: new Date(),
+            resubmissionRequestedAt: null,
+            resubmissionReason: null,
           },
           select: {
             id: true,
@@ -495,6 +829,7 @@ export async function PATCH(
           },
           select: {
             id: true,
+            revisionNo: true,
           },
         });
 
@@ -509,6 +844,9 @@ export async function PATCH(
             data: {
               rfqSupplierInviteId: invite.id,
               status: "SUBMITTED",
+              revisionNo: existingQuotation.revisionNo + 1,
+              resubmissionRound: rfq.resubmissionRound,
+              resubmissionNote: cleanText(body.resubmissionReason, 500) || null,
               quotedAt: new Date(),
               validUntil,
               submittedById: access.userId,
@@ -529,6 +867,9 @@ export async function PATCH(
               supplierId,
               rfqSupplierInviteId: invite.id,
               status: "SUBMITTED",
+              revisionNo: 1,
+              resubmissionRound: rfq.resubmissionRound,
+              resubmissionNote: cleanText(body.resubmissionReason, 500) || null,
               quotedAt: new Date(),
               validUntil,
               submittedById: access.userId,
@@ -569,7 +910,170 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
+    }
+
+    if (action === "request_resubmission") {
+      if (!access.can("rfq.manage", rfq.warehouseId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (!rfq.resubmissionAllowed) {
+        return NextResponse.json(
+          { error: "Resubmission is disabled for this RFQ." },
+          { status: 400 },
+        );
+      }
+      if (!["SUBMITTED", "CLOSED", "AWARDED"].includes(rfq.status)) {
+        return NextResponse.json(
+          { error: "Resubmission can only be requested from submitted/closed/awarded RFQ." },
+          { status: 400 },
+        );
+      }
+      if (rfq.award?.purchaseOrderId) {
+        return NextResponse.json(
+          {
+            error:
+              "RFQ is already converted to purchase order and cannot be reopened for resubmission.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const reason = cleanText(body.resubmissionReason ?? body.note, 500);
+      if (!reason) {
+        return NextResponse.json(
+          { error: "Resubmission reason is required." },
+          { status: 400 },
+        );
+      }
+
+      const supplierIds = parsePositiveIds(body.supplierIds);
+      const targetInvites =
+        supplierIds.length > 0
+          ? rfq.supplierInvites.filter((invite) => supplierIds.includes(invite.supplierId))
+          : rfq.supplierInvites;
+      if (targetInvites.length === 0) {
+        return NextResponse.json(
+          { error: "No invited suppliers found for resubmission request." },
+          { status: 400 },
+        );
+      }
+      if (supplierIds.length > 0 && targetInvites.length !== supplierIds.length) {
+        return NextResponse.json(
+          { error: "One or more selected suppliers are not invited to this RFQ." },
+          { status: 400 },
+        );
+      }
+
+      const supplierContacts = await prisma.supplier.findMany({
+        where: {
+          id: { in: targetInvites.map((invite) => invite.supplierId) },
+        },
+        select: {
+          id: true,
+          email: true,
+        },
+      });
+      const supplierById = new Map(
+        supplierContacts.map((supplier) => [supplier.id, supplier]),
+      );
+
+      const { updated, emailNotificationIds } = await prisma.$transaction(async (tx) => {
+        const nextRound = rfq.resubmissionRound + 1;
+        const targetInviteIds = targetInvites.map((invite) => invite.id);
+        const targetSupplierIds = targetInvites.map((invite) => invite.supplierId);
+
+        await tx.rfqSupplierInvite.updateMany({
+          where: {
+            id: { in: targetInviteIds },
+          },
+          data: {
+            status: "RESUBMISSION_REQUESTED",
+            resubmissionRequestedAt: new Date(),
+            resubmissionReason: reason,
+            lastNotifiedAt: new Date(),
+          },
+        });
+
+        if (rfq.award) {
+          await tx.rfqAward.update({
+            where: { id: rfq.award.id },
+            data: {
+              status: "CANCELLED",
+              note: `Resubmission requested: ${reason}`.slice(0, 1000),
+            },
+          });
+        }
+
+        await tx.rfq.update({
+          where: { id: rfq.id },
+          data: {
+            status: "SUBMITTED",
+            closedAt: null,
+            awardedAt: null,
+            resubmissionRound: nextRound,
+            lastResubmissionRequestedAt: new Date(),
+            lastResubmissionReason: reason,
+            approvedById: null,
+          },
+        });
+
+        const emailIds = await createRfqNotifications({
+          tx,
+          rfqId: rfq.id,
+          recipients: targetInvites.map((invite) => ({
+            inviteId: invite.id,
+            supplierId: invite.supplierId,
+            recipientEmail: supplierById.get(invite.supplierId)?.email ?? null,
+          })),
+          message:
+            `Resubmission requested for RFQ ${rfq.rfqNumber}. Reason: ${reason}` +
+            (rfq.submissionDeadline
+              ? ` Updated deadline: ${rfq.submissionDeadline.toISOString()}.`
+              : ""),
+          metadata: {
+            stage: "RESUBMISSION_REQUESTED",
+            rfqNumber: rfq.rfqNumber,
+            reason,
+            supplierIds: targetSupplierIds,
+            round: nextRound,
+          },
+          createdById: access.userId,
+        });
+
+        const next = await tx.rfq.findUnique({
+          where: { id: rfq.id },
+          include: rfqInclude,
+        });
+        if (!next) {
+          throw new Error("RFQ lookup failed after resubmission request");
+        }
+
+        return {
+          updated: next,
+          emailNotificationIds: emailIds,
+        };
+      });
+
+      void dispatchRfqEmailNotifications(emailNotificationIds);
+
+      await logActivity({
+        action: "request_resubmission",
+        entity: "rfq",
+        entityId: updated.id,
+        access,
+        request,
+        metadata: {
+          message: `Requested quotation resubmission for RFQ ${updated.rfqNumber}`,
+          supplierIds: targetInvites.map((invite) => invite.supplierId),
+          reason,
+          round: updated.resubmissionRound,
+        },
+        before,
+        after: toRfqLogSnapshot(updated),
+      });
+
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "award") {
@@ -579,6 +1083,15 @@ export async function PATCH(
       if (!["SUBMITTED", "CLOSED", "AWARDED"].includes(rfq.status)) {
         return NextResponse.json(
           { error: "Only submitted/closed RFQs can be awarded." },
+          { status: 400 },
+        );
+      }
+      if (isBlindReviewActive(rfq)) {
+        return NextResponse.json(
+          {
+            error:
+              "Blind review is active until the RFQ deadline. Proposal details unlock after deadline.",
+          },
           { status: 400 },
         );
       }
@@ -679,7 +1192,7 @@ export async function PATCH(
         after: toRfqLogSnapshot(updated),
       });
 
-      return NextResponse.json(updated);
+      return NextResponse.json(toAdminRfqView(updated));
     }
 
     if (action === "convert_to_po") {
@@ -809,7 +1322,7 @@ export async function PATCH(
       });
 
       return NextResponse.json({
-        rfq: updatedRfq,
+        rfq: toAdminRfqView(updatedRfq),
         purchaseOrder: createdPurchaseOrder,
       });
     }

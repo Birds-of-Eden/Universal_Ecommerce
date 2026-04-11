@@ -11,10 +11,20 @@ import {
 
 export type SupplierDocumentInput = {
   type: SupplierDocumentType;
+  documentNumber: string | null;
   fileUrl: string;
   fileName: string | null;
   mimeType: string | null;
   fileSize: number | null;
+  issuedAt: Date | null;
+  expiresAt: Date | null;
+  verificationStatus:
+    | "PENDING"
+    | "VERIFIED"
+    | "REJECTED"
+    | "EXPIRED";
+  verifiedAt: Date | null;
+  verificationNote: string | null;
 };
 
 export class SupplierValidationError extends Error {}
@@ -44,10 +54,27 @@ type SerializableSupplier = {
   createdAt: Date | string;
   updatedAt: Date | string;
   documents: SerializableSupplierDocument[];
+  categories?: Array<{
+    supplierCategory: {
+      id: number;
+      code: string;
+      name: string;
+      isActive: boolean;
+    };
+  }>;
 };
 
 export function toCleanText(value: unknown, max = 255) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function toOptionalDate(value: unknown, fieldLabel: string): Date | null {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) {
+    throw new SupplierValidationError(`${fieldLabel} has an invalid date value.`);
+  }
+  return parsed;
 }
 
 export function normalizeSupplierCode(raw: unknown, fallbackName: string) {
@@ -122,12 +149,53 @@ export function parseSupplierDocuments(raw: unknown): SupplierDocumentInput[] {
 
     return {
       type: record.type,
+      documentNumber: toCleanText(record.documentNumber, 120) || null,
       fileUrl,
       fileName: toCleanText(record.fileName, 255) || null,
       mimeType: toCleanText(record.mimeType, 120) || null,
       fileSize,
+      issuedAt: toOptionalDate(
+        record.issuedAt,
+        `${getSupplierDocumentLabel(record.type)} issued date`,
+      ),
+      expiresAt: toOptionalDate(
+        record.expiresAt,
+        `${getSupplierDocumentLabel(record.type)} expiry date`,
+      ),
+      verificationStatus:
+        record.verificationStatus === "VERIFIED" ||
+        record.verificationStatus === "REJECTED" ||
+        record.verificationStatus === "EXPIRED"
+          ? (record.verificationStatus as
+              | "VERIFIED"
+              | "REJECTED"
+              | "EXPIRED")
+          : "PENDING",
+      verifiedAt: toOptionalDate(
+        record.verifiedAt,
+        `${getSupplierDocumentLabel(record.type)} verified date`,
+      ),
+      verificationNote: toCleanText(record.verificationNote, 500) || null,
     };
   });
+}
+
+export function parseSupplierCategoryIds(raw: unknown): number[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    throw new SupplierValidationError("Supplier categories must be an array.");
+  }
+
+  const uniqueIds = new Set<number>();
+  for (const item of raw) {
+    const id = Number(item);
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new SupplierValidationError("Supplier category ids must be positive integers.");
+    }
+    uniqueIds.add(id);
+  }
+
+  return [...uniqueIds];
 }
 
 export function assertRequiredSupplierDocuments(
@@ -154,6 +222,12 @@ export function serializeSupplier<T extends SerializableSupplier>(supplier: T) {
 
   return {
     ...supplier,
+    categories: (supplier.categories || []).map((membership) => ({
+      id: membership.supplierCategory.id,
+      code: membership.supplierCategory.code,
+      name: membership.supplierCategory.name,
+      isActive: membership.supplierCategory.isActive,
+    })),
     requiredDocumentTypes,
     missingDocumentTypes,
     requiredDocumentCount: requiredDocumentTypes.length,
@@ -180,12 +254,32 @@ export function toSupplierSnapshot(supplier: SerializableSupplier) {
     taxNumber: supplier.taxNumber,
     notes: supplier.notes,
     isActive: supplier.isActive,
+    categories: (supplier.categories || []).map((membership) => ({
+      id: membership.supplierCategory.id,
+      code: membership.supplierCategory.code,
+      name: membership.supplierCategory.name,
+    })),
     documents: supplier.documents.map((document) => ({
       type: document.type,
+      documentNumber: document.documentNumber,
       fileUrl: document.fileUrl,
       fileName: document.fileName,
       mimeType: document.mimeType,
       fileSize: document.fileSize,
+      issuedAt:
+        document.issuedAt instanceof Date
+          ? document.issuedAt.toISOString()
+          : document.issuedAt ?? null,
+      expiresAt:
+        document.expiresAt instanceof Date
+          ? document.expiresAt.toISOString()
+          : document.expiresAt ?? null,
+      verificationStatus: document.verificationStatus,
+      verifiedAt:
+        document.verifiedAt instanceof Date
+          ? document.verifiedAt.toISOString()
+          : document.verifiedAt ?? null,
+      verificationNote: document.verificationNote,
     })),
   };
 }

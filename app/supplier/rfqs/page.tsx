@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { uploadFile } from "@/lib/upload-file";
 
 type SupplierRfqRow = {
   id: number;
@@ -16,6 +17,8 @@ type SupplierRfqRow = {
   currency: string;
   requestedAt: string;
   submissionDeadline: string | null;
+  isSubmissionWindowOpen?: boolean;
+  isSubmissionDeadlinePassed?: boolean;
   note: string | null;
   canSubmitQuote: boolean;
   warehouse: {
@@ -28,6 +31,8 @@ type SupplierRfqRow = {
     status: string;
     invitedAt: string;
     respondedAt: string | null;
+    resubmissionRequestedAt?: string | null;
+    resubmissionReason?: string | null;
     note: string | null;
   } | null;
   items: Array<{
@@ -42,6 +47,7 @@ type SupplierRfqRow = {
   quotation: {
     id: number;
     status: string;
+    revisionNo?: number;
     quotedAt: string;
     validUntil: string | null;
     subtotal: string;
@@ -49,6 +55,8 @@ type SupplierRfqRow = {
     total: string;
     currency: string;
     note: string | null;
+    technicalProposal?: string | null;
+    financialProposal?: string | null;
     items: Array<{
       id: number;
       rfqItemId: number;
@@ -57,6 +65,16 @@ type SupplierRfqRow = {
       unitCost: string;
       lineTotal: string;
       description: string | null;
+    }>;
+    attachments?: Array<{
+      id: number;
+      proposalType: "TECHNICAL" | "FINANCIAL" | "SUPPORTING";
+      label: string | null;
+      fileUrl: string;
+      fileName: string | null;
+      mimeType: string | null;
+      fileSize: number | null;
+      createdAt: string;
     }>;
   } | null;
   award: {
@@ -72,6 +90,14 @@ type SupplierRfqRow = {
     } | null;
     isAwardedToCurrentSupplier: boolean;
   } | null;
+};
+
+type ProposalAttachmentType = "TECHNICAL" | "FINANCIAL" | "SUPPORTING";
+
+type ProposalAttachmentDraft = {
+  file: File;
+  proposalType: ProposalAttachmentType;
+  label: string;
 };
 
 function fmtDate(value?: string | null) {
@@ -92,8 +118,13 @@ export default function SupplierRfqsPage() {
   const [lineUnitCost, setLineUnitCost] = useState<Record<string, string>>({});
   const [lineDesc, setLineDesc] = useState<Record<string, string>>({});
   const [quoteNote, setQuoteNote] = useState<Record<number, string>>({});
+  const [quoteTechnical, setQuoteTechnical] = useState<Record<number, string>>({});
+  const [quoteFinancial, setQuoteFinancial] = useState<Record<number, string>>({});
   const [quoteValidUntil, setQuoteValidUntil] = useState<Record<number, string>>({});
   const [quoteTax, setQuoteTax] = useState<Record<number, string>>({});
+  const [proposalAttachments, setProposalAttachments] = useState<
+    Record<number, ProposalAttachmentDraft[]>
+  >({});
 
   const loadRfqs = async () => {
     try {
@@ -130,12 +161,20 @@ export default function SupplierRfqsPage() {
     const nextUnitCost = { ...lineUnitCost };
     const nextDesc = { ...lineDesc };
     const nextNote = { ...quoteNote };
+    const nextTechnical = { ...quoteTechnical };
+    const nextFinancial = { ...quoteFinancial };
     const nextValidUntil = { ...quoteValidUntil };
     const nextTax = { ...quoteTax };
 
     for (const rfq of rows) {
       if (nextNote[rfq.id] === undefined) {
         nextNote[rfq.id] = rfq.quotation?.note ?? "";
+      }
+      if (nextTechnical[rfq.id] === undefined) {
+        nextTechnical[rfq.id] = rfq.quotation?.technicalProposal ?? "";
+      }
+      if (nextFinancial[rfq.id] === undefined) {
+        nextFinancial[rfq.id] = rfq.quotation?.financialProposal ?? "";
       }
       if (nextValidUntil[rfq.id] === undefined) {
         nextValidUntil[rfq.id] = rfq.quotation?.validUntil
@@ -169,6 +208,8 @@ export default function SupplierRfqsPage() {
     setLineUnitCost(nextUnitCost);
     setLineDesc(nextDesc);
     setQuoteNote(nextNote);
+    setQuoteTechnical(nextTechnical);
+    setQuoteFinancial(nextFinancial);
     setQuoteValidUntil(nextValidUntil);
     setQuoteTax(nextTax);
   }, [rows]);
@@ -177,6 +218,40 @@ export default function SupplierRfqsPage() {
     () => ["SUBMITTED", "CLOSED", "AWARDED", "CANCELLED", "DRAFT"],
     [],
   );
+
+  const addProposalAttachment = (rfqId: number, file: File) => {
+    setProposalAttachments((current) => ({
+      ...current,
+      [rfqId]: [
+        ...(current[rfqId] || []),
+        {
+          file,
+          proposalType: "SUPPORTING",
+          label: "",
+        },
+      ],
+    }));
+  };
+
+  const updateProposalAttachment = (
+    rfqId: number,
+    index: number,
+    patch: Partial<ProposalAttachmentDraft>,
+  ) => {
+    setProposalAttachments((current) => ({
+      ...current,
+      [rfqId]: (current[rfqId] || []).map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item,
+      ),
+    }));
+  };
+
+  const removeProposalAttachment = (rfqId: number, index: number) => {
+    setProposalAttachments((current) => ({
+      ...current,
+      [rfqId]: (current[rfqId] || []).filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
 
   const submitQuote = async (rfq: SupplierRfqRow) => {
     try {
@@ -197,6 +272,35 @@ export default function SupplierRfqsPage() {
           description: lineDesc[key] || item.description || "",
         };
       });
+      const uploadedAttachments: Array<{
+        proposalType: ProposalAttachmentType;
+        label: string | null;
+        fileUrl: string;
+        fileName: string | null;
+        mimeType: string | null;
+        fileSize: number | null;
+      }> = [];
+      const draftAttachments = proposalAttachments[rfq.id] || [];
+      for (const attachment of draftAttachments) {
+        const fileUrl = await uploadFile(attachment.file);
+        uploadedAttachments.push({
+          proposalType: attachment.proposalType,
+          label: attachment.label.trim() || null,
+          fileUrl,
+          fileName: attachment.file.name,
+          mimeType: attachment.file.type || null,
+          fileSize: attachment.file.size,
+        });
+      }
+      const existingAttachments =
+        rfq.quotation?.attachments?.map((attachment) => ({
+          proposalType: attachment.proposalType,
+          label: attachment.label ?? null,
+          fileUrl: attachment.fileUrl,
+          fileName: attachment.fileName ?? null,
+          mimeType: attachment.mimeType ?? null,
+          fileSize: attachment.fileSize ?? null,
+        })) ?? [];
 
       setSubmittingId(rfq.id);
       const response = await fetch("/api/supplier/rfqs", {
@@ -206,8 +310,11 @@ export default function SupplierRfqsPage() {
           rfqId: rfq.id,
           validUntil: quoteValidUntil[rfq.id] || null,
           quotationNote: quoteNote[rfq.id] || "",
+          technicalProposal: quoteTechnical[rfq.id] || "",
+          financialProposal: quoteFinancial[rfq.id] || "",
           taxTotal: Number(quoteTax[rfq.id] || 0),
           currency: rfq.currency,
+          attachments: [...existingAttachments, ...uploadedAttachments],
           items,
         }),
       });
@@ -217,6 +324,7 @@ export default function SupplierRfqsPage() {
       }
 
       toast.success(`Quotation submitted for ${rfq.rfqNumber}`);
+      setProposalAttachments((current) => ({ ...current, [rfq.id]: [] }));
       await loadRfqs();
     } catch (err: any) {
       toast.error(err?.message || "Failed to submit quotation.");
@@ -293,6 +401,16 @@ export default function SupplierRfqsPage() {
                     {rfq.warehouse.name} ({rfq.warehouse.code}) | Deadline:{" "}
                     {fmtDate(rfq.submissionDeadline)}
                   </p>
+                  {rfq.isSubmissionDeadlinePassed ? (
+                    <p className="text-xs text-destructive">
+                      Submission window closed. Proposal is locked after deadline.
+                    </p>
+                  ) : null}
+                  {rfq.invite?.resubmissionReason ? (
+                    <p className="text-xs text-amber-600">
+                      Resubmission request: {rfq.invite.resubmissionReason}
+                    </p>
+                  ) : null}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="overflow-x-auto">
@@ -398,6 +516,110 @@ export default function SupplierRfqsPage() {
                     />
                   </div>
 
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label>Technical Proposal</Label>
+                      <Textarea
+                        value={quoteTechnical[rfq.id] ?? ""}
+                        onChange={(event) =>
+                          setQuoteTechnical((current) => ({
+                            ...current,
+                            [rfq.id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Technical approach, compliance, delivery capability, QA plan..."
+                        disabled={!rfq.canSubmitQuote || submittingId === rfq.id}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Financial Proposal</Label>
+                      <Textarea
+                        value={quoteFinancial[rfq.id] ?? ""}
+                        onChange={(event) =>
+                          setQuoteFinancial((current) => ({
+                            ...current,
+                            [rfq.id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Commercial terms, validity assumptions, exclusions..."
+                        disabled={!rfq.canSubmitQuote || submittingId === rfq.id}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 rounded-md border p-3">
+                    <div className="text-sm font-medium">Proposal Attachments</div>
+                    <Input
+                      type="file"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        addProposalAttachment(rfq.id, file);
+                        event.target.value = "";
+                      }}
+                      disabled={!rfq.canSubmitQuote || submittingId === rfq.id}
+                    />
+                    {(proposalAttachments[rfq.id] || []).length > 0 ? (
+                      <div className="space-y-2">
+                        {(proposalAttachments[rfq.id] || []).map((attachment, index) => (
+                          <div key={`${attachment.file.name}-${index}`} className="grid gap-2 md:grid-cols-[2fr_1fr_2fr_auto]">
+                            <div className="text-xs">{attachment.file.name}</div>
+                            <select
+                              className="rounded-md border bg-background px-2 py-1 text-xs"
+                              value={attachment.proposalType}
+                              onChange={(event) =>
+                                updateProposalAttachment(rfq.id, index, {
+                                  proposalType: event.target.value as ProposalAttachmentType,
+                                })
+                              }
+                              disabled={!rfq.canSubmitQuote || submittingId === rfq.id}
+                            >
+                              <option value="TECHNICAL">TECHNICAL</option>
+                              <option value="FINANCIAL">FINANCIAL</option>
+                              <option value="SUPPORTING">SUPPORTING</option>
+                            </select>
+                            <Input
+                              placeholder="Label (optional)"
+                              value={attachment.label}
+                              onChange={(event) =>
+                                updateProposalAttachment(rfq.id, index, {
+                                  label: event.target.value,
+                                })
+                              }
+                              disabled={!rfq.canSubmitQuote || submittingId === rfq.id}
+                            />
+                            <Button
+                              variant="outline"
+                              onClick={() => removeProposalAttachment(rfq.id, index)}
+                              disabled={!rfq.canSubmitQuote || submittingId === rfq.id}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {(rfq.quotation?.attachments?.length || 0) > 0 ? (
+                      <div className="space-y-1 text-xs">
+                        <div className="font-medium text-muted-foreground">
+                          Existing uploaded documents
+                        </div>
+                        {rfq.quotation?.attachments?.map((attachment) => (
+                          <a
+                            key={attachment.id}
+                            href={attachment.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block text-primary underline"
+                          >
+                            [{attachment.proposalType}]{" "}
+                            {attachment.label || attachment.fileName || "Attachment"}
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+
                   <div className="flex flex-wrap items-center gap-3">
                     <Button
                       onClick={() => void submitQuote(rfq)}
@@ -407,7 +629,8 @@ export default function SupplierRfqsPage() {
                     </Button>
                     {rfq.quotation ? (
                       <p className="text-sm text-muted-foreground">
-                        Last quote total: {rfq.quotation.total} {rfq.quotation.currency} at{" "}
+                        Last quote total: {rfq.quotation.total} {rfq.quotation.currency}
+                        {rfq.quotation.revisionNo ? ` • Rev ${rfq.quotation.revisionNo}` : ""} at{" "}
                         {fmtDate(rfq.quotation.quotedAt)}
                       </p>
                     ) : null}

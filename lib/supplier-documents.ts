@@ -15,6 +15,8 @@ export const SUPPLIER_DOCUMENT_TYPES = [
   "TAX_IDENTIFICATION_NUMBER",
   "BOARD_RESOLUTION",
   "VAT_REGISTRATION",
+  "TAX_COMPLIANCE_CERTIFICATE",
+  "BANK_INFORMATION",
 ] as const;
 
 export type SupplierDocumentType = (typeof SUPPLIER_DOCUMENT_TYPES)[number];
@@ -52,6 +54,8 @@ export const SUPPLIER_DOCUMENT_LABELS: Record<SupplierDocumentType, string> = {
   TAX_IDENTIFICATION_NUMBER: "Tax Identification Number (TIN)",
   BOARD_RESOLUTION: "Board Resolution",
   VAT_REGISTRATION: "VAT Registration (BIN Certificate)",
+  TAX_COMPLIANCE_CERTIFICATE: "Tax Compliance Certificate",
+  BANK_INFORMATION: "Bank Information",
 };
 
 export const SUPPLIER_REQUIRED_DOCUMENTS: Record<
@@ -63,6 +67,10 @@ export const SUPPLIER_REQUIRED_DOCUMENTS: Record<
     "TRADE_LICENSE",
     "PROPRIETOR_DETAILS",
     "PROPRIETOR_VISITING_CARD",
+    "TAX_IDENTIFICATION_NUMBER",
+    "VAT_REGISTRATION",
+    "TAX_COMPLIANCE_CERTIFICATE",
+    "BANK_INFORMATION",
     "DECLARATION",
     "SEAL",
     "SIGNATURE",
@@ -74,6 +82,8 @@ export const SUPPLIER_REQUIRED_DOCUMENTS: Record<
     "TAX_IDENTIFICATION_NUMBER",
     "BOARD_RESOLUTION",
     "VAT_REGISTRATION",
+    "TAX_COMPLIANCE_CERTIFICATE",
+    "BANK_INFORMATION",
     "DECLARATION",
     "SEAL",
     "SIGNATURE",
@@ -104,6 +114,16 @@ export const SUPPLIER_DOCUMENT_SECTIONS: Record<
       description: "Signed compliance artifacts required before enlistment.",
       types: ["DECLARATION", "SEAL", "SIGNATURE"],
     },
+    {
+      title: "Tax & Banking",
+      description: "Fiscal compliance and payout settlement prerequisites.",
+      types: [
+        "TAX_IDENTIFICATION_NUMBER",
+        "VAT_REGISTRATION",
+        "TAX_COMPLIANCE_CERTIFICATE",
+        "BANK_INFORMATION",
+      ],
+    },
   ],
   LIMITED_COMPANY: [
     {
@@ -128,6 +148,11 @@ export const SUPPLIER_DOCUMENT_SECTIONS: Record<
       title: "Authorization",
       description: "Signed compliance artifacts required before enlistment.",
       types: ["DECLARATION", "SEAL", "SIGNATURE"],
+    },
+    {
+      title: "Banking",
+      description: "Verified bank details for award and payment execution.",
+      types: ["BANK_INFORMATION"],
     },
   ],
 };

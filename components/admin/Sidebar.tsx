@@ -166,6 +166,19 @@ const menuItems: MenuItem[] = [
         requiredGlobalPermissions: ["suppliers.manage", "users.manage"],
       },
       {
+        name: "Vendor Approvals",
+        href: "/admin/scm/vendor-approvals",
+        requiredGlobalPermissions: [
+          "supplier.profile_requests.read",
+          "supplier.profile_requests.review",
+        ],
+      },
+      {
+        name: "Vendor Feedback",
+        href: "/admin/scm/vendor-feedback",
+        requiredGlobalPermissions: ["supplier.feedback.manage"],
+      },
+      {
         name: "SLA Policies",
         href: "/admin/scm/sla",
         requiredGlobalPermissions: ["sla.read", "sla.manage"],

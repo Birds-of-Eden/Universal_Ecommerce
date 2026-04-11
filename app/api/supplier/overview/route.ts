@@ -21,7 +21,7 @@ export async function GET() {
     const next30Days = new Date(now);
     next30Days.setDate(now.getDate() + 30);
 
-    const [invites, purchaseOrderRows, invoiceRows, paymentRows] = await Promise.all([
+    const [invites, purchaseOrderRows, invoiceRows, paymentRows, pendingRequests, expiringDocs, unreadNotifications] = await Promise.all([
       prisma.rfqSupplierInvite.findMany({
         where: {
           supplierId,
@@ -91,6 +91,28 @@ export async function GET() {
         orderBy: [{ paymentDate: "desc" }, { id: "desc" }],
         take: 20,
       }),
+      prisma.supplierProfileUpdateRequest.count({
+        where: {
+          supplierId,
+          requestedByUserId: resolved.context.userId,
+          status: "PENDING",
+        },
+      }),
+      prisma.supplierDocument.count({
+        where: {
+          supplierId,
+          expiresAt: {
+            lte: next30Days,
+          },
+        },
+      }),
+      prisma.supplierPortalNotification.count({
+        where: {
+          supplierId,
+          OR: [{ userId: null }, { userId: resolved.context.userId }],
+          readAt: null,
+        },
+      }),
     ]);
 
     const actionableRfqCount = invites.filter(
@@ -153,6 +175,9 @@ export async function GET() {
         overdueInvoiceCount,
         outstandingAmount: outstandingTotal.toString(),
         recentPaymentAmount: recentPaymentTotal.toString(),
+        pendingProfileRequestCount: pendingRequests,
+        expiringDocumentCount: expiringDocs,
+        unreadNotificationCount: unreadNotifications,
       },
       recentRfqs: invites.slice(0, 10).map((invite) => ({
         inviteId: invite.id,
