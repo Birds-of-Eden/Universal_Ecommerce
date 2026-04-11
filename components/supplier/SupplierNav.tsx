@@ -5,7 +5,17 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, FileText, LayoutDashboard, LogOut, ShoppingCart } from "lucide-react";
+import {
+  Bell,
+  ClipboardList,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  ShoppingCart,
+  Star,
+  UserRound,
+  Wallet,
+} from "lucide-react";
 
 type SupplierNavProps = {
   supplierName: string;
@@ -15,8 +25,13 @@ type SupplierNavProps = {
 const navItems = [
   { href: "/supplier/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/supplier/rfqs", label: "RFQs", icon: ClipboardList },
+  { href: "/supplier/work-orders", label: "Work Orders", icon: ShoppingCart },
   { href: "/supplier/purchase-orders", label: "Purchase Orders", icon: ShoppingCart },
   { href: "/supplier/invoices", label: "Invoices", icon: FileText },
+  { href: "/supplier/payments", label: "Payments", icon: Wallet },
+  { href: "/supplier/profile", label: "Profile", icon: UserRound },
+  { href: "/supplier/notifications", label: "Notifications", icon: Bell },
+  { href: "/supplier/feedback", label: "Feedback", icon: Star },
 ];
 
 export default function SupplierNav({ supplierName, supplierCode }: SupplierNavProps) {

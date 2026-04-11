@@ -11,10 +11,20 @@ import {
 
 export type SupplierDocumentInput = {
   type: SupplierDocumentType;
+  documentNumber: string | null;
   fileUrl: string;
   fileName: string | null;
   mimeType: string | null;
   fileSize: number | null;
+  issuedAt: Date | null;
+  expiresAt: Date | null;
+  verificationStatus:
+    | "PENDING"
+    | "VERIFIED"
+    | "REJECTED"
+    | "EXPIRED";
+  verifiedAt: Date | null;
+  verificationNote: string | null;
 };
 
 export class SupplierValidationError extends Error {}
@@ -56,6 +66,15 @@ type SerializableSupplier = {
 
 export function toCleanText(value: unknown, max = 255) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function toOptionalDate(value: unknown, fieldLabel: string): Date | null {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) {
+    throw new SupplierValidationError(`${fieldLabel} has an invalid date value.`);
+  }
+  return parsed;
 }
 
 export function normalizeSupplierCode(raw: unknown, fallbackName: string) {
@@ -130,10 +149,33 @@ export function parseSupplierDocuments(raw: unknown): SupplierDocumentInput[] {
 
     return {
       type: record.type,
+      documentNumber: toCleanText(record.documentNumber, 120) || null,
       fileUrl,
       fileName: toCleanText(record.fileName, 255) || null,
       mimeType: toCleanText(record.mimeType, 120) || null,
       fileSize,
+      issuedAt: toOptionalDate(
+        record.issuedAt,
+        `${getSupplierDocumentLabel(record.type)} issued date`,
+      ),
+      expiresAt: toOptionalDate(
+        record.expiresAt,
+        `${getSupplierDocumentLabel(record.type)} expiry date`,
+      ),
+      verificationStatus:
+        record.verificationStatus === "VERIFIED" ||
+        record.verificationStatus === "REJECTED" ||
+        record.verificationStatus === "EXPIRED"
+          ? (record.verificationStatus as
+              | "VERIFIED"
+              | "REJECTED"
+              | "EXPIRED")
+          : "PENDING",
+      verifiedAt: toOptionalDate(
+        record.verifiedAt,
+        `${getSupplierDocumentLabel(record.type)} verified date`,
+      ),
+      verificationNote: toCleanText(record.verificationNote, 500) || null,
     };
   });
 }
@@ -219,10 +261,25 @@ export function toSupplierSnapshot(supplier: SerializableSupplier) {
     })),
     documents: supplier.documents.map((document) => ({
       type: document.type,
+      documentNumber: document.documentNumber,
       fileUrl: document.fileUrl,
       fileName: document.fileName,
       mimeType: document.mimeType,
       fileSize: document.fileSize,
+      issuedAt:
+        document.issuedAt instanceof Date
+          ? document.issuedAt.toISOString()
+          : document.issuedAt ?? null,
+      expiresAt:
+        document.expiresAt instanceof Date
+          ? document.expiresAt.toISOString()
+          : document.expiresAt ?? null,
+      verificationStatus: document.verificationStatus,
+      verifiedAt:
+        document.verifiedAt instanceof Date
+          ? document.verifiedAt.toISOString()
+          : document.verifiedAt ?? null,
+      verificationNote: document.verificationNote,
     })),
   };
 }

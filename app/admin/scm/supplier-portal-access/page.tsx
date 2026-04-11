@@ -31,6 +31,9 @@ type UserOption = {
 type AccessRecord = {
   id: string;
   status: "ACTIVE" | "SUSPENDED" | "REVOKED";
+  twoFactorRequired: boolean;
+  twoFactorMethod: string | null;
+  twoFactorLastVerifiedAt: string | null;
   note: string | null;
   createdAt: string;
   updatedAt: string;
@@ -70,6 +73,8 @@ export default function SupplierPortalAccessPage() {
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [status, setStatus] = useState<"ACTIVE" | "SUSPENDED" | "REVOKED">("ACTIVE");
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
+  const [twoFactorMethod, setTwoFactorMethod] = useState("EMAIL_OTP");
   const [note, setNote] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -116,6 +121,8 @@ export default function SupplierPortalAccessPage() {
     setSelectedUserId("");
     setSelectedSupplierId("");
     setStatus("ACTIVE");
+    setTwoFactorRequired(false);
+    setTwoFactorMethod("EMAIL_OTP");
     setNote("");
   };
 
@@ -124,6 +131,8 @@ export default function SupplierPortalAccessPage() {
     setSelectedUserId(record.user.id);
     setSelectedSupplierId(String(record.supplier.id));
     setStatus(record.status);
+    setTwoFactorRequired(Boolean(record.twoFactorRequired));
+    setTwoFactorMethod(record.twoFactorMethod || "EMAIL_OTP");
     setNote(record.note ?? "");
   };
 
@@ -143,6 +152,8 @@ export default function SupplierPortalAccessPage() {
           userId: selectedUserId,
           supplierId: Number(selectedSupplierId),
           status,
+          twoFactorRequired,
+          twoFactorMethod: twoFactorRequired ? twoFactorMethod : null,
           note,
         }),
       });
@@ -224,6 +235,28 @@ export default function SupplierPortalAccessPage() {
                 <option value="REVOKED">REVOKED</option>
               </select>
             </div>
+            <div className="space-y-1">
+              <Label>2FA Policy</Label>
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                value={twoFactorRequired ? twoFactorMethod : "DISABLED"}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === "DISABLED") {
+                    setTwoFactorRequired(false);
+                    setTwoFactorMethod("EMAIL_OTP");
+                    return;
+                  }
+                  setTwoFactorRequired(true);
+                  setTwoFactorMethod(value);
+                }}
+              >
+                <option value="DISABLED">Disabled (Preferred only)</option>
+                <option value="EMAIL_OTP">Required: Email OTP</option>
+                <option value="TOTP">Required: TOTP App</option>
+                <option value="AUTH_APP">Required: Authenticator App</option>
+              </select>
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -298,6 +331,12 @@ export default function SupplierPortalAccessPage() {
                   <p className="mt-2 text-xs text-muted-foreground">
                     Updated: {fmtDate(record.updatedAt)} | Created by:{" "}
                     {record.createdBy?.email || "N/A"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    2FA: {record.twoFactorRequired ? `Required (${record.twoFactorMethod || "EMAIL_OTP"})` : "Not required"}
+                    {record.twoFactorLastVerifiedAt
+                      ? ` | Last verified: ${fmtDate(record.twoFactorLastVerifiedAt)}`
+                      : ""}
                   </p>
                   {record.note ? (
                     <p className="mt-1 text-xs text-muted-foreground">Note: {record.note}</p>

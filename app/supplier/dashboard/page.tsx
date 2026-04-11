@@ -18,6 +18,9 @@ type OverviewResponse = {
     overdueInvoiceCount: number;
     outstandingAmount: string;
     recentPaymentAmount: string;
+    pendingProfileRequestCount: number;
+    expiringDocumentCount: number;
+    unreadNotificationCount: number;
   };
   recentRfqs: Array<{
     inviteId: number;
@@ -106,6 +109,9 @@ export default function SupplierDashboardPage() {
             { label: "Active Purchase Orders", value: data.summary.activePurchaseOrderCount },
             { label: "Overdue Invoices", value: data.summary.overdueInvoiceCount },
             { label: "Outstanding Amount", value: fmtAmount(data.summary.outstandingAmount) },
+            { label: "Pending Update Requests", value: data.summary.pendingProfileRequestCount },
+            { label: "Expiring Documents (30d)", value: data.summary.expiringDocumentCount },
+            { label: "Unread Notifications", value: data.summary.unreadNotificationCount },
           ]
         : [],
     [data],
@@ -125,7 +131,7 @@ export default function SupplierDashboardPage() {
 
       {!loading && !error && data ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
             {summaryCards.map((card) => (
               <Card key={card.label}>
                 <CardHeader className="pb-2">
