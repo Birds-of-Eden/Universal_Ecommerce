@@ -385,16 +385,19 @@ export default function SupportChatWidget() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <div className="fixed bottom-6 right-6 z-40">
-          <div className="rounded-full">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-full btn-primary px-4 py-3 text-sm font-semibold shadow-xl bg-transparent"
-            >
-              <MessageCircle className="h-5 w-5" />
+        <div className="fixed bottom-[10px] right-1 z-40">
+          <button
+            type="button"
+            className="group flex h-12 w-12 items-center overflow-hidden rounded-full bg-primary text-primary-foreground shadow-xl transition-all duration-300 pr-3 hover:w-[145px] hover:pr-4"
+          >
+            <span className="flex h-12 w-12 min-w-12 items-center justify-center">
+              <MessageCircle className="h-5 w-5 text-primary-foreground" />
+            </span>
+
+            <span className="pointer-events-none whitespace-nowrap text-sm font-semibold text-primary-foreground opacity-0 transition-all duration-300 group-hover:opacity-100">
               Live Support
-            </button>
-          </div>
+            </span>
+          </button>
         </div>
       </SheetTrigger>
 
@@ -512,17 +515,6 @@ export default function SupportChatWidget() {
               <Send className="h-4 w-4" />
             </Button>
           </div>
-
-          {/* {conversation && (
-            <button
-              type="button"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-              onClick={() => setShowFeedback(true)}
-            >
-              <XCircle className="h-3.5 w-3.5" />
-              End chat & leave feedback
-            </button>
-          )} */}
         </div>
       </SheetContent>
     </Sheet>

@@ -15,6 +15,7 @@ import BrandSlider from "@/components/ecommarce/BrandSlider";
 import { useSession } from "@/lib/auth-client";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import PromotionBanner from "@/components/ecommarce/PromotionBanner";
+import FloatingCartButton from "@/components/ecommarce/FloatingCartButton";
 
 type Category = {
   id: number;
@@ -465,7 +466,9 @@ export default function Home() {
 
                     {categoryBooksComponents}
                   </div>
+
                 </div>
+                <FloatingCartButton/>
                 <Footer {...footerProps} />
               </>
             );
