@@ -441,13 +441,13 @@ export default function Home() {
                     reviewsData={data.rawReviews}
                     isAuthenticated={isAuthenticated}
                   />
-                  <PromotionBanner banners={data.banners} />
                   <FeaturedProducts
                     productsData={data.rawProducts}
                     categoriesData={data.rawCategories}
                     reviewsData={data.rawReviews}
                     isAuthenticated={isAuthenticated}
                   />
+                  <PromotionBanner banners={data.banners} />
                   <BestSelling
                     limit={20}
                     topSellingData={data.topSellingProducts}
