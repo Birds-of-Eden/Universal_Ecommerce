@@ -89,6 +89,11 @@ const menuItems: MenuItem[] = [
         requiredPermissions: ["products.manage"],
       },
       {
+        name: "Reviews",
+        href: "/admin/operations/review",
+        requiredPermissions: ["reviews.manage"],
+      },
+      {
         name: "Orders",
         href: "/admin/operations/orders",
         requiredPermissions: ["orders.read_all"],
