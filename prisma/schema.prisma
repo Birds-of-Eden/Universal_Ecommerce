@@ -81,6 +81,14 @@ model User {
   supplierQuotationsSubmitted   SupplierQuotation[]     @relation("SupplierQuotationsSubmitted")
   supplierQuotationAttachmentsUploaded SupplierQuotationAttachment[] @relation("SupplierQuotationAttachmentsUploaded")
   rfqAwardsGranted              RfqAward[]              @relation("RfqAwardsGranted")
+  comparativeStatementsCreated  ComparativeStatement[]  @relation("ComparativeStatementsCreated")
+  comparativeStatementsUpdated  ComparativeStatement[]  @relation("ComparativeStatementsUpdated")
+  comparativeStatementsManagerApproved ComparativeStatement[] @relation("ComparativeStatementsManagerApproved")
+  comparativeStatementsCommitteeApproved ComparativeStatement[] @relation("ComparativeStatementsCommitteeApproved")
+  comparativeStatementsFinalApproved ComparativeStatement[] @relation("ComparativeStatementsFinalApproved")
+  comparativeStatementsRejected ComparativeStatement[]  @relation("ComparativeStatementsRejected")
+  comparativeStatementApprovalEvents ComparativeStatementApprovalEvent[] @relation("ComparativeStatementApprovalEvents")
+  comparativeStatementNotificationsReceived ComparativeStatementNotification[] @relation("ComparativeStatementNotificationsReceived")
   supplierCategoriesCreated     SupplierCategory[]      @relation("SupplierCategoriesCreated")
   supplierCategorySuppliersCreated SupplierCategorySupplier[] @relation("SupplierCategorySuppliersCreated")
   replenishmentRulesCreated     ReplenishmentRule[]     @relation("ReplenishmentRulesCreated")
@@ -788,6 +796,7 @@ model Warehouse {
   purchaseOrders                   PurchaseOrder[]
   purchaseRequisitions             PurchaseRequisition[]
   rfqs                             Rfq[]
+  comparativeStatements            ComparativeStatement[]
   goodsReceipts                    GoodsReceipt[]
   supplierReturns                  SupplierReturn[]
   replenishmentRules               ReplenishmentRule[]
@@ -1108,6 +1117,7 @@ model Supplier {
   ledgerEntries    SupplierLedgerEntry[]
   rfqInvites       RfqSupplierInvite[]
   quotations       SupplierQuotation[]
+  comparativeStatementLines ComparativeStatementLine[]
   rfqAwards        RfqAward[]
   categories       SupplierCategorySupplier[]
   rfqNotifications RfqNotification[]
@@ -1659,6 +1669,7 @@ model Rfq {
   supplierInvites       RfqSupplierInvite[]
   quotations            SupplierQuotation[]
   award                 RfqAward?
+  comparativeStatements ComparativeStatement[]
 
   @@index([warehouseId, status])
   @@index([purchaseRequisitionId])
@@ -1740,6 +1751,7 @@ model SupplierQuotation {
   supplier            Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   items               SupplierQuotationItem[]
   attachments         SupplierQuotationAttachment[]
+  comparativeStatementLines ComparativeStatementLine[]
   award               RfqAward?
 
   @@unique([rfqId, supplierId])
@@ -1899,6 +1911,118 @@ model RfqNotification {
   @@index([supplierId, createdAt])
   @@index([status, channel])
   @@index([createdById])
+}
+
+model ComparativeStatement {
+  id                      Int                               @id @default(autoincrement())
+  csNumber                String                            @unique
+  rfqId                   Int
+  warehouseId             Int
+  versionNo               Int                               @default(1)
+  status                  ComparativeStatementStatus        @default(DRAFT)
+  approvalStage           ComparativeStatementApprovalStage @default(DRAFT)
+  technicalWeight         Decimal                           @default(70) @db.Decimal(5, 2)
+  financialWeight         Decimal                           @default(30) @db.Decimal(5, 2)
+  generatedAt             DateTime                          @default(now())
+  submittedAt             DateTime?
+  managerApprovedAt       DateTime?
+  committeeApprovedAt     DateTime?
+  finalApprovedAt         DateTime?
+  rejectedAt              DateTime?
+  cancelledAt             DateTime?
+  managerApprovedById     String?
+  committeeApprovedById   String?
+  finalApprovedById       String?
+  rejectedById            String?
+  createdById             String?
+  updatedById             String?
+  note                    String?
+  rejectionNote           String?
+  sourceQuotationSnapshot Json?
+  createdAt               DateTime                          @default(now())
+  updatedAt               DateTime                          @updatedAt
+  rfq                     Rfq                               @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  warehouse               Warehouse                         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy               User?                             @relation("ComparativeStatementsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy               User?                             @relation("ComparativeStatementsUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  managerApprovedBy       User?                             @relation("ComparativeStatementsManagerApproved", fields: [managerApprovedById], references: [id], onDelete: SetNull)
+  committeeApprovedBy     User?                             @relation("ComparativeStatementsCommitteeApproved", fields: [committeeApprovedById], references: [id], onDelete: SetNull)
+  finalApprovedBy         User?                             @relation("ComparativeStatementsFinalApproved", fields: [finalApprovedById], references: [id], onDelete: SetNull)
+  rejectedBy              User?                             @relation("ComparativeStatementsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
+  lines                   ComparativeStatementLine[]
+  approvalEvents          ComparativeStatementApprovalEvent[]
+  notifications           ComparativeStatementNotification[]
+
+  @@unique([rfqId, versionNo])
+  @@index([rfqId, status])
+  @@index([warehouseId, status])
+  @@index([createdById])
+  @@index([managerApprovedById])
+  @@index([committeeApprovedById])
+  @@index([finalApprovedById])
+}
+
+model ComparativeStatementLine {
+  id                     Int                  @id @default(autoincrement())
+  comparativeStatementId Int
+  supplierQuotationId    Int
+  supplierId             Int
+  financialSubtotal      Decimal              @default(0) @db.Decimal(12, 2)
+  financialTaxTotal      Decimal              @default(0) @db.Decimal(12, 2)
+  financialGrandTotal    Decimal              @default(0) @db.Decimal(12, 2)
+  currency               String               @default("BDT") @db.VarChar(3)
+  technicalScore         Decimal              @default(0) @db.Decimal(5, 2)
+  financialScore         Decimal              @default(0) @db.Decimal(5, 2)
+  combinedScore          Decimal              @default(0) @db.Decimal(7, 4)
+  rank                   Int?
+  isResponsive           Boolean              @default(true)
+  technicalNote          String?
+  financialNote          String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  comparativeStatement   ComparativeStatement @relation(fields: [comparativeStatementId], references: [id], onDelete: Cascade)
+  supplierQuotation      SupplierQuotation    @relation(fields: [supplierQuotationId], references: [id], onDelete: Restrict)
+  supplier               Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  @@unique([comparativeStatementId, supplierQuotationId])
+  @@index([comparativeStatementId, rank])
+  @@index([supplierId])
+}
+
+model ComparativeStatementApprovalEvent {
+  id                     Int                                @id @default(autoincrement())
+  comparativeStatementId Int
+  stage                  ComparativeStatementApprovalStage
+  decision               ComparativeStatementApprovalDecision
+  note                   String?
+  metadata               Json?
+  actedById              String?
+  actedAt                DateTime                           @default(now())
+  comparativeStatement   ComparativeStatement               @relation(fields: [comparativeStatementId], references: [id], onDelete: Cascade)
+  actedBy                User?                              @relation("ComparativeStatementApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+
+  @@index([comparativeStatementId, stage])
+  @@index([actedById])
+}
+
+model ComparativeStatementNotification {
+  id                     Int                               @id @default(autoincrement())
+  comparativeStatementId Int
+  stage                  ComparativeStatementApprovalStage
+  channel                WorkflowNotificationChannel
+  status                 WorkflowNotificationStatus        @default(PENDING)
+  recipientUserId        String?
+  recipientEmail         String?
+  message                String
+  metadata               Json?
+  sentAt                 DateTime?
+  createdAt              DateTime                          @default(now())
+  comparativeStatement   ComparativeStatement              @relation(fields: [comparativeStatementId], references: [id], onDelete: Cascade)
+  recipientUser          User?                             @relation("ComparativeStatementNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
+
+  @@index([comparativeStatementId, stage, createdAt])
+  @@index([recipientUserId])
+  @@index([status, channel])
 }
 
 model PurchaseOrder {
@@ -3062,6 +3186,33 @@ enum QuotationStatus {
 enum RfqAwardStatus {
   AWARDED
   CONVERTED_TO_PO
+  CANCELLED
+}
+
+enum ComparativeStatementStatus {
+  DRAFT
+  SUBMITTED
+  MANAGER_APPROVED
+  COMMITTEE_APPROVED
+  FINAL_APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ComparativeStatementApprovalStage {
+  DRAFT
+  SUBMISSION
+  MANAGER_REVIEW
+  COMMITTEE_REVIEW
+  FINAL_APPROVAL
+  REJECTION
+  CANCELLATION
+}
+
+enum ComparativeStatementApprovalDecision {
+  SUBMITTED
+  APPROVED
+  REJECTED
   CANCELLED
 }
 

@@ -96,6 +96,16 @@ const adminPagePermissionRules: PermissionRule[] = [
     permissions: ["rfq.read", "rfq.manage", "rfq.approve"],
   },
   {
+    prefix: "/admin/scm/comparative-statements",
+    permissions: [
+      "comparative_statements.read",
+      "comparative_statements.manage",
+      "comparative_statements.approve_manager",
+      "comparative_statements.approve_committee",
+      "comparative_statements.approve_final",
+    ],
+  },
+  {
     prefix: "/admin/scm/purchase-orders",
     permissions: [
       "purchase_orders.read",
@@ -165,6 +175,11 @@ const adminPagePermissionRules: PermissionRule[] = [
       "rfq.read",
       "rfq.manage",
       "rfq.approve",
+      "comparative_statements.read",
+      "comparative_statements.manage",
+      "comparative_statements.approve_manager",
+      "comparative_statements.approve_committee",
+      "comparative_statements.approve_final",
       "purchase_orders.read",
       "purchase_orders.manage",
       "purchase_orders.approve",
@@ -585,6 +600,32 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/rfqs",
     methods: ["PATCH", "PUT"],
     permissions: ["rfq.manage", "rfq.approve", "purchase_orders.manage"],
+  },
+  {
+    prefix: "/api/scm/comparative-statements",
+    methods: ["GET"],
+    permissions: [
+      "comparative_statements.read",
+      "comparative_statements.manage",
+      "comparative_statements.approve_manager",
+      "comparative_statements.approve_committee",
+      "comparative_statements.approve_final",
+    ],
+  },
+  {
+    prefix: "/api/scm/comparative-statements",
+    methods: ["POST"],
+    permissions: ["comparative_statements.manage"],
+  },
+  {
+    prefix: "/api/scm/comparative-statements",
+    methods: ["PATCH", "PUT"],
+    permissions: [
+      "comparative_statements.manage",
+      "comparative_statements.approve_manager",
+      "comparative_statements.approve_committee",
+      "comparative_statements.approve_final",
+    ],
   },
   {
     prefix: "/api/scm/purchase-requisitions",

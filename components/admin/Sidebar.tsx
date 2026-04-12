@@ -198,6 +198,17 @@ const menuItems: MenuItem[] = [
         requiredPermissions: ["rfq.read", "rfq.manage", "rfq.approve"],
       },
       {
+        name: "Comparative Statements",
+        href: "/admin/scm/comparative-statements",
+        requiredPermissions: [
+          "comparative_statements.read",
+          "comparative_statements.manage",
+          "comparative_statements.approve_manager",
+          "comparative_statements.approve_committee",
+          "comparative_statements.approve_final",
+        ],
+      },
+      {
         name: "Purchase Orders",
         href: "/admin/scm/purchase-orders",
         requiredPermissions: [

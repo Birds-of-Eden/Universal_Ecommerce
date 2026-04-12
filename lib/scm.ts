@@ -49,6 +49,19 @@ export async function generateRfqNumber(tx: TransactionClient) {
   return `${prefix}-${String(count + 1).padStart(4, "0")}`;
 }
 
+export async function generateComparativeStatementNumber(tx: TransactionClient) {
+  const today = new Date();
+  const prefix = `CS-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const count = await tx.comparativeStatement.count({
+    where: {
+      csNumber: {
+        startsWith: prefix,
+      },
+    },
+  });
+  return `${prefix}-${String(count + 1).padStart(4, "0")}`;
+}
+
 export async function generateGoodsReceiptNumber(tx: TransactionClient) {
   const today = new Date();
   const prefix = `GRN-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -760,6 +773,145 @@ export const rfqInclude = Prisma.validator<Prisma.RfqInclude>()({
   },
 });
 
+export const comparativeStatementInclude =
+  Prisma.validator<Prisma.ComparativeStatementInclude>()({
+    rfq: {
+      include: rfqInclude,
+    },
+    warehouse: {
+      select: {
+        id: true,
+        name: true,
+        code: true,
+      },
+    },
+    createdBy: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    updatedBy: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    managerApprovedBy: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    committeeApprovedBy: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    finalApprovedBy: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    rejectedBy: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    },
+    lines: {
+      orderBy: [{ rank: "asc" }, { combinedScore: "desc" }, { id: "asc" }],
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            email: true,
+          },
+        },
+        supplierQuotation: {
+          include: {
+            submittedBy: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            items: {
+              orderBy: { id: "asc" },
+              include: {
+                rfqItem: {
+                  select: {
+                    id: true,
+                    quantityRequested: true,
+                  },
+                },
+                productVariant: {
+                  select: {
+                    id: true,
+                    sku: true,
+                    product: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            attachments: {
+              orderBy: { id: "asc" },
+              include: {
+                uploadedBy: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    approvalEvents: {
+      orderBy: [{ actedAt: "asc" }, { id: "asc" }],
+      include: {
+        actedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    },
+    notifications: {
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        recipientUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    },
+  });
+
 export const goodsReceiptInclude = Prisma.validator<Prisma.GoodsReceiptInclude>()({
   warehouse: {
     select: {
@@ -1049,6 +1201,10 @@ export type PurchaseRequisitionWithRelations = Prisma.PurchaseRequisitionGetPayl
 
 export type RfqWithRelations = Prisma.RfqGetPayload<{
   include: typeof rfqInclude;
+}>;
+
+export type ComparativeStatementWithRelations = Prisma.ComparativeStatementGetPayload<{
+  include: typeof comparativeStatementInclude;
 }>;
 
 export type GoodsReceiptWithRelations = Prisma.GoodsReceiptGetPayload<{
@@ -1358,6 +1514,83 @@ export function toRfqLogSnapshot(rfq: RfqWithRelations) {
           quotationTotal: rfq.award.supplierQuotation.total.toString(),
         }
       : null,
+  };
+}
+
+export function toComparativeStatementLogSnapshot(
+  comparativeStatement: ComparativeStatementWithRelations,
+) {
+  return {
+    csNumber: comparativeStatement.csNumber,
+    rfqId: comparativeStatement.rfqId,
+    rfqNumber: comparativeStatement.rfq.rfqNumber,
+    warehouseId: comparativeStatement.warehouseId,
+    warehouseCode: comparativeStatement.warehouse.code,
+    versionNo: comparativeStatement.versionNo,
+    status: comparativeStatement.status,
+    approvalStage: comparativeStatement.approvalStage,
+    technicalWeight: comparativeStatement.technicalWeight.toString(),
+    financialWeight: comparativeStatement.financialWeight.toString(),
+    generatedAt: comparativeStatement.generatedAt.toISOString(),
+    submittedAt: comparativeStatement.submittedAt?.toISOString() ?? null,
+    managerApprovedAt: comparativeStatement.managerApprovedAt?.toISOString() ?? null,
+    committeeApprovedAt:
+      comparativeStatement.committeeApprovedAt?.toISOString() ?? null,
+    finalApprovedAt: comparativeStatement.finalApprovedAt?.toISOString() ?? null,
+    rejectedAt: comparativeStatement.rejectedAt?.toISOString() ?? null,
+    cancelledAt: comparativeStatement.cancelledAt?.toISOString() ?? null,
+    managerApprovedById: comparativeStatement.managerApprovedById ?? null,
+    committeeApprovedById: comparativeStatement.committeeApprovedById ?? null,
+    finalApprovedById: comparativeStatement.finalApprovedById ?? null,
+    rejectedById: comparativeStatement.rejectedById ?? null,
+    createdById: comparativeStatement.createdById ?? null,
+    updatedById: comparativeStatement.updatedById ?? null,
+    note: comparativeStatement.note ?? null,
+    rejectionNote: comparativeStatement.rejectionNote ?? null,
+    sourceQuotationSnapshot: comparativeStatement.sourceQuotationSnapshot ?? null,
+    lines: comparativeStatement.lines.map((line) => ({
+      id: line.id,
+      supplierId: line.supplierId,
+      supplierCode: line.supplier.code,
+      supplierName: line.supplier.name,
+      supplierQuotationId: line.supplierQuotationId,
+      quotationRevisionNo: line.supplierQuotation.revisionNo,
+      quotationStatus: line.supplierQuotation.status,
+      financialSubtotal: line.financialSubtotal.toString(),
+      financialTaxTotal: line.financialTaxTotal.toString(),
+      financialGrandTotal: line.financialGrandTotal.toString(),
+      currency: line.currency,
+      technicalScore: line.technicalScore.toString(),
+      financialScore: line.financialScore.toString(),
+      combinedScore: line.combinedScore.toString(),
+      rank: line.rank,
+      isResponsive: line.isResponsive,
+      technicalNote: line.technicalNote ?? null,
+      financialNote: line.financialNote ?? null,
+    })),
+    approvalEvents: comparativeStatement.approvalEvents.map((event) => ({
+      id: event.id,
+      stage: event.stage,
+      decision: event.decision,
+      note: event.note ?? null,
+      metadata: event.metadata ?? null,
+      actedAt: event.actedAt.toISOString(),
+      actedById: event.actedById ?? null,
+      actedByName: event.actedBy?.name ?? null,
+    })),
+    notifications: comparativeStatement.notifications.map((notification) => ({
+      id: notification.id,
+      stage: notification.stage,
+      channel: notification.channel,
+      status: notification.status,
+      recipientUserId: notification.recipientUserId ?? null,
+      recipientEmail: notification.recipientEmail ?? null,
+      recipientUserName: notification.recipientUser?.name ?? null,
+      message: notification.message,
+      metadata: notification.metadata ?? null,
+      sentAt: notification.sentAt?.toISOString() ?? null,
+      createdAt: notification.createdAt.toISOString(),
+    })),
   };
 }
 

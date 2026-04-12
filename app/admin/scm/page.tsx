@@ -14,6 +14,7 @@ import {
   PackageCheck,
   PackagePlus,
   Radar,
+  Scale,
   ShieldCheck,
   ShoppingCart,
   UserCheck,
@@ -95,6 +96,14 @@ const cards: ScmCard[] = [
     description: "Invite suppliers, compare quotations, and award procurement opportunities.",
     icon: FileSearch,
     permission: "rfq.read",
+  },
+  {
+    title: "Comparative Statements",
+    href: "/admin/scm/comparative-statements",
+    description:
+      "Auto-generate CS from financial proposals, capture technical scorecards, and run multi-stage approvals.",
+    icon: Scale,
+    permission: "comparative_statements.read",
   },
   {
     title: "Purchase Orders",

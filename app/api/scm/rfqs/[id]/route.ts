@@ -1104,6 +1104,27 @@ export async function PATCH(
           { status: 400 },
         );
       }
+      const finalComparativeStatement = await prisma.comparativeStatement.findFirst({
+        where: {
+          rfqId: rfq.id,
+          status: "FINAL_APPROVED",
+        },
+        orderBy: [{ versionNo: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+          csNumber: true,
+          versionNo: true,
+        },
+      });
+      if (!finalComparativeStatement) {
+        return NextResponse.json(
+          {
+            error:
+              "Final-approved Comparative Statement (CS) is required before RFQ award. Complete 3-stage CS approval workflow first.",
+          },
+          { status: 400 },
+        );
+      }
 
       const quotationId = Number(body.quotationId);
       if (!Number.isInteger(quotationId) || quotationId <= 0) {
@@ -1196,6 +1217,9 @@ export async function PATCH(
           message: `Awarded RFQ ${updated.rfqNumber} to supplier ${quotation.supplier.code}`,
           quotationId: quotation.id,
           supplierId: quotation.supplierId,
+          comparativeStatementId: finalComparativeStatement.id,
+          comparativeStatementNumber: finalComparativeStatement.csNumber,
+          comparativeStatementVersion: finalComparativeStatement.versionNo,
         },
         before,
         after: toRfqLogSnapshot(updated),
