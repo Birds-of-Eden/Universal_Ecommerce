@@ -344,41 +344,41 @@ model ProductBundleItem {
 }
 
 model ProductVariant {
-  id                       Int                               @id @default(autoincrement())
-  productId                Int
-  sku                      String                            @unique
-  price                    Decimal                           @db.Decimal(10, 2)
-  currency                 String                            @default("USD") @db.VarChar(3)
-  stock                    Int                               @default(0)
-  digitalAssetId           Int?
-  options                  Json
-  createdAt                DateTime                          @default(now())
-  updatedAt                DateTime                          @updatedAt
-  isDefault                Boolean                           @default(false)
-  active                   Boolean                           @default(true)
-  lowStockThreshold        Int                               @default(10)
-  costPrice                Decimal?                          @db.Decimal(10, 2)
-  cartItems                CartItem[]
-  dailySnapshots           InventoryDailySnapshot[]
-  inventoryLogs            InventoryLog[]
-  warehouseDailySnapshots  InventoryWarehouseDailySnapshot[]
-  orderItems               OrderItem[]
-  codes                    ProductCode[]
-  digitalAsset             DigitalAsset?                     @relation("VariantDigitalAsset", fields: [digitalAssetId], references: [id])
-  product                  Product                           @relation(fields: [productId], references: [id])
-  purchaseOrderItems       PurchaseOrderItem[]
-  goodsReceiptItems        GoodsReceiptItem[]
-  purchaseRequisitionItems PurchaseRequisitionItem[]
-  supplierInvoiceItems     SupplierInvoiceItem[]
-  supplierReturnItems      SupplierReturnItem[]
-  rfqItems                 RfqItem[]
-  supplierQuotationItems   SupplierQuotationItem[]
-  replenishmentRules       ReplenishmentRule[]
-  warehouseTransferItems   WarehouseTransferItem[]
-  stockLevels              StockLevel[]
-  investorAllocations      InvestorProductAllocation[]
-  investorCapitalTransactions InvestorCapitalTransaction[]
-  investorProfitRunVariants InvestorProfitRunVariant[]
+  id                           Int                               @id @default(autoincrement())
+  productId                    Int
+  sku                          String                            @unique
+  price                        Decimal                           @db.Decimal(10, 2)
+  currency                     String                            @default("USD") @db.VarChar(3)
+  stock                        Int                               @default(0)
+  digitalAssetId               Int?
+  options                      Json
+  createdAt                    DateTime                          @default(now())
+  updatedAt                    DateTime                          @updatedAt
+  isDefault                    Boolean                           @default(false)
+  active                       Boolean                           @default(true)
+  lowStockThreshold            Int                               @default(10)
+  costPrice                    Decimal?                          @db.Decimal(10, 2)
+  cartItems                    CartItem[]
+  dailySnapshots               InventoryDailySnapshot[]
+  inventoryLogs                InventoryLog[]
+  warehouseDailySnapshots      InventoryWarehouseDailySnapshot[]
+  orderItems                   OrderItem[]
+  codes                        ProductCode[]
+  digitalAsset                 DigitalAsset?                     @relation("VariantDigitalAsset", fields: [digitalAssetId], references: [id])
+  product                      Product                           @relation(fields: [productId], references: [id])
+  purchaseOrderItems           PurchaseOrderItem[]
+  goodsReceiptItems            GoodsReceiptItem[]
+  purchaseRequisitionItems     PurchaseRequisitionItem[]
+  supplierInvoiceItems         SupplierInvoiceItem[]
+  supplierReturnItems          SupplierReturnItem[]
+  rfqItems                     RfqItem[]
+  supplierQuotationItems       SupplierQuotationItem[]
+  replenishmentRules           ReplenishmentRule[]
+  warehouseTransferItems       WarehouseTransferItem[]
+  stockLevels                  StockLevel[]
+  investorAllocations          InvestorProductAllocation[]
+  investorCapitalTransactions  InvestorCapitalTransaction[]
+  investorProfitRunVariants    InvestorProfitRunVariant[]
   investorProfitRunAllocations InvestorProfitRunAllocation[]
 }
 
@@ -636,6 +636,7 @@ model Review {
   rating    Int
   comment   String?
   productId Int
+  feature   Boolean? @default(false)
   userId    String
   createdAt DateTime @default(now())
   product   Product  @relation(fields: [productId], references: [id])
@@ -1099,43 +1100,43 @@ model InventoryLog {
 }
 
 model Supplier {
-  id               Int                   @id @default(autoincrement())
-  code             String                @unique
-  name             String
-  companyType      SupplierCompanyType   @default(PROPRIETOR)
-  contactName      String?
-  email            String?
-  phone            String?
-  address          String?
-  city             String?
-  country          String?               @default("BD")
-  leadTimeDays     Int?
-  paymentTermsDays Int?
-  currency         String                @default("BDT") @db.VarChar(3)
-  taxNumber        String?
-  notes            String?
-  isActive         Boolean               @default(true)
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  documents        SupplierDocument[]
-  purchaseOrders   PurchaseOrder[]
-  supplierReturns  SupplierReturn[]
-  invoices         SupplierInvoice[]
-  payments         SupplierPayment[]
-  ledgerEntries    SupplierLedgerEntry[]
-  rfqInvites       RfqSupplierInvite[]
-  quotations       SupplierQuotation[]
+  id                        Int                            @id @default(autoincrement())
+  code                      String                         @unique
+  name                      String
+  companyType               SupplierCompanyType            @default(PROPRIETOR)
+  contactName               String?
+  email                     String?
+  phone                     String?
+  address                   String?
+  city                      String?
+  country                   String?                        @default("BD")
+  leadTimeDays              Int?
+  paymentTermsDays          Int?
+  currency                  String                         @default("BDT") @db.VarChar(3)
+  taxNumber                 String?
+  notes                     String?
+  isActive                  Boolean                        @default(true)
+  createdAt                 DateTime                       @default(now())
+  updatedAt                 DateTime                       @updatedAt
+  documents                 SupplierDocument[]
+  purchaseOrders            PurchaseOrder[]
+  supplierReturns           SupplierReturn[]
+  invoices                  SupplierInvoice[]
+  payments                  SupplierPayment[]
+  ledgerEntries             SupplierLedgerEntry[]
+  rfqInvites                RfqSupplierInvite[]
+  quotations                SupplierQuotation[]
   comparativeStatementLines ComparativeStatementLine[]
-  rfqAwards        RfqAward[]
-  categories       SupplierCategorySupplier[]
-  rfqNotifications RfqNotification[]
-  slaPolicies      SupplierSlaPolicy[]
-  slaBreaches      SupplierSlaBreach[]
-  slaTerminationCases SupplierSlaTerminationCase[]
-  portalAccesses   SupplierPortalAccess[]
-  profileUpdateRequests SupplierProfileUpdateRequest[]
-  feedbacks         SupplierFeedback[]
-  portalNotifications SupplierPortalNotification[]
+  rfqAwards                 RfqAward[]
+  categories                SupplierCategorySupplier[]
+  rfqNotifications          RfqNotification[]
+  slaPolicies               SupplierSlaPolicy[]
+  slaBreaches               SupplierSlaBreach[]
+  slaTerminationCases       SupplierSlaTerminationCase[]
+  portalAccesses            SupplierPortalAccess[]
+  profileUpdateRequests     SupplierProfileUpdateRequest[]
+  feedbacks                 SupplierFeedback[]
+  portalNotifications       SupplierPortalNotification[]
 
   @@index([companyType])
   @@index([name])
@@ -1143,25 +1144,25 @@ model Supplier {
 }
 
 model SupplierDocument {
-  id         Int                  @id @default(autoincrement())
-  supplierId Int
-  type       SupplierDocumentType
-  documentNumber String?
-  fileUrl    String
-  fileName   String?
-  mimeType   String?
-  fileSize   Int?
-  issuedAt   DateTime?
-  expiresAt  DateTime?
+  id                 Int                                @id @default(autoincrement())
+  supplierId         Int
+  type               SupplierDocumentType
+  documentNumber     String?
+  fileUrl            String
+  fileName           String?
+  mimeType           String?
+  fileSize           Int?
+  issuedAt           DateTime?
+  expiresAt          DateTime?
   verificationStatus SupplierDocumentVerificationStatus @default(PENDING)
-  verifiedAt DateTime?
-  verifiedById String?
-  verificationNote String?
-  lastReminderAt DateTime?
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime             @updatedAt
-  supplier   Supplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  verifiedBy User?                @relation("SupplierDocumentsVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedAt         DateTime?
+  verifiedById       String?
+  verificationNote   String?
+  lastReminderAt     DateTime?
+  createdAt          DateTime                           @default(now())
+  updatedAt          DateTime                           @updatedAt
+  supplier           Supplier                           @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  verifiedBy         User?                              @relation("SupplierDocumentsVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
 
   @@unique([supplierId, type])
   @@index([supplierId])
@@ -1172,50 +1173,50 @@ model SupplierDocument {
 }
 
 model PurchaseRequisition {
-  id                Int                       @id @default(autoincrement())
-  requisitionNumber String                    @unique
-  warehouseId       Int
-  status            PurchaseRequisitionStatus @default(DRAFT)
-  title             String?
-  purpose           String?
-  budgetCode        String?
-  boqReference      String?
-  specification     String?
-  planningNote      String?
-  estimatedAmount   Decimal?                  @db.Decimal(14, 2)
-  endorsementRequiredCount Int                @default(1)
-  requestedAt       DateTime                  @default(now())
-  neededBy          DateTime?
-  submittedAt       DateTime?
-  budgetClearedAt   DateTime?
-  endorsedAt        DateTime?
-  approvedAt        DateTime?
-  rejectedAt        DateTime?
-  convertedAt       DateTime?
-  routedToProcurementAt DateTime?
-  createdById       String?
-  budgetClearedById String?
-  endorsedById      String?
-  approvedById      String?
-  convertedById     String?
+  id                           Int                                @id @default(autoincrement())
+  requisitionNumber            String                             @unique
+  warehouseId                  Int
+  status                       PurchaseRequisitionStatus          @default(DRAFT)
+  title                        String?
+  purpose                      String?
+  budgetCode                   String?
+  boqReference                 String?
+  specification                String?
+  planningNote                 String?
+  estimatedAmount              Decimal?                           @db.Decimal(14, 2)
+  endorsementRequiredCount     Int                                @default(1)
+  requestedAt                  DateTime                           @default(now())
+  neededBy                     DateTime?
+  submittedAt                  DateTime?
+  budgetClearedAt              DateTime?
+  endorsedAt                   DateTime?
+  approvedAt                   DateTime?
+  rejectedAt                   DateTime?
+  convertedAt                  DateTime?
+  routedToProcurementAt        DateTime?
+  createdById                  String?
+  budgetClearedById            String?
+  endorsedById                 String?
+  approvedById                 String?
+  convertedById                String?
   assignedProcurementOfficerId String?
-  note              String?
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
-  approvedBy        User?                     @relation("PurchaseRequisitionsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
-  budgetClearedBy   User?                     @relation("PurchaseRequisitionsBudgetCleared", fields: [budgetClearedById], references: [id], onDelete: SetNull)
-  endorsedBy        User?                     @relation("PurchaseRequisitionsEndorsed", fields: [endorsedById], references: [id], onDelete: SetNull)
-  assignedProcurementOfficer User?            @relation("PurchaseRequisitionsAssignedProcurement", fields: [assignedProcurementOfficerId], references: [id], onDelete: SetNull)
-  convertedBy       User?                     @relation("PurchaseRequisitionsConverted", fields: [convertedById], references: [id], onDelete: SetNull)
-  createdBy         User?                     @relation("PurchaseRequisitionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  items             PurchaseRequisitionItem[]
-  attachments       PurchaseRequisitionAttachment[]
-  approvalEvents    PurchaseRequisitionApprovalEvent[]
-  versions          PurchaseRequisitionVersion[]
-  notifications     PurchaseRequisitionNotification[]
-  rfqs              Rfq[]
-  purchaseOrders    PurchaseOrder[]
-  warehouse         Warehouse                 @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  note                         String?
+  createdAt                    DateTime                           @default(now())
+  updatedAt                    DateTime                           @updatedAt
+  approvedBy                   User?                              @relation("PurchaseRequisitionsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  budgetClearedBy              User?                              @relation("PurchaseRequisitionsBudgetCleared", fields: [budgetClearedById], references: [id], onDelete: SetNull)
+  endorsedBy                   User?                              @relation("PurchaseRequisitionsEndorsed", fields: [endorsedById], references: [id], onDelete: SetNull)
+  assignedProcurementOfficer   User?                              @relation("PurchaseRequisitionsAssignedProcurement", fields: [assignedProcurementOfficerId], references: [id], onDelete: SetNull)
+  convertedBy                  User?                              @relation("PurchaseRequisitionsConverted", fields: [convertedById], references: [id], onDelete: SetNull)
+  createdBy                    User?                              @relation("PurchaseRequisitionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  items                        PurchaseRequisitionItem[]
+  attachments                  PurchaseRequisitionAttachment[]
+  approvalEvents               PurchaseRequisitionApprovalEvent[]
+  versions                     PurchaseRequisitionVersion[]
+  notifications                PurchaseRequisitionNotification[]
+  rfqs                         Rfq[]
+  purchaseOrders               PurchaseOrder[]
+  warehouse                    Warehouse                          @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
 
   @@index([warehouseId, status])
   @@index([createdById])
@@ -1260,52 +1261,52 @@ model PurchaseRequisitionAttachment {
 }
 
 model PurchaseRequisitionApprovalEvent {
-  id                    Int                           @id @default(autoincrement())
+  id                    Int                                 @id @default(autoincrement())
   purchaseRequisitionId Int
   stage                 PurchaseRequisitionApprovalStage
   decision              PurchaseRequisitionApprovalDecision
   note                  String?
   actedById             String?
-  actedAt               DateTime                      @default(now())
-  purchaseRequisition   PurchaseRequisition           @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
-  actedBy               User?                         @relation("PurchaseRequisitionApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+  actedAt               DateTime                            @default(now())
+  purchaseRequisition   PurchaseRequisition                 @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
+  actedBy               User?                               @relation("PurchaseRequisitionApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
 
+  @@unique([purchaseRequisitionId, stage, actedById])
   @@index([purchaseRequisitionId, stage])
   @@index([actedById])
-  @@unique([purchaseRequisitionId, stage, actedById])
 }
 
 model PurchaseRequisitionVersion {
-  id                    Int                 @id @default(autoincrement())
+  id                    Int                              @id @default(autoincrement())
   purchaseRequisitionId Int
   versionNo             Int
   stage                 PurchaseRequisitionApprovalStage
   action                String
   snapshot              Json
   createdById           String?
-  createdAt             DateTime            @default(now())
-  purchaseRequisition   PurchaseRequisition @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
-  createdBy             User?               @relation("PurchaseRequisitionVersionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt             DateTime                         @default(now())
+  purchaseRequisition   PurchaseRequisition              @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
+  createdBy             User?                            @relation("PurchaseRequisitionVersionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
 
+  @@unique([purchaseRequisitionId, versionNo])
   @@index([purchaseRequisitionId, createdAt])
   @@index([createdById])
-  @@unique([purchaseRequisitionId, versionNo])
 }
 
 model PurchaseRequisitionNotification {
-  id                    Int                           @id @default(autoincrement())
+  id                    Int                              @id @default(autoincrement())
   purchaseRequisitionId Int
   stage                 PurchaseRequisitionApprovalStage
   channel               WorkflowNotificationChannel
-  status                WorkflowNotificationStatus    @default(PENDING)
+  status                WorkflowNotificationStatus       @default(PENDING)
   recipientUserId       String?
   recipientEmail        String?
   message               String
   sentAt                DateTime?
-  createdAt             DateTime                      @default(now())
+  createdAt             DateTime                         @default(now())
   metadata              Json?
-  purchaseRequisition   PurchaseRequisition           @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
-  recipientUser         User?                         @relation("PurchaseRequisitionNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  purchaseRequisition   PurchaseRequisition              @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
+  recipientUser         User?                            @relation("PurchaseRequisitionNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
 
   @@index([purchaseRequisitionId, stage, createdAt])
   @@index([recipientUserId])
@@ -1313,20 +1314,20 @@ model PurchaseRequisitionNotification {
 }
 
 model SupplierPortalAccess {
-  id          String                     @id @default(cuid())
-  userId      String                     @unique
-  supplierId  Int
-  status      SupplierPortalAccessStatus @default(ACTIVE)
-  twoFactorRequired Boolean              @default(false)
-  twoFactorMethod String?
+  id                      String                     @id @default(cuid())
+  userId                  String                     @unique
+  supplierId              Int
+  status                  SupplierPortalAccessStatus @default(ACTIVE)
+  twoFactorRequired       Boolean                    @default(false)
+  twoFactorMethod         String?
   twoFactorLastVerifiedAt DateTime?
-  note        String?
-  createdAt   DateTime                   @default(now())
-  updatedAt   DateTime                   @updatedAt
-  createdById String?
-  createdBy   User?                      @relation("SupplierPortalAccessCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  supplier    Supplier                   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  user        User                       @relation("SupplierPortalAccessUser", fields: [userId], references: [id], onDelete: Cascade)
+  note                    String?
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  createdById             String?
+  createdBy               User?                      @relation("SupplierPortalAccessCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  supplier                Supplier                   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  user                    User                       @relation("SupplierPortalAccessUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([supplierId, status])
   @@index([createdById])
@@ -1379,11 +1380,11 @@ model SupplierFeedback {
 }
 
 model SupplierPortalNotification {
-  id             Int                          @id @default(autoincrement())
+  id             Int                            @id @default(autoincrement())
   supplierId     Int
   userId         String?
   channel        WorkflowNotificationChannel
-  status         WorkflowNotificationStatus   @default(PENDING)
+  status         WorkflowNotificationStatus     @default(PENDING)
   type           SupplierPortalNotificationType @default(GENERAL)
   title          String
   message        String
@@ -1392,10 +1393,10 @@ model SupplierPortalNotification {
   sentAt         DateTime?
   readAt         DateTime?
   createdById    String?
-  createdAt      DateTime                     @default(now())
-  createdBy      User?                        @relation("SupplierPortalNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  supplier       Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  user           User?                        @relation("SupplierPortalNotificationsUser", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime                       @default(now())
+  createdBy      User?                          @relation("SupplierPortalNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  supplier       Supplier                       @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  user           User?                          @relation("SupplierPortalNotificationsUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([supplierId, createdAt])
   @@index([userId, createdAt])
@@ -1422,26 +1423,26 @@ model InvestorPortalAccess {
 }
 
 model Investor {
-  id           Int               @id @default(autoincrement())
-  code         String            @unique
-  name         String
-  legalName    String?
-  email        String?
-  phone        String?
-  status       InvestorStatus    @default(ACTIVE)
-  kycStatus    InvestorKycStatus @default(PENDING)
-  kycVerifiedAt DateTime?
-  kycReference String?
-  notes        String?
-  createdById  String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  createdBy    User?             @relation("InvestorsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  transactions InvestorCapitalTransaction[]
-  allocations  InvestorProductAllocation[]
+  id                   Int                           @id @default(autoincrement())
+  code                 String                        @unique
+  name                 String
+  legalName            String?
+  email                String?
+  phone                String?
+  status               InvestorStatus                @default(ACTIVE)
+  kycStatus            InvestorKycStatus             @default(PENDING)
+  kycVerifiedAt        DateTime?
+  kycReference         String?
+  notes                String?
+  createdById          String?
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
+  createdBy            User?                         @relation("InvestorsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  transactions         InvestorCapitalTransaction[]
+  allocations          InvestorProductAllocation[]
   profitRunAllocations InvestorProfitRunAllocation[]
-  payouts      InvestorProfitPayout[]
-  portalAccesses InvestorPortalAccess[]
+  payouts              InvestorProfitPayout[]
+  portalAccesses       InvestorPortalAccess[]
 
   @@index([name])
   @@index([status])
@@ -1450,25 +1451,25 @@ model Investor {
 }
 
 model InvestorCapitalTransaction {
-  id               Int                    @id @default(autoincrement())
-  transactionNumber String                @unique
-  investorId       Int
-  transactionDate  DateTime               @default(now())
-  type             InvestorTransactionType
-  direction        InvestorLedgerDirection
-  amount           Decimal                @db.Decimal(14, 2)
-  currency         String                 @default("BDT") @db.VarChar(3)
-  note             String?
-  referenceType    String?
-  referenceNumber  String?
-  productVariantId Int?
-  createdById      String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  createdBy        User?                  @relation("InvestorCapitalTransactionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  investor         Investor               @relation(fields: [investorId], references: [id], onDelete: Cascade)
-  productVariant   ProductVariant?        @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
-  payout           InvestorProfitPayout?
+  id                Int                     @id @default(autoincrement())
+  transactionNumber String                  @unique
+  investorId        Int
+  transactionDate   DateTime                @default(now())
+  type              InvestorTransactionType
+  direction         InvestorLedgerDirection
+  amount            Decimal                 @db.Decimal(14, 2)
+  currency          String                  @default("BDT") @db.VarChar(3)
+  note              String?
+  referenceType     String?
+  referenceNumber   String?
+  productVariantId  Int?
+  createdById       String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  createdBy         User?                   @relation("InvestorCapitalTransactionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  investor          Investor                @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant?         @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  payout            InvestorProfitPayout?
 
   @@index([investorId, transactionDate])
   @@index([type])
@@ -1478,21 +1479,21 @@ model InvestorCapitalTransaction {
 }
 
 model InvestorProductAllocation {
-  id                   Int       @id @default(autoincrement())
+  id                   Int                           @id @default(autoincrement())
   investorId           Int
   productVariantId     Int
-  effectiveFrom        DateTime  @default(now())
+  effectiveFrom        DateTime                      @default(now())
   effectiveTo          DateTime?
-  participationPercent Decimal?  @db.Decimal(5, 2)
-  committedAmount      Decimal?  @db.Decimal(14, 2)
-  status               String    @default("ACTIVE")
+  participationPercent Decimal?                      @db.Decimal(5, 2)
+  committedAmount      Decimal?                      @db.Decimal(14, 2)
+  status               String                        @default("ACTIVE")
   note                 String?
   createdById          String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  createdBy            User?     @relation("InvestorProductAllocationsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  investor             Investor  @relation(fields: [investorId], references: [id], onDelete: Cascade)
-  productVariant       ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  createdAt            DateTime                      @default(now())
+  updatedAt            DateTime                      @updatedAt
+  createdBy            User?                         @relation("InvestorProductAllocationsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  investor             Investor                      @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  productVariant       ProductVariant                @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
   profitRunAllocations InvestorProfitRunAllocation[] @relation("InvestorProfitRunAllocationSource")
 
   @@index([investorId, status])
@@ -1501,20 +1502,20 @@ model InvestorProductAllocation {
 }
 
 model InvestorProfitRun {
-  id                    Int                                 @id @default(autoincrement())
-  runNumber             String                              @unique
+  id                    Int                                  @id @default(autoincrement())
+  runNumber             String                               @unique
   fromDate              DateTime
   toDate                DateTime
-  status                InvestorProfitRunStatus             @default(PENDING_APPROVAL)
+  status                InvestorProfitRunStatus              @default(PENDING_APPROVAL)
   allocationBasis       InvestorProfitExpenseAllocationBasis
-  marketingExpense      Decimal                             @default(0) @db.Decimal(14, 2)
-  adsExpense            Decimal                             @default(0) @db.Decimal(14, 2)
-  logisticsExpense      Decimal                             @default(0) @db.Decimal(14, 2)
-  otherExpense          Decimal                             @default(0) @db.Decimal(14, 2)
-  totalOperatingExpense Decimal                             @default(0) @db.Decimal(14, 2)
-  totalNetRevenue       Decimal                             @default(0) @db.Decimal(14, 2)
-  totalNetCogs          Decimal                             @default(0) @db.Decimal(14, 2)
-  totalNetProfit        Decimal                             @default(0) @db.Decimal(14, 2)
+  marketingExpense      Decimal                              @default(0) @db.Decimal(14, 2)
+  adsExpense            Decimal                              @default(0) @db.Decimal(14, 2)
+  logisticsExpense      Decimal                              @default(0) @db.Decimal(14, 2)
+  otherExpense          Decimal                              @default(0) @db.Decimal(14, 2)
+  totalOperatingExpense Decimal                              @default(0) @db.Decimal(14, 2)
+  totalNetRevenue       Decimal                              @default(0) @db.Decimal(14, 2)
+  totalNetCogs          Decimal                              @default(0) @db.Decimal(14, 2)
+  totalNetProfit        Decimal                              @default(0) @db.Decimal(14, 2)
   note                  String?
   createdById           String?
   approvedById          String?
@@ -1522,11 +1523,11 @@ model InvestorProfitRun {
   postedById            String?
   postedAt              DateTime?
   postingNote           String?
-  createdAt             DateTime                            @default(now())
-  updatedAt             DateTime                            @updatedAt
-  createdBy             User?                               @relation("InvestorProfitRunsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  approvedBy            User?                               @relation("InvestorProfitRunsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
-  postedBy              User?                               @relation("InvestorProfitRunsPosted", fields: [postedById], references: [id], onDelete: SetNull)
+  createdAt             DateTime                             @default(now())
+  updatedAt             DateTime                             @updatedAt
+  createdBy             User?                                @relation("InvestorProfitRunsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy            User?                                @relation("InvestorProfitRunsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  postedBy              User?                                @relation("InvestorProfitRunsPosted", fields: [postedById], references: [id], onDelete: SetNull)
   variantLines          InvestorProfitRunVariant[]
   allocationLines       InvestorProfitRunAllocation[]
   payouts               InvestorProfitPayout[]
@@ -1540,26 +1541,26 @@ model InvestorProfitRun {
 }
 
 model InvestorProfitRunVariant {
-  id                    Int              @id @default(autoincrement())
-  runId                 Int
-  productVariantId      Int
-  unitsSold             Int              @default(0)
-  unitsRefunded         Int              @default(0)
-  unitsNet              Int              @default(0)
-  grossRevenue          Decimal          @default(0) @db.Decimal(14, 2)
-  refundAmount          Decimal          @default(0) @db.Decimal(14, 2)
-  netRevenue            Decimal          @default(0) @db.Decimal(14, 2)
-  grossCogs             Decimal          @default(0) @db.Decimal(14, 2)
-  refundCogs            Decimal          @default(0) @db.Decimal(14, 2)
-  netCogs               Decimal          @default(0) @db.Decimal(14, 2)
-  allocatedExpense      Decimal          @default(0) @db.Decimal(14, 2)
-  netProfit             Decimal          @default(0) @db.Decimal(14, 2)
-  unallocatedSharePct   Decimal          @default(0) @db.Decimal(7, 4)
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  productVariant        ProductVariant   @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  run                   InvestorProfitRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  allocationLines       InvestorProfitRunAllocation[]
+  id                  Int                           @id @default(autoincrement())
+  runId               Int
+  productVariantId    Int
+  unitsSold           Int                           @default(0)
+  unitsRefunded       Int                           @default(0)
+  unitsNet            Int                           @default(0)
+  grossRevenue        Decimal                       @default(0) @db.Decimal(14, 2)
+  refundAmount        Decimal                       @default(0) @db.Decimal(14, 2)
+  netRevenue          Decimal                       @default(0) @db.Decimal(14, 2)
+  grossCogs           Decimal                       @default(0) @db.Decimal(14, 2)
+  refundCogs          Decimal                       @default(0) @db.Decimal(14, 2)
+  netCogs             Decimal                       @default(0) @db.Decimal(14, 2)
+  allocatedExpense    Decimal                       @default(0) @db.Decimal(14, 2)
+  netProfit           Decimal                       @default(0) @db.Decimal(14, 2)
+  unallocatedSharePct Decimal                       @default(0) @db.Decimal(7, 4)
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+  productVariant      ProductVariant                @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  run                 InvestorProfitRun             @relation(fields: [runId], references: [id], onDelete: Cascade)
+  allocationLines     InvestorProfitRunAllocation[]
 
   @@unique([runId, productVariantId])
   @@index([runId, netProfit])
@@ -1567,22 +1568,22 @@ model InvestorProfitRunVariant {
 }
 
 model InvestorProfitRunAllocation {
-  id                   Int                   @id @default(autoincrement())
-  runId                Int
-  variantLineId        Int
-  investorId           Int
-  productVariantId     Int
-  sourceAllocationId   Int?
-  participationSharePct Decimal              @default(0) @db.Decimal(7, 4)
-  allocatedRevenue     Decimal               @default(0) @db.Decimal(14, 2)
-  allocatedNetProfit   Decimal               @default(0) @db.Decimal(14, 2)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  investor             Investor              @relation(fields: [investorId], references: [id], onDelete: Restrict)
-  productVariant       ProductVariant        @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  run                  InvestorProfitRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
-  sourceAllocation     InvestorProductAllocation? @relation("InvestorProfitRunAllocationSource", fields: [sourceAllocationId], references: [id], onDelete: SetNull)
-  variantLine          InvestorProfitRunVariant @relation(fields: [variantLineId], references: [id], onDelete: Cascade)
+  id                    Int                        @id @default(autoincrement())
+  runId                 Int
+  variantLineId         Int
+  investorId            Int
+  productVariantId      Int
+  sourceAllocationId    Int?
+  participationSharePct Decimal                    @default(0) @db.Decimal(7, 4)
+  allocatedRevenue      Decimal                    @default(0) @db.Decimal(14, 2)
+  allocatedNetProfit    Decimal                    @default(0) @db.Decimal(14, 2)
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  investor              Investor                   @relation(fields: [investorId], references: [id], onDelete: Restrict)
+  productVariant        ProductVariant             @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  run                   InvestorProfitRun          @relation(fields: [runId], references: [id], onDelete: Cascade)
+  sourceAllocation      InvestorProductAllocation? @relation("InvestorProfitRunAllocationSource", fields: [sourceAllocationId], references: [id], onDelete: SetNull)
+  variantLine           InvestorProfitRunVariant   @relation(fields: [variantLineId], references: [id], onDelete: Cascade)
 
   @@index([runId, investorId])
   @@index([runId, productVariantId])
@@ -1590,44 +1591,44 @@ model InvestorProfitRunAllocation {
 }
 
 model InvestorProfitPayout {
-  id                    Int                      @id @default(autoincrement())
-  payoutNumber           String                   @unique
-  runId                  Int
-  investorId             Int
-  transactionId          Int?                     @unique
-  currency               String                   @default("BDT") @db.VarChar(3)
-  payoutPercent          Decimal                  @default(100) @db.Decimal(5, 2)
-  holdbackPercent        Decimal                  @default(0) @db.Decimal(5, 2)
-  grossProfitAmount      Decimal                  @default(0) @db.Decimal(14, 2)
-  holdbackAmount         Decimal                  @default(0) @db.Decimal(14, 2)
-  payoutAmount           Decimal                  @default(0) @db.Decimal(14, 2)
-  status                 InvestorProfitPayoutStatus @default(PENDING_APPROVAL)
-  approvalNote           String?
-  approvedById           String?
-  approvedAt             DateTime?
-  rejectedById           String?
-  rejectedAt             DateTime?
-  rejectionReason        String?
-  paymentMethod          InvestorPayoutPaymentMethod?
-  bankReference          String?
-  paidById               String?
-  note                   String?
-  paidAt                 DateTime?
-  voidedById             String?
-  voidedAt               DateTime?
-  voidReason             String?
-  voidReversalReference  String?
-  createdById            String?
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  createdBy              User?                    @relation("InvestorProfitPayoutsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  approvedBy             User?                    @relation("InvestorProfitPayoutsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
-  rejectedBy             User?                    @relation("InvestorProfitPayoutsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
-  paidBy                 User?                    @relation("InvestorProfitPayoutsPaid", fields: [paidById], references: [id], onDelete: SetNull)
-  voidedBy               User?                    @relation("InvestorProfitPayoutsVoided", fields: [voidedById], references: [id], onDelete: SetNull)
-  investor               Investor                 @relation(fields: [investorId], references: [id], onDelete: Restrict)
-  run                    InvestorProfitRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
-  transaction            InvestorCapitalTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  id                    Int                          @id @default(autoincrement())
+  payoutNumber          String                       @unique
+  runId                 Int
+  investorId            Int
+  transactionId         Int?                         @unique
+  currency              String                       @default("BDT") @db.VarChar(3)
+  payoutPercent         Decimal                      @default(100) @db.Decimal(5, 2)
+  holdbackPercent       Decimal                      @default(0) @db.Decimal(5, 2)
+  grossProfitAmount     Decimal                      @default(0) @db.Decimal(14, 2)
+  holdbackAmount        Decimal                      @default(0) @db.Decimal(14, 2)
+  payoutAmount          Decimal                      @default(0) @db.Decimal(14, 2)
+  status                InvestorProfitPayoutStatus   @default(PENDING_APPROVAL)
+  approvalNote          String?
+  approvedById          String?
+  approvedAt            DateTime?
+  rejectedById          String?
+  rejectedAt            DateTime?
+  rejectionReason       String?
+  paymentMethod         InvestorPayoutPaymentMethod?
+  bankReference         String?
+  paidById              String?
+  note                  String?
+  paidAt                DateTime?
+  voidedById            String?
+  voidedAt              DateTime?
+  voidReason            String?
+  voidReversalReference String?
+  createdById           String?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  createdBy             User?                        @relation("InvestorProfitPayoutsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy            User?                        @relation("InvestorProfitPayoutsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  rejectedBy            User?                        @relation("InvestorProfitPayoutsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
+  paidBy                User?                        @relation("InvestorProfitPayoutsPaid", fields: [paidById], references: [id], onDelete: SetNull)
+  voidedBy              User?                        @relation("InvestorProfitPayoutsVoided", fields: [voidedById], references: [id], onDelete: SetNull)
+  investor              Investor                     @relation(fields: [investorId], references: [id], onDelete: Restrict)
+  run                   InvestorProfitRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
+  transaction           InvestorCapitalTransaction?  @relation(fields: [transactionId], references: [id], onDelete: SetNull)
 
   @@index([runId, investorId])
   @@index([status, paidAt])
@@ -1639,45 +1640,45 @@ model InvestorProfitPayout {
 }
 
 model Rfq {
-  id                    Int       @id @default(autoincrement())
-  rfqNumber             String    @unique
-  warehouseId           Int
-  purchaseRequisitionId Int?
-  status                RfqStatus @default(DRAFT)
-  requestedAt           DateTime  @default(now())
-  submissionDeadline    DateTime?
-  submittedAt           DateTime?
-  closedAt              DateTime?
-  awardedAt             DateTime?
-  cancelledAt           DateTime?
-  scopeOfWork           String?
-  termsAndConditions    String?
-  boqDetails            String?
-  technicalSpecifications String?
-  evaluationCriteria    String?
-  resubmissionAllowed   Boolean   @default(true)
-  resubmissionRound     Int       @default(0)
+  id                          Int                    @id @default(autoincrement())
+  rfqNumber                   String                 @unique
+  warehouseId                 Int
+  purchaseRequisitionId       Int?
+  status                      RfqStatus              @default(DRAFT)
+  requestedAt                 DateTime               @default(now())
+  submissionDeadline          DateTime?
+  submittedAt                 DateTime?
+  closedAt                    DateTime?
+  awardedAt                   DateTime?
+  cancelledAt                 DateTime?
+  scopeOfWork                 String?
+  termsAndConditions          String?
+  boqDetails                  String?
+  technicalSpecifications     String?
+  evaluationCriteria          String?
+  resubmissionAllowed         Boolean                @default(true)
+  resubmissionRound           Int                    @default(0)
   lastResubmissionRequestedAt DateTime?
-  lastResubmissionReason String?
-  createdById           String?
-  approvedById          String?
-  currency              String    @default("BDT") @db.VarChar(3)
-  note                  String?
-  sourceRequisitionSnapshot Json?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  approvedBy            User?                @relation("RfqsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
-  createdBy             User?                @relation("RfqsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  purchaseRequisition   PurchaseRequisition? @relation(fields: [purchaseRequisitionId], references: [id], onDelete: SetNull)
-  warehouse             Warehouse            @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  items                 RfqItem[]
-  attachments           RfqAttachment[]
-  categoryTargets       RfqCategoryTarget[]
-  notifications         RfqNotification[]
-  supplierInvites       RfqSupplierInvite[]
-  quotations            SupplierQuotation[]
-  award                 RfqAward?
-  comparativeStatements ComparativeStatement[]
+  lastResubmissionReason      String?
+  createdById                 String?
+  approvedById                String?
+  currency                    String                 @default("BDT") @db.VarChar(3)
+  note                        String?
+  sourceRequisitionSnapshot   Json?
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @updatedAt
+  approvedBy                  User?                  @relation("RfqsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  createdBy                   User?                  @relation("RfqsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  purchaseRequisition         PurchaseRequisition?   @relation(fields: [purchaseRequisitionId], references: [id], onDelete: SetNull)
+  warehouse                   Warehouse              @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  items                       RfqItem[]
+  attachments                 RfqAttachment[]
+  categoryTargets             RfqCategoryTarget[]
+  notifications               RfqNotification[]
+  supplierInvites             RfqSupplierInvite[]
+  quotations                  SupplierQuotation[]
+  award                       RfqAward?
+  comparativeStatements       ComparativeStatement[]
 
   @@index([warehouseId, status])
   @@index([purchaseRequisitionId])
@@ -1689,16 +1690,16 @@ model Rfq {
 }
 
 model RfqItem {
-  id                Int            @id @default(autoincrement())
+  id                Int                     @id @default(autoincrement())
   rfqId             Int
   productVariantId  Int
   description       String?
   quantityRequested Int
-  targetUnitCost    Decimal?       @db.Decimal(12, 2)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  productVariant    ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
-  rfq               Rfq            @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  targetUnitCost    Decimal?                @db.Decimal(12, 2)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  productVariant    ProductVariant          @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  rfq               Rfq                     @relation(fields: [rfqId], references: [id], onDelete: Cascade)
   quotationItems    SupplierQuotationItem[]
 
   @@unique([rfqId, productVariantId])
@@ -1707,24 +1708,24 @@ model RfqItem {
 }
 
 model RfqSupplierInvite {
-  id          Int                 @id @default(autoincrement())
-  rfqId       Int
-  supplierId  Int
-  status      RfqInvitationStatus @default(INVITED)
-  invitedAt   DateTime            @default(now())
-  respondedAt DateTime?
-  lastNotifiedAt DateTime?
+  id                      Int                 @id @default(autoincrement())
+  rfqId                   Int
+  supplierId              Int
+  status                  RfqInvitationStatus @default(INVITED)
+  invitedAt               DateTime            @default(now())
+  respondedAt             DateTime?
+  lastNotifiedAt          DateTime?
   resubmissionRequestedAt DateTime?
-  resubmissionReason String?
-  note        String?
-  createdById String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  createdBy   User?               @relation("RfqSupplierInvitesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  rfq         Rfq                 @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  supplier    Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  quotation   SupplierQuotation?
-  notifications RfqNotification[]
+  resubmissionReason      String?
+  note                    String?
+  createdById             String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  createdBy               User?               @relation("RfqSupplierInvitesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  rfq                     Rfq                 @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplier                Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  quotation               SupplierQuotation?
+  notifications           RfqNotification[]
 
   @@unique([rfqId, supplierId])
   @@index([rfqId, status])
@@ -1733,34 +1734,34 @@ model RfqSupplierInvite {
 }
 
 model SupplierQuotation {
-  id                  Int             @id @default(autoincrement())
-  rfqId               Int
-  supplierId          Int
-  rfqSupplierInviteId Int?            @unique
-  status              QuotationStatus @default(SUBMITTED)
-  revisionNo          Int             @default(1)
-  resubmissionRound   Int             @default(0)
-  resubmissionNote    String?
-  quotedAt            DateTime        @default(now())
-  validUntil          DateTime?
-  submittedById       String?
-  currency            String          @default("BDT") @db.VarChar(3)
-  subtotal            Decimal         @default(0) @db.Decimal(12, 2)
-  taxTotal            Decimal         @default(0) @db.Decimal(12, 2)
-  total               Decimal         @default(0) @db.Decimal(12, 2)
-  note                String?
-  technicalProposal   String?
-  financialProposal   String?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  invite              RfqSupplierInvite? @relation(fields: [rfqSupplierInviteId], references: [id], onDelete: SetNull)
-  rfq                 Rfq             @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  submittedBy         User?           @relation("SupplierQuotationsSubmitted", fields: [submittedById], references: [id], onDelete: SetNull)
-  supplier            Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  items               SupplierQuotationItem[]
-  attachments         SupplierQuotationAttachment[]
+  id                        Int                           @id @default(autoincrement())
+  rfqId                     Int
+  supplierId                Int
+  rfqSupplierInviteId       Int?                          @unique
+  status                    QuotationStatus               @default(SUBMITTED)
+  revisionNo                Int                           @default(1)
+  resubmissionRound         Int                           @default(0)
+  resubmissionNote          String?
+  quotedAt                  DateTime                      @default(now())
+  validUntil                DateTime?
+  submittedById             String?
+  currency                  String                        @default("BDT") @db.VarChar(3)
+  subtotal                  Decimal                       @default(0) @db.Decimal(12, 2)
+  taxTotal                  Decimal                       @default(0) @db.Decimal(12, 2)
+  total                     Decimal                       @default(0) @db.Decimal(12, 2)
+  note                      String?
+  technicalProposal         String?
+  financialProposal         String?
+  createdAt                 DateTime                      @default(now())
+  updatedAt                 DateTime                      @updatedAt
+  invite                    RfqSupplierInvite?            @relation(fields: [rfqSupplierInviteId], references: [id], onDelete: SetNull)
+  rfq                       Rfq                           @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  submittedBy               User?                         @relation("SupplierQuotationsSubmitted", fields: [submittedById], references: [id], onDelete: SetNull)
+  supplier                  Supplier                      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items                     SupplierQuotationItem[]
+  attachments               SupplierQuotationAttachment[]
   comparativeStatementLines ComparativeStatementLine[]
-  award               RfqAward?
+  award                     RfqAward?
 
   @@unique([rfqId, supplierId])
   @@index([rfqId, status])
@@ -1791,7 +1792,7 @@ model SupplierQuotationItem {
 }
 
 model SupplierQuotationAttachment {
-  id                  Int                           @id @default(autoincrement())
+  id                  Int                            @id @default(autoincrement())
   supplierQuotationId Int
   proposalType        SupplierProposalAttachmentType @default(SUPPORTING)
   label               String?
@@ -1800,9 +1801,9 @@ model SupplierQuotationAttachment {
   mimeType            String?
   fileSize            Int?
   uploadedById        String?
-  createdAt           DateTime                      @default(now())
-  supplierQuotation   SupplierQuotation             @relation(fields: [supplierQuotationId], references: [id], onDelete: Cascade)
-  uploadedBy          User?                         @relation("SupplierQuotationAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt           DateTime                       @default(now())
+  supplierQuotation   SupplierQuotation              @relation(fields: [supplierQuotationId], references: [id], onDelete: Cascade)
+  uploadedBy          User?                          @relation("SupplierQuotationAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([supplierQuotationId])
   @@index([proposalType])
@@ -1810,22 +1811,22 @@ model SupplierQuotationAttachment {
 }
 
 model RfqAward {
-  id                 Int            @id @default(autoincrement())
-  rfqId              Int            @unique
-  supplierId         Int
-  supplierQuotationId Int           @unique
-  status             RfqAwardStatus @default(AWARDED)
-  awardedAt          DateTime       @default(now())
-  awardedById        String?
-  purchaseOrderId    Int?           @unique
-  note               String?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  awardedBy          User?             @relation("RfqAwardsGranted", fields: [awardedById], references: [id], onDelete: SetNull)
-  purchaseOrder      PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
-  rfq                Rfq               @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  supplier           Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  supplierQuotation  SupplierQuotation @relation(fields: [supplierQuotationId], references: [id], onDelete: Restrict)
+  id                  Int               @id @default(autoincrement())
+  rfqId               Int               @unique
+  supplierId          Int
+  supplierQuotationId Int               @unique
+  status              RfqAwardStatus    @default(AWARDED)
+  awardedAt           DateTime          @default(now())
+  awardedById         String?
+  purchaseOrderId     Int?              @unique
+  note                String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  awardedBy           User?             @relation("RfqAwardsGranted", fields: [awardedById], references: [id], onDelete: SetNull)
+  purchaseOrder       PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  rfq                 Rfq               @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplier            Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierQuotation   SupplierQuotation @relation(fields: [supplierQuotationId], references: [id], onDelete: Restrict)
 
   @@index([supplierId, status])
   @@index([awardedById])
@@ -1833,15 +1834,15 @@ model RfqAward {
 }
 
 model SupplierCategory {
-  id          Int       @id @default(autoincrement())
-  code        String    @unique
+  id          Int                        @id @default(autoincrement())
+  code        String                     @unique
   name        String
   description String?
-  isActive    Boolean   @default(true)
+  isActive    Boolean                    @default(true)
   createdById String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  createdBy   User?     @relation("SupplierCategoriesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  createdBy   User?                      @relation("SupplierCategoriesCreated", fields: [createdById], references: [id], onDelete: SetNull)
   suppliers   SupplierCategorySupplier[]
   rfqTargets  RfqCategoryTarget[]
 
@@ -1922,16 +1923,16 @@ model RfqNotification {
 }
 
 model ComparativeStatement {
-  id                      Int                               @id @default(autoincrement())
-  csNumber                String                            @unique
+  id                      Int                                 @id @default(autoincrement())
+  csNumber                String                              @unique
   rfqId                   Int
   warehouseId             Int
-  versionNo               Int                               @default(1)
-  status                  ComparativeStatementStatus        @default(DRAFT)
-  approvalStage           ComparativeStatementApprovalStage @default(DRAFT)
-  technicalWeight         Decimal                           @default(70) @db.Decimal(5, 2)
-  financialWeight         Decimal                           @default(30) @db.Decimal(5, 2)
-  generatedAt             DateTime                          @default(now())
+  versionNo               Int                                 @default(1)
+  status                  ComparativeStatementStatus          @default(DRAFT)
+  approvalStage           ComparativeStatementApprovalStage   @default(DRAFT)
+  technicalWeight         Decimal                             @default(70) @db.Decimal(5, 2)
+  financialWeight         Decimal                             @default(30) @db.Decimal(5, 2)
+  generatedAt             DateTime                            @default(now())
   submittedAt             DateTime?
   managerApprovedAt       DateTime?
   committeeApprovedAt     DateTime?
@@ -1947,16 +1948,16 @@ model ComparativeStatement {
   note                    String?
   rejectionNote           String?
   sourceQuotationSnapshot Json?
-  createdAt               DateTime                          @default(now())
-  updatedAt               DateTime                          @updatedAt
-  rfq                     Rfq                               @relation(fields: [rfqId], references: [id], onDelete: Cascade)
-  warehouse               Warehouse                         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  createdBy               User?                             @relation("ComparativeStatementsCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy               User?                             @relation("ComparativeStatementsUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
-  managerApprovedBy       User?                             @relation("ComparativeStatementsManagerApproved", fields: [managerApprovedById], references: [id], onDelete: SetNull)
-  committeeApprovedBy     User?                             @relation("ComparativeStatementsCommitteeApproved", fields: [committeeApprovedById], references: [id], onDelete: SetNull)
-  finalApprovedBy         User?                             @relation("ComparativeStatementsFinalApproved", fields: [finalApprovedById], references: [id], onDelete: SetNull)
-  rejectedBy              User?                             @relation("ComparativeStatementsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
+  createdAt               DateTime                            @default(now())
+  updatedAt               DateTime                            @updatedAt
+  rfq                     Rfq                                 @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  warehouse               Warehouse                           @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy               User?                               @relation("ComparativeStatementsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy               User?                               @relation("ComparativeStatementsUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  managerApprovedBy       User?                               @relation("ComparativeStatementsManagerApproved", fields: [managerApprovedById], references: [id], onDelete: SetNull)
+  committeeApprovedBy     User?                               @relation("ComparativeStatementsCommitteeApproved", fields: [committeeApprovedById], references: [id], onDelete: SetNull)
+  finalApprovedBy         User?                               @relation("ComparativeStatementsFinalApproved", fields: [finalApprovedById], references: [id], onDelete: SetNull)
+  rejectedBy              User?                               @relation("ComparativeStatementsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
   lines                   ComparativeStatementLine[]
   approvalEvents          ComparativeStatementApprovalEvent[]
   notifications           ComparativeStatementNotification[]
@@ -1999,16 +2000,16 @@ model ComparativeStatementLine {
 }
 
 model ComparativeStatementApprovalEvent {
-  id                     Int                                @id @default(autoincrement())
+  id                     Int                                  @id @default(autoincrement())
   comparativeStatementId Int
   stage                  ComparativeStatementApprovalStage
   decision               ComparativeStatementApprovalDecision
   note                   String?
   metadata               Json?
   actedById              String?
-  actedAt                DateTime                           @default(now())
-  comparativeStatement   ComparativeStatement               @relation(fields: [comparativeStatementId], references: [id], onDelete: Cascade)
-  actedBy                User?                              @relation("ComparativeStatementApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+  actedAt                DateTime                             @default(now())
+  comparativeStatement   ComparativeStatement                 @relation(fields: [comparativeStatementId], references: [id], onDelete: Cascade)
+  actedBy                User?                                @relation("ComparativeStatementApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
 
   @@index([comparativeStatementId, stage])
   @@index([actedById])
@@ -2035,8 +2036,8 @@ model ComparativeStatementNotification {
 }
 
 model PurchaseOrder {
-  id                    Int                   @id @default(autoincrement())
-  poNumber              String                @unique
+  id                    Int                       @id @default(autoincrement())
+  poNumber              String                    @unique
   supplierId            Int
   purchaseRequisitionId Int?
   sourceComparativeStatementId Int?           @unique
@@ -2242,24 +2243,24 @@ model GoodsReceiptItem {
 }
 
 model SupplierInvoice {
-  id              Int                   @id @default(autoincrement())
-  invoiceNumber   String                @unique
-  supplierId      Int
-  purchaseOrderId Int?
-  status          SupplierInvoiceStatus @default(POSTED)
-  matchStatus     ThreeWayMatchStatus   @default(PENDING)
-  issueDate       DateTime              @default(now())
-  dueDate         DateTime?
-  postedAt        DateTime              @default(now())
-  createdById     String?
-  matchedAt       DateTime?
-  matchedById     String?
-  currency        String                @default("BDT") @db.VarChar(3)
-  subtotal        Decimal               @default(0) @db.Decimal(12, 2)
-  taxTotal        Decimal               @default(0) @db.Decimal(12, 2)
-  otherCharges    Decimal               @default(0) @db.Decimal(12, 2)
-  total           Decimal               @default(0) @db.Decimal(12, 2)
-  note            String?
+  id                      Int                              @id @default(autoincrement())
+  invoiceNumber           String                           @unique
+  supplierId              Int
+  purchaseOrderId         Int?
+  status                  SupplierInvoiceStatus            @default(POSTED)
+  matchStatus             ThreeWayMatchStatus              @default(PENDING)
+  issueDate               DateTime                         @default(now())
+  dueDate                 DateTime?
+  postedAt                DateTime                         @default(now())
+  createdById             String?
+  matchedAt               DateTime?
+  matchedById             String?
+  currency                String                           @default("BDT") @db.VarChar(3)
+  subtotal                Decimal                          @default(0) @db.Decimal(12, 2)
+  taxTotal                Decimal                          @default(0) @db.Decimal(12, 2)
+  otherCharges            Decimal                          @default(0) @db.Decimal(12, 2)
+  total                   Decimal                          @default(0) @db.Decimal(12, 2)
+  note                    String?
   paymentHoldStatus       SupplierInvoicePaymentHoldStatus @default(CLEAR)
   paymentHoldReason       String?
   paymentHoldAt           DateTime?
@@ -2270,17 +2271,17 @@ model SupplierInvoice {
   slaCreditStatus         SupplierInvoiceSlaCreditStatus   @default(NONE)
   slaCreditReason         String?
   slaCreditUpdatedAt      DateTime?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  createdBy       User?                 @relation("SupplierInvoicesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  matchedBy       User?                 @relation("SupplierInvoicesMatched", fields: [matchedById], references: [id], onDelete: SetNull)
-  paymentHoldReleasedBy User?           @relation("SupplierInvoicePaymentHoldsReleased", fields: [paymentHoldReleasedById], references: [id], onDelete: SetNull)
-  purchaseOrder   PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
-  supplier        Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  items           SupplierInvoiceItem[]
-  payments        SupplierPayment[]
-  ledgerEntries   SupplierLedgerEntry[]
-  supplierReturns SupplierReturn[]
+  createdAt               DateTime                         @default(now())
+  updatedAt               DateTime                         @updatedAt
+  createdBy               User?                            @relation("SupplierInvoicesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  matchedBy               User?                            @relation("SupplierInvoicesMatched", fields: [matchedById], references: [id], onDelete: SetNull)
+  paymentHoldReleasedBy   User?                            @relation("SupplierInvoicePaymentHoldsReleased", fields: [paymentHoldReleasedById], references: [id], onDelete: SetNull)
+  purchaseOrder           PurchaseOrder?                   @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplier                Supplier                         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  items                   SupplierInvoiceItem[]
+  payments                SupplierPayment[]
+  ledgerEntries           SupplierLedgerEntry[]
+  supplierReturns         SupplierReturn[]
 
   @@index([supplierId, status])
   @@index([purchaseOrderId])
@@ -2472,37 +2473,37 @@ model ReplenishmentRule {
 }
 
 model SupplierSlaPolicy {
-  id                 Int       @id @default(autoincrement())
-  supplierId         Int       @unique
-  isActive           Boolean   @default(true)
-  effectiveFrom      DateTime  @default(now())
-  effectiveTo        DateTime?
-  evaluationWindowDays Int     @default(90)
-  minTrackedPoCount  Int       @default(3)
-  targetLeadTimeDays Int
-  minimumOnTimeRate  Decimal   @default(90) @db.Decimal(5, 2)
-  minimumFillRate    Decimal   @default(95) @db.Decimal(5, 2)
-  maxOpenLatePoCount Int       @default(0)
-  autoEvaluationEnabled Boolean @default(true)
-  warningActionDueDays Int      @default(7)
-  breachActionDueDays  Int      @default(3)
-  terminationClauseEnabled Boolean @default(false)
-  terminationLookbackDays  Int      @default(180)
-  terminationMinBreachCount Int     @default(3)
-  terminationMinCriticalCount Int   @default(1)
+  id                           Int                          @id @default(autoincrement())
+  supplierId                   Int                          @unique
+  isActive                     Boolean                      @default(true)
+  effectiveFrom                DateTime                     @default(now())
+  effectiveTo                  DateTime?
+  evaluationWindowDays         Int                          @default(90)
+  minTrackedPoCount            Int                          @default(3)
+  targetLeadTimeDays           Int
+  minimumOnTimeRate            Decimal                      @default(90) @db.Decimal(5, 2)
+  minimumFillRate              Decimal                      @default(95) @db.Decimal(5, 2)
+  maxOpenLatePoCount           Int                          @default(0)
+  autoEvaluationEnabled        Boolean                      @default(true)
+  warningActionDueDays         Int                          @default(7)
+  breachActionDueDays          Int                          @default(3)
+  terminationClauseEnabled     Boolean                      @default(false)
+  terminationLookbackDays      Int                          @default(180)
+  terminationMinBreachCount    Int                          @default(3)
+  terminationMinCriticalCount  Int                          @default(1)
   terminationRecommendedAction SupplierSlaTerminationAction @default(REVIEW_CONTRACT)
-  terminationNote    String?
-  note               String?
-  createdById        String?
-  updatedById        String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  breaches           SupplierSlaBreach[]
-  financialRule      SupplierSlaFinancialRule?
-  terminationCases   SupplierSlaTerminationCase[]
-  createdBy          User?     @relation("SupplierSlaPoliciesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  supplier           Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  updatedBy          User?     @relation("SupplierSlaPoliciesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  terminationNote              String?
+  note                         String?
+  createdById                  String?
+  updatedById                  String?
+  createdAt                    DateTime                     @default(now())
+  updatedAt                    DateTime                     @updatedAt
+  breaches                     SupplierSlaBreach[]
+  financialRule                SupplierSlaFinancialRule?
+  terminationCases             SupplierSlaTerminationCase[]
+  createdBy                    User?                        @relation("SupplierSlaPoliciesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  supplier                     Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  updatedBy                    User?                        @relation("SupplierSlaPoliciesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([isActive])
   @@index([createdById])
@@ -2510,30 +2511,30 @@ model SupplierSlaPolicy {
 }
 
 model SupplierSlaFinancialRule {
-  id                             Int      @id @default(autoincrement())
-  supplierSlaPolicyId            Int      @unique
-  isActive                       Boolean  @default(true)
-  holdPaymentsOnThreeWayVariance Boolean  @default(true)
-  holdPaymentsOnOpenSlaAction    Boolean  @default(true)
-  allowPaymentHoldOverride       Boolean  @default(true)
-  autoCreditRecommendationEnabled Boolean @default(true)
-  autoApplyRecommendedCredit     Boolean  @default(false)
-  autoApplyRequireMatchedInvoice Boolean  @default(true)
-  autoApplyBlockOnOpenDispute    Boolean  @default(true)
-  warningPenaltyRatePercent      Decimal  @default(0) @db.Decimal(5, 2)
-  breachPenaltyRatePercent       Decimal  @default(2) @db.Decimal(5, 2)
-  criticalPenaltyRatePercent     Decimal  @default(5) @db.Decimal(5, 2)
-  minBreachCountForCredit        Int      @default(1)
-  autoApplyMaxAmount             Decimal? @db.Decimal(12, 2)
-  maxCreditCapAmount             Decimal? @db.Decimal(12, 2)
-  note                           String?
-  createdById                    String?
-  updatedById                    String?
-  createdAt                      DateTime @default(now())
-  updatedAt                      DateTime @updatedAt
-  createdBy                      User?    @relation("SupplierSlaFinancialRulesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  policy                         SupplierSlaPolicy @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
-  updatedBy                      User?    @relation("SupplierSlaFinancialRulesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  id                              Int               @id @default(autoincrement())
+  supplierSlaPolicyId             Int               @unique
+  isActive                        Boolean           @default(true)
+  holdPaymentsOnThreeWayVariance  Boolean           @default(true)
+  holdPaymentsOnOpenSlaAction     Boolean           @default(true)
+  allowPaymentHoldOverride        Boolean           @default(true)
+  autoCreditRecommendationEnabled Boolean           @default(true)
+  autoApplyRecommendedCredit      Boolean           @default(false)
+  autoApplyRequireMatchedInvoice  Boolean           @default(true)
+  autoApplyBlockOnOpenDispute     Boolean           @default(true)
+  warningPenaltyRatePercent       Decimal           @default(0) @db.Decimal(5, 2)
+  breachPenaltyRatePercent        Decimal           @default(2) @db.Decimal(5, 2)
+  criticalPenaltyRatePercent      Decimal           @default(5) @db.Decimal(5, 2)
+  minBreachCountForCredit         Int               @default(1)
+  autoApplyMaxAmount              Decimal?          @db.Decimal(12, 2)
+  maxCreditCapAmount              Decimal?          @db.Decimal(12, 2)
+  note                            String?
+  createdById                     String?
+  updatedById                     String?
+  createdAt                       DateTime          @default(now())
+  updatedAt                       DateTime          @updatedAt
+  createdBy                       User?             @relation("SupplierSlaFinancialRulesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  policy                          SupplierSlaPolicy @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
+  updatedBy                       User?             @relation("SupplierSlaFinancialRulesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([isActive])
   @@index([createdById])
@@ -2541,53 +2542,53 @@ model SupplierSlaFinancialRule {
 }
 
 model SupplierSlaBreach {
-  id                    Int                        @id @default(autoincrement())
-  supplierSlaPolicyId   Int
-  supplierId            Int
-  evaluationDate        DateTime                   @default(now())
-  periodStart           DateTime
-  periodEnd             DateTime
-  trackedPoCount        Int                        @default(0)
-  completedPoCount      Int                        @default(0)
-  openLatePoCount       Int                        @default(0)
-  breachCount           Int                        @default(0)
-  status                SupplierSlaEvaluationStatus @default(OK)
-  severity              SupplierSlaSeverity        @default(LOW)
-  observedLeadTimeDays  Decimal?                   @db.Decimal(8, 2)
-  onTimeRatePercent     Decimal?                   @db.Decimal(5, 2)
-  fillRatePercent       Decimal?                   @db.Decimal(5, 2)
-  actionStatus          SupplierSlaActionStatus    @default(NOT_REQUIRED)
-  ownerUserId           String?
-  dueDate               DateTime?
-  startedAt             DateTime?
-  resolvedAt            DateTime?
-  resolvedById          String?
-  resolutionNote        String?
-  alertTriggeredAt      DateTime?
-  alertMessage          String?
-  alertAcknowledgedAt   DateTime?
-  disputeStatus         SupplierSlaDisputeStatus   @default(NONE)
-  disputeReason         String?
-  disputeRaisedAt       DateTime?
-  disputeRaisedById     String?
-  disputeResolutionNote String?
-  disputeResolvedAt     DateTime?
-  disputeResolvedById   String?
-  terminationCaseId     Int?
-  terminationSuggestedAt DateTime?
+  id                        Int                          @id @default(autoincrement())
+  supplierSlaPolicyId       Int
+  supplierId                Int
+  evaluationDate            DateTime                     @default(now())
+  periodStart               DateTime
+  periodEnd                 DateTime
+  trackedPoCount            Int                          @default(0)
+  completedPoCount          Int                          @default(0)
+  openLatePoCount           Int                          @default(0)
+  breachCount               Int                          @default(0)
+  status                    SupplierSlaEvaluationStatus  @default(OK)
+  severity                  SupplierSlaSeverity          @default(LOW)
+  observedLeadTimeDays      Decimal?                     @db.Decimal(8, 2)
+  onTimeRatePercent         Decimal?                     @db.Decimal(5, 2)
+  fillRatePercent           Decimal?                     @db.Decimal(5, 2)
+  actionStatus              SupplierSlaActionStatus      @default(NOT_REQUIRED)
+  ownerUserId               String?
+  dueDate                   DateTime?
+  startedAt                 DateTime?
+  resolvedAt                DateTime?
+  resolvedById              String?
+  resolutionNote            String?
+  alertTriggeredAt          DateTime?
+  alertMessage              String?
+  alertAcknowledgedAt       DateTime?
+  disputeStatus             SupplierSlaDisputeStatus     @default(NONE)
+  disputeReason             String?
+  disputeRaisedAt           DateTime?
+  disputeRaisedById         String?
+  disputeResolutionNote     String?
+  disputeResolvedAt         DateTime?
+  disputeResolvedById       String?
+  terminationCaseId         Int?
+  terminationSuggestedAt    DateTime?
   terminationSuggestionNote String?
-  issues                Json?
-  evaluatedById         String?
-  createdAt             DateTime                   @default(now())
-  updatedAt             DateTime                   @updatedAt
-  disputeRaisedBy       User?                      @relation("SupplierSlaBreachesDisputeRaised", fields: [disputeRaisedById], references: [id], onDelete: SetNull)
-  disputeResolvedBy     User?                      @relation("SupplierSlaBreachesDisputeResolved", fields: [disputeResolvedById], references: [id], onDelete: SetNull)
-  owner                 User?                      @relation("SupplierSlaBreachesOwned", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  resolvedBy            User?                      @relation("SupplierSlaBreachesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
-  evaluatedBy           User?                      @relation("SupplierSlaBreachesEvaluated", fields: [evaluatedById], references: [id], onDelete: SetNull)
-  policy                SupplierSlaPolicy          @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
-  supplier              Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  terminationCase       SupplierSlaTerminationCase? @relation(fields: [terminationCaseId], references: [id], onDelete: SetNull)
+  issues                    Json?
+  evaluatedById             String?
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
+  disputeRaisedBy           User?                        @relation("SupplierSlaBreachesDisputeRaised", fields: [disputeRaisedById], references: [id], onDelete: SetNull)
+  disputeResolvedBy         User?                        @relation("SupplierSlaBreachesDisputeResolved", fields: [disputeResolvedById], references: [id], onDelete: SetNull)
+  owner                     User?                        @relation("SupplierSlaBreachesOwned", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  resolvedBy                User?                        @relation("SupplierSlaBreachesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+  evaluatedBy               User?                        @relation("SupplierSlaBreachesEvaluated", fields: [evaluatedById], references: [id], onDelete: SetNull)
+  policy                    SupplierSlaPolicy            @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
+  supplier                  Supplier                     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  terminationCase           SupplierSlaTerminationCase?  @relation(fields: [terminationCaseId], references: [id], onDelete: SetNull)
   triggeredTerminationCases SupplierSlaTerminationCase[] @relation("SupplierSlaTerminationTriggerBreach")
 
   @@index([supplierId, evaluationDate])
@@ -2604,31 +2605,31 @@ model SupplierSlaBreach {
 }
 
 model SupplierSlaTerminationCase {
-  id                    Int                             @id @default(autoincrement())
-  supplierId            Int
-  supplierSlaPolicyId   Int
-  triggerBreachId       Int?
-  status                SupplierSlaTerminationCaseStatus @default(OPEN)
-  recommendedAction     SupplierSlaTerminationAction    @default(REVIEW_CONTRACT)
-  openBreachCount       Int                             @default(0)
-  criticalBreachCount   Int                             @default(0)
-  lookbackDays          Int                             @default(180)
-  reason                String
-  ownerUserId           String?
-  reviewedAt            DateTime?
-  resolvedAt            DateTime?
-  resolvedById          String?
-  resolutionNote        String?
-  createdById           String?
-  createdAt             DateTime                        @default(now())
-  updatedAt             DateTime                        @updatedAt
-  createdBy             User?                           @relation("SupplierSlaTerminationCasesCreated", fields: [createdById], references: [id], onDelete: SetNull)
-  owner                 User?                           @relation("SupplierSlaTerminationCasesOwned", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  policy                SupplierSlaPolicy               @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
-  resolvedBy            User?                           @relation("SupplierSlaTerminationCasesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
-  supplier              Supplier                        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  triggerBreach         SupplierSlaBreach?              @relation("SupplierSlaTerminationTriggerBreach", fields: [triggerBreachId], references: [id], onDelete: SetNull)
-  breaches              SupplierSlaBreach[]
+  id                  Int                              @id @default(autoincrement())
+  supplierId          Int
+  supplierSlaPolicyId Int
+  triggerBreachId     Int?
+  status              SupplierSlaTerminationCaseStatus @default(OPEN)
+  recommendedAction   SupplierSlaTerminationAction     @default(REVIEW_CONTRACT)
+  openBreachCount     Int                              @default(0)
+  criticalBreachCount Int                              @default(0)
+  lookbackDays        Int                              @default(180)
+  reason              String
+  ownerUserId         String?
+  reviewedAt          DateTime?
+  resolvedAt          DateTime?
+  resolvedById        String?
+  resolutionNote      String?
+  createdById         String?
+  createdAt           DateTime                         @default(now())
+  updatedAt           DateTime                         @updatedAt
+  createdBy           User?                            @relation("SupplierSlaTerminationCasesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  owner               User?                            @relation("SupplierSlaTerminationCasesOwned", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  policy              SupplierSlaPolicy                @relation(fields: [supplierSlaPolicyId], references: [id], onDelete: Cascade)
+  resolvedBy          User?                            @relation("SupplierSlaTerminationCasesResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+  supplier            Supplier                         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  triggerBreach       SupplierSlaBreach?               @relation("SupplierSlaTerminationTriggerBreach", fields: [triggerBreachId], references: [id], onDelete: SetNull)
+  breaches            SupplierSlaBreach[]
 
   @@index([supplierId, status])
   @@index([supplierSlaPolicyId, status])
