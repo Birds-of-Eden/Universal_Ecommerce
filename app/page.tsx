@@ -16,6 +16,7 @@ import { useSession } from "@/lib/auth-client";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import PromotionBanner from "@/components/ecommarce/PromotionBanner";
 import FloatingCartButton from "@/components/ecommarce/FloatingCartButton";
+import ReviewCarousel from "@/components/ecommarce/ReviewCarosol";
 
 type Category = {
   id: number;
@@ -469,6 +470,7 @@ export default function Home() {
 
                 </div>
                 <FloatingCartButton/>
+                <ReviewCarousel />
                 <Footer {...footerProps} />
               </>
             );
