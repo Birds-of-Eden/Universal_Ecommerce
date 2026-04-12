@@ -7,13 +7,18 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import {
   comparativeStatementInclude,
+  computePurchaseOrderTotals,
+  generatePurchaseOrderNumber,
+  purchaseOrderInclude,
   toComparativeStatementLogSnapshot,
+  toPurchaseOrderLogSnapshot,
 } from "@/lib/scm";
 import {
   computeComparativeScores,
   normalizeWeightInput,
   resolveWeightPair,
 } from "@/lib/comparative-statements";
+import { resolvePurchaseOrderTermsTemplate } from "@/lib/purchase-order-terms";
 import {
   createComparativeStatementNotifications,
   dispatchComparativeStatementEmailNotifications,
@@ -197,6 +202,9 @@ export async function PATCH(
       action?: unknown;
       note?: unknown;
       rejectionNote?: unknown;
+      termsTemplateId?: unknown;
+      termsAndConditions?: unknown;
+      expectedAt?: unknown;
       technicalWeight?: unknown;
       financialWeight?: unknown;
       lines?: Array<{
@@ -708,6 +716,264 @@ export async function PATCH(
       return NextResponse.json(updated);
     }
 
+    if (action === "generate_po") {
+      if (!access.can("purchase_orders.manage", statement.warehouseId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (statement.status !== "FINAL_APPROVED") {
+        return NextResponse.json(
+          { error: "PO can be generated only from FINAL_APPROVED comparative statement." },
+          { status: 400 },
+        );
+      }
+      if (statement.generatedPurchaseOrder?.id) {
+        return NextResponse.json(
+          {
+            error: `Comparative statement ${statement.csNumber} is already linked to PO ${statement.generatedPurchaseOrder.poNumber}.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      const responsiveLines = statement.lines.filter((line) => line.isResponsive);
+      if (responsiveLines.length === 0) {
+        return NextResponse.json(
+          { error: "No responsive supplier line found in this comparative statement." },
+          { status: 400 },
+        );
+      }
+
+      const rankOneLine = responsiveLines.find((line) => line.rank === 1);
+      const winningLine =
+        rankOneLine ??
+        [...responsiveLines].sort((a, b) => {
+          const totalCompare = a.financialGrandTotal.comparedTo(b.financialGrandTotal);
+          if (totalCompare !== 0) return totalCompare;
+          return a.id - b.id;
+        })[0];
+
+      const quotation = statement.rfq.quotations.find(
+        (item) => item.id === winningLine.supplierQuotationId && item.status === "SUBMITTED",
+      );
+      if (!quotation) {
+        return NextResponse.json(
+          { error: "Winning supplier quotation is not available for PO generation." },
+          { status: 400 },
+        );
+      }
+      if (quotation.items.length === 0) {
+        return NextResponse.json(
+          { error: "Winning quotation has no line items." },
+          { status: 400 },
+        );
+      }
+
+      const expectedAtInput = body.expectedAt ? new Date(String(body.expectedAt)) : null;
+      if (expectedAtInput && Number.isNaN(expectedAtInput.getTime())) {
+        return NextResponse.json({ error: "Expected date is invalid." }, { status: 400 });
+      }
+
+      const { updatedStatement, createdPurchaseOrder } = await prisma.$transaction(async (tx) => {
+        const existingPoByCs = await tx.purchaseOrder.findUnique({
+          where: { sourceComparativeStatementId: statement.id },
+          select: { id: true, poNumber: true },
+        });
+        if (existingPoByCs) {
+          throw new Error(
+            `Comparative statement ${statement.csNumber} is already linked to PO ${existingPoByCs.poNumber}.`,
+          );
+        }
+
+        const existingAward = await tx.rfqAward.findUnique({
+          where: { rfqId: statement.rfqId },
+          select: {
+            id: true,
+            supplierQuotationId: true,
+            purchaseOrderId: true,
+          },
+        });
+        if (existingAward?.purchaseOrderId) {
+          throw new Error("RFQ award is already converted to purchase order.");
+        }
+        if (
+          existingAward &&
+          existingAward.supplierQuotationId !== winningLine.supplierQuotationId
+        ) {
+          throw new Error(
+            "RFQ award is linked to a different quotation. Align award decision before PO generation.",
+          );
+        }
+
+        const requestedTemplateIdRaw = Number(body.termsTemplateId);
+        const requestedTemplateId =
+          Number.isInteger(requestedTemplateIdRaw) && requestedTemplateIdRaw > 0
+            ? requestedTemplateIdRaw
+            : null;
+        if (
+          body.termsTemplateId !== undefined &&
+          body.termsTemplateId !== null &&
+          body.termsTemplateId !== "" &&
+          requestedTemplateId === null
+        ) {
+          throw new Error("Invalid terms template id.");
+        }
+        const selectedTemplate = await resolvePurchaseOrderTermsTemplate(tx, {
+          templateId: requestedTemplateId,
+          createdById: access.userId,
+        });
+        if (requestedTemplateId && !selectedTemplate) {
+          throw new Error("Selected PO terms template is invalid or inactive.");
+        }
+        const customTerms = cleanText(body.termsAndConditions, 7000);
+        const resolvedTerms =
+          customTerms ||
+          statement.rfq.termsAndConditions ||
+          selectedTemplate?.body ||
+          `Auto-generated from comparative statement ${statement.csNumber}.`;
+
+        const purchaseOrderItems = quotation.items.map((item) => ({
+          productVariantId: item.productVariantId,
+          quantityOrdered: item.quantityQuoted,
+          unitCost: item.unitCost,
+          description:
+            item.description ||
+            `${item.productVariant.product.name} (${item.productVariant.sku})`,
+          lineTotal: item.lineTotal,
+        }));
+        const totals = computePurchaseOrderTotals(
+          purchaseOrderItems.map((item) => ({
+            quantityOrdered: item.quantityOrdered,
+            unitCost: item.unitCost,
+          })),
+        );
+
+        const poNumber = await generatePurchaseOrderNumber(tx);
+        const createdPo = await tx.purchaseOrder.create({
+          data: {
+            poNumber,
+            supplierId: quotation.supplierId,
+            purchaseRequisitionId: statement.rfq.purchaseRequisitionId,
+            sourceComparativeStatementId: statement.id,
+            warehouseId: statement.warehouseId,
+            status: "DRAFT",
+            approvalStage: "DRAFT",
+            orderDate: new Date(),
+            expectedAt: expectedAtInput ?? statement.rfq.submissionDeadline ?? null,
+            notes:
+              cleanText(body.note, 1000) ||
+              `Auto-generated from comparative statement ${statement.csNumber}.`,
+            currency: quotation.currency || statement.rfq.currency,
+            termsTemplateId: selectedTemplate?.id ?? null,
+            termsTemplateCode: selectedTemplate?.code ?? null,
+            termsTemplateName: selectedTemplate?.name ?? null,
+            termsAndConditions: resolvedTerms || null,
+            createdById: access.userId,
+            subtotal: totals.subtotal,
+            taxTotal: totals.taxTotal,
+            shippingTotal: totals.shippingTotal,
+            grandTotal: totals.grandTotal,
+            items: {
+              create: purchaseOrderItems.map((item) => ({
+                productVariantId: item.productVariantId,
+                description: item.description,
+                quantityOrdered: item.quantityOrdered,
+                unitCost: item.unitCost,
+                lineTotal: item.lineTotal,
+              })),
+            },
+          },
+          include: purchaseOrderInclude,
+        });
+
+        await tx.rfqAward.upsert({
+          where: { rfqId: statement.rfqId },
+          create: {
+            rfqId: statement.rfqId,
+            supplierId: quotation.supplierId,
+            supplierQuotationId: quotation.id,
+            status: "CONVERTED_TO_PO",
+            awardedAt: new Date(),
+            awardedById: access.userId,
+            purchaseOrderId: createdPo.id,
+            note: `Award confirmed from CS ${statement.csNumber} and converted to PO.`,
+          },
+          update: {
+            supplierId: quotation.supplierId,
+            supplierQuotationId: quotation.id,
+            status: "CONVERTED_TO_PO",
+            awardedAt: new Date(),
+            awardedById: access.userId,
+            purchaseOrderId: createdPo.id,
+            note: `Award confirmed from CS ${statement.csNumber} and converted to PO.`,
+          },
+        });
+
+        await tx.rfq.update({
+          where: { id: statement.rfqId },
+          data: {
+            status: "AWARDED",
+            awardedAt: new Date(),
+          },
+        });
+
+        await tx.rfqSupplierInvite.updateMany({
+          where: {
+            rfqId: statement.rfqId,
+            supplierId: quotation.supplierId,
+          },
+          data: {
+            status: "AWARDED",
+          },
+        });
+
+        const nextStatement = await tx.comparativeStatement.findUnique({
+          where: { id: statement.id },
+          include: comparativeStatementInclude,
+        });
+        if (!nextStatement) {
+          throw new Error("Comparative statement lookup failed after PO generation.");
+        }
+
+        return {
+          updatedStatement: nextStatement,
+          createdPurchaseOrder: createdPo,
+        };
+      });
+
+      await logActivity({
+        action: "generate_po",
+        entity: "comparative_statement",
+        entityId: updatedStatement.id,
+        access,
+        request,
+        metadata: {
+          message: `Generated purchase order ${createdPurchaseOrder.poNumber} from comparative statement ${updatedStatement.csNumber}`,
+          purchaseOrderId: createdPurchaseOrder.id,
+        },
+        before,
+        after: toComparativeStatementLogSnapshot(updatedStatement),
+      });
+
+      await logActivity({
+        action: "create",
+        entity: "purchase_order",
+        entityId: createdPurchaseOrder.id,
+        access,
+        request,
+        metadata: {
+          message: `Created purchase order ${createdPurchaseOrder.poNumber} from comparative statement ${updatedStatement.csNumber}`,
+          comparativeStatementId: updatedStatement.id,
+          comparativeStatementNumber: updatedStatement.csNumber,
+        },
+        after: toPurchaseOrderLogSnapshot(createdPurchaseOrder),
+      });
+
+      return NextResponse.json({
+        comparativeStatement: updatedStatement,
+        purchaseOrder: createdPurchaseOrder,
+      });
+    }
+
     if (action === "reject") {
       const canReject =
         access.can("comparative_statements.manage", statement.warehouseId) ||
@@ -898,4 +1164,3 @@ export async function PATCH(
     );
   }
 }
-

@@ -36,6 +36,14 @@ type ComparativeStatement = {
   finalApprovedAt: string | null;
   warehouse: { id: number; name: string; code: string };
   rfq: { id: number; rfqNumber: string; status: string };
+  generatedPurchaseOrder: {
+    id: number;
+    poNumber: string;
+    status: string;
+    approvalStage: string;
+    submittedAt: string | null;
+    approvedAt: string | null;
+  } | null;
   technicalWeight: string;
   financialWeight: string;
   lines: Array<{
@@ -115,6 +123,7 @@ export default function ComparativeStatementsPage() {
     "comparative_statements.approve_committee",
   );
   const canApproveFinal = permissions.includes("comparative_statements.approve_final");
+  const canGeneratePo = permissions.includes("purchase_orders.manage");
   const canApproveAny = canApproveManager || canApproveCommittee || canApproveFinal;
 
   const [loading, setLoading] = useState(true);
@@ -482,6 +491,10 @@ export default function ComparativeStatementsPage() {
                     {selectedStatement.status}
                   </div>
                   <div>
+                    <span className="text-muted-foreground">Generated PO:</span>{" "}
+                    {selectedStatement.generatedPurchaseOrder?.poNumber ?? "N/A"}
+                  </div>
+                  <div>
                     <span className="text-muted-foreground">Generated:</span>{" "}
                     {formatDate(selectedStatement.generatedAt)}
                   </div>
@@ -655,6 +668,13 @@ export default function ComparativeStatementsPage() {
                         Final Approve
                       </Button>
                     ) : null}
+                    {canGeneratePo &&
+                    selectedStatement.status === "FINAL_APPROVED" &&
+                    !selectedStatement.generatedPurchaseOrder ? (
+                      <Button onClick={() => void runAction("generate_po")} disabled={saving}>
+                        Generate PO
+                      </Button>
+                    ) : null}
                     {(canManage || canApproveAny) &&
                     ["SUBMITTED", "MANAGER_APPROVED", "COMMITTEE_APPROVED"].includes(
                       selectedStatement.status,
@@ -702,4 +722,3 @@ export default function ComparativeStatementsPage() {
     </div>
   );
 }
-

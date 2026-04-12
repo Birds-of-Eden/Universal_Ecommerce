@@ -103,14 +103,27 @@ const cards: ScmCard[] = [
     description:
       "Auto-generate CS from financial proposals, capture technical scorecards, and run multi-stage approvals.",
     icon: Scale,
-    permission: "comparative_statements.read",
+    permissions: [
+      "comparative_statements.read",
+      "comparative_statements.manage",
+      "comparative_statements.approve_manager",
+      "comparative_statements.approve_committee",
+      "comparative_statements.approve_final",
+    ],
   },
   {
     title: "Purchase Orders",
     href: "/admin/scm/purchase-orders",
     description: "Create, submit, and approve purchase orders per warehouse.",
     icon: ShoppingCart,
-    permission: "purchase_orders.read",
+    permissions: [
+      "purchase_orders.read",
+      "purchase_orders.manage",
+      "purchase_orders.approve",
+      "purchase_orders.approve_manager",
+      "purchase_orders.approve_committee",
+      "purchase_orders.approve_final",
+    ],
   },
   {
     title: "Goods Receipts",

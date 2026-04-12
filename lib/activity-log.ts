@@ -115,7 +115,15 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
   },
   {
     match: ["purchase_order", "purchaseorder"],
-    permissions: ["purchase_orders.read", "purchase_orders.manage", "purchase_orders.approve", "scm.access"],
+    permissions: [
+      "purchase_orders.read",
+      "purchase_orders.manage",
+      "purchase_orders.approve",
+      "purchase_orders.approve_manager",
+      "purchase_orders.approve_committee",
+      "purchase_orders.approve_final",
+      "scm.access",
+    ],
   },
   {
     match: ["purchase_order_landed_cost", "landed_cost", "landed_costs"],

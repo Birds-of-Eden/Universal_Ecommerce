@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
         id: true,
         poNumber: true,
         status: true,
+        approvalStage: true,
         orderDate: true,
         expectedAt: true,
         submittedAt: true,
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
         shippingTotal: true,
         grandTotal: true,
         notes: true,
+        termsAndConditions: true,
         warehouse: {
           select: {
             id: true,
@@ -101,6 +103,7 @@ export async function GET(request: NextRequest) {
         id: po.id,
         poNumber: po.poNumber,
         status: po.status,
+        approvalStage: po.approvalStage,
         orderDate: po.orderDate.toISOString(),
         expectedAt: po.expectedAt?.toISOString() ?? null,
         submittedAt: po.submittedAt?.toISOString() ?? null,
@@ -112,6 +115,7 @@ export async function GET(request: NextRequest) {
         shippingTotal: po.shippingTotal.toString(),
         grandTotal: po.grandTotal.toString(),
         notes: po.notes,
+        termsAndConditions: po.termsAndConditions,
         warehouse: po.warehouse,
         items: po.items.map((item) => ({
           id: item.id,

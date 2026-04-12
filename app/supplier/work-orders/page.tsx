@@ -126,9 +126,12 @@ export default function SupplierWorkOrdersPage() {
           >
             <option value="">All statuses</option>
             <option value="SUBMITTED">SUBMITTED</option>
+            <option value="MANAGER_APPROVED">MANAGER_APPROVED</option>
+            <option value="COMMITTEE_APPROVED">COMMITTEE_APPROVED</option>
             <option value="APPROVED">APPROVED</option>
             <option value="PARTIALLY_RECEIVED">PARTIALLY_RECEIVED</option>
             <option value="RECEIVED">RECEIVED</option>
+            <option value="REJECTED">REJECTED</option>
             <option value="CANCELLED">CANCELLED</option>
           </select>
         </div>
