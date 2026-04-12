@@ -773,6 +773,16 @@ body {
     display: none;
   }
 
+  /* No scrollbar utility */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   /* eCommerce Gradient Utilities */
   .gradient-primary {
     background: var(--gradient-primary);
