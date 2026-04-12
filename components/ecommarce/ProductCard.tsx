@@ -68,7 +68,7 @@ function Stars({ value }: { value: number }) {
           <span
             key={i}
             className={cn(
-              "text-[12px]",
+              "text-[18px]",
               isFull || isHalf ? "text-yellow-400" : "text-muted-foreground/40",
             )}
           >
@@ -197,7 +197,7 @@ export default function ProductCardCompact({
 
             <div className="flex items-center gap-2">
               <Stars value={ratingAvg} />
-              <span className="text-[12px] text-muted-foreground">
+              <span className="text-[15px] text-muted-foreground">
                 {ratingCount > 0
                   ? `${ratingAvg.toFixed(1)} (${ratingCount})`
                   : "No reviews"}

@@ -44,6 +44,7 @@ import ProductRelationsModal from "./ProductRelationsModal";
 import AttributesManagerModal from "./AttributesManagerModal";
 import DigitalAssetManagerModal from "./DigitalAssetManagerModal";
 import type { InventoryStatus } from "@/lib/stock-status";
+import SpotlightCard from "../SpotlightCard";
 
 type WarehouseOption = {
   id: number;
@@ -789,12 +790,12 @@ export default function ProductManager({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-6 pb-6">
           {filtered.map((p: any) => (
-            <Card
+            <SpotlightCard
               key={p.id}
-              className="overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-200 hover:border-border hover:shadow-md"
+              className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-200 hover:border-border hover:shadow-md"
             >
               {/* Image */}
-              <div className="relative h-48 bg-muted overflow-hidden">
+              <div className="relative h-48 overflow-hidden bg-muted">
                 {p.image ? (
                   <Image
                     src={p.image}
@@ -803,7 +804,7 @@ export default function ProductManager({
                     className="object-cover"
                   />
                 ) : (
-                  <div className="h-full w-full flex items-center justify-center">
+                  <div className="flex h-full w-full items-center justify-center">
                     <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
                   </div>
                 )}
@@ -811,12 +812,12 @@ export default function ProductManager({
                 {/* Top-left badges */}
                 <div className="absolute top-3 left-3 flex gap-1.5">
                   {p.available && (
-                    <span className="rounded-full border border-primary/20 bg-primary text-primary-foreground px-2 py-0.5 text-[11px] font-medium">
+                    <span className="rounded-full border border-primary/20 bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground">
                       Available
                     </span>
                   )}
                   {p.featured && (
-                    <span className="rounded-full border border-accent/20 bg-accent text-accent-foreground px-2 py-0.5 text-[11px] font-medium">
+                    <span className="rounded-full border border-accent/20 bg-accent px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
                       Featured
                     </span>
                   )}
@@ -830,103 +831,126 @@ export default function ProductManager({
                 </div>
               </div>
 
-              <CardContent className="p-4">
-                {/* Name + Price */}
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-medium text-[15px] leading-snug">
-                    {p.name}
-                  </h3>
-                  <span className="font-medium text-[15px] whitespace-nowrap">
-                    ৳{p.basePrice}
-                  </span>
-                </div>
-                <p className="text-[11px] text-muted-foreground mb-3">
-                  SKU: {p.sku || "-"}
-                </p>
-
-                {/* Meta grid */}
-                <div className="grid grid-cols-2 gap-1.5 mb-3">
-                  {[
-                    { label: "Category", value: p.category?.name || "-" },
-                    { label: "Brand", value: p.brand?.name || "-" },
-                    ...(p.type === "PHYSICAL"
-                      ? [
-                          {
-                            label: "Stock",
-                            value: `${getProductInventorySummary(p).totalStock} units`,
-                          },
-                          {
-                            label: "Threshold",
-                            value: `${p.lowStockThreshold ?? 10} units`,
-                          },
-                        ]
-                      : []),
-                  ].map(({ label, value }) => (
-                    <div
-                      key={label}
-                      className="rounded-lg bg-muted/60 px-2.5 py-2"
-                    >
-                      <p className="text-[10px] text-muted-foreground mb-0.5">
-                        {label}
-                      </p>
-                      <p className="text-[12px] font-medium truncate">
-                        {value}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Inventory status badges */}
-                {p.type === "PHYSICAL" && (
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusBadgeClasses(getProductInventorySummary(p).status)}`}
-                    >
-                      {getStatusLabel(getProductInventorySummary(p).status)}
+              <CardContent className="flex flex-1 flex-col p-4">
+                {/* Top content */}
+                <div>
+                  {/* Name + Price */}
+                  <div className="mb-1 flex items-start justify-between gap-2">
+                    <h3 className="line-clamp-2 min-h-[40px] font-medium text-[15px] leading-snug">
+                      {p.name}
+                    </h3>
+                    <span className="whitespace-nowrap font-medium text-[15px]">
+                      ৳{p.basePrice}
                     </span>
-                    {getProductInventorySummary(p).lowCount > 0 && (
-                      <span className="rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
-                        {getProductInventorySummary(p).lowCount} low variant
-                        {getProductInventorySummary(p).lowCount > 1 ? "s" : ""}
-                      </span>
-                    )}
-                    {getProductInventorySummary(p).outCount > 0 && (
-                      <span className="rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
-                        {getProductInventorySummary(p).outCount} out
-                      </span>
+                  </div>
+
+                  <p className="mb-3 text-[11px] text-muted-foreground">
+                    SKU: {p.sku || "-"}
+                  </p>
+
+                  {/* Meta grid */}
+                  <div className="mb-3 grid grid-cols-2 gap-1.5">
+                    {[
+                      { label: "Category", value: p.category?.name || "-" },
+                      { label: "Brand", value: p.brand?.name || "-" },
+                      ...(p.type === "PHYSICAL"
+                        ? [
+                            {
+                              label: "Stock",
+                              value: `${getProductInventorySummary(p).totalStock} units`,
+                            },
+                            {
+                              label: "Threshold",
+                              value: `${p.lowStockThreshold ?? 10} units`,
+                            },
+                          ]
+                        : [
+                            { label: "Type", value: p.type || "-" },
+                            {
+                              label: "Status",
+                              value: p.available ? "Available" : "Unavailable",
+                            },
+                          ]),
+                    ].map(({ label, value }) => (
+                      <div
+                        key={label}
+                        className="rounded-lg bg-muted/60 px-2.5 py-2"
+                      >
+                        <p className="mb-0.5 text-[10px] text-muted-foreground">
+                          {label}
+                        </p>
+                        <p className="truncate text-[12px] font-medium">
+                          {value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Inventory status badges */}
+                  <div className="min-h-[28px]">
+                    {p.type === "PHYSICAL" && (
+                      <div className="mb-3 flex flex-wrap gap-1.5">
+                        <span
+                          className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusBadgeClasses(
+                            getProductInventorySummary(p).status,
+                          )}`}
+                        >
+                          {getStatusLabel(getProductInventorySummary(p).status)}
+                        </span>
+
+                        {getProductInventorySummary(p).lowCount > 0 && (
+                          <span className="rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
+                            {getProductInventorySummary(p).lowCount} low variant
+                            {getProductInventorySummary(p).lowCount > 1
+                              ? "s"
+                              : ""}
+                          </span>
+                        )}
+
+                        {getProductInventorySummary(p).outCount > 0 && (
+                          <span className="rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                            {getProductInventorySummary(p).outCount} out
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
 
-                {/* Actions */}
-                <div className="flex gap-2 border-t border-border/50 pt-3">
-                  <Button
-                    onClick={() => openEdit(p)}
-                    variant="default"
-                    size="sm"
-                    className="flex-1 text-xs"
-                  >
-                    <Edit3 className="h-3 w-3 mr-1" /> Edit
-                  </Button>
-                  <Button
-                    onClick={() => openManage(p)}
-                    variant="default"
-                    size="sm"
-                    className="flex-1 text-xs"
-                  >
-                    Manage
-                  </Button>
-                  <Button
-                    onClick={() => openDeleteModal(p)}
-                    variant="destructive"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                {/* Actions fixed bottom */}
+                <div className="mt-auto border-t border-border/50 pt-3">
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => openEdit(p)}
+                      variant="default"
+                      size="sm"
+                      className="flex-1 text-xs"
+                    >
+                      <Edit3 className="mr-1 h-3 w-3" />
+                      Edit
+                    </Button>
+
+                    <Button
+                      onClick={() => openManage(p)}
+                      variant="default"
+                      size="sm"
+                      className="flex-1 text-xs"
+                    >
+                      Manage
+                    </Button>
+
+                    <Button
+                      onClick={() => openDeleteModal(p)}
+                      variant="destructive"
+                      size="sm"
+                      className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
-            </Card>
+            </SpotlightCard>
           ))}
         </div>
       )}
