@@ -4,8 +4,9 @@ import React from "react";
 import Footer from "@/components/ecommarce/footer";
 import Header from "@/components/ecommarce/header";
 import { useEffect, useState } from "react";
+import FloatingCartButton from "@/components/ecommarce/FloatingCartButton";
 
-const KitabGhorLayout = ({ children }: { children: React.ReactNode }) => {
+const EcommerceLayout = ({ children }: { children: React.ReactNode }) => {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -33,7 +34,10 @@ const KitabGhorLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="min-h-screen flex flex-col">
         <Header />
         <div key="layout-children">
-          {children}
+          {React.Children.map(children, (child, index) => 
+            React.isValidElement(child) ? React.cloneElement(child, { key: `child-${index}` }) : child
+          )}
+          <FloatingCartButton />
         </div>
         <Footer />
       </div>
@@ -41,4 +45,4 @@ const KitabGhorLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export default KitabGhorLayout;
+export default EcommerceLayout;

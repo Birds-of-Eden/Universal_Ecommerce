@@ -1,14 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ChevronRight,
-  Heart,
-  Search,
-  Sparkles,
-} from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Heart, Search, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
@@ -21,6 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import ProductCardCompact from "@/components/ecommarce/ProductCard";
+import SliderNavButton from "@/components/ecommarce/SliderNavButton";
 
 type ApiCategory = {
   id: number | string;
@@ -189,106 +187,11 @@ function CategorySectionSkeleton() {
   );
 }
 
-function CatalogCard({
-  product,
-  wishlisted,
-  onWishlistClick,
-  onAddToCart,
-}: {
-  product: ProductUI;
-  wishlisted: boolean;
-  onWishlistClick: () => void;
-  onAddToCart: () => void;
-}) {
-  return (
-    <div className="group overflow-hidden rounded-[4px] border border-[#dfe4dc] bg-white shadow-[0_1px_3px_rgba(13,20,20,0.04)] transition hover:-translate-y-0.5 hover:shadow-md dark:border-border dark:bg-card">
-      <Link href={`/ecommerce/products/${product.id}`} className="block">
-        <div className="relative border-b border-[#eef1ea] bg-white p-3 dark:border-border dark:bg-card">
-          {product.discountPct > 0 ? (
-            <div className="absolute left-2 top-2 z-10 rounded-sm border border-[#f4c9c9] bg-[#fff8f8] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#c33]">
-              -{product.discountPct}%
-            </div>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onWishlistClick();
-            }}
-            className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#e4e8df] bg-white text-muted-foreground transition hover:text-primary dark:border-border dark:bg-card"
-            aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          >
-            <Heart
-              className={`h-3.5 w-3.5 ${
-                wishlisted ? "fill-primary text-primary" : ""
-              }`}
-            />
-          </button>
-
-          <div className="relative mx-auto h-28 w-full max-w-[150px]">
-            <Image
-              src={product.image || "/placeholder.svg"}
-              alt={product.name}
-              fill
-              className="object-contain"
-              sizes="(max-width: 768px) 140px, 180px"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2 p-3">
-          <h3 className="line-clamp-2 min-h-[34px] text-[11px] leading-[1.45] text-foreground">
-            {product.name}
-          </h3>
-
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-semibold text-foreground">
-                {formatPrice(product.price)}
-              </span>
-              {product.originalPrice > product.price ? (
-                <span className="text-[10px] text-muted-foreground line-through">
-                  {formatPrice(product.originalPrice)}
-                </span>
-              ) : null}
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              {product.ratingCount > 0
-                ? `${product.ratingAvg.toFixed(1)} / 5 • ${product.ratingCount} reviews`
-                : product.stock > 0
-                ? "In stock"
-                : "Out of stock"}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onAddToCart();
-            }}
-            disabled={product.stock === 0}
-            className={`inline-flex h-7 items-center rounded-sm border px-2.5 text-[10px] font-semibold uppercase tracking-wide transition ${
-              product.stock === 0
-                ? "cursor-not-allowed border-border bg-muted text-muted-foreground"
-                : "border-[#edb5b5] bg-[#fff8f8] text-[#c33] hover:border-[#de8d8d] hover:bg-[#fff1f1]"
-            }`}
-          >
-            Add to cart
-          </button>
-        </div>
-      </Link>
-    </div>
-  );
-}
-
 export default function CategoriesPage() {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { status } = useSession();
+  const searchParams = useSearchParams();
 
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -301,7 +204,24 @@ export default function CategoriesPage() {
     null,
   );
   const [activeChildId, setActiveChildId] = useState<number | null>(null);
-  const [activeGrandChildId, setActiveGrandChildId] = useState<number | null>(null);
+  const [activeGrandChildId, setActiveGrandChildId] = useState<number | null>(
+    null,
+  );
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollByCategories = (dir: "left" | "right") => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const category = el.querySelector<HTMLElement>("[data-category='1']");
+    const categoryW = category ? category.offsetWidth : 120;
+
+    el.scrollBy({
+      left: dir === "left" ? -categoryW * 1.5 : categoryW * 1.5,
+      behavior: "smooth",
+    });
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -351,7 +271,10 @@ export default function CategoriesPage() {
             originalPrice > 0 && price < originalPrice
               ? Math.round(((originalPrice - price) / originalPrice) * 100)
               : 0;
-          const rating = reviewStats[String(product.id)] ?? { sum: 0, count: 0 };
+          const rating = reviewStats[String(product.id)] ?? {
+            sum: 0,
+            count: 0,
+          };
 
           return {
             id: Number(product.id),
@@ -373,19 +296,6 @@ export default function CategoriesPage() {
 
         setCategories(tree);
         setProducts(mappedProducts);
-        // Auto-select first department, first child, and first grandchild
-        const firstDepartment = tree[0];
-        if (firstDepartment) {
-          setActiveDepartmentId(firstDepartment.id);
-          const firstChild = firstDepartment.children[0];
-          if (firstChild) {
-            setActiveChildId(firstChild.id);
-            const firstGrandChild = firstChild.children[0];
-            if (firstGrandChild) {
-              setActiveGrandChildId(firstGrandChild.id);
-            }
-          }
-        }
       } catch (fetchError) {
         console.error(fetchError);
         setError("Failed to load categories and products.");
@@ -397,10 +307,80 @@ export default function CategoriesPage() {
     loadData();
   }, []);
 
+  // Handle URL slug parameter for auto-selecting category
+  useEffect(() => {
+    if (categories.length === 0) return;
+
+    const slug = searchParams.get('slug');
+    if (!slug) return;
+
+    // Find category by slug
+    const findCategoryBySlug = (categoryList: CategoryNode[], targetSlug: string): CategoryNode | null => {
+      for (const category of categoryList) {
+        if (category.slug === targetSlug) {
+          return category;
+        }
+        const foundInChildren = findCategoryBySlug(category.children, targetSlug);
+        if (foundInChildren) return foundInChildren;
+      }
+      return null;
+    };
+
+    const targetCategory = findCategoryBySlug(categories, slug);
+    if (targetCategory) {
+      // Find the root department (parent with parentId === null)
+      let rootDepartment = targetCategory;
+      while (rootDepartment.parentId !== null && rootDepartment.parentId !== undefined) {
+        const parent = categories.find(cat => cat.id === rootDepartment.parentId);
+        if (!parent) break;
+        rootDepartment = parent;
+      }
+
+      // Set the active department
+      setActiveDepartmentId(rootDepartment.id);
+
+      // If the target is a child category, set it as active
+      if (targetCategory.parentId !== null && targetCategory.parentId !== undefined) {
+        const parentDepartment = categories.find(cat => cat.id === rootDepartment.id);
+        if (parentDepartment) {
+          const childCategory = parentDepartment.children.find(child => child.id === targetCategory.id);
+          if (childCategory) {
+            setActiveChildId(childCategory.id);
+            
+            // If the target is a grandchild, set it as active
+            if (targetCategory.children.length === 0) {
+              // This might be a grandchild, find it in the child's children
+              for (const grandChild of childCategory.children) {
+                if (grandChild.slug === slug) {
+                  setActiveGrandChildId(grandChild.id);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, [categories, searchParams]);
+
   const departmentTabs = useMemo(
-    () => categories.filter((category) => category.children.length > 0),
+    () => categories.filter((category) => category.parentId === null),
     [categories],
   );
+
+  useEffect(() => {
+    if (!departmentTabs.length) return;
+
+    setActiveDepartmentId((currentId) => {
+      if (
+        currentId &&
+        departmentTabs.some((department) => department.id === currentId)
+      ) {
+        return currentId;
+      }
+      return departmentTabs[0].id;
+    });
+  }, [departmentTabs]);
 
   const activeDepartment = useMemo(() => {
     if (activeDepartmentId) {
@@ -424,40 +404,33 @@ export default function CategoriesPage() {
   const activeGrandChild = useMemo(() => {
     if (!activeChild || !activeGrandChildId) return null;
     return (
-      activeChild.children.find((grandChild) => grandChild.id === activeGrandChildId) ??
-      null
+      activeChild.children.find(
+        (grandChild) => grandChild.id === activeGrandChildId,
+      ) ?? null
     );
   }, [activeGrandChildId, activeChild]);
 
   useEffect(() => {
-    // Reset child and grandchild selection when department changes
+    if (!activeDepartment) {
+      setActiveChildId(null);
+      setActiveGrandChildId(null);
+      return;
+    }
+
+    // Always start with "All" selected when department changes
     setActiveChildId(null);
     setActiveGrandChildId(null);
-    // Auto-select first child of new department
-    if (activeDepartment) {
-      const firstChild = activeDepartment.children[0];
-      if (firstChild) {
-        setActiveChildId(firstChild.id);
-        // Auto-select first grandchild of new child
-        const firstGrandChild = firstChild.children[0];
-        if (firstGrandChild) {
-          setActiveGrandChildId(firstGrandChild.id);
-        }
-      }
-    }
-  }, [activeDepartmentId]);
+  }, [activeDepartment]);
 
   useEffect(() => {
-    // Reset grandchild selection when child changes
-    setActiveGrandChildId(null);
-    // Auto-select first grandchild of new child
-    if (activeChild && activeDepartment) {
-      const firstGrandChild = activeChild.children[0];
-      if (firstGrandChild) {
-        setActiveGrandChildId(firstGrandChild.id);
-      }
+    if (!activeChild) {
+      setActiveGrandChildId(null);
+      return;
     }
-  }, [activeChildId]);
+
+    // Always start with "All" selected when child changes
+    setActiveGrandChildId(null);
+  }, [activeChild]);
 
   const filteredDepartmentTabs = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -469,10 +442,14 @@ export default function CategoriesPage() {
 
   const sections = useMemo(() => {
     const sourceDepartments =
-      filteredDepartmentTabs.length > 0 ? filteredDepartmentTabs : departmentTabs;
+      filteredDepartmentTabs.length > 0
+        ? filteredDepartmentTabs
+        : departmentTabs;
 
     const visibleDepartments = activeDepartment
-      ? sourceDepartments.filter((department) => department.id === activeDepartment.id)
+      ? sourceDepartments.filter(
+          (department) => department.id === activeDepartment.id,
+        )
       : sourceDepartments;
 
     return visibleDepartments
@@ -483,7 +460,10 @@ export default function CategoriesPage() {
         ]);
 
         const childTabs = department.children;
-        const grandChildTabs = activeChild ? activeChild.children : [];
+        const grandChildTabs =
+          activeChild && department.id === activeDepartment?.id
+            ? activeChild.children
+            : [];
         const sectionProducts = products.filter((product) => {
           if (product.categoryId === null) return false;
           if (!categoryIds.has(product.categoryId)) return false;
@@ -495,7 +475,11 @@ export default function CategoriesPage() {
             ]);
             return activeIds.has(product.categoryId);
           }
-          if (activeChild && department.id === activeDepartment?.id && !activeGrandChild) {
+          if (
+            activeChild &&
+            department.id === activeDepartment?.id &&
+            !activeGrandChild
+          ) {
             const activeIds = new Set<number>([
               activeChild.id,
               ...collectDescendantIds(activeChild),
@@ -510,11 +494,18 @@ export default function CategoriesPage() {
           department,
           childTabs,
           grandChildTabs,
-          products: sectionProducts.slice(0, 18),
+          products: sectionProducts,
         };
       })
       .filter((section) => section.products.length > 0);
-  }, [activeChild, activeDepartment, departmentTabs, filteredDepartmentTabs, products]);
+  }, [
+    activeGrandChild,
+    activeChild,
+    activeDepartment,
+    departmentTabs,
+    filteredDepartmentTabs,
+    products,
+  ]);
 
   const handleAddToCart = useCallback(
     (product: ProductUI) => {
@@ -570,107 +561,129 @@ export default function CategoriesPage() {
   return (
     <div className="min-h-screen bg-background pb-12 text-foreground">
       <div className="container p-6">
-        <div className="overflow-hidden rounded-md border border-[#ece7df] bg-[#fff5f3] dark:border-border dark:bg-card">
+        <div className="overflow-hidden rounded-md border border-border bg-gradient-to-br from-background to-muted/50 dark:from-card dark:to-muted/20">
           <div className="grid gap-4 p-4 md:grid-cols-[1.2fr_1fr] md:items-center md:p-5">
             <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#c53333] shadow-sm dark:bg-background dark:text-primary">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary shadow-sm dark:bg-primary/20">
                 <Sparkles className="h-3.5 w-3.5" />
-                All Departments
+                Category
               </div>
               <div>
-                <h1 className="text-2xl font-semibold text-[#231815] dark:text-foreground sm:text-3xl">
-                  Browse daily essentials by department
+                <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
+                  Browse products by category
                 </h1>
-                <p className="mt-2 max-w-2xl text-sm text-[#6d625d] dark:text-muted-foreground">
-                  Category wise product listing with quick add to cart, wishlist,
-                  and fast browsing across your full catalog.
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                  Three-level category filtering with matched product listing,
+                  quick add to cart, and wishlist support.
                 </p>
               </div>
             </div>
 
-            <div className="relative min-h-[120px] overflow-hidden rounded-md bg-[linear-gradient(135deg,#ffd7d1,#fff4f1_55%,#f7f0f0)] dark:bg-muted">
-              <div className="absolute -right-5 top-0 h-24 w-24 rounded-[24px] bg-[#fdb7ad]/70" />
-              <div className="absolute right-14 top-7 h-20 w-20 rounded-[18px] bg-[#7fa7e8]/75" />
-              <div className="absolute bottom-2 right-28 h-16 w-16 rounded-[16px] bg-[#b8ebde]/80" />
-              <div className="absolute bottom-0 right-0 h-full w-[42%] opacity-70">
-                <Image
-                  src="/logo_img.png"
-                  alt="Department showcase"
-                  fill
-                  className="object-contain p-4"
-                  sizes="400px"
-                />
-              </div>
+            <div className="relative min-h-[120px] overflow-hidden rounded-md gradient-soft">
+              <div className="absolute -right-5 top-0 h-24 w-24 rounded-[24px] bg-primary/30" />
+              <div className="absolute right-14 top-7 h-20 w-20 rounded-[18px] bg-accent/40" />
+              <div className="absolute bottom-2 right-28 h-16 w-16 rounded-[16px] bg-secondary/30" />
             </div>
           </div>
         </div>
 
-        <div className="mt-5 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {departmentTabs.map((department) => (
-              <button
-                key={department.id}
-                type="button"
-                onClick={() => setActiveDepartmentId(department.id)}
-                className={`rounded-full border px-3 py-1.5 text-lg font-medium transition ${
-                  activeDepartment?.id === department.id
-                    ? "border-[#c53333] bg-[#d83d3d] text-white"
-                    : "border-[#e7dfd7] bg-white text-[#4b413d] hover:border-[#d3c4bb] hover:bg-[#fff7f2] dark:border-border dark:bg-card dark:text-foreground"
-                }`}
+        <div className="sticky top-24 z-40 mt-5">
+          <div className="space-y-4 rounded-xl border border-border/60 bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="group/slider relative">
+              <div
+                className="overflow-x-auto pb-2 scrollbar-hide scroll-smooth"
+                ref={scrollContainerRef}
               >
-                {department.name}
-              </button>
-            ))}
-          </div>
+                <div className="flex gap-2 whitespace-nowrap snap-x snap-proximity">
+                  {departmentTabs.map((department) => (
+                    <button
+                      key={department.id}
+                      data-category="1"
+                      type="button"
+                      onClick={() => setActiveDepartmentId(department.id)}
+                      className={`snap-start rounded-full border px-4 py-1.5 text-lg font-medium transition ${
+                        activeDepartment?.id === department.id
+                          ? "border-primary bg-primary text-primary-foreground shadow-lg"
+                          : "border-border bg-card text-foreground hover:border-primary hover:bg-primary/5 dark:border-border dark:bg-card dark:text-foreground"
+                      }`}
+                    >
+                      {department.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="flex flex-col gap-3 rounded-md border border-[#ebe6de] bg-white p-3 shadow-sm dark:border-border dark:bg-card md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {activeDepartment?.children.map((child, index) => (
+              {departmentTabs.length > 6 && (
+                <>
+                  <SliderNavButton
+                    direction="left"
+                    onClick={() => scrollByCategories("left")}
+                  />
+                  <SliderNavButton
+                    direction="right"
+                    onClick={() => scrollByCategories("right")}
+                  />
+                </>
+              )}
+
+              <div className="pointer-events-none absolute left-0 top-0 bottom-2 z-10 w-8 bg-gradient-to-r from-background to-transparent" />
+              <div className="pointer-events-none absolute right-0 top-0 bottom-2 z-10 w-8 bg-gradient-to-l from-background to-transparent" />
+            </div>
+
+            {/* child categories normal, sticky na */}
+            <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap gap-2">
+                {activeDepartment?.children.map((child) => (
+                  <button
+                    key={child.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveChildId(child.id);
+                      setActiveGrandChildId(null);
+                    }}
+                    className={`rounded-full border px-3 py-1 text-md transition ${
+                      activeChild?.id === child.id
+                        ? "border-secondary bg-secondary text-secondary-foreground shadow-md"
+                        : "border-border bg-background text-muted-foreground hover:border-secondary hover:bg-secondary/10 dark:border-border dark:bg-background dark:text-muted-foreground"
+                    }`}
+                  >
+                    {child.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* grandchild normal, sticky na */}
+            {activeChild && activeChild.children.length > 0 && (
+              <div className="flex flex-wrap gap-2">
                 <button
-                  key={child.id}
                   type="button"
-                  onClick={() => setActiveChildId(child.id)}
-                  className={`rounded-full border px-3 py-1 text-[11px] transition ${
-                    activeChild?.id === child.id
-                      ? "border-[#d94f4f] bg-[#d94f4f] text-white"
-                      : "border-[#ebe3db] bg-[#fffdfb] text-[#665a54] hover:border-[#d3c4bb] hover:bg-[#fff7f2] dark:border-border dark:bg-background dark:text-muted-foreground"
+                  onClick={() => setActiveGrandChildId(null)}
+                  className={`rounded-full border px-3 py-1 text-sm transition ${
+                    activeGrandChild === null
+                      ? "border-accent bg-accent text-accent-foreground shadow-md"
+                      : "border-border bg-card text-muted-foreground hover:border-accent hover:bg-accent/10 dark:border-border dark:bg-card dark:text-muted-foreground"
                   }`}
                 >
-                  {child.name}
+                  All
                 </button>
-              ))}
-            </div>
-
-            <div className="relative w-full md:max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search departments..."
-                className="h-10 w-full rounded-md border border-[#e5ddd5] bg-[#fffdfc] pl-10 pr-3 text-sm outline-none transition focus:border-primary dark:border-border dark:bg-background"
-              />
-            </div>
+                {activeChild.children.map((grandChild) => (
+                  <button
+                    key={grandChild.id}
+                    type="button"
+                    onClick={() => setActiveGrandChildId(grandChild.id)}
+                    className={`rounded-full border px-3 py-1 text-sm transition ${
+                      activeGrandChild?.id === grandChild.id
+                        ? "border-accent bg-accent text-accent-foreground shadow-md"
+                        : "border-border bg-card text-muted-foreground hover:border-accent hover:bg-accent/10 dark:border-border dark:bg-card dark:text-muted-foreground"
+                    }`}
+                  >
+                    {grandChild.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-
-          {/* Grandchild Categories Navigation */}
-          {activeChild && activeChild.children.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {activeChild.children.map((grandChild, index) => (
-                <button
-                  key={grandChild.id}
-                  type="button"
-                  onClick={() => setActiveGrandChildId(grandChild.id)}
-                  className={`rounded-full border px-3 py-1 text-[11px] transition ${
-                    activeGrandChild?.id === grandChild.id
-                      ? "border-[#c53333] bg-[#d83d3d] text-white"
-                      : "border-[#e7dfd7] bg-white text-[#4b413d] hover:border-[#d3c4bb] hover:bg-[#fff7f2] dark:border-border dark:bg-card dark:text-foreground"
-                  }`}
-                >
-                  {grandChild.name}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="mt-6">
@@ -682,62 +695,25 @@ export default function CategoriesPage() {
             </div>
           ) : sections.length === 0 ? (
             <div className="rounded-md border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No department products found.
+              No products found of this category.
             </div>
           ) : (
             <div className="space-y-7">
               {sections.map((section) => (
                 <section key={section.department.id} className="space-y-3">
-                  <div className="overflow-hidden rounded-[4px] border border-[#dadfd6] bg-white dark:border-border dark:bg-card">
-                    {section.childTabs.length > 0 ? (
-                      <div className="flex flex-wrap gap-2 border-b border-[#edf1ea] px-3 py-2 dark:border-border">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveChildId(null);
-                            setActiveGrandChildId(null);
-                          }}
-                          className={`rounded-full px-3 py-1 text-[11px] ${
-                            !activeChild ||
-                            section.department.id !== activeDepartment?.id
-                              ? "bg-[#fff4f1] text-[#c53333]"
-                              : "bg-[#f6f7f3] text-[#625751] dark:bg-background dark:text-muted-foreground"
-                          }`}
-                        >
-                          All
-                        </button>
-                        {section.childTabs.map((child) => (
-                          <button
-                            key={child.id}
-                            type="button"
-                            onClick={() => {
-                              setActiveDepartmentId(section.department.id);
-                              setActiveChildId(child.id);
-                              setActiveGrandChildId(null);
-                            }}
-                            className={`rounded-full px-3 py-1 text-[11px] transition ${
-                              activeChild?.id === child.id &&
-                              section.department.id === activeDepartment?.id
-                                ? "bg-[#fff4f1] text-[#c53333]"
-                                : "bg-[#f6f7f3] text-[#625751] hover:bg-[#fff7f4] dark:bg-background dark:text-muted-foreground"
-                            }`}
-                          >
-                            {child.name}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                      {section.products.map((product) => (
-                        <CatalogCard
-                          key={product.id}
-                          product={product}
-                          wishlisted={isInWishlist(product.id)}
-                          onWishlistClick={() => handleWishlist(product)}
-                          onAddToCart={() => handleAddToCart(product)}
-                        />
-                      ))}
-                    </div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                    {section.products.map((product) => (
+                      <ProductCardCompact
+                        key={product.id}
+                        product={{
+                          ...product,
+                          href: `/ecommerce/products/${product.id}`,
+                        }}
+                        wishlisted={isInWishlist(product.id)}
+                        onWishlistClick={() => handleWishlist(product)}
+                        onAddToCart={() => handleAddToCart(product)}
+                      />
+                    ))}
                   </div>
                 </section>
               ))}

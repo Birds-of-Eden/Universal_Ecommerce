@@ -117,9 +117,9 @@ export default function ProductManager({
   };
 
   const filtered = useMemo(() => {
-    let result = products
-      ?.filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()))
-      .filter((p: any) => p.category !== null);
+    let result = products?.filter((p: any) =>
+      p.name.toLowerCase().includes(search.toLowerCase()),
+    );
 
     if (categoryFilter) {
       result = result.filter(
@@ -145,9 +145,9 @@ export default function ProductManager({
       );
     }
 
-    if (warehouses.length > 0) {
+    if (warehouses.length > 0 && warehouseId) {
       const accessibleWarehouseIds = new Set(warehouses.map((w) => w.id));
-      const selectedWarehouseId = warehouseId ? Number(warehouseId) : null;
+      const selectedWarehouseId = Number(warehouseId);
 
       result = result.filter((p: any) => {
         if (p.type !== "PHYSICAL") {
@@ -166,10 +166,7 @@ export default function ProductManager({
 
             if (!Number.isFinite(warehouseIdValue)) return false;
             if (!accessibleWarehouseIds.has(warehouseIdValue)) return false;
-            if (
-              selectedWarehouseId !== null &&
-              warehouseIdValue !== selectedWarehouseId
-            ) {
+            if (warehouseIdValue !== selectedWarehouseId) {
               return false;
             }
             return Number.isFinite(quantityValue) && quantityValue > 0;
@@ -433,8 +430,8 @@ export default function ProductManager({
     if (status === "OUT_OF_STOCK")
       return "border-destructive/20 bg-destructive/10 text-destructive";
     if (status === "LOW_STOCK")
-      return "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-    return "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
+      return "border-accent/20 bg-accent/10 text-accent-foreground";
+    return "border-primary/20 bg-primary/10 text-primary";
   };
 
   const getStatusLabel = (
@@ -595,7 +592,8 @@ export default function ProductManager({
                   <Button
                     variant="outline"
                     onClick={() =>
-                      (window.location.href = "/admin/operations/products/bundles")
+                      (window.location.href =
+                        "/admin/operations/products/bundles")
                     }
                     className="border-primary/20 text-primary hover:bg-primary/10"
                   >
@@ -793,92 +791,141 @@ export default function ProductManager({
           {filtered.map((p: any) => (
             <Card
               key={p.id}
-              className="bg-card shadow-sm hover:shadow-lg transition-all duration-200 rounded-2xl overflow-hidden border hover:border-primary/20"
+              className="overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-200 hover:border-border hover:shadow-md"
             >
-              <div className="!p-0 !border-border !bg-card !rounded-xl overflow-hidden">
-                <div className="relative h-60 bg-muted">
-                  {p.image ? (
-                    <Image
-                      src={p.image}
-                      alt={p.name}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center bg-muted">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground/50" />
-                    </div>
+              {/* Image */}
+              <div className="relative h-48 bg-muted overflow-hidden">
+                {p.image ? (
+                  <Image
+                    src={p.image}
+                    alt={p.name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
+                  </div>
+                )}
+
+                {/* Top-left badges */}
+                <div className="absolute top-3 left-3 flex gap-1.5">
+                  {p.available && (
+                    <span className="rounded-full border border-primary/20 bg-primary text-primary-foreground px-2 py-0.5 text-[11px] font-medium">
+                      Available
+                    </span>
+                  )}
+                  {p.featured && (
+                    <span className="rounded-full border border-accent/20 bg-accent text-accent-foreground px-2 py-0.5 text-[11px] font-medium">
+                      Featured
+                    </span>
                   )}
                 </div>
 
-                <CardContent className="p-5">
-                  <h3 className="font-bold text-lg mb-2">{p.name}</h3>
-
-                  <div className="text-sm text-muted-foreground space-y-1 mb-3">
-                    <p>Category: {p.category?.name || "-"}</p>
-                    <p>Brand: {p.brand?.name || "-"}</p>
-                    <p>Type: {p.type || "-"}</p>
-                    <p>SKU: {p.sku || "-"}</p>
-                    <p>Available: {p.available ? "Yes" : "No"}</p>
-                    <p>Featured: {p.featured ? "Yes" : "No"}</p>
-                    {p.type === "PHYSICAL" && (
-                      <p>Stock: {getProductInventorySummary(p).totalStock}</p>
-                    )}
-                    {p.type === "PHYSICAL" && (
-                      <p>Threshold: {p.lowStockThreshold ?? 10}</p>
-                    )}
-                  </div>
-
-                  <p className="font-semibold text-lg mb-4">৳{p.basePrice}</p>
-
-                  {p.type === "PHYSICAL" && (
-                    <div className="mb-4 flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getStatusBadgeClasses(getProductInventorySummary(p).status)}`}
-                      >
-                        {getStatusLabel(getProductInventorySummary(p).status)}
-                      </span>
-                      {getProductInventorySummary(p).lowCount > 0 && (
-                        <span className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                          {getProductInventorySummary(p).lowCount} low variant
-                          {getProductInventorySummary(p).lowCount > 1
-                            ? "s"
-                            : ""}
-                        </span>
-                      )}
-                      {getProductInventorySummary(p).outCount > 0 && (
-                        <span className="inline-flex items-center rounded-full border border-destructive/20 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
-                          {getProductInventorySummary(p).outCount} out
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => openEdit(p)}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      <Edit3 className="h-3 w-3 mr-1" /> Edit
-                    </Button>
-                    <Button
-                      onClick={() => openManage(p)}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      Manage / View
-                    </Button>
-                    <Button
-                      onClick={() => openDeleteModal(p)}
-                      variant="outline"
-                      className="border-destructive/50 text-destructive hover:bg-destructive/80 hover:text-destructive-foreground"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </CardContent>
+                {/* Top-right type badge */}
+                <div className="absolute top-3 right-3">
+                  <span className="rounded-full border border-border/60 bg-destructive px-2 py-0.5 text-[11px] text-destructive-foreground">
+                    {p.type || "-"}
+                  </span>
+                </div>
               </div>
+
+              <CardContent className="p-4">
+                {/* Name + Price */}
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h3 className="font-medium text-[15px] leading-snug">
+                    {p.name}
+                  </h3>
+                  <span className="font-medium text-[15px] whitespace-nowrap">
+                    ৳{p.basePrice}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mb-3">
+                  SKU: {p.sku || "-"}
+                </p>
+
+                {/* Meta grid */}
+                <div className="grid grid-cols-2 gap-1.5 mb-3">
+                  {[
+                    { label: "Category", value: p.category?.name || "-" },
+                    { label: "Brand", value: p.brand?.name || "-" },
+                    ...(p.type === "PHYSICAL"
+                      ? [
+                          {
+                            label: "Stock",
+                            value: `${getProductInventorySummary(p).totalStock} units`,
+                          },
+                          {
+                            label: "Threshold",
+                            value: `${p.lowStockThreshold ?? 10} units`,
+                          },
+                        ]
+                      : []),
+                  ].map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className="rounded-lg bg-muted/60 px-2.5 py-2"
+                    >
+                      <p className="text-[10px] text-muted-foreground mb-0.5">
+                        {label}
+                      </p>
+                      <p className="text-[12px] font-medium truncate">
+                        {value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Inventory status badges */}
+                {p.type === "PHYSICAL" && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusBadgeClasses(getProductInventorySummary(p).status)}`}
+                    >
+                      {getStatusLabel(getProductInventorySummary(p).status)}
+                    </span>
+                    {getProductInventorySummary(p).lowCount > 0 && (
+                      <span className="rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent-foreground">
+                        {getProductInventorySummary(p).lowCount} low variant
+                        {getProductInventorySummary(p).lowCount > 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {getProductInventorySummary(p).outCount > 0 && (
+                      <span className="rounded-full border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                        {getProductInventorySummary(p).outCount} out
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-2 border-t border-border/50 pt-3">
+                  <Button
+                    onClick={() => openEdit(p)}
+                    variant="default"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    <Edit3 className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                  <Button
+                    onClick={() => openManage(p)}
+                    variant="default"
+                    size="sm"
+                    className="flex-1 text-xs"
+                  >
+                    Manage
+                  </Button>
+                  <Button
+                    onClick={() => openDeleteModal(p)}
+                    variant="destructive"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           ))}
         </div>

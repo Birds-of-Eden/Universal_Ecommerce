@@ -524,12 +524,12 @@ body {
   }
 
   .slider-nav-btn {
-    @apply rounded-xl border border-border bg-card text-foreground shadow-sm;
+    @apply rounded-xl border border-border bg-primary text-primary-foreground shadow-sm;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   }
 
   .slider-nav-btn:hover {
-    @apply bg-muted;
+    @apply bg-primary/90;
   }
 
   /* Best Seller & Sold Badge Utilities */

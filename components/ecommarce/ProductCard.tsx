@@ -204,7 +204,7 @@ export default function ProductCardCompact({
               </span>
             </div>
 
-            <p className="mt-2 min-h-[36px] line-clamp-2 text-[13px] leading-snug text-foreground">
+            <p className="mt-2 min-h-[36px] line-clamp-2 text-md text-foreground leading-snug">
               {product.name}
             </p>
 

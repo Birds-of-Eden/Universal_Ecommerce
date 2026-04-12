@@ -11,9 +11,11 @@ import PopupBanner from "@/components/ecommarce/PopupBanner";
 import FeatureStrip from "@/components/ecommarce/FeatureCard";
 import NewArrivals from "@/components/ecommarce/NewArrivals";
 import BestSelling from "@/components/ecommarce/BestSelling";
+import BrandSlider from "@/components/ecommarce/BrandSlider";
 import { useSession } from "@/lib/auth-client";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import PromotionBanner from "@/components/ecommarce/PromotionBanner";
+import FloatingCartButton from "@/components/ecommarce/FloatingCartButton";
 
 type Category = {
   id: number;
@@ -441,20 +443,20 @@ export default function Home() {
                     reviewsData={data.rawReviews}
                     isAuthenticated={isAuthenticated}
                   />
-                  <PromotionBanner banners={data.banners} />
+                  <BrandSlider />
                   <FeaturedProducts
                     productsData={data.rawProducts}
                     categoriesData={data.rawCategories}
                     reviewsData={data.rawReviews}
                     isAuthenticated={isAuthenticated}
                   />
+                  <PromotionBanner banners={data.banners} />
                   <BestSelling
                     limit={20}
                     topSellingData={data.topSellingProducts}
                     reviewsData={data.rawReviews}
                     isAuthenticated={isAuthenticated}
                   />
-
                   <PopupBanner banners={data.banners} />
 
                   <div className="container mx-auto">
@@ -464,7 +466,9 @@ export default function Home() {
 
                     {categoryBooksComponents}
                   </div>
+
                 </div>
+                <FloatingCartButton/>
                 <Footer {...footerProps} />
               </>
             );

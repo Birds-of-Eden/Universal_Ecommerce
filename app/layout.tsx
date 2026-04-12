@@ -11,6 +11,7 @@ import { WishlistProvider } from "@/components/ecommarce/WishlistContext";
 import { Providers } from "./providers";
 import SupportChatWidget from "@/components/chat/SupportChatWidget";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
+import ScrollToTopButton from "@/components/ecommarce/ScrollToTopButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -95,6 +96,7 @@ export default function RootLayout({
               <CartProvider>
                 <WishlistProvider>
                   <main className="flex-1">{children}</main>
+                          <ScrollToTopButton />
                   <SupportChatWidget />
                 </WishlistProvider>
               </CartProvider>

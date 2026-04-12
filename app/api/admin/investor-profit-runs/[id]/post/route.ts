@@ -10,6 +10,7 @@ import {
   generateInvestorTransactionNumber,
   toCleanText,
 } from "@/lib/investor";
+import { ensureInvestorProfitRunAllocationSnapshots } from "@/lib/investor-profit-run";
 
 function canPostInvestorProfit(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return access.hasGlobal("investor_profit.post");
@@ -62,14 +63,6 @@ export async function POST(
         runNumber: true,
         status: true,
         postedAt: true,
-        allocationLines: {
-          select: {
-            id: true,
-            investorId: true,
-            productVariantId: true,
-            allocatedNetProfit: true,
-          },
-        },
       },
     });
     if (!run) {
@@ -88,41 +81,40 @@ export async function POST(
       );
     }
 
-    const map = new Map<string, PostingEntry>();
-    for (const line of run.allocationLines) {
-      if (line.allocatedNetProfit.eq(0)) continue;
-      const direction: PostingEntry["direction"] = line.allocatedNetProfit.gte(0) ? "CREDIT" : "DEBIT";
-      const type: PostingEntry["type"] = line.allocatedNetProfit.gte(0)
-        ? "PROFIT_ALLOCATION"
-        : "LOSS_ALLOCATION";
-      const amount = line.allocatedNetProfit.abs();
-      if (amount.lte(0)) continue;
-      const key = `${line.investorId}:${line.productVariantId ?? "pool"}:${direction}:${type}`;
-      const existing = map.get(key);
-      if (existing) {
-        existing.amount = existing.amount.plus(amount);
-      } else {
-        map.set(key, {
-          investorId: line.investorId,
-          productVariantId: line.productVariantId ?? null,
-          direction,
-          type,
-          amount,
-        });
-      }
-    }
-
-    const entries = [...map.values()];
-    if (entries.length === 0) {
-      return NextResponse.json(
-        { error: "No investor profit/loss amount is available to post." },
-        { status: 400 },
-      );
-    }
-
-    const investorIds = [...new Set(entries.map((entry) => entry.investorId))];
-
     const created = await prisma.$transaction(async (tx) => {
+      const snapshot = await ensureInvestorProfitRunAllocationSnapshots(tx, run.id);
+      const map = new Map<string, PostingEntry>();
+      for (const line of snapshot.allocationLines) {
+        if (line.allocatedNetProfit.eq(0)) continue;
+        const direction: PostingEntry["direction"] =
+          line.allocatedNetProfit.gte(0) ? "CREDIT" : "DEBIT";
+        const type: PostingEntry["type"] = line.allocatedNetProfit.gte(0)
+          ? "PROFIT_ALLOCATION"
+          : "LOSS_ALLOCATION";
+        const amount = line.allocatedNetProfit.abs();
+        if (amount.lte(0)) continue;
+
+        const key = `${line.investorId}:${line.productVariantId ?? "pool"}:${direction}:${type}`;
+        const existing = map.get(key);
+        if (existing) {
+          existing.amount = existing.amount.plus(amount);
+        } else {
+          map.set(key, {
+            investorId: line.investorId,
+            productVariantId: line.productVariantId ?? null,
+            direction,
+            type,
+            amount,
+          });
+        }
+      }
+
+      const entries = [...map.values()];
+      if (entries.length === 0) {
+        throw new Error("No investor profit/loss amount is available to post.");
+      }
+
+      const investorIds = [...new Set(entries.map((entry) => entry.investorId))];
       const activeInvestors = await tx.investor.findMany({
         where: { id: { in: investorIds } },
         select: { id: true, status: true },
@@ -231,6 +223,7 @@ export async function POST(
       return {
         updatedRun,
         transactions: createdTransactions,
+        repairedAllocationCount: snapshot.createdCount,
       };
     });
 
@@ -243,6 +236,7 @@ export async function POST(
       metadata: {
         message: `Posted investor profit run ${run.runNumber} into ledger`,
         postedTransactionCount: created.transactions.length,
+        repairedAllocationCount: created.repairedAllocationCount,
       },
       before: {
         status: run.status,
@@ -259,6 +253,7 @@ export async function POST(
         postedAt: created.updatedRun.postedAt?.toISOString() ?? null,
       },
       postedTransactionCount: created.transactions.length,
+      repairedAllocationCount: created.repairedAllocationCount,
       transactions: created.transactions,
     });
   } catch (error: any) {
