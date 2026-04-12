@@ -11,6 +11,7 @@ import PopupBanner from "@/components/ecommarce/PopupBanner";
 import FeatureStrip from "@/components/ecommarce/FeatureCard";
 import NewArrivals from "@/components/ecommarce/NewArrivals";
 import BestSelling from "@/components/ecommarce/BestSelling";
+import BrandSlider from "@/components/ecommarce/BrandSlider";
 import { useSession } from "@/lib/auth-client";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import PromotionBanner from "@/components/ecommarce/PromotionBanner";
@@ -454,6 +455,8 @@ export default function Home() {
                     reviewsData={data.rawReviews}
                     isAuthenticated={isAuthenticated}
                   />
+
+                  <BrandSlider />
 
                   <PopupBanner banners={data.banners} />
 

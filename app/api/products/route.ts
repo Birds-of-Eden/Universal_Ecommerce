@@ -100,12 +100,35 @@ function toProductLogSnapshot(product: any) {
 /* =========================
    GET PRODUCTS
 ========================= */
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const brandId = searchParams.get('brandId');
+    const brandSlug = searchParams.get('brandSlug');
+
+    let whereClause: any = {
+      deleted: false,
+    };
+
+    // Filter by brand if brandId or brandSlug is provided
+    if (brandId) {
+      whereClause.brandId = Number(brandId);
+    } else if (brandSlug) {
+      // First find the brand by slug
+      const brand = await prisma.brand.findUnique({
+        where: { slug: brandSlug },
+        select: { id: true }
+      });
+      if (brand) {
+        whereClause.brandId = brand.id;
+      } else {
+        // If brand not found, return empty array
+        return NextResponse.json([]);
+      }
+    }
+
     const products = await prisma.product.findMany({
-      where: {
-        deleted: false,
-      },
+      where: whereClause,
       orderBy: { id: "desc" },
       include: {
         ...productInclude,
