@@ -442,6 +442,7 @@ export default function Home() {
                     reviewsData={data.rawReviews}
                     isAuthenticated={isAuthenticated}
                   />
+                  <BrandSlider />
                   <FeaturedProducts
                     productsData={data.rawProducts}
                     categoriesData={data.rawCategories}
@@ -455,9 +456,6 @@ export default function Home() {
                     reviewsData={data.rawReviews}
                     isAuthenticated={isAuthenticated}
                   />
-
-                  <BrandSlider />
-
                   <PopupBanner banners={data.banners} />
 
                   <div className="container mx-auto">
