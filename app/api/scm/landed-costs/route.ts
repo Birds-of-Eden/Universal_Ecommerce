@@ -181,7 +181,15 @@ export async function GET(request: NextRequest) {
 
     const optionWhere: Prisma.PurchaseOrderWhereInput = {
       status: {
-        in: ["DRAFT", "SUBMITTED", "APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"],
+        in: [
+          "DRAFT",
+          "SUBMITTED",
+          "MANAGER_APPROVED",
+          "COMMITTEE_APPROVED",
+          "APPROVED",
+          "PARTIALLY_RECEIVED",
+          "RECEIVED",
+        ],
       },
     };
 

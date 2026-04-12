@@ -47,6 +47,14 @@ model User {
   warehouseMemberships          WarehouseMembership[]   @relation("WarehouseMemberships")
   purchaseOrdersCreated         PurchaseOrder[]         @relation("PurchaseOrdersCreated")
   purchaseOrdersApproved        PurchaseOrder[]         @relation("PurchaseOrdersApproved")
+  purchaseOrdersManagerApproved PurchaseOrder[]         @relation("PurchaseOrdersManagerApproved")
+  purchaseOrdersCommitteeApproved PurchaseOrder[]       @relation("PurchaseOrdersCommitteeApproved")
+  purchaseOrdersFinalApproved   PurchaseOrder[]         @relation("PurchaseOrdersFinalApproved")
+  purchaseOrdersRejected        PurchaseOrder[]         @relation("PurchaseOrdersRejected")
+  purchaseOrderApprovalEvents   PurchaseOrderApprovalEvent[] @relation("PurchaseOrderApprovalEvents")
+  purchaseOrderNotificationsReceived PurchaseOrderNotification[] @relation("PurchaseOrderNotificationsReceived")
+  purchaseOrderTermsTemplatesCreated PurchaseOrderTermsTemplate[] @relation("PurchaseOrderTermsTemplatesCreated")
+  purchaseOrderTermsTemplatesUpdated PurchaseOrderTermsTemplate[] @relation("PurchaseOrderTermsTemplatesUpdated")
   purchaseOrderLandedCostsCreated PurchaseOrderLandedCost[] @relation("PurchaseOrderLandedCostsCreated")
   purchaseRequisitionsCreated   PurchaseRequisition[]   @relation("PurchaseRequisitionsCreated")
   purchaseRequisitionsApproved  PurchaseRequisition[]   @relation("PurchaseRequisitionsApproved")
@@ -1952,6 +1960,7 @@ model ComparativeStatement {
   lines                   ComparativeStatementLine[]
   approvalEvents          ComparativeStatementApprovalEvent[]
   notifications           ComparativeStatementNotification[]
+  generatedPurchaseOrder  PurchaseOrder?                      @relation("PurchaseOrderSourceComparativeStatement")
 
   @@unique([rfqId, versionNo])
   @@index([rfqId, status])
@@ -2030,15 +2039,30 @@ model PurchaseOrder {
   poNumber              String                @unique
   supplierId            Int
   purchaseRequisitionId Int?
+  sourceComparativeStatementId Int?           @unique
   warehouseId           Int
   status                PurchaseOrderStatus   @default(DRAFT)
+  approvalStage         PurchaseOrderApprovalStage @default(DRAFT)
   orderDate             DateTime              @default(now())
   expectedAt            DateTime?
   submittedAt           DateTime?
+  managerApprovedAt     DateTime?
+  committeeApprovedAt   DateTime?
+  finalApprovedAt       DateTime?
   approvedAt            DateTime?
+  rejectedAt            DateTime?
   receivedAt            DateTime?
   createdById           String?
   approvedById          String?
+  managerApprovedById   String?
+  committeeApprovedById String?
+  finalApprovedById     String?
+  rejectedById          String?
+  termsTemplateId       Int?
+  termsTemplateCode     String?
+  termsTemplateName     String?
+  termsAndConditions    String?
+  rejectionNote         String?
   currency              String                @default("BDT") @db.VarChar(3)
   subtotal              Decimal               @default(0) @db.Decimal(12, 2)
   taxTotal              Decimal               @default(0) @db.Decimal(12, 2)
@@ -2048,8 +2072,14 @@ model PurchaseOrder {
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   approvedBy            User?                 @relation("PurchaseOrdersApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  managerApprovedBy     User?                 @relation("PurchaseOrdersManagerApproved", fields: [managerApprovedById], references: [id], onDelete: SetNull)
+  committeeApprovedBy   User?                 @relation("PurchaseOrdersCommitteeApproved", fields: [committeeApprovedById], references: [id], onDelete: SetNull)
+  finalApprovedBy       User?                 @relation("PurchaseOrdersFinalApproved", fields: [finalApprovedById], references: [id], onDelete: SetNull)
+  rejectedBy            User?                 @relation("PurchaseOrdersRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
   createdBy             User?                 @relation("PurchaseOrdersCreated", fields: [createdById], references: [id], onDelete: SetNull)
   purchaseRequisition   PurchaseRequisition?  @relation(fields: [purchaseRequisitionId], references: [id], onDelete: SetNull)
+  sourceComparativeStatement ComparativeStatement? @relation("PurchaseOrderSourceComparativeStatement", fields: [sourceComparativeStatementId], references: [id], onDelete: SetNull)
+  termsTemplate         PurchaseOrderTermsTemplate? @relation(fields: [termsTemplateId], references: [id], onDelete: SetNull)
   supplier              Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   warehouse             Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   goodsReceipts         GoodsReceipt[]
@@ -2059,13 +2089,77 @@ model PurchaseOrder {
   rfqAward              RfqAward?
   items                 PurchaseOrderItem[]
   landedCosts           PurchaseOrderLandedCost[]
+  approvalEvents        PurchaseOrderApprovalEvent[]
+  notifications         PurchaseOrderNotification[]
 
   @@index([supplierId, status])
   @@index([purchaseRequisitionId])
+  @@index([sourceComparativeStatementId])
   @@index([warehouseId, status])
   @@index([createdById])
   @@index([approvedById])
+  @@index([managerApprovedById])
+  @@index([committeeApprovedById])
+  @@index([finalApprovedById])
+  @@index([rejectedById])
+  @@index([termsTemplateId])
   @@index([orderDate])
+}
+
+model PurchaseOrderTermsTemplate {
+  id          Int           @id @default(autoincrement())
+  code        String        @unique
+  name        String
+  body        String
+  isDefault   Boolean       @default(false)
+  isActive    Boolean       @default(true)
+  createdById String?
+  updatedById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  createdBy   User?         @relation("PurchaseOrderTermsTemplatesCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?         @relation("PurchaseOrderTermsTemplatesUpdated", fields: [updatedById], references: [id], onDelete: SetNull)
+  purchaseOrders PurchaseOrder[]
+
+  @@index([isActive, isDefault])
+  @@index([createdById])
+  @@index([updatedById])
+}
+
+model PurchaseOrderApprovalEvent {
+  id              Int                         @id @default(autoincrement())
+  purchaseOrderId Int
+  stage           PurchaseOrderApprovalStage
+  decision        PurchaseOrderApprovalDecision
+  note            String?
+  metadata        Json?
+  actedById       String?
+  actedAt         DateTime                    @default(now())
+  purchaseOrder   PurchaseOrder               @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  actedBy         User?                       @relation("PurchaseOrderApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+
+  @@index([purchaseOrderId, stage])
+  @@index([actedById])
+}
+
+model PurchaseOrderNotification {
+  id              Int                         @id @default(autoincrement())
+  purchaseOrderId Int
+  stage           PurchaseOrderApprovalStage
+  channel         WorkflowNotificationChannel
+  status          WorkflowNotificationStatus  @default(PENDING)
+  recipientUserId String?
+  recipientEmail  String?
+  message         String
+  metadata        Json?
+  sentAt          DateTime?
+  createdAt       DateTime                    @default(now())
+  purchaseOrder   PurchaseOrder               @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  recipientUser   User?                       @relation("PurchaseOrderNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
+
+  @@index([purchaseOrderId, stage, createdAt])
+  @@index([recipientUserId])
+  @@index([status, channel])
 }
 
 model PurchaseOrderItem {
@@ -3216,6 +3310,23 @@ enum ComparativeStatementApprovalDecision {
   CANCELLED
 }
 
+enum PurchaseOrderApprovalStage {
+  DRAFT
+  SUBMISSION
+  MANAGER_REVIEW
+  COMMITTEE_REVIEW
+  FINAL_APPROVAL
+  REJECTION
+  CANCELLATION
+}
+
+enum PurchaseOrderApprovalDecision {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum PurchaseRequisitionStatus {
   DRAFT
   SUBMITTED
@@ -3257,9 +3368,12 @@ enum WorkflowNotificationStatus {
 enum PurchaseOrderStatus {
   DRAFT
   SUBMITTED
+  MANAGER_APPROVED
+  COMMITTEE_APPROVED
   APPROVED
   PARTIALLY_RECEIVED
   RECEIVED
+  REJECTED
   CANCELLED
 }
 

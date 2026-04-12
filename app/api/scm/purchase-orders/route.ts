@@ -12,11 +12,15 @@ import {
   toDecimalAmount,
   toPurchaseOrderLogSnapshot,
 } from "@/lib/scm";
+import { resolvePurchaseOrderTermsTemplate } from "@/lib/purchase-order-terms";
 
 const PURCHASE_ORDER_READ_PERMISSIONS = [
   "purchase_orders.read",
   "purchase_orders.manage",
   "purchase_orders.approve",
+  "purchase_orders.approve_manager",
+  "purchase_orders.approve_committee",
+  "purchase_orders.approve_final",
   "goods_receipts.manage",
 ] as const;
 
@@ -128,6 +132,8 @@ export async function POST(request: NextRequest) {
       warehouseId?: unknown;
       expectedAt?: unknown;
       notes?: unknown;
+      termsTemplateId?: unknown;
+      termsAndConditions?: unknown;
       items?: Array<{
         productVariantId?: unknown;
         quantityOrdered?: unknown;
@@ -138,6 +144,20 @@ export async function POST(request: NextRequest) {
 
     const supplierId = Number(body.supplierId);
     const warehouseId = Number(body.warehouseId);
+    const termsTemplateIdRaw = Number(body.termsTemplateId);
+    const requestedTemplateId =
+      Number.isInteger(termsTemplateIdRaw) && termsTemplateIdRaw > 0
+        ? termsTemplateIdRaw
+        : null;
+
+    if (
+      body.termsTemplateId !== undefined &&
+      body.termsTemplateId !== null &&
+      body.termsTemplateId !== "" &&
+      requestedTemplateId === null
+    ) {
+      return NextResponse.json({ error: "Invalid terms template id." }, { status: 400 });
+    }
 
     if (!Number.isInteger(supplierId) || supplierId <= 0) {
       return NextResponse.json({ error: "Supplier is required." }, { status: 400 });
@@ -242,6 +262,16 @@ export async function POST(request: NextRequest) {
     }
 
     const created = await prisma.$transaction(async (tx) => {
+      const selectedTemplate = await resolvePurchaseOrderTermsTemplate(tx, {
+        templateId: requestedTemplateId,
+        createdById: access.userId,
+      });
+      if (requestedTemplateId && !selectedTemplate) {
+        throw new Error("Selected PO terms template is invalid or inactive.");
+      }
+      const customTerms = toCleanText(body.termsAndConditions, 7000);
+      const resolvedTerms = customTerms || selectedTemplate?.body || "";
+
       const poNumber = await generatePurchaseOrderNumber(tx);
       return tx.purchaseOrder.create({
         data: {
@@ -250,6 +280,11 @@ export async function POST(request: NextRequest) {
           warehouseId,
           expectedAt,
           notes: toCleanText(body.notes, 500) || null,
+          approvalStage: "DRAFT",
+          termsTemplateId: selectedTemplate?.id ?? null,
+          termsTemplateCode: selectedTemplate?.code ?? null,
+          termsTemplateName: selectedTemplate?.name ?? null,
+          termsAndConditions: resolvedTerms || null,
           currency: supplier.currency || "BDT",
           createdById: access.userId,
           subtotal: totals.subtotal,

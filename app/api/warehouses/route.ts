@@ -67,6 +67,9 @@ export async function GET() {
         "purchase_orders.read",
         "purchase_orders.manage",
         "purchase_orders.approve",
+        "purchase_orders.approve_manager",
+        "purchase_orders.approve_committee",
+        "purchase_orders.approve_final",
         "goods_receipts.read",
         "goods_receipts.manage",
         "supplier_returns.read",
@@ -96,6 +99,9 @@ export async function GET() {
         access.hasGlobal("purchase_orders.read") ||
         access.hasGlobal("purchase_orders.manage") ||
         access.hasGlobal("purchase_orders.approve") ||
+        access.hasGlobal("purchase_orders.approve_manager") ||
+        access.hasGlobal("purchase_orders.approve_committee") ||
+        access.hasGlobal("purchase_orders.approve_final") ||
         access.hasGlobal("goods_receipts.read") ||
         access.hasGlobal("goods_receipts.manage") ||
         access.hasGlobal("supplier_returns.read") ||

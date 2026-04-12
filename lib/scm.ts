@@ -146,6 +146,8 @@ export function computePurchaseOrderTotals(
 const EDITABLE_LANDED_COST_PO_STATUSES = new Set([
   "DRAFT",
   "SUBMITTED",
+  "MANAGER_APPROVED",
+  "COMMITTEE_APPROVED",
   "APPROVED",
 ]);
 
@@ -157,7 +159,7 @@ export function getPurchaseOrderLandedCostLockReason(input: {
     return "Landed costs are locked after goods receipt posting.";
   }
   if (!EDITABLE_LANDED_COST_PO_STATUSES.has(input.status)) {
-    return `Landed costs can only be edited while purchase order is DRAFT, SUBMITTED, or APPROVED. Current status: ${input.status}.`;
+    return `Landed costs can only be edited while purchase order is DRAFT, SUBMITTED, MANAGER_APPROVED, COMMITTEE_APPROVED, or APPROVED. Current status: ${input.status}.`;
   }
   return null;
 }
@@ -288,6 +290,7 @@ export const purchaseOrderInclude = Prisma.validator<Prisma.PurchaseOrderInclude
       id: true,
       name: true,
       code: true,
+      email: true,
       currency: true,
     },
   },
@@ -310,6 +313,55 @@ export const purchaseOrderInclude = Prisma.validator<Prisma.PurchaseOrderInclude
       id: true,
       name: true,
       email: true,
+    },
+  },
+  managerApprovedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  committeeApprovedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  finalApprovedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  rejectedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  sourceComparativeStatement: {
+    select: {
+      id: true,
+      csNumber: true,
+      status: true,
+      rfq: {
+        select: {
+          id: true,
+          rfqNumber: true,
+        },
+      },
+    },
+  },
+  termsTemplate: {
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      isActive: true,
     },
   },
   items: {
@@ -344,6 +396,32 @@ export const purchaseOrderInclude = Prisma.validator<Prisma.PurchaseOrderInclude
     orderBy: [{ incurredAt: "desc" }, { id: "desc" }],
     include: {
       createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
+  approvalEvents: {
+    orderBy: [{ actedAt: "desc" }, { id: "desc" }],
+    take: 50,
+    include: {
+      actedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
+  notifications: {
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 50,
+    include: {
+      recipientUser: {
         select: {
           id: true,
           name: true,
@@ -827,6 +905,16 @@ export const comparativeStatementInclude =
         email: true,
       },
     },
+    generatedPurchaseOrder: {
+      select: {
+        id: true,
+        poNumber: true,
+        status: true,
+        approvalStage: true,
+        submittedAt: true,
+        approvedAt: true,
+      },
+    },
     lines: {
       orderBy: [{ rank: "asc" }, { combinedScore: "desc" }, { id: "asc" }],
       include: {
@@ -1246,15 +1334,31 @@ export function toPurchaseOrderLogSnapshot(purchaseOrder: PurchaseOrderWithRelat
   return {
     poNumber: purchaseOrder.poNumber,
     status: purchaseOrder.status,
+    approvalStage: purchaseOrder.approvalStage,
     supplierId: purchaseOrder.supplierId,
     supplierName: purchaseOrder.supplier.name,
     warehouseId: purchaseOrder.warehouseId,
     warehouseCode: purchaseOrder.warehouse.code,
+    sourceComparativeStatementId: purchaseOrder.sourceComparativeStatementId ?? null,
+    sourceComparativeStatementNumber:
+      purchaseOrder.sourceComparativeStatement?.csNumber ?? null,
+    sourceRfqNumber: purchaseOrder.sourceComparativeStatement?.rfq?.rfqNumber ?? null,
     orderDate: purchaseOrder.orderDate.toISOString(),
     expectedAt: purchaseOrder.expectedAt?.toISOString() ?? null,
     submittedAt: purchaseOrder.submittedAt?.toISOString() ?? null,
+    managerApprovedAt: purchaseOrder.managerApprovedAt?.toISOString() ?? null,
+    committeeApprovedAt: purchaseOrder.committeeApprovedAt?.toISOString() ?? null,
+    finalApprovedAt: purchaseOrder.finalApprovedAt?.toISOString() ?? null,
     approvedAt: purchaseOrder.approvedAt?.toISOString() ?? null,
+    rejectedAt: purchaseOrder.rejectedAt?.toISOString() ?? null,
     receivedAt: purchaseOrder.receivedAt?.toISOString() ?? null,
+    termsTemplateId: purchaseOrder.termsTemplateId ?? null,
+    termsTemplateCode:
+      purchaseOrder.termsTemplateCode ?? purchaseOrder.termsTemplate?.code ?? null,
+    termsTemplateName:
+      purchaseOrder.termsTemplateName ?? purchaseOrder.termsTemplate?.name ?? null,
+    termsAndConditions: purchaseOrder.termsAndConditions ?? null,
+    rejectionNote: purchaseOrder.rejectionNote ?? null,
     currency: purchaseOrder.currency,
     subtotal: purchaseOrder.subtotal.toString(),
     taxTotal: purchaseOrder.taxTotal.toString(),
@@ -2169,6 +2273,16 @@ export async function refreshPurchaseOrderReceiptStatus(
 
   let status = purchaseOrder.status;
   let receivedAt = purchaseOrder.receivedAt;
+  const preReceiptStatus: Prisma.PurchaseOrderStatus =
+    purchaseOrder.approvedAt || purchaseOrder.finalApprovedAt
+      ? "APPROVED"
+      : purchaseOrder.committeeApprovedAt
+        ? "COMMITTEE_APPROVED"
+        : purchaseOrder.managerApprovedAt
+          ? "MANAGER_APPROVED"
+          : purchaseOrder.submittedAt
+            ? "SUBMITTED"
+            : "DRAFT";
 
   if (ordered > 0 && received >= ordered) {
     status = "RECEIVED";
@@ -2177,7 +2291,7 @@ export async function refreshPurchaseOrderReceiptStatus(
     status = "PARTIALLY_RECEIVED";
     receivedAt = null;
   } else if (purchaseOrder.status === "RECEIVED" || purchaseOrder.status === "PARTIALLY_RECEIVED") {
-    status = purchaseOrder.approvedAt ? "APPROVED" : purchaseOrder.submittedAt ? "SUBMITTED" : "DRAFT";
+    status = preReceiptStatus;
     receivedAt = null;
   }
 

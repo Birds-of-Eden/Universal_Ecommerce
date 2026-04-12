@@ -42,9 +42,13 @@ type PurchaseOrder = {
   id: number;
   poNumber: string;
   status: string;
+  approvalStage: string;
   orderDate: string;
   expectedAt: string | null;
   notes: string | null;
+  termsTemplateName: string | null;
+  termsAndConditions: string | null;
+  rejectionNote: string | null;
   currency: string;
   grandTotal: number | string;
   supplier: Supplier;
@@ -65,6 +69,15 @@ type PurchaseOrder = {
       };
     };
   }>;
+};
+
+type PurchaseOrderTermsTemplate = {
+  id: number;
+  code: string;
+  name: string;
+  body: string;
+  isDefault: boolean;
+  isActive: boolean;
 };
 
 type PurchaseOrderDraftItem = {
@@ -89,22 +102,25 @@ async function readJson<T>(response: Response, fallbackMessage: string): Promise
   return data as T;
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { cache: "no-store" });
-  return readJson<T>(response, "Request failed");
-}
-
 export default function PurchaseOrdersPage() {
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
     : [];
   const canManage = permissions.includes("purchase_orders.manage");
-  const canApprove = permissions.includes("purchase_orders.approve");
+  const canApproveLegacy = permissions.includes("purchase_orders.approve");
+  const canApproveManager =
+    permissions.includes("purchase_orders.approve_manager") || canApproveLegacy;
+  const canApproveCommittee =
+    permissions.includes("purchase_orders.approve_committee") || canApproveLegacy;
+  const canApproveFinal =
+    permissions.includes("purchase_orders.approve_final") || canApproveLegacy;
+  const canApproveAny = canApproveManager || canApproveCommittee || canApproveFinal;
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
+  const [termsTemplates, setTermsTemplates] = useState<PurchaseOrderTermsTemplate[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -115,29 +131,41 @@ export default function PurchaseOrdersPage() {
   const [warehouseId, setWarehouseId] = useState("");
   const [expectedAt, setExpectedAt] = useState("");
   const [notes, setNotes] = useState("");
+  const [termsTemplateId, setTermsTemplateId] = useState("");
+  const [termsAndConditions, setTermsAndConditions] = useState("");
   const [items, setItems] = useState<PurchaseOrderDraftItem[]>([emptyLine()]);
 
   const loadPageData = async () => {
     try {
       setLoading(true);
-      const [ordersRes, warehousesRes, variantsRes, suppliersRes] = await Promise.all([
+      const [ordersRes, warehousesRes, variantsRes, suppliersRes, templatesRes] =
+        await Promise.all([
         fetch("/api/scm/purchase-orders", { cache: "no-store" }),
         fetch("/api/warehouses", { cache: "no-store" }),
         fetch("/api/product-variants", { cache: "no-store" }),
         fetch("/api/scm/suppliers", { cache: "no-store" }),
+        fetch("/api/scm/purchase-order-terms-templates", { cache: "no-store" }),
       ]);
 
-      const [orders, warehouseData, variantData, supplierData] = await Promise.all([
-        readJson<PurchaseOrder[]>(ordersRes, "Failed to load purchase orders"),
-        readJson<Warehouse[]>(warehousesRes, "Failed to load warehouses"),
-        readJson<Variant[]>(variantsRes, "Failed to load variants"),
-        suppliersRes.ok ? supplierResToJson<Supplier[]>(suppliersRes) : Promise.resolve([]),
-      ]);
+      const [orders, warehouseData, variantData, supplierData, templateData] =
+        await Promise.all([
+          readJson<PurchaseOrder[]>(ordersRes, "Failed to load purchase orders"),
+          readJson<Warehouse[]>(warehousesRes, "Failed to load warehouses"),
+          readJson<Variant[]>(variantsRes, "Failed to load variants"),
+          suppliersRes.ok ? supplierResToJson<Supplier[]>(suppliersRes) : Promise.resolve([]),
+          templatesRes.ok
+            ? readJson<PurchaseOrderTermsTemplate[]>(
+                templatesRes,
+                "Failed to load PO terms templates",
+              )
+            : Promise.resolve([]),
+        ]);
 
       setPurchaseOrders(Array.isArray(orders) ? orders : []);
       setWarehouses(Array.isArray(warehouseData) ? warehouseData : []);
       setVariants(Array.isArray(variantData) ? variantData : []);
       setSuppliers(Array.isArray(supplierData) ? supplierData : []);
+      setTermsTemplates(Array.isArray(templateData) ? templateData : []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load purchase order data");
     } finally {
@@ -173,11 +201,41 @@ export default function PurchaseOrdersPage() {
     }, 0);
   }, [items]);
 
+  const defaultTemplate = useMemo(
+    () => termsTemplates.find((template) => template.isDefault) ?? termsTemplates[0] ?? null,
+    [termsTemplates],
+  );
+
+  useEffect(() => {
+    if (!termsTemplateId && defaultTemplate) {
+      setTermsTemplateId(String(defaultTemplate.id));
+      if (!termsAndConditions.trim()) {
+        setTermsAndConditions(defaultTemplate.body);
+      }
+    }
+  }, [defaultTemplate, termsAndConditions, termsTemplateId]);
+
+  const applyTemplateSelection = (nextTemplateId: string) => {
+    setTermsTemplateId(nextTemplateId);
+    const selectedTemplate = termsTemplates.find(
+      (template) => String(template.id) === nextTemplateId,
+    );
+    if (selectedTemplate) {
+      setTermsAndConditions(selectedTemplate.body);
+      return;
+    }
+    if (!nextTemplateId) {
+      setTermsAndConditions("");
+    }
+  };
+
   const resetForm = () => {
     setSupplierId("");
     setWarehouseId("");
     setExpectedAt("");
     setNotes("");
+    setTermsTemplateId(defaultTemplate ? String(defaultTemplate.id) : "");
+    setTermsAndConditions(defaultTemplate?.body || "");
     setItems([emptyLine()]);
   };
 
@@ -209,6 +267,8 @@ export default function PurchaseOrdersPage() {
           warehouseId: Number(warehouseId),
           expectedAt: expectedAt || null,
           notes,
+          termsTemplateId: termsTemplateId ? Number(termsTemplateId) : null,
+          termsAndConditions,
           items: items.map((item) => ({
             productVariantId: Number(item.productVariantId),
             quantityOrdered: Number(item.quantityOrdered),
@@ -229,6 +289,14 @@ export default function PurchaseOrdersPage() {
   };
 
   const changeStatus = async (purchaseOrderId: number, action: string) => {
+    const actionLabels: Record<string, string> = {
+      submit: "submitted",
+      manager_approve: "manager-approved",
+      committee_approve: "committee-approved",
+      final_approve: "final-approved",
+      reject: "rejected",
+      cancel: "cancelled",
+    };
     try {
       const response = await fetch(`/api/scm/purchase-orders/${purchaseOrderId}`, {
         method: "PATCH",
@@ -236,7 +304,7 @@ export default function PurchaseOrdersPage() {
         body: JSON.stringify({ action }),
       });
       await readJson(response, `Failed to ${action} purchase order`);
-      toast.success(`Purchase order ${action}ed`);
+      toast.success(`Purchase order ${actionLabels[action] ?? action} successfully`);
       await loadPageData();
     } catch (error: any) {
       toast.error(error?.message || `Failed to ${action} purchase order`);
@@ -398,9 +466,43 @@ export default function PurchaseOrdersPage() {
               ))}
             </div>
 
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Terms Template</Label>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  value={termsTemplateId}
+                  onChange={(event) => applyTemplateSelection(event.target.value)}
+                >
+                  <option value="">No template</option>
+                  {termsTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                      {template.isDefault ? " (Default)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Template auto-fills terms. You can still customize below before saving.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  rows={4}
+                />
+              </div>
+            </div>
+
             <div>
-              <Label>Notes</Label>
-              <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} />
+              <Label>Terms & Conditions</Label>
+              <Textarea
+                value={termsAndConditions}
+                onChange={(event) => setTermsAndConditions(event.target.value)}
+                rows={7}
+              />
             </div>
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -431,9 +533,12 @@ export default function PurchaseOrdersPage() {
             <option value="ALL">All Statuses</option>
             <option value="DRAFT">Draft</option>
             <option value="SUBMITTED">Submitted</option>
+            <option value="MANAGER_APPROVED">Manager Approved</option>
+            <option value="COMMITTEE_APPROVED">Committee Approved</option>
             <option value="APPROVED">Approved</option>
             <option value="PARTIALLY_RECEIVED">Partially Received</option>
             <option value="RECEIVED">Received</option>
+            <option value="REJECTED">Rejected</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
         </CardHeader>
@@ -453,7 +558,8 @@ export default function PurchaseOrdersPage() {
                         {purchaseOrder.supplier.name} • {purchaseOrder.warehouse.name}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {new Date(purchaseOrder.orderDate).toLocaleDateString()} • {purchaseOrder.status}
+                        {new Date(purchaseOrder.orderDate).toLocaleDateString()} • {purchaseOrder.status} •{" "}
+                        Stage: {purchaseOrder.approvalStage}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -466,17 +572,50 @@ export default function PurchaseOrdersPage() {
                           Submit
                         </Button>
                       ) : null}
-                      {purchaseOrder.status === "SUBMITTED" && canApprove ? (
+                      {purchaseOrder.status === "SUBMITTED" && canApproveManager ? (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => void changeStatus(purchaseOrder.id, "approve")}
+                          onClick={() => void changeStatus(purchaseOrder.id, "manager_approve")}
                         >
-                          Approve
+                          Manager Approve
                         </Button>
                       ) : null}
-                      {["DRAFT", "SUBMITTED", "APPROVED"].includes(purchaseOrder.status) &&
-                      (canManage || canApprove) ? (
+                      {purchaseOrder.status === "MANAGER_APPROVED" && canApproveCommittee ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            void changeStatus(purchaseOrder.id, "committee_approve")
+                          }
+                        >
+                          Committee Approve
+                        </Button>
+                      ) : null}
+                      {purchaseOrder.status === "COMMITTEE_APPROVED" && canApproveFinal ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void changeStatus(purchaseOrder.id, "final_approve")}
+                        >
+                          Final Approve
+                        </Button>
+                      ) : null}
+                      {["SUBMITTED", "MANAGER_APPROVED", "COMMITTEE_APPROVED"].includes(
+                        purchaseOrder.status,
+                      ) && canApproveAny ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => void changeStatus(purchaseOrder.id, "reject")}
+                        >
+                          Reject
+                        </Button>
+                      ) : null}
+                      {["DRAFT", "SUBMITTED", "MANAGER_APPROVED", "COMMITTEE_APPROVED", "APPROVED"].includes(
+                        purchaseOrder.status,
+                      ) &&
+                      (canManage || canApproveAny) ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -521,6 +660,16 @@ export default function PurchaseOrdersPage() {
                   <div className="mt-3 text-right text-sm font-medium">
                     Grand Total: {Number(purchaseOrder.grandTotal).toFixed(2)} {purchaseOrder.currency}
                   </div>
+                  {purchaseOrder.termsAndConditions ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Terms Template: {purchaseOrder.termsTemplateName || "Custom"}.
+                    </p>
+                  ) : null}
+                  {purchaseOrder.rejectionNote ? (
+                    <p className="mt-2 text-xs text-destructive">
+                      Rejection note: {purchaseOrder.rejectionNote}
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>
