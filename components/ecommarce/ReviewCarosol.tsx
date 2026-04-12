@@ -137,38 +137,40 @@ export default function ReviewCarousel() {
 
   return (
     <section className="overflow-hidden pb-12">
-      <div className="text-center mb-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-          What customers say
-        </p>
-        <h2 className="text-2xl font-semibold text-foreground">
-          Trusted by our buyers
-        </h2>
-      </div>
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-8">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+            What customers say
+          </p>
+          <h2 className="text-2xl font-semibold text-foreground">
+            Trusted by our buyers
+          </h2>
+        </div>
 
       <div className="relative">
-        {/* Fade edges */}
-        <div className="pointer-events-none absolute left-0 top-0 h-full w-20 z-10 bg-gradient-to-r from-background to-transparent" />
-        <div className="pointer-events-none absolute right-0 top-0 h-full w-20 z-10 bg-gradient-to-l from-background to-transparent" />
+          {/* Fade edges */}
+          <div className="pointer-events-none absolute left-0 top-0 h-full w-20 z-10 bg-gradient-to-r from-background to-transparent" />
+          <div className="pointer-events-none absolute right-0 top-0 h-full w-20 z-10 bg-gradient-to-l from-background to-transparent" />
 
-        <div className="overflow-hidden">
-          <div
-            ref={trackRef}
-            className="flex gap-4"
-            style={{
-              width: "max-content",
-              animation: paused ? "none" : "scroll-left 32s linear infinite",
-            }}
-            onMouseEnter={() => setPaused(true)}
-            onMouseLeave={() => setPaused(false)}
-          >
-            {doubled.map((review, i) => (
-              <ReviewCard
-                key={`${review.id}-${i}`}
-                review={review}
-                colorIdx={i}
-              />
-            ))}
+          <div className="overflow-hidden">
+            <div
+              ref={trackRef}
+              className="flex gap-4"
+              style={{
+                width: "max-content",
+                animation: paused ? "none" : "scroll-left 100s linear infinite",
+              }}
+              onMouseEnter={() => setPaused(true)}
+              onMouseLeave={() => setPaused(false)}
+            >
+              {doubled.map((review, i) => (
+                <ReviewCard
+                  key={`${review.id}-${i}`}
+                  review={review}
+                  colorIdx={i}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

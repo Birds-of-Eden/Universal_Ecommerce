@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Home, MessageSquareQuote, Sparkles, SquareDashed, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ReviewSkeleton from "@/components/ui/ReviewSkeleton";
 
@@ -28,8 +29,10 @@ export default function ReviewPage() {
 
   const fetchReviews = async (page: number = 1) => {
     setLoading(true);
-    const res = await fetch(`/api/reviews/feature?page=${page}&limit=${itemsPerPage}`);
-    const data = await res.json();
+    const response = await fetch(
+      `/api/reviews/feature?page=${page}&limit=${itemsPerPage}`,
+    );
+    const data = await response.json();
     setReviews(data.data || []);
     setTotalPages(Math.ceil((data.total || 0) / itemsPerPage));
     setLoading(false);
@@ -38,6 +41,17 @@ export default function ReviewPage() {
   useEffect(() => {
     fetchReviews(currentPage);
   }, [currentPage]);
+
+  const featuredCount = useMemo(
+    () => reviews.filter((review) => Boolean(review.feature)).length,
+    [reviews],
+  );
+
+  const averageRating = useMemo(() => {
+    if (reviews.length === 0) return 0;
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+    return totalRating / reviews.length;
+  }, [reviews]);
 
   const toggleFeature = async (id: number, current: boolean | null) => {
     await fetch("/api/reviews/feature", {
@@ -54,76 +68,149 @@ export default function ReviewPage() {
     fetchReviews(currentPage);
   };
 
-  if (loading) return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold">Review Management</h1>
-      <ReviewSkeleton />
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="p-6">
+        <h1 className="mb-6 text-2xl font-bold">Review Management</h1>
+        <ReviewSkeleton />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-bold">Review Management</h1>
+    <div className="space-y-6 p-6">
+      <div className="overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card to-muted/40 shadow-sm">
+        <div className="grid gap-6 p-6 lg:grid-cols-[1.4fr_0.8fr] lg:items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              <MessageSquareQuote className="h-3.5 w-3.5" />
+              Review Curation
+            </div>
+            <h1 className="mt-4 text-2xl font-bold text-foreground sm:text-3xl">
+              Manage featured customer reviews
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Reviews marked as featured from this page can be shown on the home
+              page. Use this panel to highlight the strongest customer feedback
+              before publishing it more prominently.
+            </p>
+          </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {reviews.map((r) => (
-          <div
-            key={r.id}
-            className="flex flex-col justify-between rounded-xl border p-4 shadow-sm"
-          >
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground">
-                {r.product?.name}
-              </h3>
-
-              <p className="mt-2 text-sm">
-                ⭐ {r.rating} / 5
-              </p>
-
-              <p className="mt-2 text-sm text-muted-foreground">
-                {r.comment}
-              </p>
-
-              <div className="mt-3 text-xs text-muted-foreground">
-                By: {r.user?.name}
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+            <div className="rounded-2xl border border-border bg-background/80 p-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Placement
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-lg font-semibold text-foreground">
+                <SquareDashed className="h-4 w-4 text-primary" />
+                Marquee
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-between">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  r.feature
-                    ? "bg-green-500 text-white"
-                    : "bg-gray-200 text-gray-700"
-                }`}
-              >
-                {r.feature ? "Featured" : "Not Featured"}
-              </span>
+            <div className="rounded-2xl border border-border bg-background/80 p-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Featured now
+              </div>
+              <div className="mt-2 text-2xl font-bold text-foreground">
+                {featuredCount}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-background/80 p-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Avg. rating
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-2xl font-bold text-foreground">
+                <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+                {averageRating.toFixed(1)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {reviews.map((review) => (
+          <div
+            key={review.id}
+            className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:shadow-md"
+          >
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  {review.product?.name}
+                </h3>
+                <span
+                  className={`inline-flex shrink-0 items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${
+                    review.feature
+                      ? "bg-emerald-500/15 text-emerald-600"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {review.feature ? "Featured" : "Standard"}
+                </span>
+              </div>
+
+              <div className="mt-4 flex items-center gap-1 text-amber-400">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <Star
+                    key={index}
+                    className={`h-4 w-4 ${
+                      index < review.rating
+                        ? "fill-current"
+                        : "fill-transparent text-muted"
+                    }`}
+                  />
+                ))}
+                <span className="ml-2 text-sm font-medium text-foreground">
+                  {review.rating.toFixed(1)} / 5
+                </span>
+              </div>
+
+              <p className="mt-4 min-h-[72px] text-sm leading-6 text-muted-foreground">
+                {review.comment?.trim() ||
+                  "No written comment provided for this review."}
+              </p>
+
+              <div className="mt-4 rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {review.user?.name}
+                </span>
+                {review.user?.email ? ` • ${review.user.email}` : ""}
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between gap-3 border-t border-border pt-4">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-primary" />
+                {review.feature
+                  ? "Visible for home page placement"
+                  : "Can be promoted to home page"}
+              </div>
 
               <Button
                 size="sm"
-                variant={r.feature ? "destructive" : "default"}
-                onClick={() => toggleFeature(r.id, r.feature)}
+                variant={review.feature ? "destructive" : "default"}
+                onClick={() => toggleFeature(review.id, review.feature)}
               >
-                {r.feature ? "Remove" : "Feature"}
+                {review.feature ? "Remove" : "Feature"}
               </Button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="mt-8 flex items-center justify-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
             Previous
           </Button>
-          
+
           <div className="flex items-center gap-1">
             {[...Array(totalPages)].map((_, index) => {
               const page = index + 1;
@@ -133,18 +220,20 @@ export default function ReviewPage() {
                   variant={currentPage === page ? "default" : "outline"}
                   size="sm"
                   onClick={() => setCurrentPage(page)}
-                  className="w-8 h-8 p-0"
+                  className="h-8 w-8 p-0"
                 >
                   {page}
                 </Button>
               );
             })}
           </div>
-          
+
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+            }
             disabled={currentPage === totalPages}
           >
             Next
