@@ -698,6 +698,15 @@ export async function PATCH(
       if (!access.can("rfq.manage", rfq.warehouseId)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
+      if (isBlindReviewActive(rfq)) {
+        return NextResponse.json(
+          {
+            error:
+              "Blind review is active until the RFQ deadline. Manual quotation entry is locked.",
+          },
+          { status: 400 },
+        );
+      }
       if (!["SUBMITTED", "CLOSED", "AWARDED"].includes(rfq.status)) {
         return NextResponse.json(
           { error: "Quotations can only be submitted on submitted/closed RFQs." },

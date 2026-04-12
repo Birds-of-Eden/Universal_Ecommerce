@@ -282,7 +282,10 @@ export default function SupplierRfqsPage() {
       }> = [];
       const draftAttachments = proposalAttachments[rfq.id] || [];
       for (const attachment of draftAttachments) {
-        const fileUrl = await uploadFile(attachment.file);
+        const fileUrl = await uploadFile(
+          attachment.file,
+          "/api/upload/scm-proposals",
+        );
         uploadedAttachments.push({
           proposalType: attachment.proposalType,
           label: attachment.label.trim() || null,

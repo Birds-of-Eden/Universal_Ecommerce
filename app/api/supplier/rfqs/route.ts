@@ -49,6 +49,22 @@ function normalizeQuotationAttachments(attachments: unknown): Array<{
     if (!fileUrl) {
       throw new Error(`Proposal attachment ${index + 1}: file URL is required.`);
     }
+    if (fileUrl.includes("..")) {
+      throw new Error(`Proposal attachment ${index + 1}: file URL is invalid.`);
+    }
+    if (!fileUrl.startsWith("/")) {
+      throw new Error(
+        `Proposal attachment ${index + 1}: only internal upload URLs are allowed.`,
+      );
+    }
+    if (
+      !fileUrl.startsWith("/api/upload/scm-proposals/") &&
+      !fileUrl.startsWith("/upload/")
+    ) {
+      throw new Error(
+        `Proposal attachment ${index + 1}: unsupported upload path.`,
+      );
+    }
 
     const fileSizeRaw = item?.fileSize;
     const fileSize =
