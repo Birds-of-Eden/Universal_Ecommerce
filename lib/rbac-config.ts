@@ -57,7 +57,8 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "settings.manage",
-    description: "Access settings areas with elevated configuration privileges.",
+    description:
+      "Access settings areas with elevated configuration privileges.",
   },
   {
     key: "settings.banner.manage",
@@ -101,51 +102,67 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "investors.read",
-    description: "Read investor directory, KYC progress, and investor account summaries.",
+    description:
+      "Read investor directory, KYC progress, and investor account summaries.",
   },
   {
     key: "investors.manage",
-    description: "Create/update investor master profiles and investor KYC statuses.",
+    description:
+      "Create/update investor master profiles and investor KYC statuses.",
   },
   {
     key: "investor_ledger.read",
-    description: "Read investor capital ledger entries, balances, and transaction history.",
+    description:
+      "Read investor capital ledger entries, balances, and transaction history.",
+  },
+  {
+    key: "reviews.manage",
+    description: "Read and manage product reviews.",
   },
   {
     key: "investor_ledger.manage",
-    description: "Post investor capital movements such as contributions, distributions, and adjustments.",
+    description:
+      "Post investor capital movements such as contributions, distributions, and adjustments.",
   },
   {
     key: "investor_allocations.read",
-    description: "Read investor-to-product allocation plans and participation setup.",
+    description:
+      "Read investor-to-product allocation plans and participation setup.",
   },
   {
     key: "investor_allocations.manage",
-    description: "Create/update investor-to-product allocation rules and commitment setup.",
+    description:
+      "Create/update investor-to-product allocation rules and commitment setup.",
   },
   {
     key: "investor_profit.read",
-    description: "Read investor product-level profitability runs and investor profit-share outputs.",
+    description:
+      "Read investor product-level profitability runs and investor profit-share outputs.",
   },
   {
     key: "investor_profit.manage",
-    description: "Generate investor profitability runs and recalculate investor product-level profit sharing.",
+    description:
+      "Generate investor profitability runs and recalculate investor product-level profit sharing.",
   },
   {
     key: "investor_profit.approve",
-    description: "Approve or reject investor profitability runs using maker-checker governance.",
+    description:
+      "Approve or reject investor profitability runs using maker-checker governance.",
   },
   {
     key: "investor_profit.post",
-    description: "Post approved investor profitability runs into investor ledger entries.",
+    description:
+      "Post approved investor profitability runs into investor ledger entries.",
   },
   {
     key: "investor_payout.read",
-    description: "Read investor payout history generated from posted profitability runs.",
+    description:
+      "Read investor payout history generated from posted profitability runs.",
   },
   {
     key: "investor_payout.manage",
-    description: "Create investor payout distributions and payout settlement records.",
+    description:
+      "Create investor payout distributions and payout settlement records.",
   },
   {
     key: "investor_payout.approve",
@@ -153,15 +170,18 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "investor_payout.pay",
-    description: "Settle approved investor payouts and post distribution cash-out entries.",
+    description:
+      "Settle approved investor payouts and post distribution cash-out entries.",
   },
   {
     key: "investor_payout.void",
-    description: "Void approved/paid investor payouts and post reversal entries when required.",
+    description:
+      "Void approved/paid investor payouts and post reversal entries when required.",
   },
   {
     key: "investor_statement.read",
-    description: "Read and export investor statement summaries and payout history.",
+    description:
+      "Read and export investor statement summaries and payout history.",
   },
   {
     key: "investor.portal.access",
@@ -181,15 +201,18 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "investor.portal.profit.read",
-    description: "Read own product-level profit run outputs from investor portal.",
+    description:
+      "Read own product-level profit run outputs from investor portal.",
   },
   {
     key: "investor.portal.payout.read",
-    description: "Read own payout register and settlement timeline in investor portal.",
+    description:
+      "Read own payout register and settlement timeline in investor portal.",
   },
   {
     key: "investor.portal.statement.read",
-    description: "Read and export own investor statements from investor portal.",
+    description:
+      "Read and export own investor statements from investor portal.",
   },
   {
     key: "profile.manage",
@@ -245,11 +268,13 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "supplier.purchase_orders.read",
-    description: "Read own awarded purchase orders and line-level delivery expectations.",
+    description:
+      "Read own awarded purchase orders and line-level delivery expectations.",
   },
   {
     key: "supplier.invoices.read",
-    description: "Read own supplier invoices, payment status, and outstanding balances.",
+    description:
+      "Read own supplier invoices, payment status, and outstanding balances.",
   },
   {
     key: "supplier.payments.read",
@@ -257,19 +282,23 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "supplier.profile.read",
-    description: "Read own supplier profile, compliance documents, and onboarding status.",
+    description:
+      "Read own supplier profile, compliance documents, and onboarding status.",
   },
   {
     key: "supplier.profile.update_request.submit",
-    description: "Submit supplier profile/document update requests for admin approval.",
+    description:
+      "Submit supplier profile/document update requests for admin approval.",
   },
   {
     key: "supplier.documents.read",
-    description: "Read own supplier compliance documents, expiry timeline, and verification state.",
+    description:
+      "Read own supplier compliance documents, expiry timeline, and verification state.",
   },
   {
     key: "supplier.documents.update_request.submit",
-    description: "Submit compliance document update or annual renewal requests.",
+    description:
+      "Submit compliance document update or annual renewal requests.",
   },
   {
     key: "supplier.work_orders.read",
@@ -277,19 +306,23 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "supplier.notifications.read",
-    description: "Read supplier portal system/email notifications and alert timeline.",
+    description:
+      "Read supplier portal system/email notifications and alert timeline.",
   },
   {
     key: "supplier.feedback.read",
-    description: "Read supplier performance feedback shared by internal teams or clients.",
+    description:
+      "Read supplier performance feedback shared by internal teams or clients.",
   },
   {
     key: "supplier.2fa.manage",
-    description: "Manage own supplier portal multi-factor authentication settings.",
+    description:
+      "Manage own supplier portal multi-factor authentication settings.",
   },
   {
     key: "supplier.profile_requests.read",
-    description: "Read supplier profile/document update requests submitted from supplier portal.",
+    description:
+      "Read supplier profile/document update requests submitted from supplier portal.",
   },
   {
     key: "supplier.profile_requests.review",
@@ -301,23 +334,28 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "supplier_performance.read",
-    description: "Read supplier lead-time intelligence, on-time delivery trends, and reliability scorecards.",
+    description:
+      "Read supplier lead-time intelligence, on-time delivery trends, and reliability scorecards.",
   },
   {
     key: "sla.read",
-    description: "Read supplier SLA policies, SLA scorecards, and breach history.",
+    description:
+      "Read supplier SLA policies, SLA scorecards, and breach history.",
   },
   {
     key: "sla.manage",
-    description: "Create/update supplier SLA policies and run SLA breach evaluations.",
+    description:
+      "Create/update supplier SLA policies and run SLA breach evaluations.",
   },
   {
     key: "sla.dispute.resolve",
-    description: "Resolve or reject supplier SLA disputes with governance notes.",
+    description:
+      "Resolve or reject supplier SLA disputes with governance notes.",
   },
   {
     key: "sla.termination.approve",
-    description: "Approve/reject/execute supplier SLA termination governance cases.",
+    description:
+      "Approve/reject/execute supplier SLA termination governance cases.",
   },
   {
     key: "sla.notifications.manage",
@@ -329,7 +367,8 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "purchase_requisitions.manage",
-    description: "Create, update, submit, and convert purchase requisitions within allowed scope.",
+    description:
+      "Create, update, submit, and convert purchase requisitions within allowed scope.",
   },
   {
     key: "purchase_requisitions.approve",
@@ -337,23 +376,28 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "mrf.budget_clear",
-    description: "Perform finance budget clearance for submitted material requisitions.",
+    description:
+      "Perform finance budget clearance for submitted material requisitions.",
   },
   {
     key: "mrf.endorse",
-    description: "Provide endorsement sign-off for budget-cleared material requisitions.",
+    description:
+      "Provide endorsement sign-off for budget-cleared material requisitions.",
   },
   {
     key: "mrf.final_approve",
-    description: "Execute final material requisition approval according to authority matrix.",
+    description:
+      "Execute final material requisition approval according to authority matrix.",
   },
   {
     key: "rfq.read",
-    description: "Read RFQ events, invited suppliers, and quotation comparisons.",
+    description:
+      "Read RFQ events, invited suppliers, and quotation comparisons.",
   },
   {
     key: "rfq.manage",
-    description: "Create/update RFQs, invite suppliers, and submit supplier quotations.",
+    description:
+      "Create/update RFQs, invite suppliers, and submit supplier quotations.",
   },
   {
     key: "rfq.approve",
@@ -361,23 +405,28 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "comparative_statements.read",
-    description: "Read procurement comparative statements, scoring, and approval history.",
+    description:
+      "Read procurement comparative statements, scoring, and approval history.",
   },
   {
     key: "comparative_statements.manage",
-    description: "Generate comparative statements from RFQs and maintain technical scorecards.",
+    description:
+      "Generate comparative statements from RFQs and maintain technical scorecards.",
   },
   {
     key: "comparative_statements.approve_manager",
-    description: "Perform stage-1 procurement manager approval for comparative statements.",
+    description:
+      "Perform stage-1 procurement manager approval for comparative statements.",
   },
   {
     key: "comparative_statements.approve_committee",
-    description: "Perform stage-2 procurement committee approval for comparative statements.",
+    description:
+      "Perform stage-2 procurement committee approval for comparative statements.",
   },
   {
     key: "comparative_statements.approve_final",
-    description: "Perform final authority-matrix approval for comparative statements.",
+    description:
+      "Perform final authority-matrix approval for comparative statements.",
   },
   {
     key: "purchase_orders.read",
@@ -392,6 +441,18 @@ export const SYSTEM_PERMISSIONS = [
     description: "Approve submitted purchase orders.",
   },
   {
+    key: "purchase_orders.approve_manager",
+    description: "Perform procurement manager approval on submitted purchase orders.",
+  },
+  {
+    key: "purchase_orders.approve_committee",
+    description: "Perform procurement committee approval on manager-approved purchase orders.",
+  },
+  {
+    key: "purchase_orders.approve_final",
+    description: "Perform final authority-matrix approval and issue purchase orders as work orders.",
+  },
+  {
     key: "goods_receipts.read",
     description: "Read goods receipt history and receipt details.",
   },
@@ -401,35 +462,43 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "landed_costs.read",
-    description: "Read purchase order landed cost components and allocation previews.",
+    description:
+      "Read purchase order landed cost components and allocation previews.",
   },
   {
     key: "landed_costs.manage",
-    description: "Create, update, and remove purchase order landed cost components before goods receipt posting.",
+    description:
+      "Create, update, and remove purchase order landed cost components before goods receipt posting.",
   },
   {
     key: "supplier_returns.read",
-    description: "Read supplier return requests, dispatches, and closure history.",
+    description:
+      "Read supplier return requests, dispatches, and closure history.",
   },
   {
     key: "supplier_returns.manage",
-    description: "Create, update, submit, and dispatch supplier returns within allowed scope.",
+    description:
+      "Create, update, submit, and dispatch supplier returns within allowed scope.",
   },
   {
     key: "supplier_returns.approve",
-    description: "Approve or close supplier returns and post supplier credit adjustments.",
+    description:
+      "Approve or close supplier returns and post supplier credit adjustments.",
   },
   {
     key: "replenishment.read",
-    description: "Read replenishment rules, stock planning signals, and recommendation queues.",
+    description:
+      "Read replenishment rules, stock planning signals, and recommendation queues.",
   },
   {
     key: "replenishment.manage",
-    description: "Manage replenishment rules and generate replenishment requisitions within allowed scope.",
+    description:
+      "Manage replenishment rules and generate replenishment requisitions within allowed scope.",
   },
   {
     key: "supplier_ledger.read",
-    description: "Read supplier ledger balances, invoices, payments, and statements.",
+    description:
+      "Read supplier ledger balances, invoices, payments, and statements.",
   },
   {
     key: "supplier_invoices.read",
@@ -437,7 +506,8 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "supplier_invoices.manage",
-    description: "Create and manage supplier invoices posted to accounts payable.",
+    description:
+      "Create and manage supplier invoices posted to accounts payable.",
   },
   {
     key: "supplier_payments.read",
@@ -449,11 +519,13 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "supplier_payments.override_hold",
-    description: "Override SLA/AP payment holds on supplier invoices with mandatory justification.",
+    description:
+      "Override SLA/AP payment holds on supplier invoices with mandatory justification.",
   },
   {
     key: "three_way_match.read",
-    description: "Review three-way match results between purchase orders, receipts, and supplier invoices.",
+    description:
+      "Review three-way match results between purchase orders, receipts, and supplier invoices.",
   },
   {
     key: "warehouse_transfers.read",
@@ -461,21 +533,26 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "warehouse_transfers.manage",
-    description: "Create, dispatch, receive, and update warehouse transfers within assigned scope.",
+    description:
+      "Create, dispatch, receive, and update warehouse transfers within assigned scope.",
   },
   {
     key: "warehouse_transfers.approve",
-    description: "Approve submitted warehouse transfer requests before dispatch.",
+    description:
+      "Approve submitted warehouse transfer requests before dispatch.",
   },
   {
     key: "delivery.dashboard.access",
-    description: "Access delivery-man assignment and operational dashboard flows.",
+    description:
+      "Access delivery-man assignment and operational dashboard flows.",
   },
 ] as const;
 
 export type PermissionKey = (typeof SYSTEM_PERMISSIONS)[number]["key"];
 
-const ALL_PERMISSION_KEYS = SYSTEM_PERMISSIONS.map((permission) => permission.key);
+const ALL_PERMISSION_KEYS = SYSTEM_PERMISSIONS.map(
+  (permission) => permission.key,
+);
 
 export const SYSTEM_ROLE_DEFINITIONS: Array<{
   name: string;
@@ -587,7 +664,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "investor_relations_manager",
     label: "Investor Relations Manager",
-    description: "Manage investor onboarding, KYC governance, capital ledger entries, and allocation setup.",
+    description:
+      "Manage investor onboarding, KYC governance, capital ledger entries, and allocation setup.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -609,7 +687,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "investor_analyst",
     label: "Investor Analyst",
-    description: "Read-only investor performance, capital account, and allocation visibility role.",
+    description:
+      "Read-only investor performance, capital account, and allocation visibility role.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -643,15 +722,13 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
     label: "Delivery Man",
     description: "Delivery execution role for assigned shipment handling.",
     immutable: false,
-    permissions: [
-      "delivery.dashboard.access",
-      "profile.manage",
-    ],
+    permissions: ["delivery.dashboard.access", "profile.manage"],
   },
   {
     name: "supplier_portal",
     label: "Supplier Portal User",
-    description: "External supplier self-service role for RFQ response and payable visibility.",
+    description:
+      "External supplier self-service role for RFQ response and payable visibility.",
     immutable: false,
     permissions: [
       "supplier.portal.access",
@@ -674,7 +751,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "investor_portal",
     label: "Investor Portal User",
-    description: "External investor self-service role for portfolio, ledger, payouts, and statement visibility.",
+    description:
+      "External investor self-service role for portfolio, ledger, payouts, and statement visibility.",
     immutable: false,
     permissions: [
       "investor.portal.access",
@@ -690,7 +768,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "scm_admin",
     label: "SCM Admin",
-    description: "Full supply chain administration across suppliers, purchase orders, and receipts.",
+    description:
+      "Full supply chain administration across suppliers, purchase orders, and receipts.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -724,6 +803,9 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "purchase_orders.read",
       "purchase_orders.manage",
       "purchase_orders.approve",
+      "purchase_orders.approve_manager",
+      "purchase_orders.approve_committee",
+      "purchase_orders.approve_final",
       "goods_receipts.read",
       "goods_receipts.manage",
       "landed_costs.read",
@@ -783,6 +865,9 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "purchase_orders.read",
       "purchase_orders.manage",
       "purchase_orders.approve",
+      "purchase_orders.approve_manager",
+      "purchase_orders.approve_committee",
+      "purchase_orders.approve_final",
       "goods_receipts.read",
       "landed_costs.read",
       "landed_costs.manage",
@@ -804,7 +889,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "warehouse_receiver",
     label: "Warehouse Receiver",
-    description: "Receive stock from approved purchase orders into assigned warehouses.",
+    description:
+      "Receive stock from approved purchase orders into assigned warehouses.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -827,7 +913,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "procurement_requestor",
     label: "Procurement Requestor",
-    description: "Raise and submit warehouse purchase requisitions for procurement review.",
+    description:
+      "Raise and submit warehouse purchase requisitions for procurement review.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -869,7 +956,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "replenishment_planner",
     label: "Replenishment Planner",
-    description: "Monitor warehouse demand signals and raise replenishment requisitions from planning suggestions.",
+    description:
+      "Monitor warehouse demand signals and raise replenishment requisitions from planning suggestions.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -890,7 +978,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "supplier_return_manager",
     label: "Supplier Return Manager",
-    description: "Control supplier return approval, dispatch, and accounts payable adjustment flows.",
+    description:
+      "Control supplier return approval, dispatch, and accounts payable adjustment flows.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -911,7 +1000,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "ap_manager",
     label: "AP Manager",
-    description: "Accounts payable role for supplier invoices, payments, and ledger visibility.",
+    description:
+      "Accounts payable role for supplier invoices, payments, and ledger visibility.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -938,7 +1028,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "sla_manager",
     label: "SLA Manager",
-    description: "Own supplier SLA targets and evaluate supplier breach trends.",
+    description:
+      "Own supplier SLA targets and evaluate supplier breach trends.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -960,7 +1051,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
   {
     name: "supplier_performance_analyst",
     label: "Supplier Performance Analyst",
-    description: "Review supplier lead-time reliability, late-order risk, and delivery performance trends.",
+    description:
+      "Review supplier lead-time reliability, late-order risk, and delivery performance trends.",
     immutable: false,
     permissions: [
       "admin.panel.access",
@@ -978,7 +1070,10 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
 ];
 
 const ROLE_TEMPLATE_FALLBACKS = Object.fromEntries(
-  SYSTEM_ROLE_DEFINITIONS.map((definition) => [definition.name, [...definition.permissions]]),
+  SYSTEM_ROLE_DEFINITIONS.map((definition) => [
+    definition.name,
+    [...definition.permissions],
+  ]),
 ) as Record<string, PermissionKey[]>;
 
 export const LEGACY_ROLE_FALLBACKS: Record<string, PermissionKey[]> = {
@@ -991,10 +1086,7 @@ export const LEGACY_ROLE_FALLBACKS: Record<string, PermissionKey[]> = {
     "wishlist.manage",
     "chats.respond",
   ],
-  delivery_man: [
-    "delivery.dashboard.access",
-    "profile.manage",
-  ],
+  delivery_man: ["delivery.dashboard.access", "profile.manage"],
 };
 
 export const ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS: PermissionKey[] = [
@@ -1065,6 +1157,9 @@ export const ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS: PermissionKey[] = [
   "purchase_orders.read",
   "purchase_orders.manage",
   "purchase_orders.approve",
+  "purchase_orders.approve_manager",
+  "purchase_orders.approve_committee",
+  "purchase_orders.approve_final",
   "goods_receipts.read",
   "goods_receipts.manage",
   "landed_costs.read",

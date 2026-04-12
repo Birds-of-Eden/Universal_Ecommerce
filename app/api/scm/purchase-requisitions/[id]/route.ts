@@ -1012,6 +1012,7 @@ export async function PATCH(
             supplierId,
             purchaseRequisitionId: requisition.id,
             warehouseId: requisition.warehouseId,
+            approvalStage: "DRAFT",
             expectedAt: expectedAt ?? null,
             notes: toCleanText(body.notes, 500) || requisition.note || null,
             currency: supplier.currency || "BDT",

@@ -89,6 +89,11 @@ const menuItems: MenuItem[] = [
         requiredPermissions: ["products.manage"],
       },
       {
+        name: "Reviews",
+        href: "/admin/operations/review",
+        requiredPermissions: ["reviews.manage"],
+      },
+      {
         name: "Orders",
         href: "/admin/operations/orders",
         requiredPermissions: ["orders.read_all"],
@@ -215,6 +220,9 @@ const menuItems: MenuItem[] = [
           "purchase_orders.read",
           "purchase_orders.manage",
           "purchase_orders.approve",
+          "purchase_orders.approve_manager",
+          "purchase_orders.approve_committee",
+          "purchase_orders.approve_final",
           "goods_receipts.manage",
         ],
       },

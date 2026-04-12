@@ -123,7 +123,13 @@ export async function GET() {
     const respondedRfqCount = invites.filter((invite) => Boolean(invite.quotation)).length;
 
     const activePurchaseOrderCount = purchaseOrderRows.filter((row) =>
-      ["SUBMITTED", "APPROVED", "PARTIALLY_RECEIVED"].includes(row.status),
+      [
+        "SUBMITTED",
+        "MANAGER_APPROVED",
+        "COMMITTEE_APPROVED",
+        "APPROVED",
+        "PARTIALLY_RECEIVED",
+      ].includes(row.status),
     ).length;
     const dueSoonPurchaseOrderCount = purchaseOrderRows.filter(
       (row) => row.expectedAt && row.expectedAt >= now && row.expectedAt <= next30Days,

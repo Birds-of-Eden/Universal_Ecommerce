@@ -1282,6 +1282,16 @@ export async function PATCH(
           unitCost: item.unitCost,
         })),
       );
+      const latestFinalComparative = await prisma.comparativeStatement.findFirst({
+        where: {
+          rfqId: rfq.id,
+          status: "FINAL_APPROVED",
+        },
+        orderBy: [{ versionNo: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+        },
+      });
 
       const createdPurchaseOrder = await prisma.$transaction(async (tx) => {
         const poNumber = await generatePurchaseOrderNumber(tx);
@@ -1290,11 +1300,14 @@ export async function PATCH(
             poNumber,
             supplierId: awardedQuotation.supplierId,
             purchaseRequisitionId: rfq.purchaseRequisitionId,
+            sourceComparativeStatementId: latestFinalComparative?.id ?? null,
             warehouseId: rfq.warehouseId,
+            approvalStage: "DRAFT",
             expectedAt: rfq.submissionDeadline ?? null,
             notes:
               cleanText(body.note, 1000) ||
               `Created from RFQ ${rfq.rfqNumber} award.`,
+            termsAndConditions: rfq.termsAndConditions ?? null,
             currency: cleanCurrency(awardedQuotation.currency, rfq.currency),
             createdById: access.userId,
             subtotal: totals.subtotal,
