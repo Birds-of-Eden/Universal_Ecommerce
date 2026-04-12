@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Trophy, ShoppingCart, Loader2 } from "lucide-react";
+import { Heart, Loader2, ShoppingCart, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
-import SpotlightCard from "../SpotlightCard";
 
 export type ProductCardData = {
   id: number | string;
@@ -24,7 +23,6 @@ export type ProductCardData = {
   available?: boolean;
   totalSold?: number | null;
   rank?: number | null;
-  // Bundle-specific fields
   bundleItems?: Array<{
     product: {
       id: number;
@@ -59,7 +57,7 @@ function Stars({ value }: { value: number }) {
   const half = v - full >= 0.5;
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5 leading-none">
       {Array.from({ length: 5 }).map((_, i) => {
         const isFull = i < full;
         const isHalf = i === full && half;
@@ -68,8 +66,8 @@ function Stars({ value }: { value: number }) {
           <span
             key={i}
             className={cn(
-              "text-[18px]",
-              isFull || isHalf ? "text-yellow-400" : "text-muted-foreground/40",
+              "text-[18px] leading-none",
+              isFull || isHalf ? "text-yellow-400" : "text-muted-foreground/30",
             )}
           >
             ★
@@ -96,16 +94,27 @@ export default function ProductCardCompact({
       ? Number(product.bundleStockLimit ?? product.stock ?? 0)
       : Number(product.stock ?? 0);
 
-  const bundleItemCount = Number(
-    product.bundleItemCount ?? product.bundleItems?.length ?? 0,
-  );
-
   const isOutOfStock = effectiveStock === 0;
   const ratingAvg = Number(product.ratingAvg ?? 0);
   const ratingCount = Number(product.ratingCount ?? 0);
+  const isBestSeller = Boolean(product.rank && product.rank <= 3);
 
   const showOriginal =
     (product.originalPrice ?? 0) > (product.price ?? 0) && !isOutOfStock;
+
+  const savingsPercent =
+    product.discountPct && product.discountPct > 0
+      ? product.discountPct
+      : showOriginal
+        ? Math.round(
+            ((Number(product.originalPrice) - product.price) /
+              Number(product.originalPrice)) *
+              100,
+          )
+        : 0;
+
+  const showSavingsSticker =
+    savingsPercent > 0 && !isOutOfStock && !isBestSeller;
 
   const handleAddToCart = async (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
@@ -126,25 +135,15 @@ export default function ProductCardCompact({
   };
 
   return (
-    <div className="group !p-0 !border-border !bg-card !rounded-2xl min-w-[220px] max-w-[220px] sm:min-w-[240px] sm:max-w-[240px] overflow-hidden shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl">
+    <div
+      className={cn(
+        "group w-full min-w-[220px] max-w-[220px] overflow-hidden rounded-md border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:min-w-[240px] sm:max-w-[240px]",
+        className,
+      )}
+    >
       <Link href={product.href} className="block h-full">
-        <div className={cn("h-full", className)}>
-          {/* Image Area */}
-          <div className="relative h-[160px] sm:h-[170px] bg-muted/30 overflow-hidden">
-            {isOutOfStock ? (
-              <span className="absolute left-3 top-3 z-10 rounded-md bg-red-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm">
-                Out of Stock
-              </span>
-            ) : product.type === "BUNDLE" ? (
-              <span className="absolute left-3 top-3 z-10 rounded-md bg-purple-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm">
-                Bundle
-              </span>
-            ) : product.discountPct && product.discountPct > 0 ? (
-              <span className="absolute left-3 top-3 z-10 rounded-md bg-orange-500 px-2 py-1 text-[11px] font-semibold text-white shadow-sm">
-                {product.discountPct}%
-              </span>
-            ) : null}
-
+        <div className="flex h-full flex-col">
+          <div className="relative flex h-[190px] items-center justify-center overflow-hidden rounded-t-md bg-muted/20 px-4 pt-3">
             {onWishlistClick ? (
               <button
                 type="button"
@@ -153,14 +152,14 @@ export default function ProductCardCompact({
                   e.stopPropagation();
                   onWishlistClick();
                 }}
-                className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/90 backdrop-blur transition-all duration-300 hover:scale-105 hover:bg-accent hover:text-primary-foreground"
+                className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background/95 shadow-sm backdrop-blur transition-all duration-300 hover:scale-105 hover:bg-accent"
                 aria-label={
                   wishlisted ? "Remove from wishlist" : "Add to wishlist"
                 }
               >
                 <Heart
                   className={cn(
-                    "h-5 w-5 transition-colors",
+                    "h-4 w-4 transition-colors",
                     wishlisted
                       ? "fill-primary text-primary"
                       : "text-muted-foreground",
@@ -169,55 +168,75 @@ export default function ProductCardCompact({
               </button>
             ) : null}
 
+            {isBestSeller ? (
+              <div className="absolute right-3 top-3 z-20">
+                <div className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[13px] font-bold text-primary-foreground shadow-lg animate-pulse">
+                  <Flame className="h-4 w-4" />
+                  <span>Best Selling</span>
+                </div>
+              </div>
+            ) : null}
+
+            {showSavingsSticker ? (
+              <div className="absolute right-3 top-3 z-10">
+                <div className="relative flex h-[56px] w-[56px] items-center justify-center">
+                  <div className="absolute inset-0 bg-green-500 shadow-md ring-2 ring-white/80 [clip-path:polygon(50%_0%,61%_10%,75%_5%,82%_18%,95%_25%,90%_40%,100%_50%,90%_60%,95%_75%,82%_82%,75%_95%,61%_90%,50%_100%,39%_90%,25%_95%,18%_82%,5%_75%,10%_60%,0%_50%,10%_40%,5%_25%,18%_18%,25%_5%,39%_10%)]" />
+                  <span className="relative text-[14px] font-bold leading-none text-white">
+                    {savingsPercent}%
+                  </span>
+                </div>
+              </div>
+            ) : null}
+
+            {isOutOfStock ? (
+              <span className="absolute bottom-3 right-3 z-10 rounded-sm bg-red-500 px-2 py-1 text-[10px] font-semibold text-white shadow-sm">
+                Out of Stock
+              </span>
+            ) : null}
+
             <Image
               src={product.image || "/placeholder.svg"}
               alt={product.name}
               fill
-              className="object-cover p-5 transition-transform duration-500 ease-out group-hover:scale-110"
+              className="object-contain p-4 transition-transform duration-500 ease-out group-hover:scale-105"
               sizes="(max-width: 640px) 220px, 240px"
             />
           </div>
 
-          {/* Content Area */}
-          <div className="p-4 pb-4">
-            <div className="mb-2 flex flex-wrap justify-between gap-2">
-              {product.rank && product.rank <= 3 && (
-                <div className="best-seller-badge flex animate-pulse items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold">
-                  <Trophy className="h-3 w-3" />
-                  Best Seller
-                </div>
-              )}
-
-              {product.totalSold && product.totalSold > 0 && (
-                <div className="sold-count-badge rounded-md px-2 py-1 text-[10px] font-semibold">
-                  {product.totalSold.toLocaleString()} sold
-                </div>
-              )}
+          <div className="flex flex-1 flex-col px-4 pb-3 pt-3">
+            <div className="min-h-[44px]">
+              <h3 className="line-clamp-2 text-[16px] font-medium leading-5 text-foreground">
+                {product.name}
+              </h3>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="mt-1 flex items-center gap-2">
               <Stars value={ratingAvg} />
-              <span className="text-[15px] text-muted-foreground">
+              <span className="text-[14px] font-medium text-muted-foreground">
                 {ratingCount > 0
                   ? `${ratingAvg.toFixed(1)} (${ratingCount})`
                   : "No reviews"}
               </span>
             </div>
 
-            <p className="mt-2 min-h-[36px] line-clamp-2 text-md text-foreground leading-snug">
-              {product.name}
-            </p>
+            {product.totalSold && product.totalSold > 0 ? (
+              <div className="mt-2">
+                <div className="inline-flex items-center rounded-md border border-border bg-background/95 px-2.5 py-1 text-[12px] font-semibold text-foreground shadow-sm">
+                  {product.totalSold.toLocaleString()} sold
+                </div>
+              </div>
+            ) : null}
 
-            {/* Bundle-specific info */}
             {product.type === "BUNDLE" && (
-              <div className="mt-2 space-y-1">
+              <div className="mt-1 space-y-1">
                 {product.bundleSavings && (
-                  <div className="text-xs text-green-600 font-medium">
+                  <div className="text-[13px] font-medium text-green-600">
                     Save {product.bundleSavings}
                   </div>
                 )}
+
                 {product.bundleItems && product.bundleItems.length > 0 && (
-                  <div className="text-xs text-muted-foreground">
+                  <div className="line-clamp-1 text-[12px] text-muted-foreground">
                     Includes:{" "}
                     {product.bundleItems
                       .slice(0, 2)
@@ -230,51 +249,39 @@ export default function ProductCardCompact({
               </div>
             )}
 
-            {/* Bottom Section */}
-            <div className="relative mt-4 h-[64px] overflow-hidden">
-              {/* Default Price View */}
-              <div className="absolute inset-0 flex items-center bg-card transition-all duration-300 ease-out group-hover:-translate-y-full group-hover:opacity-0">
-                <div className="flex flex-col justify-center leading-tight">
-                  <span className="font-semibold text-foreground">
-                    {formatPrice(product.price)}
-                  </span>
+            <div className="mt-2 flex items-end gap-2">
+              <span className="text-[24px] font-semibold tracking-tight text-primary">
+                {formatPrice(product.price)}
+              </span>
 
-                  {showOriginal ? (
-                    <span className="mt-1 text-[12px] text-muted-foreground line-through">
-                      {formatPrice(Number(product.originalPrice))}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
+              {showOriginal ? (
+                <span className="mb-[2px] text-[15px] text-muted-foreground line-through">
+                  {formatPrice(Number(product.originalPrice))}
+                </span>
+              ) : null}
+            </div>
 
-              {/* Hover Bottom Action */}
-              <div className="absolute inset-0 translate-y-full opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
-                <button
-                  type="button"
-                  disabled={isOutOfStock || isAddingToCart}
-                  onClick={handleAddToCart}
-                  className={cn(
-                    "group/cart relative mx-2 mt-1.5 flex h-[42px] w-[calc(100%-16px)] items-center justify-center overflow-hidden rounded-[6px] text-[13px] font-semibold shadow-sm transition-all duration-300",
-                    isOutOfStock || isAddingToCart
-                      ? "cursor-not-allowed bg-destructive text-destructive-foreground"
-                      : "bg-primary text-primary-foreground hover:bg-primary/95",
-                  )}
-                >
-                  {isOutOfStock ? (
-                    <span>Out of Stock</span>
-                  ) : isAddingToCart ? (
-                    <Loader2 className="h-[18px] w-[18px] animate-spin" />
-                  ) : (
-                    <>
-                      <span className="absolute transition-all duration-300 ease-out group-hover/cart:-translate-y-4 group-hover/cart:opacity-0">
-                        {addToCartLabel}
-                      </span>
-
-                      <ShoppingCart className="absolute h-[18px] w-[18px] translate-y-4 opacity-0 transition-all duration-300 ease-out group-hover/cart:translate-y-0 group-hover/cart:opacity-100" />
-                    </>
-                  )}
-                </button>
-              </div>
+            <div className="mt-3">
+              <button
+                type="button"
+                disabled={isOutOfStock || isAddingToCart}
+                onClick={handleAddToCart}
+                className={cn(
+                  "flex h-[40px] w-full items-center justify-center gap-2 rounded-[4px] border text-[15px] font-medium transition-all duration-200",
+                  isOutOfStock || isAddingToCart
+                    ? "cursor-not-allowed border-destructive bg-destructive/10 text-destructive"
+                    : "border-primary bg-transparent text-primary hover:bg-primary/5",
+                )}
+              >
+                {isAddingToCart ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <ShoppingCart className="h-4 w-4" />
+                    <span>{addToCartLabel}</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
