@@ -93,6 +93,15 @@ model User {
   supplierInvoicePaymentHoldsReleased SupplierInvoice[] @relation("SupplierInvoicePaymentHoldsReleased")
   supplierPaymentsCreated       SupplierPayment[]       @relation("SupplierPaymentsCreated")
   supplierLedgerEntriesCreated  SupplierLedgerEntry[]   @relation("SupplierLedgerEntriesCreated")
+  paymentRequestsCreated                 PaymentRequest[]             @relation("PaymentRequestsCreated")
+  paymentRequestsManagerApproved         PaymentRequest[]             @relation("PaymentRequestsManagerApproved")
+  paymentRequestsFinanceApproved         PaymentRequest[]             @relation("PaymentRequestsFinanceApproved")
+  paymentRequestsTreasuryProcessed       PaymentRequest[]             @relation("PaymentRequestsTreasuryProcessed")
+  paymentRequestsRejected                PaymentRequest[]             @relation("PaymentRequestsRejected")
+  paymentRequestsCancelled               PaymentRequest[]             @relation("PaymentRequestsCancelled")
+  paymentRequestApprovalEvents           PaymentRequestApprovalEvent[] @relation("PaymentRequestApprovalEvents")
+  paymentRequestNotificationsReceived    PaymentRequestNotification[]  @relation("PaymentRequestNotificationsReceived")
+  paymentRequestNotificationsCreated     PaymentRequestNotification[]  @relation("PaymentRequestNotificationsCreatedBy")
   warehouseTransfersCreated     WarehouseTransfer[]     @relation("WarehouseTransfersCreated")
   warehouseTransfersApproved    WarehouseTransfer[]     @relation("WarehouseTransfersApproved")
   warehouseTransfersDispatched  WarehouseTransfer[]     @relation("WarehouseTransfersDispatched")
@@ -1157,6 +1166,7 @@ model Supplier {
   supplierReturns           SupplierReturn[]
   invoices                  SupplierInvoice[]
   payments                  SupplierPayment[]
+  paymentRequests           PaymentRequest[]
   ledgerEntries             SupplierLedgerEntry[]
   rfqInvites                RfqSupplierInvite[]
   quotations                SupplierQuotation[]
@@ -2327,6 +2337,7 @@ model ComparativeStatement {
   lines                   ComparativeStatementLine[]
   approvalEvents          ComparativeStatementApprovalEvent[]
   notifications           ComparativeStatementNotification[]
+  paymentRequests         PaymentRequest[]
   generatedPurchaseOrder  PurchaseOrder?                      @relation("PurchaseOrderSourceComparativeStatement")
 
   @@unique([rfqId, versionNo])
@@ -2458,6 +2469,7 @@ model PurchaseOrder {
   landedCosts           PurchaseOrderLandedCost[]
   approvalEvents        PurchaseOrderApprovalEvent[]
   notifications         PurchaseOrderNotification[]
+  paymentRequests       PaymentRequest[]
 
   @@index([supplierId, status])
   @@index([purchaseRequisitionId])
@@ -2590,6 +2602,7 @@ model GoodsReceipt {
   attachments     GoodsReceiptAttachment[]
   vendorEvaluations GoodsReceiptVendorEvaluation[]
   supplierReturns SupplierReturn[]
+  paymentRequests PaymentRequest[]
 
   @@index([purchaseOrderId])
   @@index([warehouseId, receivedAt])
@@ -2696,6 +2709,7 @@ model SupplierInvoice {
   payments                SupplierPayment[]
   ledgerEntries           SupplierLedgerEntry[]
   supplierReturns         SupplierReturn[]
+  paymentRequests         PaymentRequest[]
 
   @@index([supplierId, status])
   @@index([purchaseOrderId])
@@ -2746,10 +2760,112 @@ model SupplierPayment {
   createdBy         User?                 @relation("SupplierPaymentsCreated", fields: [createdById], references: [id], onDelete: SetNull)
   supplier          Supplier              @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   supplierInvoice   SupplierInvoice?      @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
+  paymentRequests   PaymentRequest[]
   ledgerEntries     SupplierLedgerEntry[]
 
   @@index([supplierId, paymentDate])
   @@index([supplierInvoiceId])
+  @@index([createdById])
+}
+
+model PaymentRequest {
+  id                    Int                         @id @default(autoincrement())
+  prfNumber             String                      @unique
+  supplierId            Int
+  warehouseId           Int?
+  purchaseOrderId       Int?
+  comparativeStatementId Int?
+  goodsReceiptId        Int?
+  supplierInvoiceId     Int?
+  supplierPaymentId     Int?
+  status                PaymentRequestStatus        @default(DRAFT)
+  approvalStage         PaymentRequestApprovalStage @default(DRAFT)
+  amount                Decimal                     @default(0) @db.Decimal(12, 2)
+  currency              String                      @default("BDT") @db.VarChar(3)
+  requestedAt           DateTime                    @default(now())
+  submittedAt           DateTime?
+  managerApprovedAt     DateTime?
+  financeApprovedAt     DateTime?
+  treasuryProcessedAt   DateTime?
+  paidAt                DateTime?
+  rejectedAt            DateTime?
+  cancelledAt           DateTime?
+  createdById           String?
+  managerApprovedById   String?
+  financeApprovedById   String?
+  treasuryProcessedById String?
+  rejectedById          String?
+  cancelledById         String?
+  note                  String?
+  referenceNumber       String?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  supplier              Supplier                    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse             Warehouse?                  @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  purchaseOrder         PurchaseOrder?              @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  comparativeStatement  ComparativeStatement?       @relation(fields: [comparativeStatementId], references: [id], onDelete: SetNull)
+  goodsReceipt          GoodsReceipt?               @relation(fields: [goodsReceiptId], references: [id], onDelete: SetNull)
+  supplierInvoice       SupplierInvoice?            @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
+  supplierPayment       SupplierPayment?            @relation(fields: [supplierPaymentId], references: [id], onDelete: SetNull)
+  createdBy             User?                        @relation("PaymentRequestsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  managerApprovedBy     User?                        @relation("PaymentRequestsManagerApproved", fields: [managerApprovedById], references: [id], onDelete: SetNull)
+  financeApprovedBy     User?                        @relation("PaymentRequestsFinanceApproved", fields: [financeApprovedById], references: [id], onDelete: SetNull)
+  treasuryProcessedBy   User?                        @relation("PaymentRequestsTreasuryProcessed", fields: [treasuryProcessedById], references: [id], onDelete: SetNull)
+  rejectedBy            User?                        @relation("PaymentRequestsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
+  cancelledBy           User?                        @relation("PaymentRequestsCancelled", fields: [cancelledById], references: [id], onDelete: SetNull)
+  approvalEvents        PaymentRequestApprovalEvent[]
+  notifications         PaymentRequestNotification[]
+
+  @@index([supplierId, status])
+  @@index([warehouseId])
+  @@index([purchaseOrderId])
+  @@index([comparativeStatementId])
+  @@index([goodsReceiptId])
+  @@index([supplierInvoiceId])
+  @@index([supplierPaymentId])
+  @@index([createdById])
+  @@index([managerApprovedById])
+  @@index([financeApprovedById])
+  @@index([treasuryProcessedById])
+  @@index([requestedAt])
+  @@index([approvalStage])
+}
+
+model PaymentRequestApprovalEvent {
+  id              Int                            @id @default(autoincrement())
+  paymentRequestId Int
+  stage           PaymentRequestApprovalStage
+  decision        PaymentRequestApprovalDecision
+  note            String?
+  actedById       String?
+  actedAt         DateTime                       @default(now())
+  paymentRequest  PaymentRequest                 @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+  actedBy         User?                          @relation("PaymentRequestApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+
+  @@index([paymentRequestId, stage])
+  @@index([actedById])
+}
+
+model PaymentRequestNotification {
+  id               Int                            @id @default(autoincrement())
+  paymentRequestId Int
+  stage            PaymentRequestApprovalStage
+  channel          WorkflowNotificationChannel
+  status           WorkflowNotificationStatus     @default(PENDING)
+  recipientUserId  String?
+  recipientEmail   String?
+  message          String
+  metadata         Json?
+  sentAt           DateTime?
+  createdAt        DateTime                       @default(now())
+  createdById      String?
+  paymentRequest   PaymentRequest                 @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
+  recipientUser    User?                          @relation("PaymentRequestNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  createdBy        User?                          @relation("PaymentRequestNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([paymentRequestId, stage, createdAt])
+  @@index([recipientUserId])
+  @@index([status, channel])
   @@index([createdById])
 }
 
@@ -3595,6 +3711,36 @@ enum ReorderAlertStatus {
   OPEN
   ACKNOWLEDGED
   RESOLVED
+}
+
+enum PaymentRequestStatus {
+  DRAFT
+  SUBMITTED
+  MANAGER_APPROVED
+  FINANCE_APPROVED
+  TREASURY_PROCESSING
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+enum PaymentRequestApprovalStage {
+  DRAFT
+  SUBMISSION
+  MANAGER_REVIEW
+  FINANCE_REVIEW
+  TREASURY
+  PAID
+  REJECTION
+  CANCELLATION
+}
+
+enum PaymentRequestApprovalDecision {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+  PAID
 }
 
 enum OrderStatus {

@@ -252,6 +252,26 @@ const menuItems: MenuItem[] = [
         ],
       },
       {
+        name: "Payment Requests",
+        href: "/admin/scm/payment-requests",
+        requiredPermissions: [
+          "payment_requests.read",
+          "payment_requests.manage",
+          "payment_requests.approve_admin",
+          "payment_requests.approve_finance",
+          "payment_requests.treasury",
+        ],
+      },
+      {
+        name: "Payment Reports",
+        href: "/admin/scm/payment-reports",
+        requiredPermissions: [
+          "payment_reports.read",
+          "supplier_payments.read",
+          "supplier_payments.manage",
+        ],
+      },
+      {
         name: "Replenishment",
         href: "/admin/scm/replenishment",
         requiredPermissions: ["replenishment.read", "replenishment.manage"],

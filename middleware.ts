@@ -193,6 +193,20 @@ const adminPagePermissionRules: PermissionRule[] = [
     permissions: ["stock_reports.read"],
   },
   {
+    prefix: "/admin/scm/payment-requests",
+    permissions: [
+      "payment_requests.read",
+      "payment_requests.manage",
+      "payment_requests.approve_admin",
+      "payment_requests.approve_finance",
+      "payment_requests.treasury",
+    ],
+  },
+  {
+    prefix: "/admin/scm/payment-reports",
+    permissions: ["payment_reports.read"],
+  },
+  {
     prefix: "/admin/scm/stock-cards",
     permissions: [
       "inventory.manage",
@@ -278,6 +292,12 @@ const adminPagePermissionRules: PermissionRule[] = [
       "physical_verifications.manage",
       "physical_verifications.approve",
       "stock_reports.read",
+      "payment_requests.read",
+      "payment_requests.manage",
+      "payment_requests.approve_admin",
+      "payment_requests.approve_finance",
+      "payment_requests.treasury",
+      "payment_reports.read",
       "inventory.manage",
       "supplier_ledger.read",
       "supplier_invoices.read",
@@ -965,6 +985,32 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/stock-reports",
     methods: ["GET"],
     permissions: ["stock_reports.read"],
+  },
+  {
+    prefix: "/api/scm/payment-requests",
+    methods: ["GET"],
+    permissions: [
+      "payment_requests.read",
+      "payment_requests.manage",
+      "payment_requests.approve_admin",
+      "payment_requests.approve_finance",
+      "payment_requests.treasury",
+    ],
+  },
+  {
+    prefix: "/api/scm/payment-requests",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: [
+      "payment_requests.manage",
+      "payment_requests.approve_admin",
+      "payment_requests.approve_finance",
+      "payment_requests.treasury",
+    ],
+  },
+  {
+    prefix: "/api/scm/payment-reports",
+    methods: ["GET"],
+    permissions: ["payment_reports.read"],
   },
   {
     prefix: "/api/scm/stock-cards",

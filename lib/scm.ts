@@ -114,6 +114,19 @@ export async function generateSupplierPaymentNumber(tx: TransactionClient) {
   return `${prefix}-${String(count + 1).padStart(4, "0")}`;
 }
 
+export async function generatePaymentRequestNumber(tx: TransactionClient) {
+  const today = new Date();
+  const prefix = `PRF-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const count = await tx.paymentRequest.count({
+    where: {
+      prfNumber: {
+        startsWith: prefix,
+      },
+    },
+  });
+  return `${prefix}-${String(count + 1).padStart(4, "0")}`;
+}
+
 export async function generateWarehouseTransferNumber(tx: TransactionClient) {
   const today = new Date();
   const prefix = `WTR-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -2044,6 +2057,34 @@ export function toSupplierPaymentLogSnapshot(payment: {
     method: payment.method,
     reference: payment.reference,
     note: payment.note,
+  };
+}
+
+export function toPaymentRequestLogSnapshot(request: {
+  prfNumber: string;
+  supplierId: number;
+  supplierInvoiceId: number | null;
+  purchaseOrderId: number | null;
+  comparativeStatementId: number | null;
+  goodsReceiptId: number | null;
+  status: string;
+  approvalStage: string;
+  amount: Prisma.Decimal;
+  currency: string;
+  referenceNumber: string | null;
+}) {
+  return {
+    prfNumber: request.prfNumber,
+    supplierId: request.supplierId,
+    supplierInvoiceId: request.supplierInvoiceId,
+    purchaseOrderId: request.purchaseOrderId,
+    comparativeStatementId: request.comparativeStatementId,
+    goodsReceiptId: request.goodsReceiptId,
+    status: request.status,
+    approvalStage: request.approvalStage,
+    amount: request.amount.toString(),
+    currency: request.currency,
+    referenceNumber: request.referenceNumber,
   };
 }
 

@@ -160,6 +160,32 @@ const cards: ScmCard[] = [
     permission: "supplier_returns.read",
   },
   {
+    title: "Payment Requests (PRF)",
+    href: "/admin/scm/payment-requests",
+    description:
+      "Initiate and route payment requests linked to PO, GRN, CS, and supplier invoices.",
+    icon: FileText,
+    permissions: [
+      "payment_requests.read",
+      "payment_requests.manage",
+      "payment_requests.approve_admin",
+      "payment_requests.approve_finance",
+      "payment_requests.treasury",
+    ],
+  },
+  {
+    title: "Payment Reports",
+    href: "/admin/scm/payment-reports",
+    description:
+      "Review vendor-wise payment activity, invoice references, and treasury settlement totals.",
+    icon: BarChart3,
+    permissions: [
+      "payment_reports.read",
+      "supplier_payments.read",
+      "supplier_payments.manage",
+    ],
+  },
+  {
     title: "Replenishment",
     href: "/admin/scm/replenishment",
     description: "Manage warehouse reorder rules and turn shortage signals into requisitions.",
