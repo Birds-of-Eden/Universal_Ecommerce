@@ -542,6 +542,86 @@ export const SYSTEM_PERMISSIONS = [
       "Approve submitted warehouse transfer requests before dispatch.",
   },
   {
+    key: "material_requests.read",
+    description:
+      "Read warehouse material requests, approval trails, and request history.",
+  },
+  {
+    key: "material_requests.manage",
+    description:
+      "Create, update, submit, or cancel warehouse material requests.",
+  },
+  {
+    key: "material_requests.endorse_supervisor",
+    description:
+      "Endorse submitted material requests at requester supervisor stage.",
+  },
+  {
+    key: "material_requests.endorse_project_manager",
+    description:
+      "Endorse supervisor-cleared material requests at project manager stage.",
+  },
+  {
+    key: "material_requests.approve_admin",
+    description:
+      "Perform final manager administration approval for material requests.",
+  },
+  {
+    key: "material_releases.read",
+    description:
+      "Read material release notes, challan, and waybill history.",
+  },
+  {
+    key: "material_releases.manage",
+    description:
+      "Issue material release notes and post stock-out against approved material requests.",
+  },
+  {
+    key: "asset_register.read",
+    description:
+      "Read fixed asset register records and generated asset tags.",
+  },
+  {
+    key: "asset_register.manage",
+    description:
+      "Manage fixed asset lifecycle states and assignment metadata.",
+  },
+  {
+    key: "warehouse_locations.read",
+    description:
+      "Read warehouse zone, aisle, and bin locations for facility-level tracking.",
+  },
+  {
+    key: "warehouse_locations.manage",
+    description:
+      "Create and maintain warehouse zones, aisles, and bin locations.",
+  },
+  {
+    key: "stock_alerts.read",
+    description: "Read stock level alerts and reorder notifications.",
+  },
+  {
+    key: "stock_alerts.manage",
+    description: "Create or resolve stock level alerts and reorder signals.",
+  },
+  {
+    key: "physical_verifications.read",
+    description: "Read physical verification schedules and variance findings.",
+  },
+  {
+    key: "physical_verifications.manage",
+    description: "Create and submit physical verification cycles and counts.",
+  },
+  {
+    key: "physical_verifications.approve",
+    description:
+      "Approve or reject physical verification outcomes on behalf of management.",
+  },
+  {
+    key: "stock_reports.read",
+    description: "Read daily stock, aging, and monthly warehouse summary reports.",
+  },
+  {
     key: "delivery.dashboard.access",
     description:
       "Access delivery-man assignment and operational dashboard flows.",
@@ -825,6 +905,23 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "warehouse_transfers.read",
       "warehouse_transfers.manage",
       "warehouse_transfers.approve",
+      "material_requests.read",
+      "material_requests.manage",
+      "material_requests.endorse_supervisor",
+      "material_requests.endorse_project_manager",
+      "material_requests.approve_admin",
+      "material_releases.read",
+      "material_releases.manage",
+      "asset_register.read",
+      "asset_register.manage",
+      "warehouse_locations.read",
+      "warehouse_locations.manage",
+      "stock_alerts.read",
+      "stock_alerts.manage",
+      "physical_verifications.read",
+      "physical_verifications.manage",
+      "physical_verifications.approve",
+      "stock_reports.read",
       "profile.manage",
     ],
   },
@@ -883,6 +980,22 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "warehouse_transfers.read",
       "warehouse_transfers.manage",
       "warehouse_transfers.approve",
+      "material_requests.read",
+      "material_requests.manage",
+      "material_requests.endorse_supervisor",
+      "material_requests.endorse_project_manager",
+      "material_requests.approve_admin",
+      "material_releases.read",
+      "material_releases.manage",
+      "asset_register.read",
+      "warehouse_locations.read",
+      "warehouse_locations.manage",
+      "stock_alerts.read",
+      "stock_alerts.manage",
+      "physical_verifications.read",
+      "physical_verifications.manage",
+      "physical_verifications.approve",
+      "stock_reports.read",
       "profile.manage",
     ],
   },
@@ -907,6 +1020,15 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "warehouse_transfers.read",
       "warehouse_transfers.manage",
       "warehouse_transfers.approve",
+      "material_requests.read",
+      "material_releases.read",
+      "material_releases.manage",
+      "asset_register.read",
+      "warehouse_locations.read",
+      "stock_alerts.read",
+      "physical_verifications.read",
+      "physical_verifications.manage",
+      "stock_reports.read",
       "profile.manage",
     ],
   },
@@ -927,6 +1049,9 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "rfq.manage",
       "comparative_statements.read",
       "comparative_statements.manage",
+      "material_requests.read",
+      "material_requests.manage",
+      "stock_reports.read",
       "profile.manage",
     ],
   },
@@ -942,6 +1067,9 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "scm.access",
       "purchase_requisitions.read",
       "mrf.budget_clear",
+      "material_requests.read",
+      "stock_reports.read",
+      "physical_verifications.read",
       "profile.manage",
     ],
   },
@@ -957,6 +1085,9 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "scm.access",
       "purchase_requisitions.read",
       "mrf.endorse",
+      "material_requests.read",
+      "material_requests.endorse_supervisor",
+      "stock_reports.read",
       "profile.manage",
     ],
   },
@@ -972,6 +1103,10 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "scm.access",
       "purchase_requisitions.read",
       "mrf.final_approve",
+      "material_requests.read",
+      "material_requests.endorse_project_manager",
+      "material_requests.approve_admin",
+      "stock_reports.read",
       "profile.manage",
     ],
   },
@@ -1014,6 +1149,7 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "supplier_invoices.read",
       "three_way_match.read",
       "profile.manage",
+      "stock_reports.read",
     ],
   },
   {
@@ -1242,6 +1378,23 @@ export const ADMIN_PANEL_ACCESS_FALLBACK_PERMISSIONS: PermissionKey[] = [
   "warehouse_transfers.read",
   "warehouse_transfers.manage",
   "warehouse_transfers.approve",
+  "material_requests.read",
+  "material_requests.manage",
+  "material_requests.endorse_supervisor",
+  "material_requests.endorse_project_manager",
+  "material_requests.approve_admin",
+  "material_releases.read",
+  "material_releases.manage",
+  "asset_register.read",
+  "asset_register.manage",
+  "warehouse_locations.read",
+  "warehouse_locations.manage",
+  "stock_alerts.read",
+  "stock_alerts.manage",
+  "physical_verifications.read",
+  "physical_verifications.manage",
+  "physical_verifications.approve",
+  "stock_reports.read",
 ];
 
 export function isPermissionKey(value: string): value is PermissionKey {

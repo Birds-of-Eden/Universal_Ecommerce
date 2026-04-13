@@ -66,6 +66,20 @@ model User {
   purchaseRequisitionApprovalEvents PurchaseRequisitionApprovalEvent[] @relation("PurchaseRequisitionApprovalEvents")
   purchaseRequisitionVersionsCreated PurchaseRequisitionVersion[] @relation("PurchaseRequisitionVersionsCreated")
   purchaseRequisitionNotificationsReceived PurchaseRequisitionNotification[] @relation("PurchaseRequisitionNotificationsReceived")
+  materialRequestsCreated                   MaterialRequest[]                   @relation("MaterialRequestsCreated")
+  materialRequestsSupervisorEndorsed        MaterialRequest[]                   @relation("MaterialRequestsSupervisorEndorsed")
+  materialRequestsProjectManagerEndorsed    MaterialRequest[]                   @relation("MaterialRequestsProjectManagerEndorsed")
+  materialRequestsAdminApproved             MaterialRequest[]                   @relation("MaterialRequestsAdminApproved")
+  materialRequestsRejected                  MaterialRequest[]                   @relation("MaterialRequestsRejected")
+  materialRequestAttachmentsUploaded        MaterialRequestAttachment[]         @relation("MaterialRequestAttachmentsUploaded")
+  materialRequestApprovalEvents             MaterialRequestApprovalEvent[]      @relation("MaterialRequestApprovalEvents")
+  materialReleasesIssued                    MaterialReleaseNote[]               @relation("MaterialReleasesIssued")
+  assetRegistersCreated                     AssetRegister[]                     @relation("AssetRegistersCreated")
+  inventoryVerificationsCreated            InventoryVerification[]             @relation("InventoryVerificationsCreated")
+  inventoryVerificationsApproved           InventoryVerification[]             @relation("InventoryVerificationsApproved")
+  inventoryVerificationEvents              InventoryVerificationApprovalEvent[] @relation("InventoryVerificationApprovalEvents")
+  inventoryVerificationCommitteeMemberships InventoryVerificationCommitteeMember[] @relation("InventoryVerificationCommitteeMemberships")
+  stockAlertsCreated                        ReorderAlert[]                      @relation("ReorderAlertsCreated")
   goodsReceiptsReceived         GoodsReceipt[]          @relation("GoodsReceiptsReceived")
   goodsReceiptsRequesterConfirmed GoodsReceipt[]        @relation("GoodsReceiptsRequesterConfirmed")
   goodsReceiptAttachmentsUploaded GoodsReceiptAttachment[] @relation("GoodsReceiptAttachmentsUploaded")
@@ -306,6 +320,8 @@ model Product {
   createdAt               DateTime                          @default(now())
   updatedAt               DateTime                          @updatedAt
   lowStockThreshold       Int                               @default(10)
+  inventoryItemClass      InventoryItemClass                @default(CONSUMABLE)
+  requiresAssetTag        Boolean                           @default(false)
   bundleStockLimit        Int?
   cartItems               CartItem[]
   dailySnapshots          InventoryDailySnapshot[]
@@ -379,6 +395,12 @@ model ProductVariant {
   replenishmentRules           ReplenishmentRule[]
   warehouseTransferItems       WarehouseTransferItem[]
   stockLevels                  StockLevel[]
+  materialRequestItems         MaterialRequestItem[]
+  materialReleaseNoteItems     MaterialReleaseNoteItem[]
+  assetRegisters               AssetRegister[]
+  stockBinLevels               StockBinLevel[]
+  inventoryVerificationLines   InventoryVerificationLine[]
+  reorderAlerts                ReorderAlert[]
   investorAllocations          InvestorProductAllocation[]
   investorCapitalTransactions  InvestorCapitalTransaction[]
   investorProfitRunVariants    InvestorProfitRunVariant[]
@@ -807,6 +829,15 @@ model Warehouse {
   memberships                      WarehouseMembership[]
   purchaseOrders                   PurchaseOrder[]
   purchaseRequisitions             PurchaseRequisition[]
+  materialRequests                 MaterialRequest[]
+  materialReleases                 MaterialReleaseNote[]
+  assetRegisters                   AssetRegister[]
+  zones                            WarehouseZone[]
+  aisles                           WarehouseAisle[]
+  bins                             WarehouseBin[]
+  stockBinLevels                   StockBinLevel[]
+  inventoryVerifications           InventoryVerification[]
+  reorderAlerts                    ReorderAlert[]
   rfqs                             Rfq[]
   comparativeStatements            ComparativeStatement[]
   goodsReceipts                    GoodsReceipt[]
@@ -1314,6 +1345,338 @@ model PurchaseRequisitionNotification {
   @@index([purchaseRequisitionId, stage, createdAt])
   @@index([recipientUserId])
   @@index([status, channel])
+}
+
+model WarehouseZone {
+  id          Int       @id @default(autoincrement())
+  warehouseId Int
+  code        String
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  aisles      WarehouseAisle[]
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId, isActive])
+}
+
+model WarehouseAisle {
+  id          Int       @id @default(autoincrement())
+  warehouseId Int
+  zoneId      Int
+  code        String
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  zone        WarehouseZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  bins        WarehouseBin[]
+
+  @@unique([zoneId, code])
+  @@index([warehouseId, zoneId])
+  @@index([isActive])
+}
+
+model WarehouseBin {
+  id          Int       @id @default(autoincrement())
+  warehouseId Int
+  zoneId      Int
+  aisleId     Int
+  code        String
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  zone        WarehouseZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  aisle       WarehouseAisle @relation(fields: [aisleId], references: [id], onDelete: Cascade)
+  stockLevels StockBinLevel[]
+  verificationLines InventoryVerificationLine[]
+
+  @@unique([aisleId, code])
+  @@index([warehouseId, zoneId, aisleId])
+  @@index([isActive])
+}
+
+model StockBinLevel {
+  id               Int       @id @default(autoincrement())
+  warehouseId      Int
+  binId            Int
+  productVariantId Int
+  quantity         Int       @default(0)
+  reserved         Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  warehouse        Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  bin              WarehouseBin @relation(fields: [binId], references: [id], onDelete: Cascade)
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([binId, productVariantId])
+  @@index([warehouseId, productVariantId])
+}
+
+model InventoryVerification {
+  id              Int                          @id @default(autoincrement())
+  warehouseId     Int
+  frequency       InventoryVerificationFrequency
+  periodStart     DateTime
+  periodEnd       DateTime
+  status          InventoryVerificationStatus  @default(DRAFT)
+  note            String?
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  createdById     String?
+  approvedById    String?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  warehouse       Warehouse                    @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  createdBy       User?                        @relation("InventoryVerificationsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy      User?                        @relation("InventoryVerificationsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
+  committeeMembers InventoryVerificationCommitteeMember[]
+  lines           InventoryVerificationLine[]
+  approvalEvents  InventoryVerificationApprovalEvent[]
+
+  @@index([warehouseId, periodStart, periodEnd])
+  @@index([status])
+  @@index([createdById])
+}
+
+model InventoryVerificationCommitteeMember {
+  id              Int       @id @default(autoincrement())
+  verificationId  Int
+  userId          String
+  role            String?
+  assignedAt      DateTime  @default(now())
+  verification    InventoryVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  user            User      @relation("InventoryVerificationCommitteeMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([verificationId, userId])
+  @@index([userId])
+}
+
+model InventoryVerificationLine {
+  id               Int       @id @default(autoincrement())
+  verificationId   Int
+  productVariantId Int
+  binId            Int?
+  systemQty        Int
+  countedQty       Int
+  variance         Int
+  note             String?
+  verification     InventoryVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  bin              WarehouseBin? @relation(fields: [binId], references: [id], onDelete: SetNull)
+
+  @@index([verificationId])
+  @@index([productVariantId])
+  @@index([binId])
+}
+
+model InventoryVerificationApprovalEvent {
+  id              Int       @id @default(autoincrement())
+  verificationId  Int
+  stage           InventoryVerificationApprovalStage
+  decision        InventoryVerificationApprovalDecision
+  note            String?
+  actedById       String?
+  actedAt         DateTime  @default(now())
+  verification    InventoryVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  actedBy         User?     @relation("InventoryVerificationApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+
+  @@index([verificationId, stage])
+  @@index([actedById])
+}
+
+model ReorderAlert {
+  id               Int                      @id @default(autoincrement())
+  warehouseId      Int
+  productVariantId Int
+  stockOnHand      Int
+  threshold        Int
+  suggestedQty     Int
+  status           ReorderAlertStatus       @default(OPEN)
+  note             String?
+  createdById      String?
+  createdAt        DateTime                 @default(now())
+  resolvedAt       DateTime?
+  warehouse        Warehouse                @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  productVariant   ProductVariant           @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  createdBy        User?                    @relation("ReorderAlertsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([warehouseId, status])
+  @@index([productVariantId, status])
+  @@index([createdAt])
+}
+
+model MaterialRequest {
+  id                         Int                            @id @default(autoincrement())
+  requestNumber              String                         @unique
+  warehouseId                Int
+  status                     MaterialRequestStatus          @default(DRAFT)
+  title                      String?
+  purpose                    String?
+  budgetCode                 String?
+  boqReference               String?
+  specification              String?
+  note                       String?
+  requestedAt                DateTime                       @default(now())
+  requiredBy                 DateTime?
+  submittedAt                DateTime?
+  supervisorEndorsedAt       DateTime?
+  supervisorEndorsedById     String?
+  projectManagerEndorsedAt   DateTime?
+  projectManagerEndorsedById String?
+  adminApprovedAt            DateTime?
+  adminApprovedById          String?
+  rejectedAt                 DateTime?
+  rejectedById               String?
+  createdById                String?
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
+  warehouse                  Warehouse                      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  createdBy                  User?                          @relation("MaterialRequestsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  supervisorEndorsedBy       User?                          @relation("MaterialRequestsSupervisorEndorsed", fields: [supervisorEndorsedById], references: [id], onDelete: SetNull)
+  projectManagerEndorsedBy   User?                          @relation("MaterialRequestsProjectManagerEndorsed", fields: [projectManagerEndorsedById], references: [id], onDelete: SetNull)
+  adminApprovedBy            User?                          @relation("MaterialRequestsAdminApproved", fields: [adminApprovedById], references: [id], onDelete: SetNull)
+  rejectedBy                 User?                          @relation("MaterialRequestsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
+  items                      MaterialRequestItem[]
+  attachments                MaterialRequestAttachment[]
+  approvalEvents             MaterialRequestApprovalEvent[]
+  releaseNotes               MaterialReleaseNote[]
+  assetRegisters             AssetRegister[]
+
+  @@index([warehouseId, status])
+  @@index([createdById, requestedAt])
+  @@index([adminApprovedById])
+  @@index([requestedAt])
+}
+
+model MaterialRequestItem {
+  id                Int                       @id @default(autoincrement())
+  materialRequestId Int
+  productVariantId  Int
+  description       String?
+  quantityRequested Int
+  quantityReleased  Int                       @default(0)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  materialRequest   MaterialRequest           @relation(fields: [materialRequestId], references: [id], onDelete: Cascade)
+  productVariant    ProductVariant            @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  releaseItems      MaterialReleaseNoteItem[]
+
+  @@index([materialRequestId])
+  @@index([productVariantId])
+}
+
+model MaterialRequestAttachment {
+  id                Int             @id @default(autoincrement())
+  materialRequestId Int
+  fileUrl           String
+  fileName          String
+  mimeType          String?
+  fileSize          Int?
+  note              String?
+  uploadedById      String?
+  createdAt         DateTime        @default(now())
+  materialRequest   MaterialRequest @relation(fields: [materialRequestId], references: [id], onDelete: Cascade)
+  uploadedBy        User?           @relation("MaterialRequestAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([materialRequestId, createdAt])
+  @@index([uploadedById])
+}
+
+model MaterialRequestApprovalEvent {
+  id                Int                             @id @default(autoincrement())
+  materialRequestId Int
+  stage             MaterialRequestApprovalStage
+  decision          MaterialRequestApprovalDecision
+  note              String?
+  actedById         String?
+  actedAt           DateTime                        @default(now())
+  materialRequest   MaterialRequest                 @relation(fields: [materialRequestId], references: [id], onDelete: Cascade)
+  actedBy           User?                           @relation("MaterialRequestApprovalEvents", fields: [actedById], references: [id], onDelete: SetNull)
+
+  @@index([materialRequestId, stage, actedAt])
+  @@index([actedById, actedAt])
+}
+
+model MaterialReleaseNote {
+  id                Int                       @id @default(autoincrement())
+  releaseNumber     String                    @unique
+  challanNumber     String?                   @unique
+  waybillNumber     String?                   @unique
+  materialRequestId Int
+  warehouseId       Int
+  status            MaterialReleaseStatus     @default(ISSUED)
+  note              String?
+  releasedAt        DateTime                  @default(now())
+  releasedById      String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  materialRequest   MaterialRequest           @relation(fields: [materialRequestId], references: [id], onDelete: Restrict)
+  warehouse         Warehouse                 @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  releasedBy        User?                     @relation("MaterialReleasesIssued", fields: [releasedById], references: [id], onDelete: SetNull)
+  items             MaterialReleaseNoteItem[]
+  assetRegisters    AssetRegister[]
+
+  @@index([warehouseId, releasedAt])
+  @@index([materialRequestId])
+  @@index([releasedById])
+}
+
+model MaterialReleaseNoteItem {
+  id                    Int                 @id @default(autoincrement())
+  materialReleaseNoteId Int
+  materialRequestItemId Int
+  productVariantId      Int
+  quantityReleased      Int
+  unitCost              Decimal?            @db.Decimal(12, 2)
+  createdAt             DateTime            @default(now())
+  materialReleaseNote   MaterialReleaseNote @relation(fields: [materialReleaseNoteId], references: [id], onDelete: Cascade)
+  materialRequestItem   MaterialRequestItem @relation(fields: [materialRequestItemId], references: [id], onDelete: Restrict)
+  productVariant        ProductVariant      @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  assetRegisters        AssetRegister[]
+
+  @@index([materialReleaseNoteId])
+  @@index([materialRequestItemId])
+  @@index([productVariantId])
+}
+
+model AssetRegister {
+  id                    Int                      @id @default(autoincrement())
+  assetTag              String                   @unique
+  warehouseId           Int
+  productVariantId      Int
+  materialRequestId     Int?
+  materialReleaseNoteId Int?
+  materialReleaseItemId Int?
+  status                AssetRegisterStatus      @default(ACTIVE)
+  assignedTo            String?
+  note                  String?
+  acquiredAt            DateTime                 @default(now())
+  createdById           String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  warehouse             Warehouse                @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  productVariant        ProductVariant           @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+  materialRequest       MaterialRequest?         @relation(fields: [materialRequestId], references: [id], onDelete: SetNull)
+  materialReleaseNote   MaterialReleaseNote?     @relation(fields: [materialReleaseNoteId], references: [id], onDelete: SetNull)
+  materialReleaseItem   MaterialReleaseNoteItem? @relation(fields: [materialReleaseItemId], references: [id], onDelete: SetNull)
+  createdBy             User?                    @relation("AssetRegistersCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([warehouseId, status])
+  @@index([productVariantId, status])
+  @@index([materialRequestId])
+  @@index([materialReleaseNoteId])
+  @@index([materialReleaseItemId])
+  @@index([createdById])
 }
 
 model SupplierPortalAccess {
@@ -3147,6 +3510,11 @@ enum ProductType {
   BUNDLE
 }
 
+enum InventoryItemClass {
+  CONSUMABLE
+  PERMANENT
+}
+
 enum ProductCodeKind {
   BARCODE
   QRCODE
@@ -3156,6 +3524,77 @@ enum ProductCodeSymbology {
   CODE128
   EAN13
   QR
+}
+
+enum MaterialRequestStatus {
+  DRAFT
+  SUBMITTED
+  SUPERVISOR_ENDORSED
+  PROJECT_MANAGER_ENDORSED
+  ADMIN_APPROVED
+  PARTIALLY_RELEASED
+  RELEASED
+  REJECTED
+  CANCELLED
+}
+
+enum MaterialRequestApprovalStage {
+  SUBMISSION
+  SUPERVISOR_ENDORSEMENT
+  PROJECT_MANAGER_ENDORSEMENT
+  ADMIN_APPROVAL
+  REJECTION
+  CANCELLATION
+}
+
+enum MaterialRequestApprovalDecision {
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum MaterialReleaseStatus {
+  ISSUED
+  CANCELLED
+}
+
+enum AssetRegisterStatus {
+  ACTIVE
+  RETIRED
+  LOST
+  DISPOSED
+}
+
+enum InventoryVerificationFrequency {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum InventoryVerificationStatus {
+  DRAFT
+  SUBMITTED
+  COMMITTEE_REVIEW
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+enum InventoryVerificationApprovalStage {
+  SUBMISSION
+  COMMITTEE
+  ADMIN
+}
+
+enum InventoryVerificationApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+enum ReorderAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
 }
 
 enum OrderStatus {

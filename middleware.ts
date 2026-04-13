@@ -152,6 +152,60 @@ const adminPagePermissionRules: PermissionRule[] = [
     ],
   },
   {
+    prefix: "/admin/scm/material-requests",
+    permissions: [
+      "material_requests.read",
+      "material_requests.manage",
+      "material_requests.endorse_supervisor",
+      "material_requests.endorse_project_manager",
+      "material_requests.approve_admin",
+      "material_releases.read",
+      "material_releases.manage",
+    ],
+  },
+  {
+    prefix: "/admin/scm/material-releases",
+    permissions: [
+      "material_releases.read",
+      "material_releases.manage",
+      "material_requests.read",
+      "material_requests.approve_admin",
+    ],
+  },
+  {
+    prefix: "/admin/scm/warehouse-locations",
+    permissions: ["warehouse_locations.read", "warehouse_locations.manage"],
+  },
+  {
+    prefix: "/admin/scm/reorder-alerts",
+    permissions: ["stock_alerts.read", "stock_alerts.manage"],
+  },
+  {
+    prefix: "/admin/scm/physical-verifications",
+    permissions: [
+      "physical_verifications.read",
+      "physical_verifications.manage",
+      "physical_verifications.approve",
+    ],
+  },
+  {
+    prefix: "/admin/scm/stock-reports",
+    permissions: ["stock_reports.read"],
+  },
+  {
+    prefix: "/admin/scm/stock-cards",
+    permissions: [
+      "inventory.manage",
+      "material_releases.read",
+      "material_releases.manage",
+      "material_requests.approve_admin",
+    ],
+  },
+  {
+    prefix: "/admin/scm/assets",
+    permissions: ["asset_register.read", "asset_register.manage"],
+  },
+  {
     prefix: "/admin/scm/supplier-ledger",
     permissions: [
       "supplier_ledger.read",
@@ -207,6 +261,24 @@ const adminPagePermissionRules: PermissionRule[] = [
       "warehouse_transfers.read",
       "warehouse_transfers.manage",
       "warehouse_transfers.approve",
+      "material_requests.read",
+      "material_requests.manage",
+      "material_requests.endorse_supervisor",
+      "material_requests.endorse_project_manager",
+      "material_requests.approve_admin",
+      "material_releases.read",
+      "material_releases.manage",
+      "asset_register.read",
+      "asset_register.manage",
+      "warehouse_locations.read",
+      "warehouse_locations.manage",
+      "stock_alerts.read",
+      "stock_alerts.manage",
+      "physical_verifications.read",
+      "physical_verifications.manage",
+      "physical_verifications.approve",
+      "stock_reports.read",
+      "inventory.manage",
       "supplier_ledger.read",
       "supplier_invoices.read",
       "supplier_invoices.manage",
@@ -798,6 +870,121 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/scm/warehouse-transfers",
     methods: ["PATCH", "PUT"],
     permissions: ["warehouse_transfers.manage", "warehouse_transfers.approve"],
+  },
+  {
+    prefix: "/api/scm/material-requests",
+    methods: ["GET"],
+    permissions: [
+      "material_requests.read",
+      "material_requests.manage",
+      "material_requests.endorse_supervisor",
+      "material_requests.endorse_project_manager",
+      "material_requests.approve_admin",
+      "material_releases.read",
+      "material_releases.manage",
+    ],
+  },
+  {
+    prefix: "/api/scm/material-requests",
+    methods: ["POST"],
+    permissions: ["material_requests.manage"],
+  },
+  {
+    prefix: "/api/scm/material-requests",
+    methods: ["PATCH", "PUT"],
+    permissions: [
+      "material_requests.manage",
+      "material_requests.endorse_supervisor",
+      "material_requests.endorse_project_manager",
+      "material_requests.approve_admin",
+    ],
+  },
+  {
+    prefix: "/api/scm/material-releases",
+    methods: ["GET"],
+    permissions: [
+      "material_releases.read",
+      "material_releases.manage",
+      "material_requests.read",
+      "material_requests.approve_admin",
+    ],
+  },
+  {
+    prefix: "/api/scm/material-releases",
+    methods: ["POST"],
+    permissions: ["material_releases.manage"],
+  },
+  {
+    prefix: "/api/scm/warehouse-locations",
+    methods: ["GET"],
+    permissions: ["warehouse_locations.read", "warehouse_locations.manage"],
+  },
+  {
+    prefix: "/api/scm/warehouse-locations",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["warehouse_locations.manage"],
+  },
+  {
+    prefix: "/api/scm/stock-bin-levels",
+    methods: ["GET"],
+    permissions: ["warehouse_locations.read", "inventory.manage"],
+  },
+  {
+    prefix: "/api/scm/reorder-alerts/scan",
+    methods: ["POST"],
+    permissions: ["stock_alerts.manage"],
+  },
+  {
+    prefix: "/api/scm/reorder-alerts",
+    methods: ["GET"],
+    permissions: ["stock_alerts.read", "stock_alerts.manage"],
+  },
+  {
+    prefix: "/api/scm/reorder-alerts",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["stock_alerts.manage"],
+  },
+  {
+    prefix: "/api/scm/physical-verifications",
+    methods: ["GET"],
+    permissions: [
+      "physical_verifications.read",
+      "physical_verifications.manage",
+      "physical_verifications.approve",
+    ],
+  },
+  {
+    prefix: "/api/scm/physical-verifications",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: [
+      "physical_verifications.manage",
+      "physical_verifications.approve",
+    ],
+  },
+  {
+    prefix: "/api/scm/stock-reports",
+    methods: ["GET"],
+    permissions: ["stock_reports.read"],
+  },
+  {
+    prefix: "/api/scm/stock-cards",
+    methods: ["GET"],
+    permissions: [
+      "inventory.manage",
+      "material_releases.read",
+      "material_releases.manage",
+      "material_requests.approve_admin",
+    ],
+  },
+  {
+    prefix: "/api/scm/assets",
+    methods: ["GET"],
+    permissions: ["asset_register.read", "asset_register.manage"],
+  },
+  {
+    prefix: "/api/scm/assets",
+    methods: ["PATCH", "PUT"],
+    permissions: ["asset_register.manage"],
   },
   {
     prefix: "/api/scm/supplier-ledger",

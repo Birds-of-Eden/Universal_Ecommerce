@@ -266,6 +266,81 @@ const menuItems: MenuItem[] = [
         ],
       },
       {
+        name: "Material Requests",
+        href: "/admin/scm/material-requests",
+        requiredPermissions: [
+          "material_requests.read",
+          "material_requests.manage",
+          "material_requests.endorse_supervisor",
+          "material_requests.endorse_project_manager",
+          "material_requests.approve_admin",
+          "material_releases.read",
+          "material_releases.manage",
+        ],
+      },
+      {
+        name: "Material Releases",
+        href: "/admin/scm/material-releases",
+        requiredPermissions: [
+          "material_releases.read",
+          "material_releases.manage",
+          "material_requests.read",
+          "material_requests.approve_admin",
+        ],
+      },
+      {
+        name: "Material Release Report",
+        href: "/admin/scm/material-releases/report",
+        requiredPermissions: [
+          "material_releases.read",
+          "material_releases.manage",
+          "material_requests.read",
+          "material_requests.approve_admin",
+        ],
+      },
+      {
+        name: "Warehouse Locations",
+        href: "/admin/scm/warehouse-locations",
+        requiredPermissions: [
+          "warehouse_locations.read",
+          "warehouse_locations.manage",
+        ],
+      },
+      {
+        name: "Reorder Alerts",
+        href: "/admin/scm/reorder-alerts",
+        requiredPermissions: ["stock_alerts.read", "stock_alerts.manage"],
+      },
+      {
+        name: "Physical Verifications",
+        href: "/admin/scm/physical-verifications",
+        requiredPermissions: [
+          "physical_verifications.read",
+          "physical_verifications.manage",
+          "physical_verifications.approve",
+        ],
+      },
+      {
+        name: "Stock Reports",
+        href: "/admin/scm/stock-reports",
+        requiredPermissions: ["stock_reports.read"],
+      },
+      {
+        name: "Stock Cards",
+        href: "/admin/scm/stock-cards",
+        requiredPermissions: [
+          "inventory.manage",
+          "material_releases.read",
+          "material_releases.manage",
+          "material_requests.approve_admin",
+        ],
+      },
+      {
+        name: "Asset Lifecycle",
+        href: "/admin/scm/assets",
+        requiredPermissions: ["asset_register.read", "asset_register.manage"],
+      },
+      {
         name: "Supplier Ledger",
         href: "/admin/scm/supplier-ledger",
         requiredPermissions: [
