@@ -130,7 +130,13 @@ const cards: ScmCard[] = [
     href: "/admin/scm/goods-receipts",
     description: "Post inbound stock against approved purchase orders.",
     icon: PackageCheck,
-    permission: "goods_receipts.read",
+    permissions: [
+      "goods_receipts.read",
+      "goods_receipts.manage",
+      "purchase_orders.manage",
+      "purchase_requisitions.manage",
+      "supplier.feedback.manage",
+    ],
   },
   {
     title: "Landed Costs",

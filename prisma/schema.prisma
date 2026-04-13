@@ -67,6 +67,9 @@ model User {
   purchaseRequisitionVersionsCreated PurchaseRequisitionVersion[] @relation("PurchaseRequisitionVersionsCreated")
   purchaseRequisitionNotificationsReceived PurchaseRequisitionNotification[] @relation("PurchaseRequisitionNotificationsReceived")
   goodsReceiptsReceived         GoodsReceipt[]          @relation("GoodsReceiptsReceived")
+  goodsReceiptsRequesterConfirmed GoodsReceipt[]        @relation("GoodsReceiptsRequesterConfirmed")
+  goodsReceiptAttachmentsUploaded GoodsReceiptAttachment[] @relation("GoodsReceiptAttachmentsUploaded")
+  goodsReceiptVendorEvaluations  GoodsReceiptVendorEvaluation[] @relation("GoodsReceiptVendorEvaluationsBy")
   supplierReturnsCreated        SupplierReturn[]        @relation("SupplierReturnsCreated")
   supplierReturnsApproved       SupplierReturn[]        @relation("SupplierReturnsApproved")
   supplierReturnsDispatched     SupplierReturn[]        @relation("SupplierReturnsDispatched")
@@ -2210,18 +2213,26 @@ model GoodsReceipt {
   status          GoodsReceiptStatus @default(RECEIVED)
   receivedAt      DateTime           @default(now())
   receivedById    String?
+  requesterConfirmedAt   DateTime?
+  requesterConfirmedById String?
+  requesterConfirmationNote String?
   note            String?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   purchaseOrder   PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
   warehouse       Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   receivedBy      User?              @relation("GoodsReceiptsReceived", fields: [receivedById], references: [id], onDelete: SetNull)
+  requesterConfirmedBy User?         @relation("GoodsReceiptsRequesterConfirmed", fields: [requesterConfirmedById], references: [id], onDelete: SetNull)
   items           GoodsReceiptItem[]
+  attachments     GoodsReceiptAttachment[]
+  vendorEvaluations GoodsReceiptVendorEvaluation[]
   supplierReturns SupplierReturn[]
 
   @@index([purchaseOrderId])
   @@index([warehouseId, receivedAt])
   @@index([receivedById])
+  @@index([requesterConfirmedById])
+  @@index([requesterConfirmedAt])
 }
 
 model GoodsReceiptItem {
@@ -2240,6 +2251,46 @@ model GoodsReceiptItem {
   @@index([goodsReceiptId])
   @@index([purchaseOrderItemId])
   @@index([productVariantId])
+}
+
+model GoodsReceiptAttachment {
+  id             Int                        @id @default(autoincrement())
+  goodsReceiptId Int
+  type           GoodsReceiptAttachmentType @default(OTHER)
+  fileUrl        String
+  fileName       String?
+  mimeType       String?
+  fileSize       Int?
+  note           String?
+  uploadedById   String?
+  createdAt      DateTime                   @default(now())
+  goodsReceipt   GoodsReceipt               @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  uploadedBy     User?                      @relation("GoodsReceiptAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([goodsReceiptId, createdAt])
+  @@index([uploadedById])
+  @@index([type, createdAt])
+}
+
+model GoodsReceiptVendorEvaluation {
+  id                   Int                      @id @default(autoincrement())
+  goodsReceiptId       Int
+  evaluatorRole        GoodsReceiptEvaluatorRole
+  overallRating        Int
+  serviceQualityRating Int?
+  deliveryRating       Int?
+  complianceRating     Int?
+  comment              String?
+  createdById          String?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  createdBy            User?                    @relation("GoodsReceiptVendorEvaluationsBy", fields: [createdById], references: [id], onDelete: SetNull)
+  goodsReceipt         GoodsReceipt             @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+
+  @@unique([goodsReceiptId, evaluatorRole])
+  @@index([goodsReceiptId, createdAt])
+  @@index([createdById, createdAt])
+  @@index([evaluatorRole, createdAt])
 }
 
 model SupplierInvoice {
@@ -3390,6 +3441,18 @@ enum PurchaseOrderLandedCostComponent {
 enum GoodsReceiptStatus {
   RECEIVED
   CANCELLED
+}
+
+enum GoodsReceiptAttachmentType {
+  CHALLAN
+  BILL
+  OTHER
+}
+
+enum GoodsReceiptEvaluatorRole {
+  REQUESTER
+  PROCUREMENT
+  ADMINISTRATION
 }
 
 enum SupplierReturnStatus {

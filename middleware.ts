@@ -119,7 +119,13 @@ const adminPagePermissionRules: PermissionRule[] = [
   },
   {
     prefix: "/admin/scm/goods-receipts",
-    permissions: ["goods_receipts.read", "goods_receipts.manage"],
+    permissions: [
+      "goods_receipts.read",
+      "goods_receipts.manage",
+      "purchase_orders.manage",
+      "purchase_requisitions.manage",
+      "supplier.feedback.manage",
+    ],
   },
   {
     prefix: "/admin/scm/landed-costs",
@@ -701,12 +707,29 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/scm/goods-receipts",
     methods: ["GET"],
-    permissions: ["goods_receipts.read", "goods_receipts.manage"],
+    permissions: [
+      "goods_receipts.read",
+      "goods_receipts.manage",
+      "purchase_orders.manage",
+      "purchase_requisitions.manage",
+      "supplier.feedback.manage",
+    ],
   },
   {
     prefix: "/api/scm/goods-receipts",
     methods: ["POST"],
     permissions: ["goods_receipts.manage"],
+  },
+  {
+    prefix: "/api/scm/goods-receipts",
+    methods: ["PATCH", "PUT"],
+    permissions: [
+      "goods_receipts.read",
+      "goods_receipts.manage",
+      "purchase_orders.manage",
+      "purchase_requisitions.manage",
+      "supplier.feedback.manage",
+    ],
   },
   {
     prefix: "/api/scm/landed-costs",

@@ -229,7 +229,13 @@ const menuItems: MenuItem[] = [
       {
         name: "Goods Receipts",
         href: "/admin/scm/goods-receipts",
-        requiredPermissions: ["goods_receipts.read", "goods_receipts.manage"],
+        requiredPermissions: [
+          "goods_receipts.read",
+          "goods_receipts.manage",
+          "purchase_orders.manage",
+          "purchase_requisitions.manage",
+          "supplier.feedback.manage",
+        ],
       },
       {
         name: "Landed Costs",

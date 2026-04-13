@@ -343,6 +343,29 @@ export const purchaseOrderInclude = Prisma.validator<Prisma.PurchaseOrderInclude
       email: true,
     },
   },
+  purchaseRequisition: {
+    select: {
+      id: true,
+      requisitionNumber: true,
+      status: true,
+      createdById: true,
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      assignedProcurementOfficerId: true,
+      assignedProcurementOfficer: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
   sourceComparativeStatement: {
     select: {
       id: true,
@@ -1015,6 +1038,13 @@ export const goodsReceiptInclude = Prisma.validator<Prisma.GoodsReceiptInclude>(
       email: true,
     },
   },
+  requesterConfirmedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
   purchaseOrder: {
     include: purchaseOrderInclude,
   },
@@ -1039,6 +1069,30 @@ export const goodsReceiptInclude = Prisma.validator<Prisma.GoodsReceiptInclude>(
               name: true,
             },
           },
+        },
+      },
+    },
+  },
+  attachments: {
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    include: {
+      uploadedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  },
+  vendorEvaluations: {
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    include: {
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
         },
       },
     },
@@ -1708,6 +1762,10 @@ export function toGoodsReceiptLogSnapshot(receipt: GoodsReceiptWithRelations) {
     warehouseCode: receipt.warehouse.code,
     receivedAt: receipt.receivedAt.toISOString(),
     note: receipt.note ?? null,
+    requesterConfirmedAt: receipt.requesterConfirmedAt?.toISOString() ?? null,
+    requesterConfirmedById: receipt.requesterConfirmedById ?? null,
+    requesterConfirmedByName: receipt.requesterConfirmedBy?.name ?? null,
+    requesterConfirmationNote: receipt.requesterConfirmationNote ?? null,
     items: receipt.items.map((item) => ({
       id: item.id,
       purchaseOrderItemId: item.purchaseOrderItemId,
@@ -1716,6 +1774,31 @@ export function toGoodsReceiptLogSnapshot(receipt: GoodsReceiptWithRelations) {
       productName: item.productVariant.product.name,
       quantityReceived: item.quantityReceived,
       unitCost: item.unitCost.toString(),
+    })),
+    attachments: receipt.attachments.map((attachment) => ({
+      id: attachment.id,
+      type: attachment.type,
+      fileUrl: attachment.fileUrl,
+      fileName: attachment.fileName ?? null,
+      mimeType: attachment.mimeType ?? null,
+      fileSize: attachment.fileSize ?? null,
+      note: attachment.note ?? null,
+      uploadedById: attachment.uploadedById ?? null,
+      uploadedByName: attachment.uploadedBy?.name ?? null,
+      createdAt: attachment.createdAt.toISOString(),
+    })),
+    vendorEvaluations: receipt.vendorEvaluations.map((evaluation) => ({
+      id: evaluation.id,
+      evaluatorRole: evaluation.evaluatorRole,
+      overallRating: evaluation.overallRating,
+      serviceQualityRating: evaluation.serviceQualityRating ?? null,
+      deliveryRating: evaluation.deliveryRating ?? null,
+      complianceRating: evaluation.complianceRating ?? null,
+      comment: evaluation.comment ?? null,
+      createdById: evaluation.createdById ?? null,
+      createdByName: evaluation.createdBy?.name ?? null,
+      createdAt: evaluation.createdAt.toISOString(),
+      updatedAt: evaluation.updatedAt.toISOString(),
     })),
   };
 }

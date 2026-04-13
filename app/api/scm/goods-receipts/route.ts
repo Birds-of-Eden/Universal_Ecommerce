@@ -20,17 +20,97 @@ const GOODS_RECEIPT_READ_PERMISSIONS = [
   "goods_receipts.read",
   "goods_receipts.manage",
 ] as const;
+const GOODS_RECEIPT_EXTENDED_READ_PERMISSIONS = [
+  ...GOODS_RECEIPT_READ_PERMISSIONS,
+  "purchase_orders.manage",
+  "purchase_requisitions.manage",
+  "supplier.feedback.manage",
+] as const;
+
+const PROCUREMENT_EVALUATION_PERMISSIONS = [
+  "purchase_orders.manage",
+  "purchase_orders.approve_manager",
+  "purchase_orders.approve_committee",
+  "purchase_orders.approve_final",
+] as const;
 
 function toCleanText(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
 function canReadGoodsReceipts(access: Awaited<ReturnType<typeof getAccessContext>>) {
-  return access.hasAny([...GOODS_RECEIPT_READ_PERMISSIONS]);
+  return access.hasAny([...GOODS_RECEIPT_EXTENDED_READ_PERMISSIONS]);
 }
 
 function hasGlobalGoodsReceiptScope(access: Awaited<ReturnType<typeof getAccessContext>>) {
-  return GOODS_RECEIPT_READ_PERMISSIONS.some((permission) => access.hasGlobal(permission));
+  return GOODS_RECEIPT_EXTENDED_READ_PERMISSIONS.some((permission) =>
+    access.hasGlobal(permission),
+  );
+}
+
+type ReceiptWithRelations = Prisma.GoodsReceiptGetPayload<{
+  include: typeof goodsReceiptInclude;
+}>;
+
+function resolveRequesterUserId(receipt: ReceiptWithRelations) {
+  return (
+    receipt.purchaseOrder.purchaseRequisition?.createdById ??
+    receipt.purchaseOrder.createdById ??
+    null
+  );
+}
+
+function canRequesterConfirmReceipt(
+  access: Awaited<ReturnType<typeof getAccessContext>>,
+  receipt: ReceiptWithRelations,
+) {
+  if (receipt.requesterConfirmedAt) return false;
+  const requesterUserId = resolveRequesterUserId(receipt);
+  if (!requesterUserId) return false;
+  return (
+    access.userId === requesterUserId ||
+    access.can("purchase_requisitions.approve", receipt.warehouseId)
+  );
+}
+
+function canManageReceiptAttachments(
+  access: Awaited<ReturnType<typeof getAccessContext>>,
+  receipt: ReceiptWithRelations,
+) {
+  const requesterUserId = resolveRequesterUserId(receipt);
+  return (
+    access.can("goods_receipts.manage", receipt.warehouseId) ||
+    access.can("purchase_orders.manage", receipt.warehouseId) ||
+    (requesterUserId !== null && requesterUserId === access.userId)
+  );
+}
+
+function resolveAllowedEvaluationRoles(
+  access: Awaited<ReturnType<typeof getAccessContext>>,
+  receipt: ReceiptWithRelations,
+) {
+  const requesterUserId = resolveRequesterUserId(receipt);
+  const isRequester = requesterUserId !== null && requesterUserId === access.userId;
+
+  const roles = new Set<"REQUESTER" | "PROCUREMENT" | "ADMINISTRATION">();
+  if (isRequester || access.can("purchase_requisitions.approve", receipt.warehouseId)) {
+    roles.add("REQUESTER");
+  }
+  if (
+    PROCUREMENT_EVALUATION_PERMISSIONS.some((permission) =>
+      access.can(permission, receipt.warehouseId),
+    )
+  ) {
+    roles.add("PROCUREMENT");
+  }
+  if (
+    access.hasGlobal("supplier.feedback.manage") ||
+    access.hasGlobal("suppliers.manage") ||
+    access.hasGlobal("users.manage")
+  ) {
+    roles.add("ADMINISTRATION");
+  }
+  return [...roles];
 }
 
 export async function GET(request: NextRequest) {
@@ -78,7 +158,105 @@ export async function GET(request: NextRequest) {
       include: goodsReceiptInclude,
     });
 
-    return NextResponse.json(receipts);
+    const purchaseOrderIds = [...new Set(receipts.map((receipt) => receipt.purchaseOrderId))];
+    const invoiceRows =
+      purchaseOrderIds.length === 0
+        ? []
+        : await prisma.supplierInvoice.findMany({
+            where: {
+              purchaseOrderId: { in: purchaseOrderIds },
+              status: { not: "CANCELLED" },
+            },
+            select: {
+              purchaseOrderId: true,
+              matchStatus: true,
+              items: {
+                select: { quantityInvoiced: true },
+              },
+            },
+          });
+
+    const invoiceSummaryByPo = new Map<
+      number,
+      {
+        invoiceCount: number;
+        invoicedQuantity: number;
+        hasVariance: boolean;
+        allMatched: boolean;
+      }
+    >();
+
+    for (const row of invoiceRows) {
+      if (!row.purchaseOrderId) continue;
+      const current = invoiceSummaryByPo.get(row.purchaseOrderId) ?? {
+        invoiceCount: 0,
+        invoicedQuantity: 0,
+        hasVariance: false,
+        allMatched: true,
+      };
+      current.invoiceCount += 1;
+      current.invoicedQuantity += row.items.reduce(
+        (sum, item) => sum + item.quantityInvoiced,
+        0,
+      );
+      current.hasVariance ||= row.matchStatus === "VARIANCE";
+      current.allMatched &&= row.matchStatus === "MATCHED";
+      invoiceSummaryByPo.set(row.purchaseOrderId, current);
+    }
+
+    const payload = receipts.map((receipt) => {
+      const poOrderedQty = receipt.purchaseOrder.items.reduce(
+        (sum, item) => sum + item.quantityOrdered,
+        0,
+      );
+      const poReceivedQty = receipt.purchaseOrder.items.reduce(
+        (sum, item) => sum + item.quantityReceived,
+        0,
+      );
+      const invoiceSummary = invoiceSummaryByPo.get(receipt.purchaseOrderId) ?? {
+        invoiceCount: 0,
+        invoicedQuantity: 0,
+        hasVariance: false,
+        allMatched: false,
+      };
+      const overallMatchStatus: "PENDING" | "MATCHED" | "VARIANCE" =
+        invoiceSummary.invoiceCount === 0
+          ? "PENDING"
+          : invoiceSummary.hasVariance
+            ? "VARIANCE"
+            : invoiceSummary.allMatched
+              ? "MATCHED"
+              : "PENDING";
+
+      const allowedEvaluationRoles = resolveAllowedEvaluationRoles(access, receipt);
+      const submittedRoles = new Set(
+        receipt.vendorEvaluations.map((evaluation) => evaluation.evaluatorRole),
+      );
+      const requiredRoles = ["REQUESTER", "PROCUREMENT", "ADMINISTRATION"] as const;
+
+      return {
+        ...receipt,
+        workflow: {
+          requesterUserId: resolveRequesterUserId(receipt),
+          requesterConfirmed: Boolean(receipt.requesterConfirmedAt),
+          canRequesterConfirm: canRequesterConfirmReceipt(access, receipt),
+          canManageAttachments: canManageReceiptAttachments(access, receipt),
+          allowedEvaluationRoles,
+          submittedEvaluationRoles: [...submittedRoles],
+          missingEvaluationRoles: requiredRoles.filter((role) => !submittedRoles.has(role)),
+          evaluationCompleted: requiredRoles.every((role) => submittedRoles.has(role)),
+        },
+        matchSummary: {
+          orderedQuantity: poOrderedQty,
+          receivedQuantity: poReceivedQty,
+          invoicedQuantity: invoiceSummary.invoicedQuantity,
+          invoiceCount: invoiceSummary.invoiceCount,
+          status: overallMatchStatus,
+        },
+      };
+    });
+
+    return NextResponse.json(payload);
   } catch (error) {
     console.error("SCM GOODS RECEIPTS GET ERROR:", error);
     return NextResponse.json(

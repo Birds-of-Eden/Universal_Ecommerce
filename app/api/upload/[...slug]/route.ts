@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 const rootUploadDir = path.join(process.cwd(), "public", "upload");
 const SCM_PROPOSAL_PREFIX = "scm-proposals";
+const SCM_GRN_PREFIX = "scm-grn";
 
 function guessContentType(ext: string) {
   switch (ext) {
@@ -36,6 +37,10 @@ function isScmProposalPath(relPath: string) {
     relPath === SCM_PROPOSAL_PREFIX ||
     relPath.startsWith(`${SCM_PROPOSAL_PREFIX}/`)
   );
+}
+
+function isScmGrnPath(relPath: string) {
+  return relPath === SCM_GRN_PREFIX || relPath.startsWith(`${SCM_GRN_PREFIX}/`);
 }
 
 async function canWriteScmProposalFiles(sessionUser: {
@@ -102,6 +107,72 @@ async function canReadScmProposalFile(
   );
 }
 
+async function canWriteScmGrnFiles(sessionUser: {
+  id?: string;
+  role?: string;
+} | null | undefined) {
+  const access = await getAccessContext(sessionUser);
+  if (!access.userId) return false;
+
+  return access.hasAny([
+    "goods_receipts.read",
+    "goods_receipts.manage",
+    "purchase_orders.manage",
+    "purchase_requisitions.manage",
+    "supplier.feedback.manage",
+  ]);
+}
+
+async function canReadScmGrnFile(
+  relPath: string,
+  sessionUser: { id?: string; role?: string } | null | undefined,
+) {
+  const access = await getAccessContext(sessionUser);
+  if (!access.userId) return false;
+
+  const fileUrl = `/api/upload/${relPath}`;
+  const attachment = await prisma.goodsReceiptAttachment.findFirst({
+    where: { fileUrl },
+    select: {
+      goodsReceipt: {
+        select: {
+          warehouseId: true,
+          purchaseOrder: {
+            select: {
+              createdById: true,
+              purchaseRequisition: {
+                select: {
+                  createdById: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!attachment) return false;
+  const warehouseId = attachment.goodsReceipt.warehouseId;
+  const requesterUserId =
+    attachment.goodsReceipt.purchaseOrder.purchaseRequisition?.createdById ??
+    attachment.goodsReceipt.purchaseOrder.createdById ??
+    null;
+
+  if (
+    access.can("goods_receipts.read", warehouseId) ||
+    access.can("goods_receipts.manage", warehouseId) ||
+    access.can("purchase_orders.manage", warehouseId) ||
+    access.can("purchase_requisitions.manage", warehouseId) ||
+    access.hasGlobal("supplier.feedback.manage") ||
+    access.hasGlobal("suppliers.manage")
+  ) {
+    return true;
+  }
+
+  return requesterUserId !== null && requesterUserId === access.userId;
+}
+
 /* ---------------- POST (UPLOAD) ---------------- */
 export async function POST(
   req: Request,
@@ -112,8 +183,9 @@ export async function POST(
     const { slug } = await params;
     const relPath = slug.join("/");
     const requiresScmProposalScope = isScmProposalPath(relPath);
+    const requiresScmGrnScope = isScmGrnPath(relPath);
 
-    if (requiresScmProposalScope) {
+    if (requiresScmProposalScope || requiresScmGrnScope) {
       const session = await getServerSession(authOptions);
       const sessionUser = session?.user as { id?: string; role?: string } | undefined;
 
@@ -121,8 +193,13 @@ export async function POST(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      const allowed = await canWriteScmProposalFiles(sessionUser);
-      if (!allowed) {
+      const canWriteProposal = requiresScmProposalScope
+        ? await canWriteScmProposalFiles(sessionUser)
+        : true;
+      const canWriteGrn = requiresScmGrnScope
+        ? await canWriteScmGrnFiles(sessionUser)
+        : true;
+      if (!canWriteProposal || !canWriteGrn) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
@@ -177,8 +254,10 @@ export async function GET(
       return NextResponse.json({ error: "Bad path" }, { status: 400 });
     }
     const requiresScmProposalScope = isScmProposalPath(relPath);
+    const requiresScmGrnScope = isScmGrnPath(relPath);
+    const requiresProtectedScope = requiresScmProposalScope || requiresScmGrnScope;
 
-    if (requiresScmProposalScope) {
+    if (requiresProtectedScope) {
       const session = await getServerSession(authOptions);
       const sessionUser = session?.user as { id?: string; role?: string } | undefined;
 
@@ -186,8 +265,13 @@ export async function GET(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      const allowed = await canReadScmProposalFile(relPath, sessionUser);
-      if (!allowed) {
+      const canReadProposal = requiresScmProposalScope
+        ? await canReadScmProposalFile(relPath, sessionUser)
+        : true;
+      const canReadGrn = requiresScmGrnScope
+        ? await canReadScmGrnFile(relPath, sessionUser)
+        : true;
+      if (!canReadProposal || !canReadGrn) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
@@ -199,7 +283,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(data), {
       headers: {
         "Content-Type": guessContentType(ext),
-        "Cache-Control": requiresScmProposalScope
+        "Cache-Control": requiresProtectedScope
           ? "private, no-store"
           : "public, max-age=31536000, immutable",
       },

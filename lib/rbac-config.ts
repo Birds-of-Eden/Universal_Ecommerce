@@ -922,6 +922,7 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "scm.access",
       "purchase_requisitions.read",
       "purchase_requisitions.manage",
+      "goods_receipts.read",
       "rfq.read",
       "rfq.manage",
       "comparative_statements.read",
