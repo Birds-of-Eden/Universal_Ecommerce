@@ -931,6 +931,68 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
     ],
   },
   {
+    name: "finance_focal",
+    label: "Finance Focal",
+    description:
+      "Finance budget-clearance focal role for material requisition workflow.",
+    immutable: false,
+    permissions: [
+      "admin.panel.access",
+      "dashboard.read",
+      "scm.access",
+      "purchase_requisitions.read",
+      "mrf.budget_clear",
+      "profile.manage",
+    ],
+  },
+  {
+    name: "mrf_endorser",
+    label: "MRF Endorser",
+    description:
+      "Endorsement signatory role for budget-cleared material requisitions.",
+    immutable: false,
+    permissions: [
+      "admin.panel.access",
+      "dashboard.read",
+      "scm.access",
+      "purchase_requisitions.read",
+      "mrf.endorse",
+      "profile.manage",
+    ],
+  },
+  {
+    name: "final_approver",
+    label: "Final Approver",
+    description:
+      "Authority-matrix final approval role for material requisitions.",
+    immutable: false,
+    permissions: [
+      "admin.panel.access",
+      "dashboard.read",
+      "scm.access",
+      "purchase_requisitions.read",
+      "mrf.final_approve",
+      "profile.manage",
+    ],
+  },
+  {
+    name: "procurement_committee",
+    label: "Procurement Committee",
+    description:
+      "Committee review role for comparative statements and committee-stage PO approvals.",
+    immutable: false,
+    permissions: [
+      "admin.panel.access",
+      "dashboard.read",
+      "scm.access",
+      "comparative_statements.read",
+      "comparative_statements.approve_committee",
+      "purchase_orders.read",
+      "purchase_orders.approve_committee",
+      "profile.manage",
+    ],
+  },
+  {
     name: "warehouse_transfer_manager",
     label: "Warehouse Transfer Manager",
     description: "Manage and approve stock transfers between warehouses.",
