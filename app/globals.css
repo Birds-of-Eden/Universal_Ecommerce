@@ -884,3 +884,59 @@ body {
 .scrollbar-hide-on-idle:hover::-webkit-scrollbar-track {
   background: hsl(var(--muted) / 0.1);
 }
+
+/* ========================
+   CART BUTTON ANIMATION
+======================== */
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.15);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  75% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 1.0s ease-in-out;
+}
+
+/* ========================
+   FLYING BIRD ANIMATION
+======================== */
+
+@keyframes flap-left {
+  0%, 100% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(60deg);
+  }
+}
+
+@keyframes flap-right {
+  0%, 100% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(-60deg);
+  }
+}
+
+.animate-flap-left {
+  animation: flap-left 1.25s ease-in-out infinite;
+}
+
+.animate-flap-right {
+  animation: flap-right 1.25s ease-in-out infinite;
+}

@@ -35,13 +35,28 @@ export interface CartItem {
   variantLabel?: string | null;
 }
 
+type CartAnimationRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+type CartAnimationOptions = {
+  startX?: number;
+  startY?: number;
+  image?: string;
+  imageRect?: CartAnimationRect;
+};
+
 interface CartContextType {
   cartItems: CartItem[];
 
   addToCart: (
     productId: string | number,
     quantity?: number,
-    variantId?: string | number | null
+    variantId?: string | number | null,
+    options?: CartAnimationOptions
   ) => void;
 
   // row-id based
@@ -285,7 +300,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // ✅ FIXED: addToCart always INCREMENT, normalize ids
   const addToCart = useCallback(
-    (productId: string | number, quantity: number = 1, variantId?: string | number | null) => {
+    (
+      productId: string | number,
+      quantity: number = 1,
+      variantId?: string | number | null,
+      options?: CartAnimationOptions
+    ) => {
       const pid = norm(productId);
       const vid = normVariant(variantId);
       const add = clamp(Number(quantity) || 1);
@@ -338,6 +358,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
           },
         ];
       });
+
+      // Dispatch custom event to trigger animation on FloatingCartButton
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("cart-item-added", {
+          detail: {
+            startX: options?.startX,
+            startY: options?.startY,
+            image: options?.image || product.image || "/placeholder.svg",
+            imageRect: options?.imageRect,
+          },
+        }));
+      }
     },
     [products]
   );

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart, Loader2, ShoppingCart, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/components/ecommarce/CartContext";
 
 export type ProductCardData = {
   id: number | string;
@@ -88,6 +89,10 @@ export default function ProductCardCompact({
   className,
 }: Props) {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [buttonAnimate, setButtonAnimate] = useState(false);
+  const { addToCart } = useCart();
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const imageFrameRef = useRef<HTMLDivElement>(null);
 
   const effectiveStock =
     product.type === "BUNDLE"
@@ -126,11 +131,57 @@ export default function ProductCardCompact({
 
     try {
       setIsAddingToCart(true);
-      await Promise.resolve(onAddToCart?.());
+      setButtonAnimate(true);
+
+      const buttonRect = buttonRef.current?.getBoundingClientRect();
+      const imageRect = imageFrameRef.current?.getBoundingClientRect();
+      const startX = buttonRect ? buttonRect.left + buttonRect.width / 2 : 0;
+      const startY = buttonRect ? buttonRect.top + buttonRect.height / 2 : 0;
+
+      // If custom onAddToCart is provided, use it
+      if (onAddToCart) {
+        await Promise.resolve(onAddToCart());
+        // Dispatch event for animation even when using custom callback
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("cart-item-added", {
+            detail: {
+              startX,
+              startY,
+              image: product.image || undefined,
+              imageRect: imageRect
+                ? {
+                    left: imageRect.left,
+                    top: imageRect.top,
+                    width: imageRect.width,
+                    height: imageRect.height,
+                  }
+                : undefined,
+            },
+          }));
+        }
+      } else {
+        // Use context's addToCart with animation data
+        addToCart(product.id, 1, undefined, {
+          startX,
+          startY,
+          image: product.image || undefined,
+          imageRect: imageRect
+            ? {
+                left: imageRect.left,
+                top: imageRect.top,
+                width: imageRect.width,
+                height: imageRect.height,
+              }
+            : undefined,
+        });
+      }
     } finally {
       setTimeout(() => {
         setIsAddingToCart(false);
       }, 500);
+      setTimeout(() => {
+        setButtonAnimate(false);
+      }, 1000);
     }
   };
 
@@ -143,7 +194,10 @@ export default function ProductCardCompact({
     >
       <Link href={product.href} className="block h-full">
         <div className="flex h-full flex-col">
-          <div className="relative flex h-[190px] items-center justify-center overflow-hidden rounded-t-md bg-muted/20 px-4 pt-3">
+          <div
+            ref={imageFrameRef}
+            className="relative flex h-[190px] items-center justify-center overflow-hidden rounded-t-md bg-muted/20 px-4 pt-3"
+          >
             {onWishlistClick ? (
               <button
                 type="button"
@@ -263,6 +317,7 @@ export default function ProductCardCompact({
 
             <div className="mt-3">
               <button
+                ref={buttonRef}
                 type="button"
                 disabled={isOutOfStock || isAddingToCart}
                 onClick={handleAddToCart}
@@ -271,6 +326,7 @@ export default function ProductCardCompact({
                   isOutOfStock || isAddingToCart
                     ? "cursor-not-allowed border-destructive bg-destructive/10 text-destructive"
                     : "border-primary bg-transparent text-primary hover:bg-primary/5",
+                  buttonAnimate ? "animate-bounce-in" : ""
                 )}
               >
                 {isAddingToCart ? (

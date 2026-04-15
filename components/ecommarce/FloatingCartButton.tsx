@@ -35,6 +35,18 @@ type Position = {
   y: number;
 };
 
+type FlyingItem = {
+  image: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  opacity: number;
+  borderRadius: number;
+  translateX: number;
+  translateY: number;
+};
+
 function getDefaultPosition(): Position {
   if (typeof window === "undefined") {
     return { x: 0, y: 140 };
@@ -83,8 +95,14 @@ export default function FloatingCartButton() {
   const [dragging, setDragging] = useState(false);
   const [open, setOpen] = useState(false);
   const [drawerSide, setDrawerSide] = useState<"left" | "right">("right");
+  const [animate, setAnimate] = useState(false);
+  const [displayCartCount, setDisplayCartCount] = useState(cartCount);
+  const [flyingItem, setFlyingItem] = useState<FlyingItem | null>(null);
 
   const suppressClickRef = useRef(false);
+  const animationTimeoutRef = useRef<number | null>(null);
+  const animationCleanupRef = useRef<number | null>(null);
+  const cartCountRef = useRef(cartCount);
   const dragRef = useRef<{
     pointerId: number;
     offsetX: number;
@@ -133,6 +151,110 @@ export default function FloatingCartButton() {
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, [mounted]);
+
+  // Listen for cart-item-added event to trigger animation
+  useEffect(() => {
+    cartCountRef.current = cartCount;
+  }, [cartCount]);
+
+  useEffect(() => {
+    if (animationTimeoutRef.current !== null) {
+      return;
+    }
+
+    setDisplayCartCount(cartCount);
+  }, [cartCount]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const handleCartItemAdded = (event: CustomEvent<{
+      image?: string;
+      imageRect?: { left: number; top: number; width: number; height: number };
+    }>) => {
+      const buttonRect = document
+        .querySelector('[aria-label="Open cart drawer"]')
+        ?.getBoundingClientRect();
+
+      if (!buttonRect) return;
+
+      if (animationTimeoutRef.current !== null) {
+        window.clearTimeout(animationTimeoutRef.current);
+      }
+      if (animationCleanupRef.current !== null) {
+        window.clearTimeout(animationCleanupRef.current);
+      }
+
+      const startRect = event.detail?.imageRect ?? {
+        left: buttonRect.left,
+        top: buttonRect.top,
+        width: 180,
+        height: 180,
+      };
+      const targetSize = 52;
+      const targetLeft = buttonRect.left + (buttonRect.width - targetSize) / 2;
+      const targetTop = buttonRect.top + (buttonRect.height - targetSize) / 2;
+      const travelX = buttonRect.left + buttonRect.width / 2 - (startRect.left + startRect.width / 2);
+      const travelY = buttonRect.top + buttonRect.height / 2 - (startRect.top + startRect.height / 2);
+
+      setFlyingItem({
+        image: event.detail?.image || "/placeholder.svg",
+        left: startRect.left,
+        top: startRect.top,
+        width: startRect.width,
+        height: startRect.height,
+        opacity: 0.96,
+        borderRadius: 14,
+        translateX: 0,
+        translateY: 0,
+      });
+
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          setFlyingItem({
+            image: event.detail?.image || "/placeholder.svg",
+            left: targetLeft,
+            top: targetTop,
+            width: targetSize,
+            height: targetSize,
+            opacity: 0,
+            borderRadius: 12,
+            translateX: travelX * 0.04,
+            translateY: travelY * -0.08,
+          });
+        });
+      });
+
+      animationTimeoutRef.current = window.setTimeout(() => {
+        setAnimate(true);
+        setDisplayCartCount(cartCountRef.current);
+        window.setTimeout(() => setAnimate(false), 850);
+        animationTimeoutRef.current = null;
+      }, 2325);
+
+      animationCleanupRef.current = window.setTimeout(() => {
+        setFlyingItem(null);
+        animationCleanupRef.current = null;
+      }, 2650);
+    };
+
+    window.addEventListener(
+      "cart-item-added",
+      handleCartItemAdded as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        "cart-item-added",
+        handleCartItemAdded as EventListener
+      );
+      if (animationTimeoutRef.current !== null) {
+        window.clearTimeout(animationTimeoutRef.current);
+      }
+      if (animationCleanupRef.current !== null) {
+        window.clearTimeout(animationCleanupRef.current);
+      }
+    };
   }, [mounted]);
 
   useEffect(() => {
@@ -215,6 +337,29 @@ export default function FloatingCartButton() {
 
   return (
     <>
+      {/* Flying image animation */}
+      {flyingItem && (
+        <div
+          className="fixed pointer-events-none z-[100] overflow-hidden border border-white/70 bg-white/90 shadow-2xl transition-all duration-[2400ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+          style={{
+            left: flyingItem.left,
+            top: flyingItem.top,
+            width: flyingItem.width,
+            height: flyingItem.height,
+            opacity: flyingItem.opacity,
+            borderRadius: `${flyingItem.borderRadius}px`,
+            transform: `translate(${flyingItem.translateX}px, ${flyingItem.translateY}px)`,
+          }}
+        >
+          <Image
+            src={flyingItem.image || "/placeholder.svg"}
+            alt="Flying item"
+            fill
+            className="object-contain p-1"
+          />
+        </div>
+      )}
+
       <Sheet open={open} onOpenChange={setOpen}>
         <button
           type="button"
@@ -242,14 +387,14 @@ export default function FloatingCartButton() {
             dragging
               ? "cursor-grabbing scale-105 shadow-2xl"
               : "cursor-grab hover:shadow-xl"
-          }`}
+          } ${animate ? "animate-bounce-in" : ""}`}
           aria-label="Open cart drawer"
         >
           <div className="relative">
             <ShoppingBag className="h-5 w-5" />
-            {cartCount > 0 && (
+            {displayCartCount > 0 && (
               <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                {cartCount}
+                {displayCartCount}
               </span>
             )}
           </div>
