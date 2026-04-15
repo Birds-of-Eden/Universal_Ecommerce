@@ -933,7 +933,7 @@ export default function OrderDetailsPage() {
               </p>
             </div>
 
-            <div className="bg-card text-card-foreground px-4 py-3 rounded-lg border border-border shadow-sm text-sm">
+            <div className="bg-card text-card-foreground px-4 py-3 rounded-lg border border-border shadow-sm text-sm">s
               <p className="text-muted-foreground">Order Date</p>
               <p className="font-semibold">{formatDate(order.createdAt)}</p>
               <div className="mt-2 flex flex-wrap gap-2">
