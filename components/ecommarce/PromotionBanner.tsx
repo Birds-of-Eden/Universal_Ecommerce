@@ -82,7 +82,8 @@ function PromoCard({
   className?: string;
 }) {
   return (
-    <div
+    <Link
+      href={banner.buttonLink || "/ecommerce/products"}
       className={`group relative h-full w-full overflow-hidden rounded-[24px] border border-border/60 bg-card shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${className}`}
     >
       <div className="absolute inset-0">
@@ -124,16 +125,17 @@ function PromoCard({
             )}
           </div>
 
-          {banner.buttonText && banner.buttonLink && (
-            <Link
-              href={banner.buttonLink}
+          {banner.buttonText && (
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
               className="inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-bold text-black transition hover:bg-primary hover:text-primary-foreground"
             >
               {banner.buttonText}
-            </Link>
+            </button>
           )}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
