@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  Loader2,
   Minus,
   Plus,
   ShoppingBag,
@@ -23,6 +24,8 @@ import {
 } from "@/components/ui/sheet";
 import { useSession, signIn } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import VariantSelectionModal from "@/components/ecommarce/VariantSelectionModal";
 
 const STORAGE_KEY = "floating-cart-position";
 const BUTTON_WIDTH = 68;
@@ -33,6 +36,19 @@ const DRAG_THRESHOLD = 6;
 type Position = {
   x: number;
   y: number;
+};
+
+type CartItemWithVariants = {
+  id: string | number;
+  productId: string | number;
+  variantId?: string | number | null;
+  name: string;
+  price: number;
+  quantity: number;
+  image: string;
+  variantLabel?: string | null;
+  hasVariants?: boolean;
+  variants?: any[];
 };
 
 type FlyingItem = {
@@ -86,7 +102,7 @@ function getDrawerSide(x: number): "left" | "right" {
 
 export default function FloatingCartButton() {
   const router = useRouter();
-  const { cartItems, cartCount, removeFromCart, updateQuantity } = useCart();
+  const { cartItems, cartCount, removeFromCart, updateQuantity, addToCart } = useCart();
   const { status } = useSession();
   const isAuthenticated = status === "authenticated";
 
@@ -98,6 +114,9 @@ export default function FloatingCartButton() {
   const [animate, setAnimate] = useState(false);
   const [displayCartCount, setDisplayCartCount] = useState(cartCount);
   const [flyingItem, setFlyingItem] = useState<FlyingItem | null>(null);
+  const [expandedItems, setExpandedItems] = useState<Set<string | number>>(new Set());
+  const [itemVariants, setItemVariants] = useState<Record<string | number, any[]>>({});
+  const [loadingVariants, setLoadingVariants] = useState<Set<string | number>>(new Set());
 
   const suppressClickRef = useRef(false);
   const animationTimeoutRef = useRef<number | null>(null);
@@ -318,6 +337,15 @@ export default function FloatingCartButton() {
     [cartItems],
   );
 
+  // Check if any cart items have variants that need selection
+  const hasUnselectedVariants = useMemo(() => {
+    return cartItems.some(item => {
+      // Check if this item needs variant selection
+      // Items with variantId null/undefined but have variants in the product need selection
+      return !item.variantId && item.productId;
+    });
+  }, [cartItems]);
+
   const handleCheckout = async () => {
     if (!isAuthenticated) {
       // Store cart items for after login
@@ -328,9 +356,104 @@ export default function FloatingCartButton() {
       return;
     }
 
-    // If authenticated, proceed to checkout
+    // Check for items that need variant selection
+    if (hasUnselectedVariants) {
+      toast.error("Please select variants for all items before checkout.");
+      return;
+    }
+
+    // If authenticated and no variant issues, proceed to checkout
     setOpen(false);
     router.push("/ecommerce/checkout");
+  };
+
+  const fetchItemVariants = async (item: CartItemWithVariants) => {
+    if (itemVariants[item.id]) return itemVariants[item.id];
+    
+    // Add to loading state
+    setLoadingVariants(prev => new Set([...prev, item.id]));
+    
+    try {
+      console.log('Fetching variants for product:', item.productId);
+      const res = await fetch(`/api/products/${item.productId}`);
+      const product = await res.json();
+      console.log('Product data:', product);
+      
+      if (product.variants && product.variants.length > 0) {
+        console.log('Found variants:', product.variants);
+        setItemVariants(prev => ({
+          ...prev,
+          [item.id]: product.variants
+        }));
+        return product.variants;
+      } else {
+        console.log('No variants found for product');
+        toast.info('This product has no variants available');
+      }
+    } catch (err) {
+      console.error('Failed to fetch product variants:', err);
+      toast.error('Failed to load product variants');
+    } finally {
+      // Remove from loading state
+      setLoadingVariants(prev => new Set([...prev].filter(id => id !== item.id)));
+    }
+    return [];
+  };
+
+  const handleExpandItem = async (item: CartItemWithVariants) => {
+    setExpandedItems(prev => 
+      prev.has(item.id) 
+        ? new Set([...prev].filter(id => id !== item.id))
+        : new Set([...prev, item.id])
+    );
+    
+    // Fetch variants if not already loaded
+    if (!itemVariants[item.id] && !item.variantId) {
+      await fetchItemVariants(item);
+    }
+  };
+
+  // Auto-fetch variants for items that need them
+  useEffect(() => {
+    cartItems.forEach(async (item) => {
+      if (!item.variantId && !itemVariants[item.id] && !loadingVariants.has(item.id)) {
+        await fetchItemVariants(item);
+      }
+    });
+  }, [cartItems]);
+
+  const handleInlineVariantSelect = (item: CartItemWithVariants, variant: any) => {
+    console.log('Selecting variant:', variant, 'for item:', item);
+    
+    // Remove the item without variant
+    removeFromCart(item.id);
+    
+    // Add the item with variant
+    setTimeout(() => {
+      console.log('Adding variant to cart:', item.productId, variant.id, item.quantity);
+      addToCart(item.productId, item.quantity, variant.id);
+      
+      // Show success message
+      toast.success(`Variant selected: ${getVariantLabel(variant)}`);
+      
+      // Remove from expanded items
+      setExpandedItems(prev => new Set([...prev].filter(id => id !== item.id)));
+      
+      // Clear cached variants for this item
+      setItemVariants(prev => {
+        const newVariants = { ...prev };
+        delete newVariants[item.id];
+        return newVariants;
+      });
+    }, 100);
+  };
+
+  // Helper function to get variant label
+  const getVariantLabel = (variant: any) => {
+    if (!variant.options) return variant.sku || "";
+    return Object.entries(variant.options)
+      .map(([key, value]) => `${value}`)
+      .join(", ");
   };
 
   if (!mounted) return null;
@@ -438,12 +561,19 @@ export default function FloatingCartButton() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {cartItems.map((item) => (
+                  {cartItems.map((item) => {
+                    const needsVariantSelection = !item.variantId;
+                    const isExpanded = expandedItems.has(item.id);
+                    return (
                     <div
                       key={`${item.id}-${item.variantId ?? "base"}`}
-                      className="overflow-hidden rounded-md border border-border bg-card"
+                      className={`overflow-hidden rounded-md border bg-card ${
+                        needsVariantSelection 
+                          ? 'border-orange-200 bg-orange-50' 
+                          : 'border-border'
+                      }`}
                     >
-                      <div className="grid grid-cols-[1fr_92px] gap-3 border-b border-border p-3">
+                      <div className="grid grid-cols-[1fr_92px] gap-3 border-b p-3">
                         <div className="min-w-0">
                           <div className="line-clamp-2 text-sm font-medium text-foreground">
                             {item.name}
@@ -463,6 +593,69 @@ export default function FloatingCartButton() {
                           />
                         </div>
                       </div>
+
+                      {/* Variant Selection Section */}
+                      {needsVariantSelection && (
+                        <div className="border-t border-orange-200 bg-orange-50 p-3">
+                          <div className="mb-2">
+                            <span className="text-sm font-medium text-orange-800">Select Variant:</span>
+                          </div>
+                          
+                          <div className="mt-3 space-y-2">
+                            {loadingVariants.has(item.id) ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="h-4 w-4 animate-spin text-orange-600 mr-2" />
+                                <span className="text-sm text-orange-600">Loading variants...</span>
+                              </div>
+                            ) : itemVariants[item.id]?.length > 0 ? (
+                              itemVariants[item.id].map((variant) => {
+                                const outOfStock = variant.stock === 0;
+                                return (
+                                  <button
+                                    key={variant.id}
+                                    onClick={() => !outOfStock && handleInlineVariantSelect(item, variant)}
+                                    disabled={outOfStock}
+                                    className={cn(
+                                      "w-full text-left p-3 rounded-lg border transition-all",
+                                      outOfStock
+                                        ? "border-gray-200 bg-gray-50 cursor-not-allowed opacity-60"
+                                        : "border-orange-300 hover:border-orange-400 hover:bg-orange-100"
+                                    )}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <div className="h-5 w-5 rounded-full border-2 border-orange-400 flex items-center justify-center">
+                                          <div className="h-2 w-2 rounded-full bg-orange-400" />
+                                        </div>
+                                        <div>
+                                          <span className="text-sm font-medium text-orange-800">
+                                            {getVariantLabel(variant)}
+                                          </span>
+                                          {variant.sku && (
+                                            <div className="text-xs text-gray-500">SKU: {variant.sku}</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="text-sm font-semibold text-orange-900">
+                                          {formatPrice(variant.price)}
+                                        </span>
+                                        {outOfStock && (
+                                          <div className="text-xs text-red-600 font-medium">Out of Stock</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              <div className="text-center py-4 text-sm text-gray-500">
+                                No variants available for this product
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-[90px_1fr] border-b border-border px-3 py-2 text-sm">
                         <span className="text-muted-foreground">Price</span>
@@ -513,7 +706,8 @@ export default function FloatingCartButton() {
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -530,10 +724,14 @@ export default function FloatingCartButton() {
                 </div>
                 <Button
                   onClick={handleCheckout}
-                  disabled={cartItems.length === 0}
-                  className="h-12 rounded-none rounded-tr-none rounded-br-none bg-primary px-6 text-primary-foreground hover:bg-primary disabled:bg-muted disabled:text-muted-foreground sm:rounded-md"
+                  disabled={cartItems.length === 0 || hasUnselectedVariants}
+                  className={`h-12 rounded-none rounded-tr-none rounded-br-none px-6 text-primary-foreground hover:bg-primary disabled:bg-muted disabled:text-muted-foreground sm:rounded-md ${
+                    hasUnselectedVariants 
+                      ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' 
+                      : 'bg-primary'
+                  }`}
                 >
-                  Checkout
+                  {hasUnselectedVariants ? 'Select Variants' : 'Checkout'}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -541,7 +739,8 @@ export default function FloatingCartButton() {
           </div>
         </SheetContent>
       </Sheet>
-    </>
+      
+          </>
   );
 }
 
