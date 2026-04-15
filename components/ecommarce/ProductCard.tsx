@@ -223,10 +223,14 @@ export default function ProductCardCompact({
             ) : null}
 
             {isBestSeller ? (
-              <div className="absolute right-3 top-3 z-20">
-                <div className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[13px] font-bold text-primary-foreground shadow-lg animate-pulse">
-                  <Flame className="h-4 w-4" />
-                  <span>Best Selling</span>
+              <div className="absolute right-[-10px] top-0 z-50">
+                <div className="relative h-[80px] w-[80px] animate-pulse">
+                  <Image
+                    src="/bestSeller.png"
+                    alt="Best Seller"
+                    fill
+                    className="object-contain"
+                  />
                 </div>
               </div>
             ) : null}
