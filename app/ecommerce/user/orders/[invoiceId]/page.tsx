@@ -492,7 +492,8 @@ export default function OrderDetailsPage() {
             ? o.refunds.map((refund: any) => ({
                 id: Number(refund.id),
                 orderItemId:
-                  refund.orderItemId === null || refund.orderItemId === undefined
+                  refund.orderItemId === null ||
+                  refund.orderItemId === undefined
                     ? null
                     : Number(refund.orderItemId),
                 status: String(refund.status ?? "REQUESTED"),
@@ -503,7 +504,10 @@ export default function OrderDetailsPage() {
                     ? null
                     : Number(refund.quantity),
                 createdAt: refund.createdAt ?? new Date().toISOString(),
-                updatedAt: refund.updatedAt ?? refund.createdAt ?? new Date().toISOString(),
+                updatedAt:
+                  refund.updatedAt ??
+                  refund.createdAt ??
+                  new Date().toISOString(),
               }))
             : [],
         };
@@ -680,7 +684,7 @@ export default function OrderDetailsPage() {
     const sStatus = shipment?.status?.toUpperCase() ?? "PENDING";
     const oStatus = order.status?.toUpperCase();
 
-        if (sStatus === "DELIVERED" || oStatus === "DELIVERED") {
+    if (sStatus === "DELIVERED" || oStatus === "DELIVERED") {
       return stages.length - 1;
     }
     if (sStatus === "RETURNED" || oStatus === "RETURNED") {
@@ -772,7 +776,10 @@ export default function OrderDetailsPage() {
     Boolean(refundDeadline) && Date.now() <= refundDeadline!.getTime();
 
   const openRefundModal = (item: CartItem) => {
-    const availableQuantity = Math.max(item.quantity - getRefundedQuantity(Number(item.id)), 0);
+    const availableQuantity = Math.max(
+      item.quantity - getRefundedQuantity(Number(item.id)),
+      0,
+    );
     setRefundItem({
       orderItemId: Number(item.id),
       productId: item.productId,
@@ -948,145 +955,54 @@ export default function OrderDetailsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Theme-friendly status card */}
-            <Card className="bg-primary text-primary-foreground overflow-hidden border-0">
-              <div className="p-8">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="bg-primary-foreground/10 p-3 rounded-2xl backdrop-blur-sm">
-                    <CheckCircle className="w-8 h-8" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">
-                      {statusCfg.label === "Delivered"
-                        ? "This order has been delivered"
-                        : `Order status: ${statusCfg.label}`}
-                    </h2>
-
-                    <p className="text-primary-foreground/80">
-                      Payment: {paymentCfg.label} • Method:{" "}
-                      {order.paymentMethod}
-                      {order.transactionId
-                        ? ` • TxID: ${order.transactionId}`
-                        : ""}
-                    </p>
-                  </div>
+            {/* Status Card — redesigned */}
+            <Card className="overflow-hidden border border-border shadow-sm">
+              {/* Top row: icon + title + badge */}
+              <div className="flex items-center gap-3.5 px-6 py-4 border-b border-border">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                  <CheckCircle className="h-4.5 w-4.5" />
                 </div>
 
-                <div className="bg-primary-foreground/10 rounded-xl p-4 backdrop-blur-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <p className="text-primary-foreground/80 text-sm font-medium">
-                        Order Number
-                      </p>
-                      <p className="font-mono text-lg font-bold tracking-wide">
-                        {order.invoiceId}
-                      </p>
-                    </div>
-
-                    <div className="bg-primary-foreground text-primary px-4 py-2 rounded-lg font-semibold">
-                      {statusCfg.label}
-                    </div>
-                  </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] font-medium text-foreground">
+                    {statusCfg.label === "Delivered"
+                      ? "Order delivered"
+                      : `Order status: ${statusCfg.label}`}
+                  </p>
+                  <p className="text-[13px] text-muted-foreground mt-0.5 truncate">
+                    Payment: {paymentCfg.label}&nbsp;·&nbsp;Method:{" "}
+                    {order.paymentMethod}
+                    {order.transactionId
+                      ? ` · TxID: ${order.transactionId}`
+                      : ""}
+                  </p>
                 </div>
+
+                <span
+                  className={`flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusCfg.className}`}
+                >
+                  {statusCfg.label}
+                </span>
+              </div>
+
+              {/* Bottom row: order number + payment badge */}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3.5">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-0.5">
+                    Order number
+                  </p>
+                  <p className="font-mono text-sm font-medium text-foreground">
+                    #{order.invoiceId}
+                  </p>
+                </div>
+
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium ${paymentCfg.className}`}
+                >
+                  Payment: {paymentCfg.label}
+                </span>
               </div>
             </Card>
-
-            {/* Order Journey */}
-            <Card className="card-theme p-8">
-              <div className="flex items-center gap-3 mb-8">
-                <Receipt className="w-6 h-6 text-foreground" />
-                <h3 className="text-xl font-bold text-foreground">
-                  Order Journey
-                </h3>
-              </div>
-
-              <div className="space-y-6">
-                {stages.map((stage, index) => {
-                  const IconComponent = stage.icon;
-
-                  const isActive = index <= activeStageIndex;
-                  const isCurrent = index === activeStageIndex;
-                  const isCompleted = index < activeStageIndex;
-
-                  const circleBase =
-                    "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 group-hover:scale-110";
-
-                  const circleClass = isActive
-                    ? `${circleBase} ${getStatusColor(stage.color)}`
-                    : `${circleBase} bg-card border-border`;
-
-                  const iconClass = isActive
-                    ? `w-5 h-5 ${getIconColor(stage.color)}`
-                    : "w-5 h-5 text-muted-foreground";
-
-                  const shipmentStatus = shipment?.status?.toUpperCase();
-                  const orderStatus = order.status?.toUpperCase();
-                  const isDeliveredStage = stage.label === "Delivered";
-                  const isDeliveredFinal =
-                    shipmentStatus === "DELIVERED" ||
-                    orderStatus === "DELIVERED";
-                  const isReturnedFinal =
-                    shipmentStatus === "RETURNED" ||
-                    orderStatus === "RETURNED";
-
-                  let badgeText = "Pending";
-                  let badgeClass =
-                    "bg-muted text-muted-foreground border-border";
-
-                  if (isReturnedFinal && isDeliveredStage) {
-                    badgeText = "Returned";
-                    badgeClass = "bg-red-50 text-red-700 border-red-200";
-                  } else if (
-                    isCompleted ||
-                    (isDeliveredStage && isDeliveredFinal)
-                  ) {
-                    badgeText = "Completed";
-                    badgeClass =
-                      "bg-emerald-50 text-emerald-700 border-emerald-200";
-                  } else if (isCurrent && isActive) {
-                    badgeText = "In Progress";
-                    badgeClass = "bg-blue-50 text-blue-700 border-blue-200";
-                  }
-
-                  return (
-                    <div key={stage.id} className="flex gap-6 group">
-                      <div className="flex flex-col items-center">
-                        <div className={circleClass}>
-                          <IconComponent className={iconClass} />
-                        </div>
-                        {index !== stages.length - 1 && (
-                          <div className="flex-1 w-0.5 bg-border mt-2 mb-1" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 pb-6">
-                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-3">
-                          <div className="flex-1">
-                            <p className="font-semibold text-foreground mb-1">
-                              {stage.label}
-                            </p>
-                            <p className="text-muted-foreground mb-2">
-                              {stage.description}
-                            </p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Calendar className="w-4 h-4" />
-                              <span>{stage.dateLabel}</span>
-                            </div>
-                          </div>
-
-                          <div
-                            className={`px-3 py-1 rounded-full text-xs font-medium border ${badgeClass}`}
-                          >
-                            {badgeText}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-
             {/* Order Summary */}
             <Card className="card-theme p-0 shadow-sm">
               <div className="px-6 py-3 border-b border-border">
@@ -1200,6 +1116,101 @@ export default function OrderDetailsPage() {
                     </span>
                   </div>
                 </div>
+              </div>
+            </Card>
+
+            {/* Order Journey */}
+            <Card className="card-theme p-8">
+              <div className="flex items-center gap-3 mb-8">
+                <Receipt className="w-6 h-6 text-foreground" />
+                <h3 className="text-xl font-bold text-foreground">
+                  Order Journey
+                </h3>
+              </div>
+
+              <div className="space-y-6">
+                {stages.map((stage, index) => {
+                  const IconComponent = stage.icon;
+
+                  const isActive = index <= activeStageIndex;
+                  const isCurrent = index === activeStageIndex;
+                  const isCompleted = index < activeStageIndex;
+
+                  const circleBase =
+                    "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all duration-300 group-hover:scale-110";
+
+                  const circleClass = isActive
+                    ? `${circleBase} ${getStatusColor(stage.color)}`
+                    : `${circleBase} bg-card border-border`;
+
+                  const iconClass = isActive
+                    ? `w-5 h-5 ${getIconColor(stage.color)}`
+                    : "w-5 h-5 text-muted-foreground";
+
+                  const shipmentStatus = shipment?.status?.toUpperCase();
+                  const orderStatus = order.status?.toUpperCase();
+                  const isDeliveredStage = stage.label === "Delivered";
+                  const isDeliveredFinal =
+                    shipmentStatus === "DELIVERED" ||
+                    orderStatus === "DELIVERED";
+                  const isReturnedFinal =
+                    shipmentStatus === "RETURNED" || orderStatus === "RETURNED";
+
+                  let badgeText = "Pending";
+                  let badgeClass =
+                    "bg-muted text-muted-foreground border-border";
+
+                  if (isReturnedFinal && isDeliveredStage) {
+                    badgeText = "Returned";
+                    badgeClass = "bg-red-50 text-red-700 border-red-200";
+                  } else if (
+                    isCompleted ||
+                    (isDeliveredStage && isDeliveredFinal)
+                  ) {
+                    badgeText = "Completed";
+                    badgeClass =
+                      "bg-emerald-50 text-emerald-700 border-emerald-200";
+                  } else if (isCurrent && isActive) {
+                    badgeText = "In Progress";
+                    badgeClass = "bg-blue-50 text-blue-700 border-blue-200";
+                  }
+
+                  return (
+                    <div key={stage.id} className="flex gap-6 group">
+                      <div className="flex flex-col items-center">
+                        <div className={circleClass}>
+                          <IconComponent className={iconClass} />
+                        </div>
+                        {index !== stages.length - 1 && (
+                          <div className="flex-1 w-0.5 bg-border mt-2 mb-1" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 pb-6">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-3">
+                          <div className="flex-1">
+                            <p className="font-semibold text-foreground mb-1">
+                              {stage.label}
+                            </p>
+                            <p className="text-muted-foreground mb-2">
+                              {stage.description}
+                            </p>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Calendar className="w-4 h-4" />
+                              <span>{stage.dateLabel}</span>
+                            </div>
+                          </div>
+
+                          <div
+                            className={`px-3 py-1 rounded-full text-xs font-medium border ${badgeClass}`}
+                          >
+                            {badgeText}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
           </div>
@@ -1351,13 +1362,13 @@ export default function OrderDetailsPage() {
                       Refund
                     </h3>
                     <p className="text-sm mt-2 text-muted-foreground">
-                      Request a refund for any product in this order within 7 days
-                      after delivery.
+                      Request a refund for any product in this order within 7
+                      days after delivery.
                     </p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {items.map((item) => (
+                    {items.map((item) =>
                       (() => {
                         const refundedQuantity = getRefundedQuantity(
                           Number(item.id),
@@ -1399,8 +1410,8 @@ export default function OrderDetailsPage() {
                             Refund {item.name}
                           </button>
                         );
-                      })()
-                    ))}
+                      })(),
+                    )}
                   </div>
                 </div>
               )}
@@ -1524,10 +1535,7 @@ export default function OrderDetailsPage() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   Refunds are allowed only within 7 days after delivery.
                   {refundDeadline ? (
-                    <>
-                      {" "}
-                      Deadline: {formatDate(refundDeadline.toISOString())}
-                    </>
+                    <> Deadline: {formatDate(refundDeadline.toISOString())}</>
                   ) : null}
                 </p>
               </div>

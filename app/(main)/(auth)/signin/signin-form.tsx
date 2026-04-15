@@ -69,6 +69,33 @@ const SigninForm = () => {
         const sessionData = sessionResponse.ok
           ? await sessionResponse.json().catch(() => null)
           : null;
+        // Check for pending checkout first
+        const redirectAfterLogin = sessionStorage.getItem("redirectAfterLogin");
+        const pendingCheckout = sessionStorage.getItem("pendingCheckout");
+        
+        if (redirectAfterLogin === "/ecommerce/checkout" && pendingCheckout) {
+          try {
+            const cartItems = JSON.parse(pendingCheckout);
+            if (Array.isArray(cartItems) && cartItems.length > 0) {
+              // Has cart items, go to checkout
+              sessionStorage.removeItem("pendingCheckout");
+              sessionStorage.removeItem("redirectAfterLogin");
+              router.replace("/ecommerce/checkout");
+              return;
+            } else {
+              // No cart items, go to dashboard
+              sessionStorage.removeItem("pendingCheckout");
+              sessionStorage.removeItem("redirectAfterLogin");
+              router.replace(getDashboardRoute(sessionData?.user ?? null));
+              return;
+            }
+          } catch {
+            // Invalid cart data, go to dashboard
+            sessionStorage.removeItem("pendingCheckout");
+            sessionStorage.removeItem("redirectAfterLogin");
+          }
+        }
+        
         const nextRoute = resolvePostAuthRoute(sessionData?.user ?? null, returnUrl);
         router.replace(nextRoute || getDashboardRoute(null));
         return;

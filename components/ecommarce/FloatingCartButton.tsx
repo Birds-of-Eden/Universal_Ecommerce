@@ -21,6 +21,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useSession, signIn } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 const STORAGE_KEY = "floating-cart-position";
 const BUTTON_WIDTH = 68;
@@ -73,6 +75,8 @@ function getDrawerSide(x: number): "left" | "right" {
 export default function FloatingCartButton() {
   const router = useRouter();
   const { cartItems, cartCount, removeFromCart, updateQuantity } = useCart();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
 
   const [mounted, setMounted] = useState(false);
   const [position, setPosition] = useState<Position>(getDefaultPosition);
@@ -191,6 +195,21 @@ export default function FloatingCartButton() {
       ),
     [cartItems],
   );
+
+  const handleCheckout = async () => {
+    if (!isAuthenticated) {
+      // Store cart items for after login
+      sessionStorage.setItem("pendingCheckout", JSON.stringify(cartItems));
+      sessionStorage.setItem("redirectAfterLogin", "/ecommerce/checkout");
+      toast.info("Please log in to continue to checkout.");
+      await signIn(undefined, { callbackUrl: "/ecommerce/checkout" });
+      return;
+    }
+
+    // If authenticated, proceed to checkout
+    setOpen(false);
+    router.push("/ecommerce/checkout");
+  };
 
   if (!mounted) return null;
 
@@ -365,10 +384,7 @@ export default function FloatingCartButton() {
                   </div>
                 </div>
                 <Button
-                  onClick={() => {
-                    setOpen(false);
-                    router.push("/ecommerce/checkout");
-                  }}
+                  onClick={handleCheckout}
                   disabled={cartItems.length === 0}
                   className="h-12 rounded-none rounded-tr-none rounded-br-none bg-primary px-6 text-primary-foreground hover:bg-primary disabled:bg-muted disabled:text-muted-foreground sm:rounded-md"
                 >
