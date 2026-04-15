@@ -7,7 +7,11 @@ import {
   ArrowRightLeft,
   BookOpen,
   ClipboardList,
+  ClipboardCheck,
+  MapPin,
+  Bell,
   Clock3,
+  FileText,
   FileSearch,
   GitCompareArrows,
   RotateCcw,
@@ -17,7 +21,9 @@ import {
   Scale,
   ShieldCheck,
   ShoppingCart,
+  Boxes,
   UserCheck,
+  BarChart3,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,6 +160,32 @@ const cards: ScmCard[] = [
     permission: "supplier_returns.read",
   },
   {
+    title: "Payment Requests (PRF)",
+    href: "/admin/scm/payment-requests",
+    description:
+      "Initiate and route payment requests linked to PO, GRN, CS, and supplier invoices.",
+    icon: FileText,
+    permissions: [
+      "payment_requests.read",
+      "payment_requests.manage",
+      "payment_requests.approve_admin",
+      "payment_requests.approve_finance",
+      "payment_requests.treasury",
+    ],
+  },
+  {
+    title: "Payment Reports",
+    href: "/admin/scm/payment-reports",
+    description:
+      "Review vendor-wise payment activity, invoice references, and treasury settlement totals.",
+    icon: BarChart3,
+    permissions: [
+      "payment_reports.read",
+      "supplier_payments.read",
+      "supplier_payments.manage",
+    ],
+  },
+  {
     title: "Replenishment",
     href: "/admin/scm/replenishment",
     description: "Manage warehouse reorder rules and turn shortage signals into requisitions.",
@@ -166,6 +198,93 @@ const cards: ScmCard[] = [
     description: "Approve, dispatch, and receive internal stock movement between warehouses.",
     icon: ArrowRightLeft,
     permission: "warehouse_transfers.read",
+  },
+  {
+    title: "Material Requests",
+    href: "/admin/scm/material-requests",
+    description:
+      "Run store-side material requisition flow from requester submission to manager-admin approval.",
+    icon: ClipboardList,
+    permissions: [
+      "material_requests.read",
+      "material_requests.manage",
+      "material_requests.endorse_supervisor",
+      "material_requests.endorse_project_manager",
+      "material_requests.approve_admin",
+    ],
+  },
+  {
+    title: "Material Releases",
+    href: "/admin/scm/material-releases",
+    description:
+      "Issue release notes with challan/waybill and post stock-out with asset tagging.",
+    icon: Boxes,
+    permissions: ["material_releases.read", "material_releases.manage"],
+  },
+  {
+    title: "Material Release Report",
+    href: "/admin/scm/material-releases/report",
+    description:
+      "Review release register, challan/waybill references, and export release report snapshots.",
+    icon: FileText,
+    permissions: ["material_releases.read", "material_releases.manage"],
+  },
+  {
+    title: "Warehouse Locations",
+    href: "/admin/scm/warehouse-locations",
+    description:
+      "Configure zones, aisles, and bins for facility-level stock tracking.",
+    icon: MapPin,
+    permissions: ["warehouse_locations.read", "warehouse_locations.manage"],
+  },
+  {
+    title: "Reorder Alerts",
+    href: "/admin/scm/reorder-alerts",
+    description:
+      "Monitor low stock alerts and manage replenishment notifications.",
+    icon: Bell,
+    permissions: ["stock_alerts.read", "stock_alerts.manage"],
+  },
+  {
+    title: "Physical Verifications",
+    href: "/admin/scm/physical-verifications",
+    description:
+      "Run monthly/quarterly/annual physical verification cycles and approvals.",
+    icon: ClipboardCheck,
+    permissions: [
+      "physical_verifications.read",
+      "physical_verifications.manage",
+      "physical_verifications.approve",
+    ],
+  },
+  {
+    title: "Stock Reports",
+    href: "/admin/scm/stock-reports",
+    description:
+      "Daily stock, aging analysis, and monthly warehouse summary reporting.",
+    icon: BarChart3,
+    permissions: ["stock_reports.read", "inventory.manage"],
+  },
+  {
+    title: "Stock Cards",
+    href: "/admin/scm/stock-cards",
+    description:
+      "Track warehouse item movement history with opening, movement, and closing balance view.",
+    icon: Radar,
+    permissions: [
+      "inventory.manage",
+      "material_releases.read",
+      "material_releases.manage",
+      "material_requests.approve_admin",
+    ],
+  },
+  {
+    title: "Asset Lifecycle",
+    href: "/admin/scm/assets",
+    description:
+      "Manage fixed-asset tags generated from material releases and control lifecycle states.",
+    icon: PackageCheck,
+    permissions: ["asset_register.read", "asset_register.manage"],
   },
   {
     title: "Supplier Ledger",

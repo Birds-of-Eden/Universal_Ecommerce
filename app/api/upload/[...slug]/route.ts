@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 const rootUploadDir = path.join(process.cwd(), "public", "upload");
 const SCM_PROPOSAL_PREFIX = "scm-proposals";
 const SCM_GRN_PREFIX = "scm-grn";
+const SCM_MATERIAL_PREFIX = "scm-material";
 
 function guessContentType(ext: string) {
   switch (ext) {
@@ -41,6 +42,13 @@ function isScmProposalPath(relPath: string) {
 
 function isScmGrnPath(relPath: string) {
   return relPath === SCM_GRN_PREFIX || relPath.startsWith(`${SCM_GRN_PREFIX}/`);
+}
+
+function isScmMaterialPath(relPath: string) {
+  return (
+    relPath === SCM_MATERIAL_PREFIX ||
+    relPath.startsWith(`${SCM_MATERIAL_PREFIX}/`)
+  );
 }
 
 async function canWriteScmProposalFiles(sessionUser: {
@@ -123,6 +131,24 @@ async function canWriteScmGrnFiles(sessionUser: {
   ]);
 }
 
+async function canWriteScmMaterialFiles(sessionUser: {
+  id?: string;
+  role?: string;
+} | null | undefined) {
+  const access = await getAccessContext(sessionUser);
+  if (!access.userId) return false;
+
+  return access.hasAny([
+    "material_requests.read",
+    "material_requests.manage",
+    "material_requests.endorse_supervisor",
+    "material_requests.endorse_project_manager",
+    "material_requests.approve_admin",
+    "material_releases.read",
+    "material_releases.manage",
+  ]);
+}
+
 async function canReadScmGrnFile(
   relPath: string,
   sessionUser: { id?: string; role?: string } | null | undefined,
@@ -173,6 +199,48 @@ async function canReadScmGrnFile(
   return requesterUserId !== null && requesterUserId === access.userId;
 }
 
+async function canReadScmMaterialFile(
+  relPath: string,
+  sessionUser: { id?: string; role?: string } | null | undefined,
+) {
+  const access = await getAccessContext(sessionUser);
+  if (!access.userId) return false;
+
+  const fileUrl = `/api/upload/${relPath}`;
+  const attachment = await prisma.materialRequestAttachment.findFirst({
+    where: { fileUrl },
+    select: {
+      uploadedById: true,
+      materialRequest: {
+        select: {
+          warehouseId: true,
+          createdById: true,
+        },
+      },
+    },
+  });
+
+  if (!attachment) return false;
+
+  const warehouseId = attachment.materialRequest.warehouseId;
+  if (
+    access.can("material_requests.read", warehouseId) ||
+    access.can("material_requests.manage", warehouseId) ||
+    access.can("material_requests.endorse_supervisor", warehouseId) ||
+    access.can("material_requests.endorse_project_manager", warehouseId) ||
+    access.can("material_requests.approve_admin", warehouseId) ||
+    access.can("material_releases.read", warehouseId) ||
+    access.can("material_releases.manage", warehouseId)
+  ) {
+    return true;
+  }
+
+  return (
+    attachment.uploadedById === access.userId ||
+    attachment.materialRequest.createdById === access.userId
+  );
+}
+
 /* ---------------- POST (UPLOAD) ---------------- */
 export async function POST(
   req: Request,
@@ -184,8 +252,9 @@ export async function POST(
     const relPath = slug.join("/");
     const requiresScmProposalScope = isScmProposalPath(relPath);
     const requiresScmGrnScope = isScmGrnPath(relPath);
+    const requiresScmMaterialScope = isScmMaterialPath(relPath);
 
-    if (requiresScmProposalScope || requiresScmGrnScope) {
+    if (requiresScmProposalScope || requiresScmGrnScope || requiresScmMaterialScope) {
       const session = await getServerSession(authOptions);
       const sessionUser = session?.user as { id?: string; role?: string } | undefined;
 
@@ -199,7 +268,10 @@ export async function POST(
       const canWriteGrn = requiresScmGrnScope
         ? await canWriteScmGrnFiles(sessionUser)
         : true;
-      if (!canWriteProposal || !canWriteGrn) {
+      const canWriteMaterial = requiresScmMaterialScope
+        ? await canWriteScmMaterialFiles(sessionUser)
+        : true;
+      if (!canWriteProposal || !canWriteGrn || !canWriteMaterial) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
@@ -255,7 +327,9 @@ export async function GET(
     }
     const requiresScmProposalScope = isScmProposalPath(relPath);
     const requiresScmGrnScope = isScmGrnPath(relPath);
-    const requiresProtectedScope = requiresScmProposalScope || requiresScmGrnScope;
+    const requiresScmMaterialScope = isScmMaterialPath(relPath);
+    const requiresProtectedScope =
+      requiresScmProposalScope || requiresScmGrnScope || requiresScmMaterialScope;
 
     if (requiresProtectedScope) {
       const session = await getServerSession(authOptions);
@@ -271,7 +345,10 @@ export async function GET(
       const canReadGrn = requiresScmGrnScope
         ? await canReadScmGrnFile(relPath, sessionUser)
         : true;
-      if (!canReadProposal || !canReadGrn) {
+      const canReadMaterial = requiresScmMaterialScope
+        ? await canReadScmMaterialFile(relPath, sessionUser)
+        : true;
+      if (!canReadProposal || !canReadGrn || !canReadMaterial) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
