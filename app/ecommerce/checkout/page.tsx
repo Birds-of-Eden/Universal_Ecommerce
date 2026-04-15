@@ -149,10 +149,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     const fetchGateways = async () => {
       try {
-        const res = await fetch("/api/payment", { cache: "no-store" });
+        const res = await fetch("/api/payment-gateways", { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
-        setPaymentGateways(Array.isArray(data.payments) ? data.payments : []);
+        setPaymentGateways(Array.isArray(data.gateways) ? data.gateways : []);
       } catch {}
     };
     fetchGateways();
