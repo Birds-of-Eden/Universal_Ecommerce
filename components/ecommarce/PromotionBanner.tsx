@@ -31,46 +31,88 @@ export default function PromotionBanner({ banners }: PromotionBannerProps) {
 
   if (!promotionBanners.length) return null;
 
-  const featured = promotionBanners[0];
-  const secondary = promotionBanners.slice(1);
+  const count = promotionBanners.length;
 
+  if (count === 1) {
+    return (
+      <section className="container px-6 py-8">
+        <SectionHeader />
+        <PromoCard
+          banner={promotionBanners[0]}
+          className="h-[420px] md:h-[500px]"
+        />
+      </section>
+    );
+  }
+
+  if (count === 2) {
+    return (
+      <section className="container px-6 py-8">
+        <SectionHeader />
+        <div className="grid grid-cols-1 gap-3 md:gap-4 sm:grid-cols-2">
+          {promotionBanners.map((b) => (
+            <PromoCard key={b.id} banner={b} className="h-[340px]" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (count === 3) {
+    const [featured, ...rest] = promotionBanners;
+    return (
+      <section className="container px-6 py-8">
+        <SectionHeader />
+        <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">
+          <PromoCard banner={featured} className="h-[340px] lg:h-[536px]" />
+          <div className="grid grid-cols-1 gap-3 md:gap-4 sm:grid-cols-1">
+            {rest.map((b) => (
+              <PromoCard key={b.id} banner={b} className="h-[260px]" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // 4 banners
+  const [featured, second, third, fourth] = promotionBanners;
   return (
     <section className="container px-6 py-8">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-            Our Featured Offers
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Handpicked deals curated for smarter shopping.
-          </p>
-        </div>
+      <SectionHeader />
+      <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">
+        {/* Left — featured tall */}
+        <PromoCard banner={featured} className="h-[340px] lg:h-[536px]" />
 
-        <Link
-          href="/ecommerce/products"
-          className="text-sm font-semibold text-primary underline-offset-4 transition hover:underline"
-        >
-          See All Offers
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-12 auto-rows-[260px]">
-        {featured && (
-          <PromoCard
-            banner={featured}
-            className="lg:col-span-6 lg:row-span-2 h-full"
-          />
-        )}
-
-        <div className="grid grid-cols-1 gap-3 md:gap-4 sm:grid-cols-2 lg:col-span-6 h-full auto-rows-[260px]">
-          {secondary[0] && <PromoCard banner={secondary[0]} />}
-          {secondary[1] && <PromoCard banner={secondary[1]} />}
-          {secondary[2] && (
-            <PromoCard banner={secondary[2]} className="sm:col-span-2" />
-          )}
+        {/* Right — 3 cards */}
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          <PromoCard banner={second} className="h-[260px]" />
+          <PromoCard banner={third} className="h-[260px]" />
+          <PromoCard banner={fourth} className="col-span-2 h-[260px]" />
         </div>
       </div>
     </section>
+  );
+}
+
+function SectionHeader() {
+  return (
+    <div className="mb-6 flex items-center justify-between gap-4">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+          Our Featured Offers
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Handpicked deals curated for smarter shopping.
+        </p>
+      </div>
+      <Link
+        href="/ecommerce/products"
+        className="text-sm font-semibold text-primary underline-offset-4 transition hover:underline"
+      >
+        See All Offers
+      </Link>
+    </div>
   );
 }
 
@@ -84,17 +126,15 @@ function PromoCard({
   return (
     <Link
       href={banner.buttonLink || "/ecommerce/products"}
-      className={`group relative h-full w-full overflow-hidden rounded-[24px] border border-border/60 bg-card shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${className}`}
+      className={`group relative w-full overflow-hidden rounded-[24px] border border-border/60 bg-card shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl block ${className}`}
     >
-      <div className="absolute inset-0">
-        <Image
-          src={banner.image}
-          alt={banner.title}
-          fill
-          className="object-cover transition duration-700 group-hover:scale-105"
-          sizes="(max-width: 768px) 100vw, 50vw"
-        />
-      </div>
+      <Image
+        src={banner.image}
+        alt={banner.title}
+        fill
+        className="object-cover transition duration-700 group-hover:scale-105"
+        sizes="(max-width: 768px) 100vw, 50vw"
+      />
 
       <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
@@ -104,7 +144,6 @@ function PromoCard({
           <span className="inline-flex w-fit rounded-full border border-white/20 bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-md">
             Featured Deal
           </span>
-
           {banner.subtitle && (
             <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-md">
               {banner.subtitle}
@@ -117,14 +156,12 @@ function PromoCard({
             <h3 className="text-2xl font-extrabold uppercase leading-[1.05] tracking-tight text-white drop-shadow-md md:text-4xl">
               {banner.title}
             </h3>
-
             {banner.description && (
               <p className="max-w-lg text-sm leading-6 text-white/85 md:text-base">
                 {banner.description}
               </p>
             )}
           </div>
-
           {banner.buttonText && (
             <button
               type="button"
