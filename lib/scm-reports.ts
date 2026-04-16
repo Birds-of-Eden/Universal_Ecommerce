@@ -356,7 +356,10 @@ export async function getScmDashboardOverview(input: DateRangeInput = {}) {
     }),
     prisma.inventoryDailySnapshot.findMany({
       where: latestInventorySnapshot
-        ? { snapshotDate: latestInventorySnapshot.snapshotDate }
+        ? {
+            snapshotDate: latestInventorySnapshot.snapshotDate,
+            warehouseId: { not: null },
+          }
         : undefined,
       select: {
         id: true,
