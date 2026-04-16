@@ -156,6 +156,26 @@ const menuItems: MenuItem[] = [
     icon: BookOpen,
     subItems: [
       {
+        name: "SCM Dashboard",
+        href: "/admin/scm/dashboard",
+        requiredPermissions: [
+          "dashboard.read",
+          "purchase_requisitions.read",
+          "rfq.read",
+          "comparative_statements.read",
+          "purchase_orders.read",
+          "goods_receipts.read",
+          "payment_requests.read",
+          "payment_reports.read",
+          "stock_reports.read",
+          "supplier_performance.read",
+          "supplier.feedback.manage",
+          "sla.read",
+          "supplier_ledger.read",
+          "three_way_match.read",
+        ],
+      },
+      {
         name: "Suppliers",
         href: "/admin/scm/suppliers",
         requiredGlobalPermissions: ["suppliers.read", "suppliers.manage"],

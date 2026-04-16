@@ -40,6 +40,29 @@ type ScmCard = {
 
 const cards: ScmCard[] = [
   {
+    title: "SCM Dashboard",
+    href: "/admin/scm/dashboard",
+    description:
+      "Unified procurement, vendor, warehouse, payment, audit, project, and budget reporting workspace.",
+    icon: BarChart3,
+    permissions: [
+      "dashboard.read",
+      "purchase_requisitions.read",
+      "rfq.read",
+      "comparative_statements.read",
+      "purchase_orders.read",
+      "goods_receipts.read",
+      "payment_requests.read",
+      "payment_reports.read",
+      "stock_reports.read",
+      "supplier_performance.read",
+      "supplier.feedback.manage",
+      "sla.read",
+      "supplier_ledger.read",
+      "three_way_match.read",
+    ],
+  },
+  {
     title: "Suppliers",
     href: "/admin/scm/suppliers",
     description: "Maintain approved vendors, contacts, and lead times.",
