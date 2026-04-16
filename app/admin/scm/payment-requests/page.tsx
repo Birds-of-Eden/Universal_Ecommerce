@@ -18,6 +18,12 @@ type GoodsReceipt = { id: number; receiptNumber: string; purchaseOrderId: number
 type SupplierInvoice = { id: number; invoiceNumber: string; total: number | string; status: string };
 type ComparativeStatement = { id: number; csNumber: string };
 type PaymentRequestBootstrap = {
+  capabilities: {
+    canManage: boolean;
+    canApproveAdmin: boolean;
+    canApproveFinance: boolean;
+    canTreasury: boolean;
+  };
   warehouses: Warehouse[];
   suppliers: Supplier[];
   purchaseOrders: Array<PurchaseOrder & { warehouseId: number }>;
@@ -62,11 +68,6 @@ export default function PaymentRequestsPage() {
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
     : [];
-
-  const canManage = permissions.includes("payment_requests.manage");
-  const canApproveAdmin = permissions.includes("payment_requests.approve_admin");
-  const canApproveFinance = permissions.includes("payment_requests.approve_finance");
-  const canTreasury = permissions.includes("payment_requests.treasury");
   const canRead = permissions.some((perm) =>
     [
       "payment_requests.read",
@@ -87,6 +88,12 @@ export default function PaymentRequestsPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
+  const [capabilities, setCapabilities] = useState<PaymentRequestBootstrap["capabilities"] | null>(null);
+
+  const canManage = capabilities?.canManage ?? false;
+  const canApproveAdmin = capabilities?.canApproveAdmin ?? false;
+  const canApproveFinance = capabilities?.canApproveFinance ?? false;
+  const canTreasury = capabilities?.canTreasury ?? false;
 
   const [form, setForm] = useState({
     supplierId: "",
@@ -127,6 +134,7 @@ export default function PaymentRequestsPage() {
         "Failed to load payment request references",
       );
 
+      setCapabilities(bootstrap.capabilities ?? null);
       setWarehouses(Array.isArray(bootstrap.warehouses) ? bootstrap.warehouses : []);
       setSuppliers(Array.isArray(bootstrap.suppliers) ? bootstrap.suppliers : []);
       setPurchaseOrders(

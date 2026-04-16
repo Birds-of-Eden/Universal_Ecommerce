@@ -57,6 +57,12 @@ const paymentRequestInclude = {
 } satisfies Prisma.PaymentRequestInclude;
 
 type PaymentRequestBootstrapPayload = {
+  capabilities: {
+    canManage: boolean;
+    canApproveAdmin: boolean;
+    canApproveFinance: boolean;
+    canTreasury: boolean;
+  };
   warehouses: Array<{ id: number; name: string; code: string }>;
   suppliers: Array<{ id: number; name: string; code: string; currency: string | null }>;
   purchaseOrders: Array<{
@@ -196,6 +202,12 @@ async function getPaymentRequestBootstrap(
         : [];
 
   return {
+    capabilities: {
+      canManage: access.hasAny(["payment_requests.manage"]),
+      canApproveAdmin: access.hasAny(["payment_requests.approve_admin"]),
+      canApproveFinance: access.hasAny(["payment_requests.approve_finance"]),
+      canTreasury: access.hasAny(["payment_requests.treasury"]),
+    },
     warehouses,
     suppliers,
     purchaseOrders,
