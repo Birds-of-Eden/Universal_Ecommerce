@@ -850,6 +850,7 @@ model Warehouse {
   rfqs                             Rfq[]
   comparativeStatements            ComparativeStatement[]
   goodsReceipts                    GoodsReceipt[]
+  paymentRequests                  PaymentRequest[]
   supplierReturns                  SupplierReturn[]
   replenishmentRules               ReplenishmentRule[]
   transfersFrom                    WarehouseTransfer[]               @relation("WarehouseTransferSource")
@@ -1368,6 +1369,7 @@ model WarehouseZone {
   updatedAt   DateTime  @updatedAt
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
   aisles      WarehouseAisle[]
+  bins        WarehouseBin[]
 
   @@unique([warehouseId, code])
   @@index([warehouseId, isActive])
