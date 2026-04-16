@@ -168,7 +168,7 @@ export async function getScmDashboardOverview(input: DateRangeInput = {}) {
               select: {
                 id: true,
                 total: true,
-                supplierPayments: {
+                payments: {
                   select: { id: true, amount: true },
                 },
               },
@@ -593,7 +593,7 @@ export async function getScmDashboardOverview(input: DateRangeInput = {}) {
         projectCurrent.invoicedAmount = roundMoney(
           projectCurrent.invoicedAmount + asNumber(invoice.total),
         );
-        for (const payment of invoice.supplierPayments) {
+        for (const payment of invoice.payments) {
           projectCurrent.paidAmount = roundMoney(
             projectCurrent.paidAmount + asNumber(payment.amount),
           );
@@ -632,7 +632,7 @@ export async function getScmDashboardOverview(input: DateRangeInput = {}) {
         budgetCurrent.invoicedAmount = roundMoney(
           budgetCurrent.invoicedAmount + asNumber(invoice.total),
         );
-        for (const payment of invoice.supplierPayments) {
+        for (const payment of invoice.payments) {
           budgetCurrent.paidAmount = roundMoney(
             budgetCurrent.paidAmount + asNumber(payment.amount),
           );
