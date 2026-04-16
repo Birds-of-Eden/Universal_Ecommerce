@@ -56,6 +56,161 @@ const paymentRequestInclude = {
   },
 } satisfies Prisma.PaymentRequestInclude;
 
+type PaymentRequestBootstrapPayload = {
+  warehouses: Array<{ id: number; name: string; code: string }>;
+  suppliers: Array<{ id: number; name: string; code: string; currency: string | null }>;
+  purchaseOrders: Array<{
+    id: number;
+    poNumber: string;
+    supplierId: number;
+    warehouseId: number;
+  }>;
+  goodsReceipts: Array<{
+    id: number;
+    receiptNumber: string;
+    purchaseOrderId: number;
+    warehouseId: number;
+    supplierId: number;
+  }>;
+  supplierInvoices: Array<{
+    id: number;
+    invoiceNumber: string;
+    total: Prisma.Decimal;
+    status: string;
+    supplierId: number;
+    purchaseOrderId: number | null;
+  }>;
+  comparativeStatements: Array<{
+    id: number;
+    csNumber: string;
+    warehouseId: number;
+  }>;
+};
+
+async function getPaymentRequestBootstrap(
+  access: Awaited<ReturnType<typeof getAccessContext>>,
+): Promise<PaymentRequestBootstrapPayload> {
+  const hasGlobalScope = hasGlobalPaymentScope(access);
+  const canManagePaymentRequests = access.hasAny(["payment_requests.manage"]);
+
+  const warehouseWhere =
+    hasGlobalScope || access.warehouseIds.length === 0
+      ? undefined
+      : { id: { in: access.warehouseIds } };
+
+  const [warehouses, purchaseOrders, goodsReceipts, supplierInvoices, comparativeStatements] =
+    await Promise.all([
+      prisma.warehouse.findMany({
+        where: warehouseWhere,
+        select: { id: true, name: true, code: true },
+        orderBy: [{ name: "asc" }],
+      }),
+      prisma.purchaseOrder.findMany({
+        where:
+          hasGlobalScope || access.warehouseIds.length === 0
+            ? undefined
+            : { warehouseId: { in: access.warehouseIds } },
+        select: {
+          id: true,
+          poNumber: true,
+          supplierId: true,
+          warehouseId: true,
+        },
+        orderBy: [{ orderDate: "desc" }, { id: "desc" }],
+        take: 300,
+      }),
+      prisma.goodsReceipt.findMany({
+        where:
+          hasGlobalScope || access.warehouseIds.length === 0
+            ? undefined
+            : { warehouseId: { in: access.warehouseIds } },
+        select: {
+          id: true,
+          receiptNumber: true,
+          purchaseOrderId: true,
+          warehouseId: true,
+          purchaseOrder: {
+            select: { supplierId: true },
+          },
+        },
+        orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
+        take: 300,
+      }),
+      prisma.supplierInvoice.findMany({
+        where:
+          hasGlobalScope || access.warehouseIds.length === 0
+            ? undefined
+            : {
+                purchaseOrder: {
+                  warehouseId: { in: access.warehouseIds },
+                },
+              },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          total: true,
+          status: true,
+          supplierId: true,
+          purchaseOrderId: true,
+        },
+        orderBy: [{ issueDate: "desc" }, { id: "desc" }],
+        take: 300,
+      }),
+      prisma.comparativeStatement.findMany({
+        where:
+          hasGlobalScope || access.warehouseIds.length === 0
+            ? undefined
+            : { warehouseId: { in: access.warehouseIds } },
+        select: {
+          id: true,
+          csNumber: true,
+          warehouseId: true,
+        },
+        orderBy: [{ generatedAt: "desc" }, { id: "desc" }],
+        take: 300,
+      }),
+    ]);
+
+  const supplierIds = new Set<number>();
+  for (const row of purchaseOrders) supplierIds.add(row.supplierId);
+  for (const row of goodsReceipts) supplierIds.add(row.purchaseOrder.supplierId);
+  for (const row of supplierInvoices) supplierIds.add(row.supplierId);
+
+  const suppliers =
+    (supplierIds.size === 0 && hasGlobalScope) || canManagePaymentRequests
+      ? await prisma.supplier.findMany({
+          where: { isActive: true },
+          select: { id: true, name: true, code: true, currency: true },
+          orderBy: [{ name: "asc" }],
+          take: 300,
+        })
+      : supplierIds.size > 0
+        ? await prisma.supplier.findMany({
+            where: {
+              id: { in: [...supplierIds] },
+              isActive: true,
+            },
+            select: { id: true, name: true, code: true, currency: true },
+            orderBy: [{ name: "asc" }],
+          })
+        : [];
+
+  return {
+    warehouses,
+    suppliers,
+    purchaseOrders,
+    goodsReceipts: goodsReceipts.map((row) => ({
+      id: row.id,
+      receiptNumber: row.receiptNumber,
+      purchaseOrderId: row.purchaseOrderId,
+      warehouseId: row.warehouseId,
+      supplierId: row.purchaseOrder.supplierId,
+    })),
+    supplierInvoices,
+    comparativeStatements,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -68,6 +223,11 @@ export async function GET(request: NextRequest) {
     }
     if (!canReadPaymentRequests(access)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (request.nextUrl.searchParams.get("bootstrap") === "true") {
+      const bootstrap = await getPaymentRequestBootstrap(access);
+      return NextResponse.json(bootstrap);
     }
 
     const status = toCleanText(request.nextUrl.searchParams.get("status"), 40).toUpperCase();

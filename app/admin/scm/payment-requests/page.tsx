@@ -17,6 +17,16 @@ type PurchaseOrder = { id: number; poNumber: string; supplierId: number };
 type GoodsReceipt = { id: number; receiptNumber: string; purchaseOrderId: number };
 type SupplierInvoice = { id: number; invoiceNumber: string; total: number | string; status: string };
 type ComparativeStatement = { id: number; csNumber: string };
+type PaymentRequestBootstrap = {
+  warehouses: Warehouse[];
+  suppliers: Supplier[];
+  purchaseOrders: Array<PurchaseOrder & { warehouseId: number }>;
+  goodsReceipts: Array<GoodsReceipt & { warehouseId: number; supplierId: number }>;
+  supplierInvoices: Array<
+    SupplierInvoice & { supplierId: number; purchaseOrderId: number | null }
+  >;
+  comparativeStatements: Array<ComparativeStatement & { warehouseId: number }>;
+};
 
 type PaymentRequest = {
   id: number;
@@ -109,29 +119,30 @@ export default function PaymentRequestsPage() {
   const loadBootstrap = async () => {
     setLoading(true);
     try {
-      const [warehouseRes, supplierRes, poRes, grRes, invoiceRes, csRes] = await Promise.all([
-        fetch("/api/warehouses", { cache: "no-store" }),
-        fetch("/api/scm/suppliers", { cache: "no-store" }),
-        fetch("/api/scm/purchase-orders", { cache: "no-store" }),
-        fetch("/api/scm/goods-receipts", { cache: "no-store" }),
-        fetch("/api/scm/supplier-invoices", { cache: "no-store" }),
-        fetch("/api/scm/comparative-statements", { cache: "no-store" }),
-      ]);
-      const [warehouseData, supplierData, poData, grData, invoiceData, csData] = await Promise.all([
-        readJson<Warehouse[]>(warehouseRes, "Failed to load warehouses"),
-        readJson<Supplier[]>(supplierRes, "Failed to load suppliers"),
-        readJson<PurchaseOrder[]>(poRes, "Failed to load purchase orders"),
-        readJson<GoodsReceipt[]>(grRes, "Failed to load goods receipts"),
-        readJson<SupplierInvoice[]>(invoiceRes, "Failed to load invoices"),
-        readJson<ComparativeStatement[]>(csRes, "Failed to load comparative statements"),
-      ]);
+      const bootstrapRes = await fetch("/api/scm/payment-requests?bootstrap=true", {
+        cache: "no-store",
+      });
+      const bootstrap = await readJson<PaymentRequestBootstrap>(
+        bootstrapRes,
+        "Failed to load payment request references",
+      );
 
-      setWarehouses(warehouseData);
-      setSuppliers(supplierData);
-      setPurchaseOrders(poData);
-      setGoodsReceipts(grData);
-      setSupplierInvoices(invoiceData);
-      setComparativeStatements(csData);
+      setWarehouses(Array.isArray(bootstrap.warehouses) ? bootstrap.warehouses : []);
+      setSuppliers(Array.isArray(bootstrap.suppliers) ? bootstrap.suppliers : []);
+      setPurchaseOrders(
+        Array.isArray(bootstrap.purchaseOrders) ? bootstrap.purchaseOrders : [],
+      );
+      setGoodsReceipts(
+        Array.isArray(bootstrap.goodsReceipts) ? bootstrap.goodsReceipts : [],
+      );
+      setSupplierInvoices(
+        Array.isArray(bootstrap.supplierInvoices) ? bootstrap.supplierInvoices : [],
+      );
+      setComparativeStatements(
+        Array.isArray(bootstrap.comparativeStatements)
+          ? bootstrap.comparativeStatements
+          : [],
+      );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load reference data");
     } finally {
