@@ -15,6 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { InvestorTable } from "@/components/investors/InvestorTable";
 
 type Investor = {
   id: number;
@@ -282,6 +289,8 @@ export default function InvestorWorkspace({
   const [exportingStatement, setExportingStatement] = useState(false);
 
   const [investorName, setInvestorName] = useState("");
+  const [investorEmail, setInvestorEmail] = useState("");
+  const [investorPhone, setInvestorPhone] = useState("");
   const [transactionForm, setTransactionForm] = useState({
     investorId: "",
     type: "CAPITAL_CONTRIBUTION" as (typeof TRANSACTION_TYPES)[number],
@@ -410,10 +419,16 @@ export default function InvestorWorkspace({
       const response = await fetch("/api/admin/investors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: investorName }),
+        body: JSON.stringify({ 
+          name: investorName,
+          email: investorEmail,
+          phone: investorPhone
+        }),
       });
       await readJson(response, "Failed to create investor");
       setInvestorName("");
+      setInvestorEmail("");
+      setInvestorPhone("");
       toast.success("Investor created");
       await loadData();
     } catch (error: any) {
@@ -711,816 +726,1230 @@ export default function InvestorWorkspace({
         </div>
       ) : null}
 
-      {canAccessSelectedSection && showSection("registry") && canManageInvestors ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Investor</CardTitle>
-          </CardHeader>
-          <CardContent className="flex gap-3">
-            <Input
-              placeholder="Investor name"
-              value={investorName}
-              onChange={(event) => setInvestorName(event.target.value)}
-            />
-            <Button onClick={() => void createInvestor()}>Create</Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {canAccessSelectedSection && showSection("registry") && canReadInvestors ? (
-        <Card>
-        <CardHeader>
-          <CardTitle>Investor Registry</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <Label>Filter by investor</Label>
-            <select
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm md:w-[360px]"
-              value={selectedInvestorId}
-              onChange={(event) => setSelectedInvestorId(event.target.value)}
-            >
-              <option value="">All investors</option>
-              {investors.map((investor) => (
-                <option key={investor.id} value={investor.id}>
-                  {investor.name} ({investor.code})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Investor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>KYC</TableHead>
-                  <TableHead>Credit</TableHead>
-                  <TableHead>Debit</TableHead>
-                  <TableHead>Balance</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {investors.map((investor) => (
-                  <TableRow key={investor.id}>
-                    <TableCell>{investor.name} ({investor.code})</TableCell>
-                    <TableCell>{investor.status}</TableCell>
-                    <TableCell>{investor.kycStatus}</TableCell>
-                    <TableCell>{Number(investor.totals.credit).toFixed(2)}</TableCell>
-                    <TableCell>{Number(investor.totals.debit).toFixed(2)}</TableCell>
-                    <TableCell>{Number(investor.totals.balance).toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-        </Card>
-      ) : null}
-
-      {canAccessSelectedSection && (showSection("ledger") || showSection("allocations")) ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          {showSection("ledger") && canManageLedger ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Post Transaction</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                value={transactionForm.investorId}
-                onChange={(event) =>
-                  setTransactionForm((current) => ({ ...current, investorId: event.target.value }))
-                }
-              >
-                <option value="">Select investor</option>
-                {investors.map((investor) => (
-                  <option key={investor.id} value={investor.id}>
-                    {investor.name} ({investor.code})
-                  </option>
-                ))}
-              </select>
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                value={transactionForm.type}
-                onChange={(event) =>
-                  setTransactionForm((current) => ({
-                    ...current,
-                    type: event.target.value as (typeof TRANSACTION_TYPES)[number],
-                  }))
-                }
-              >
-                {TRANSACTION_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                disabled={transactionForm.type !== "ADJUSTMENT"}
-                value={transactionForm.direction}
-                onChange={(event) =>
-                  setTransactionForm((current) => ({
-                    ...current,
-                    direction: event.target.value as "DEBIT" | "CREDIT",
-                  }))
-                }
-              >
-                <option value="CREDIT">CREDIT</option>
-                <option value="DEBIT">DEBIT</option>
-              </select>
-              <Input
-                placeholder="Amount"
-                value={transactionForm.amount}
-                onChange={(event) =>
-                  setTransactionForm((current) => ({ ...current, amount: event.target.value }))
-                }
-              />
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                value={transactionForm.productVariantId}
-                onChange={(event) =>
-                  setTransactionForm((current) => ({
-                    ...current,
-                    productVariantId: event.target.value,
-                  }))
-                }
-              >
-                <option value="">General pool</option>
-                {variants.map((variant) => (
-                  <option key={variant.id} value={variant.id}>
-                    {variant.product.name} ({variant.sku})
-                  </option>
-                ))}
-              </select>
-              <Button onClick={() => void createTransaction()}>Post</Button>
-            </CardContent>
-          </Card>
-        ) : null}
-
-          {showSection("allocations") && canManageAllocations ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Create Allocation</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                value={allocationForm.investorId}
-                onChange={(event) =>
-                  setAllocationForm((current) => ({ ...current, investorId: event.target.value }))
-                }
-              >
-                <option value="">Select investor</option>
-                {investors.map((investor) => (
-                  <option key={investor.id} value={investor.id}>
-                    {investor.name} ({investor.code})
-                  </option>
-                ))}
-              </select>
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                value={allocationForm.productVariantId}
-                onChange={(event) =>
-                  setAllocationForm((current) => ({
-                    ...current,
-                    productVariantId: event.target.value,
-                  }))
-                }
-              >
-                <option value="">Select variant</option>
-                {variants.map((variant) => (
-                  <option key={variant.id} value={variant.id}>
-                    {variant.product.name} ({variant.sku})
-                  </option>
-                ))}
-              </select>
-              <Input
-                placeholder="Participation %"
-                value={allocationForm.participationPercent}
-                onChange={(event) =>
-                  setAllocationForm((current) => ({
-                    ...current,
-                    participationPercent: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                placeholder="Committed amount"
-                value={allocationForm.committedAmount}
-                onChange={(event) =>
-                  setAllocationForm((current) => ({
-                    ...current,
-                    committedAmount: event.target.value,
-                  }))
-                }
-              />
-              <Button onClick={() => void createAllocation()}>Create</Button>
-            </CardContent>
-          </Card>
-          ) : null}
-        </div>
-      ) : null}
-
-      {canAccessSelectedSection && showSection("profit-runs") && canManageProfit ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Run Product Profitability (Phase-2)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-4">
-              <div>
-                <Label>From</Label>
-                <Input
-                  type="date"
-                  value={profitRunForm.fromDate}
-                  onChange={(event) =>
-                    setProfitRunForm((current) => ({
-                      ...current,
-                      fromDate: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <Label>To</Label>
-                <Input
-                  type="date"
-                  value={profitRunForm.toDate}
-                  onChange={(event) =>
-                    setProfitRunForm((current) => ({
-                      ...current,
-                      toDate: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <Label>Allocation Basis</Label>
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  value={profitRunForm.allocationBasis}
-                  onChange={(event) =>
-                    setProfitRunForm((current) => ({
-                      ...current,
-                      allocationBasis: event.target.value as "NET_REVENUE" | "NET_UNITS",
-                    }))
-                  }
-                >
-                  <option value="NET_REVENUE">NET_REVENUE</option>
-                  <option value="NET_UNITS">NET_UNITS</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid gap-3 md:grid-cols-4">
-              <Input
-                placeholder="Marketing expense"
-                value={profitRunForm.marketingExpense}
-                onChange={(event) =>
-                  setProfitRunForm((current) => ({
-                    ...current,
-                    marketingExpense: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                placeholder="Ads expense"
-                value={profitRunForm.adsExpense}
-                onChange={(event) =>
-                  setProfitRunForm((current) => ({
-                    ...current,
-                    adsExpense: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                placeholder="Logistics expense"
-                value={profitRunForm.logisticsExpense}
-                onChange={(event) =>
-                  setProfitRunForm((current) => ({
-                    ...current,
-                    logisticsExpense: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                placeholder="Other expense"
-                value={profitRunForm.otherExpense}
-                onChange={(event) =>
-                  setProfitRunForm((current) => ({
-                    ...current,
-                    otherExpense: event.target.value,
-                  }))
-                }
-              />
-            </div>
-            <Input
-              placeholder="Note (optional)"
-              value={profitRunForm.note}
-              onChange={(event) =>
-                setProfitRunForm((current) => ({ ...current, note: event.target.value }))
-              }
-            />
-            <Button onClick={() => void runProfitCalculation()} disabled={runningProfit}>
-              {runningProfit ? "Running..." : "Run Profit Calculation"}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {canAccessSelectedSection && showSection("profit-runs") && canReadProfit ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Profit Runs</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label>Select Run</Label>
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3 text-sm md:w-[460px]"
-                value={selectedProfitRunId}
-                onChange={(event) => setSelectedProfitRunId(event.target.value)}
-              >
-                <option value="">Latest run</option>
-                {profitRuns.map((run) => (
-                  <option key={run.id} value={run.id}>
-                    {run.runNumber} • {run.fromDate.slice(0, 10)} to {run.toDate.slice(0, 10)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Run</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Basis</TableHead>
-                    <TableHead>Net Revenue</TableHead>
-                    <TableHead>Net COGS</TableHead>
-                    <TableHead>Operating Expense</TableHead>
-                    <TableHead>Net Profit</TableHead>
-                    <TableHead>Approved</TableHead>
-                    <TableHead>Posted</TableHead>
-                    <TableHead>Lines</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {profitRuns.map((run) => (
-                    <TableRow key={run.id}>
-                      <TableCell>{run.runNumber}</TableCell>
-                      <TableCell>{run.status}</TableCell>
-                      <TableCell>{run.allocationBasis}</TableCell>
-                      <TableCell>{Number(run.totalNetRevenue).toFixed(2)}</TableCell>
-                      <TableCell>{Number(run.totalNetCogs).toFixed(2)}</TableCell>
-                      <TableCell>{Number(run.totalOperatingExpense).toFixed(2)}</TableCell>
-                      <TableCell>{Number(run.totalNetProfit).toFixed(2)}</TableCell>
-                      <TableCell>{run.approvedAt ? run.approvedAt.slice(0, 10) : "-"}</TableCell>
-                      <TableCell>{run.postedAt ? run.postedAt.slice(0, 10) : "-"}</TableCell>
-                      <TableCell>
-                        {run._count?.variantLines || 0} variants /{" "}
-                        {run._count?.allocationLines || 0} allocations /{" "}
-                        {run._count?.payouts || 0} payouts
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {canAccessSelectedSection && showSection("profit-runs") && canReadProfit && selectedProfitRun ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Run Workflow Controls</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Run</p>
-                <p className="font-medium">{selectedProfitRun.runNumber}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Status</p>
-                <p className="font-medium">{selectedProfitRun.status}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Approved</p>
-                <p className="font-medium">
-                  {selectedProfitRun.approvedAt ? selectedProfitRun.approvedAt.slice(0, 19).replace("T", " ") : "-"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Posted</p>
-                <p className="font-medium">
-                  {selectedProfitRun.postedAt ? selectedProfitRun.postedAt.slice(0, 19).replace("T", " ") : "-"}
-                </p>
-              </div>
-            </div>
-            <Input
-              placeholder="Governance note (optional)"
-              value={runActionNote}
-              onChange={(event) => setRunActionNote(event.target.value)}
-            />
-            <div className="flex flex-wrap gap-2">
-              {canApproveProfit && selectedProfitRun.status === "PENDING_APPROVAL" ? (
-                <>
-                  <Button
-                    onClick={() => void changeProfitRunStatus("approve")}
-                    disabled={updatingRunStatus}
-                  >
-                    {updatingRunStatus ? "Updating..." : "Approve Run"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => void changeProfitRunStatus("reject")}
-                    disabled={updatingRunStatus}
-                  >
-                    {updatingRunStatus ? "Updating..." : "Reject Run"}
-                  </Button>
-                </>
-              ) : null}
-              {canPostProfit && selectedProfitRun.status === "APPROVED" ? (
-                <Button onClick={() => void postSelectedRun()} disabled={postingRun}>
-                  {postingRun ? "Posting..." : "Post To Investor Ledger"}
-                </Button>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {canAccessSelectedSection &&
-      showSection("payouts") &&
-      canManagePayout &&
-      selectedProfitRun?.status === "POSTED" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Payout Draft</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-4">
-              <Input
-                placeholder="Payout % (0-100)"
-                value={payoutForm.payoutPercent}
-                onChange={(event) =>
-                  setPayoutForm((current) => ({
-                    ...current,
-                    payoutPercent: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                placeholder="Holdback % (0-100)"
-                value={payoutForm.holdbackPercent}
-                onChange={(event) =>
-                  setPayoutForm((current) => ({
-                    ...current,
-                    holdbackPercent: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                placeholder="Currency"
-                value={payoutForm.currency}
-                onChange={(event) =>
-                  setPayoutForm((current) => ({
-                    ...current,
-                    currency: event.target.value.toUpperCase(),
-                  }))
-                }
-              />
-            </div>
-            <Input
-              placeholder="Payout note (optional)"
-              value={payoutForm.note}
-              onChange={(event) =>
-                setPayoutForm((current) => ({
-                  ...current,
-                  note: event.target.value,
-                }))
-              }
-            />
-            <Button onClick={() => void createPayout()} disabled={processingPayout}>
-              {processingPayout ? "Processing..." : "Create Payout Draft"}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {canAccessSelectedSection && showSection("profit-runs") && canReadProfit ? (
-        <div className="grid gap-6 xl:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Variant Profit Lines</CardTitle>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Variant</TableHead>
-                    <TableHead>Units (Net)</TableHead>
-                    <TableHead>Net Revenue</TableHead>
-                    <TableHead>Net COGS</TableHead>
-                    <TableHead>Allocated Expense</TableHead>
-                    <TableHead>Net Profit</TableHead>
-                    <TableHead>Unallocated %</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {profitVariantLines.map((line) => (
-                    <TableRow key={line.id}>
-                      <TableCell>
-                        {line.productVariant.product.name} ({line.productVariant.sku})
-                      </TableCell>
-                      <TableCell>{line.unitsNet}</TableCell>
-                      <TableCell>{Number(line.netRevenue).toFixed(2)}</TableCell>
-                      <TableCell>{Number(line.netCogs).toFixed(2)}</TableCell>
-                      <TableCell>{Number(line.allocatedExpense).toFixed(2)}</TableCell>
-                      <TableCell>{Number(line.netProfit).toFixed(2)}</TableCell>
-                      <TableCell>{(Number(line.unallocatedSharePct) * 100).toFixed(2)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Investor Profit Share Lines</CardTitle>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Investor</TableHead>
-                    <TableHead>Variant</TableHead>
-                    <TableHead>Share %</TableHead>
-                    <TableHead>Allocated Revenue</TableHead>
-                    <TableHead>Allocated Net Profit</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {profitAllocationLines.map((line) => (
-                    <TableRow key={line.id}>
-                      <TableCell>
-                        {line.investor.name} ({line.investor.code})
-                      </TableCell>
-                      <TableCell>
-                        {line.productVariant.product.name} ({line.productVariant.sku})
-                      </TableCell>
-                      <TableCell>{(Number(line.participationSharePct) * 100).toFixed(2)}</TableCell>
-                      <TableCell>{Number(line.allocatedRevenue).toFixed(2)}</TableCell>
-                      <TableCell>{Number(line.allocatedNetProfit).toFixed(2)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
-
-      {canAccessSelectedSection && showSection("payouts") && canReadPayout ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Payout Register</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 overflow-x-auto">
-            {(canApprovePayout || canPayPayout || canVoidPayout) ? (
-              <div className="grid gap-3 md:grid-cols-5">
-                <Input
-                  placeholder="Action note"
-                  value={payoutActionForm.note}
-                  onChange={(event) =>
-                    setPayoutActionForm((current) => ({
-                      ...current,
-                      note: event.target.value,
-                    }))
-                  }
-                />
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  value={payoutActionForm.paymentMethod}
-                  onChange={(event) =>
-                    setPayoutActionForm((current) => ({
-                      ...current,
-                      paymentMethod: event.target.value as
-                        | "BANK_TRANSFER"
-                        | "MOBILE_BANKING"
-                        | "CHEQUE"
-                        | "CASH",
-                    }))
-                  }
-                >
-                  <option value="BANK_TRANSFER">BANK_TRANSFER</option>
-                  <option value="MOBILE_BANKING">MOBILE_BANKING</option>
-                  <option value="CHEQUE">CHEQUE</option>
-                  <option value="CASH">CASH</option>
-                </select>
-                <Input
-                  placeholder="Bank reference"
-                  value={payoutActionForm.bankReference}
-                  onChange={(event) =>
-                    setPayoutActionForm((current) => ({
-                      ...current,
-                      bankReference: event.target.value,
-                    }))
-                  }
-                />
-                <Input
-                  type="datetime-local"
-                  value={payoutActionForm.paidAt}
-                  onChange={(event) =>
-                    setPayoutActionForm((current) => ({
-                      ...current,
-                      paidAt: event.target.value,
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Void reason"
-                  value={payoutActionForm.voidReason}
-                  onChange={(event) =>
-                    setPayoutActionForm((current) => ({
-                      ...current,
-                      voidReason: event.target.value,
-                    }))
-                  }
-                />
-              </div>
-            ) : null}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Payout</TableHead>
-                  <TableHead>Investor</TableHead>
-                  <TableHead>Gross Profit</TableHead>
-                  <TableHead>Holdback</TableHead>
-                  <TableHead>Payout Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Bank Ref</TableHead>
-                  <TableHead>Timeline</TableHead>
-                  <TableHead>Ledger Txn</TableHead>
-                  {(canApprovePayout || canPayPayout || canVoidPayout) ? (
-                    <TableHead>Actions</TableHead>
-                  ) : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {profitPayouts.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.payoutNumber}</TableCell>
-                    <TableCell>
-                      {item.investor.name} ({item.investor.code})
-                    </TableCell>
-                    <TableCell>{Number(item.grossProfitAmount).toFixed(2)}</TableCell>
-                    <TableCell>
-                      {Number(item.holdbackAmount).toFixed(2)} ({Number(item.holdbackPercent).toFixed(2)}%)
-                    </TableCell>
-                    <TableCell>
-                      {Number(item.payoutAmount).toFixed(2)} {item.currency}
-                    </TableCell>
-                    <TableCell>{item.status}</TableCell>
-                    <TableCell>{item.paymentMethod || "-"}</TableCell>
-                    <TableCell>{item.bankReference || "-"}</TableCell>
-                    <TableCell className="text-xs">
-                      <div>
-                        A: {item.approvedAt ? item.approvedAt.slice(0, 10) : "-"}
-                      </div>
-                      <div>
-                        P: {item.paidAt ? item.paidAt.slice(0, 10) : "-"}
-                      </div>
-                      <div>
-                        V: {item.voidedAt ? item.voidedAt.slice(0, 10) : "-"}
-                      </div>
-                    </TableCell>
-                    <TableCell>{item.transaction?.transactionNumber ?? "-"}</TableCell>
-                    {(canApprovePayout || canPayPayout || canVoidPayout) ? (
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          {canApprovePayout && item.status === "PENDING_APPROVAL" ? (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => void processPayoutAction(item.id, "approve")}
-                                disabled={actingPayoutId === item.id}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => void processPayoutAction(item.id, "reject")}
-                                disabled={actingPayoutId === item.id}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          ) : null}
-                          {canPayPayout && item.status === "APPROVED" ? (
-                            <Button
-                              size="sm"
-                              onClick={() => void processPayoutAction(item.id, "pay")}
-                              disabled={actingPayoutId === item.id}
-                            >
-                              Pay
-                            </Button>
-                          ) : null}
-                          {canVoidPayout && (item.status === "APPROVED" || item.status === "PAID") ? (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => void processPayoutAction(item.id, "void")}
-                              disabled={actingPayoutId === item.id}
-                            >
-                              Void
-                            </Button>
-                          ) : null}
+      {canAccessSelectedSection && showSection("registry") ? (
+        <Tabs defaultValue="forms" className="space-y-4">
+          <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
+            <TabsTrigger value="forms" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-foreground data-[state=active]:shadow">Create Investor</TabsTrigger>
+            <TabsTrigger value="registry" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-foreground data-[state=active]:shadow">Investor Registry</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="forms" className="space-y-4">
+            {canManageInvestors ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Create New Investor</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Add a new investor to the system with their contact information.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-name">Investor Name *</Label>
+                      <Input
+                        id="investor-name"
+                        placeholder="Enter investor name"
+                        value={investorName}
+                        onChange={(event) => setInvestorName(event.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-email">Email Address</Label>
+                      <Input
+                        id="investor-email"
+                        type="email"
+                        placeholder="investor@example.com"
+                        value={investorEmail}
+                        onChange={(event) => setInvestorEmail(event.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-phone">Phone Number</Label>
+                      <Input
+                        id="investor-phone"
+                        placeholder="+880 1XXX XXXXXX"
+                        value={investorPhone}
+                        onChange={(event) => setInvestorPhone(event.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={() => void createInvestor()}
+                      disabled={!investorName.trim()}
+                      className="min-w-[120px]"
+                    >
+                      Create Investor
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to create investors.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="registry" className="space-y-4">
+            {canReadInvestors ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Investor Registry</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    View and manage all registered investors.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-filter" className="text-sm font-medium">Filter by Investor</Label>
+                      <div className="relative">
+                        <select
+                          id="investor-filter"
+                          className="h-11 w-full rounded-lg border border-input bg-background px-4 pr-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-[320px] appearance-none"
+                          value={selectedInvestorId}
+                          onChange={(event) => setSelectedInvestorId(event.target.value)}
+                        >
+                          <option value="">All Investors</option>
+                          {investors.map((investor) => (
+                            <option key={investor.id} value={investor.id}>
+                              {investor.name} ({investor.code})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                          <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
                         </div>
-                      </TableCell>
+                      </div>
+                    </div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                    Total investors <span className="font-medium p-1">{investors.length}</span> 
+                    </div>
+                  </div>
+                  
+                  <InvestorTable investors={investors} />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to view the investor registry.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      ) : null}
+
+      {canAccessSelectedSection && showSection("ledger") ? (
+        <Tabs defaultValue="form" className="space-y-4">
+          <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
+            <TabsTrigger value="form" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Post Transaction</TabsTrigger>
+            <TabsTrigger value="transactions" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Transaction History</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="form" className="space-y-4">
+            {canManageLedger ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Post Transaction</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Record capital transactions for investors.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="transaction-investor">Investor</Label>
+                      <select
+                        id="transaction-investor"
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        value={transactionForm.investorId}
+                        onChange={(event) =>
+                          setTransactionForm((current) => ({ ...current, investorId: event.target.value }))
+                        }
+                      >
+                        <option value="">Select investor</option>
+                        {investors.map((investor) => (
+                          <option key={investor.id} value={investor.id}>
+                            {investor.name} ({investor.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="transaction-type">Transaction Type</Label>
+                      <select
+                        id="transaction-type"
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        value={transactionForm.type}
+                        onChange={(event) =>
+                          setTransactionForm((current) => ({
+                            ...current,
+                            type: event.target.value as (typeof TRANSACTION_TYPES)[number],
+                          }))
+                        }
+                      >
+                        {TRANSACTION_TYPES.map((type) => (
+                          <option key={type} value={type}>
+                            {type}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="transaction-direction">Direction</Label>
+                      <select
+                        id="transaction-direction"
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        disabled={transactionForm.type !== "ADJUSTMENT"}
+                        value={transactionForm.direction}
+                        onChange={(event) =>
+                          setTransactionForm((current) => ({
+                            ...current,
+                            direction: event.target.value as "DEBIT" | "CREDIT",
+                          }))
+                        }
+                      >
+                        <option value="CREDIT">CREDIT</option>
+                        <option value="DEBIT">DEBIT</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="transaction-amount">Amount</Label>
+                      <Input
+                        id="transaction-amount"
+                        placeholder="Enter amount"
+                        value={transactionForm.amount}
+                        onChange={(event) =>
+                          setTransactionForm((current) => ({ ...current, amount: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="transaction-variant">Product Variant</Label>
+                      <select
+                        id="transaction-variant"
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        value={transactionForm.productVariantId}
+                        onChange={(event) =>
+                          setTransactionForm((current) => ({
+                            ...current,
+                            productVariantId: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">General pool</option>
+                        {variants.map((variant) => (
+                          <option key={variant.id} value={variant.id}>
+                            {variant.product.name} ({variant.sku})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={() => void createTransaction()}
+                      disabled={!transactionForm.investorId || !transactionForm.amount}
+                      className="min-w-[120px]"
+                    >
+                      Post Transaction
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to post transactions.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="transactions" className="space-y-4">
+            {canReadLedger ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Transaction History</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    View all capital transactions recorded in the ledger.
+                  </p>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>No</TableHead>
+                        <TableHead>Investor</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Direction</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Product</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transactions.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.transactionNumber}</TableCell>
+                          <TableCell>{item.investor.name}</TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                              item.direction === 'CREDIT' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {item.type}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                              item.direction === 'CREDIT' 
+                                ? 'bg-blue-100 text-blue-800' 
+                                : 'bg-orange-100 text-orange-800'
+                            }`}>
+                              {item.direction}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {Number(item.amount).toFixed(2)} {item.currency}
+                          </TableCell>
+                          <TableCell>
+                            {item.productVariant
+                              ? `${item.productVariant.product.name} (${item.productVariant.sku})`
+                              : "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to view transactions.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      ) : null}
+
+      {canAccessSelectedSection && showSection("profit-runs") ? (
+        <Tabs defaultValue="form" className="space-y-4">
+          <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
+            <TabsTrigger value="form" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Run Calculation</TabsTrigger>
+            <TabsTrigger value="runs" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Profit Runs</TabsTrigger>
+            <TabsTrigger value="workflow" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Workflow</TabsTrigger>
+            <TabsTrigger value="analysis" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Analysis</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="form" className="space-y-4">
+            {canManageProfit ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Run Product Profitability</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Calculate profit distribution across investors for a specific period.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="profit-from">From Date</Label>
+                      <Input
+                        id="profit-from"
+                        type="date"
+                        value={profitRunForm.fromDate}
+                        onChange={(event) =>
+                          setProfitRunForm((current) => ({
+                            ...current,
+                            fromDate: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="profit-to">To Date</Label>
+                      <Input
+                        id="profit-to"
+                        type="date"
+                        value={profitRunForm.toDate}
+                        onChange={(event) =>
+                          setProfitRunForm((current) => ({
+                            ...current,
+                            toDate: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="allocation-basis">Allocation Basis</Label>
+                      <select
+                        id="allocation-basis"
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        value={profitRunForm.allocationBasis}
+                        onChange={(event) =>
+                          setProfitRunForm((current) => ({
+                            ...current,
+                            allocationBasis: event.target.value as "NET_REVENUE" | "NET_UNITS",
+                          }))
+                        }
+                      >
+                        <option value="NET_REVENUE">NET_REVENUE</option>
+                        <option value="NET_UNITS">NET_UNITS</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="marketing-expense">Marketing Expense</Label>
+                      <Input
+                        id="marketing-expense"
+                        placeholder="Enter amount"
+                        value={profitRunForm.marketingExpense}
+                        onChange={(event) =>
+                          setProfitRunForm((current) => ({
+                            ...current,
+                            marketingExpense: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ads-expense">Ads Expense</Label>
+                      <Input
+                        id="ads-expense"
+                        placeholder="Enter amount"
+                        value={profitRunForm.adsExpense}
+                        onChange={(event) =>
+                          setProfitRunForm((current) => ({
+                            ...current,
+                            adsExpense: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="logistics-expense">Logistics Expense</Label>
+                      <Input
+                        id="logistics-expense"
+                        placeholder="Enter amount"
+                        value={profitRunForm.logisticsExpense}
+                        onChange={(event) =>
+                          setProfitRunForm((current) => ({
+                            ...current,
+                            logisticsExpense: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="other-expense">Other Expense</Label>
+                      <Input
+                        id="other-expense"
+                        placeholder="Enter amount"
+                        value={profitRunForm.otherExpense}
+                        onChange={(event) =>
+                          setProfitRunForm((current) => ({
+                            ...current,
+                            otherExpense: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profit-note">Note (Optional)</Label>
+                    <Input
+                      id="profit-note"
+                      placeholder="Add any additional notes"
+                      value={profitRunForm.note}
+                      onChange={(event) =>
+                        setProfitRunForm((current) => ({ ...current, note: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={() => void runProfitCalculation()} 
+                      disabled={runningProfit}
+                      className="min-w-[180px]"
+                    >
+                      {runningProfit ? "Running..." : "Run Profit Calculation"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to run profit calculations.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="runs" className="space-y-4">
+            {canReadProfit ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Profit Runs History</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    View all profit calculation runs and their status.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="profit-run-select">Select Run</Label>
+                    <select
+                      id="profit-run-select"
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm md:w-[460px]"
+                      value={selectedProfitRunId}
+                      onChange={(event) => setSelectedProfitRunId(event.target.value)}
+                    >
+                      <option value="">Latest run</option>
+                      {profitRuns.map((run) => (
+                        <option key={run.id} value={run.id}>
+                          {run.runNumber} • {run.fromDate.slice(0, 10)} to {run.toDate.slice(0, 10)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Run</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Basis</TableHead>
+                          <TableHead>Net Revenue</TableHead>
+                          <TableHead>Net COGS</TableHead>
+                          <TableHead>Operating Expense</TableHead>
+                          <TableHead>Net Profit</TableHead>
+                          <TableHead>Approved</TableHead>
+                          <TableHead>Posted</TableHead>
+                          <TableHead>Lines</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {profitRuns.map((run) => (
+                          <TableRow key={run.id}>
+                            <TableCell className="font-medium">{run.runNumber}</TableCell>
+                            <TableCell>
+                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                run.status === 'POSTED' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : run.status === 'APPROVED'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : run.status === 'PENDING_APPROVAL'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {run.status}
+                              </span>
+                            </TableCell>
+                            <TableCell>{run.allocationBasis}</TableCell>
+                            <TableCell className="text-right">{Number(run.totalNetRevenue).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{Number(run.totalNetCogs).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{Number(run.totalOperatingExpense).toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-medium">{Number(run.totalNetProfit).toFixed(2)}</TableCell>
+                            <TableCell>{run.approvedAt ? run.approvedAt.slice(0, 10) : "-"}</TableCell>
+                            <TableCell>{run.postedAt ? run.postedAt.slice(0, 10) : "-"}</TableCell>
+                            <TableCell className="text-xs">
+                              {run._count?.variantLines || 0} variants /{" "}
+                              {run._count?.allocationLines || 0} allocations /{" "}
+                              {run._count?.payouts || 0} payouts
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to view profit runs.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="workflow" className="space-y-4">
+            {canReadProfit && selectedProfitRun ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Run Workflow Controls</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Manage the approval and posting workflow for profit runs.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Run</p>
+                      <p className="font-medium">{selectedProfitRun.runNumber}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Status</p>
+                      <p className="font-medium">{selectedProfitRun.status}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Approved</p>
+                      <p className="font-medium">
+                        {selectedProfitRun.approvedAt ? selectedProfitRun.approvedAt.slice(0, 19).replace("T", " ") : "-"}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Posted</p>
+                      <p className="font-medium">
+                        {selectedProfitRun.postedAt ? selectedProfitRun.postedAt.slice(0, 19).replace("T", " ") : "-"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="workflow-note">Governance Note (Optional)</Label>
+                    <Input
+                      id="workflow-note"
+                      placeholder="Add governance notes for this action"
+                      value={runActionNote}
+                      onChange={(event) => setRunActionNote(event.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {canApproveProfit && selectedProfitRun.status === "PENDING_APPROVAL" ? (
+                      <>
+                        <Button
+                          onClick={() => void changeProfitRunStatus("approve")}
+                          disabled={updatingRunStatus}
+                        >
+                          {updatingRunStatus ? "Updating..." : "Approve Run"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => void changeProfitRunStatus("reject")}
+                          disabled={updatingRunStatus}
+                        >
+                          {updatingRunStatus ? "Updating..." : "Reject Run"}
+                        </Button>
+                      </>
                     ) : null}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                    {canPostProfit && selectedProfitRun.status === "APPROVED" ? (
+                      <Button onClick={() => void postSelectedRun()} disabled={postingRun}>
+                        {postingRun ? "Posting..." : "Post To Investor Ledger"}
+                      </Button>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    Select a profit run to view workflow controls.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="analysis" className="space-y-4">
+            {canReadProfit ? (
+              <div className="grid gap-6 xl:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold">Variant Profit Lines</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Profit breakdown by product variants.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Variant</TableHead>
+                          <TableHead>Units (Net)</TableHead>
+                          <TableHead>Net Revenue</TableHead>
+                          <TableHead>Net COGS</TableHead>
+                          <TableHead>Allocated Expense</TableHead>
+                          <TableHead>Net Profit</TableHead>
+                          <TableHead>Unallocated %</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {profitVariantLines.map((line) => (
+                          <TableRow key={line.id}>
+                            <TableCell className="font-medium">
+                              {line.productVariant.product.name} ({line.productVariant.sku})
+                            </TableCell>
+                            <TableCell className="text-right">{line.unitsNet}</TableCell>
+                            <TableCell className="text-right">{Number(line.netRevenue).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{Number(line.netCogs).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{Number(line.allocatedExpense).toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-medium">{Number(line.netProfit).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{(Number(line.unallocatedSharePct) * 100).toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold">Investor Profit Share Lines</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Profit distribution across investors.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Investor</TableHead>
+                          <TableHead>Variant</TableHead>
+                          <TableHead>Share %</TableHead>
+                          <TableHead>Allocated Revenue</TableHead>
+                          <TableHead>Allocated Net Profit</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {profitAllocationLines.map((line) => (
+                          <TableRow key={line.id}>
+                            <TableCell className="font-medium">
+                              {line.investor.name} ({line.investor.code})
+                            </TableCell>
+                            <TableCell>
+                              {line.productVariant.product.name} ({line.productVariant.sku})
+                            </TableCell>
+                            <TableCell className="text-right">{(Number(line.participationSharePct) * 100).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{Number(line.allocatedRevenue).toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-medium">{Number(line.allocatedNetProfit).toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to view profit analysis.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       ) : null}
 
-      {canAccessSelectedSection && showSection("ledger") && canReadLedger ? (
-        <Card>
-        <CardHeader>
-          <CardTitle>Transactions</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>No</TableHead>
-                <TableHead>Investor</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Direction</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Product</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.transactionNumber}</TableCell>
-                  <TableCell>{item.investor.name}</TableCell>
-                  <TableCell>{item.type}</TableCell>
-                  <TableCell>{item.direction}</TableCell>
-                  <TableCell>{Number(item.amount).toFixed(2)} {item.currency}</TableCell>
-                  <TableCell>
-                    {item.productVariant
-                      ? `${item.productVariant.product.name} (${item.productVariant.sku})`
-                      : "-"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-        </Card>
+      {canAccessSelectedSection && showSection("payouts") ? (
+        <Tabs defaultValue="form" className="space-y-4">
+          <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
+            <TabsTrigger value="form" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Create Payout</TabsTrigger>
+            <TabsTrigger value="register" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Payout Register</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="form" className="space-y-4">
+            {canManagePayout && selectedProfitRun?.status === "POSTED" ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Create Payout Draft</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Generate payout drafts for investors based on profit distribution.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="payout-percent">Payout % (0-100)</Label>
+                      <Input
+                        id="payout-percent"
+                        placeholder="Enter percentage"
+                        value={payoutForm.payoutPercent}
+                        onChange={(event) =>
+                          setPayoutForm((current) => ({
+                            ...current,
+                            payoutPercent: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="holdback-percent">Holdback % (0-100)</Label>
+                      <Input
+                        id="holdback-percent"
+                        placeholder="Enter percentage"
+                        value={payoutForm.holdbackPercent}
+                        onChange={(event) =>
+                          setPayoutForm((current) => ({
+                            ...current,
+                            holdbackPercent: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="payout-currency">Currency</Label>
+                      <Input
+                        id="payout-currency"
+                        placeholder="Enter currency"
+                        value={payoutForm.currency}
+                        onChange={(event) =>
+                          setPayoutForm((current) => ({
+                            ...current,
+                            currency: event.target.value.toUpperCase(),
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payout-note">Payout Note (Optional)</Label>
+                    <Input
+                      id="payout-note"
+                      placeholder="Add any additional notes"
+                      value={payoutForm.note}
+                      onChange={(event) =>
+                        setPayoutForm((current) => ({
+                          ...current,
+                          note: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={() => void createPayout()} 
+                      disabled={processingPayout}
+                      className="min-w-[160px]"
+                    >
+                      {processingPayout ? "Processing..." : "Create Payout Draft"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    {!selectedProfitRun ? "Select a posted profit run first." : 
+                     selectedProfitRun?.status !== "POSTED" ? "Only posted profit runs can generate payouts." :
+                     "You don't have permission to create payouts."}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="register" className="space-y-4">
+            {canReadPayout ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Payout Register</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    View and manage all payout records and their status.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4 overflow-x-auto">
+                  {(canApprovePayout || canPayPayout || canVoidPayout) ? (
+                    <div className="grid gap-4 md:grid-cols-5">
+                      <div className="space-y-2">
+                        <Label htmlFor="action-note">Action Note</Label>
+                        <Input
+                          id="action-note"
+                          placeholder="Enter note"
+                          value={payoutActionForm.note}
+                          onChange={(event) =>
+                            setPayoutActionForm((current) => ({
+                              ...current,
+                              note: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="payment-method">Payment Method</Label>
+                        <select
+                          id="payment-method"
+                          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          value={payoutActionForm.paymentMethod}
+                          onChange={(event) =>
+                            setPayoutActionForm((current) => ({
+                              ...current,
+                              paymentMethod: event.target.value as
+                                | "BANK_TRANSFER"
+                                | "MOBILE_BANKING"
+                                | "CHEQUE"
+                                | "CASH",
+                            }))
+                          }
+                        >
+                          <option value="BANK_TRANSFER">BANK_TRANSFER</option>
+                          <option value="MOBILE_BANKING">MOBILE_BANKING</option>
+                          <option value="CHEQUE">CHEQUE</option>
+                          <option value="CASH">CASH</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bank-reference">Bank Reference</Label>
+                        <Input
+                          id="bank-reference"
+                          placeholder="Enter reference"
+                          value={payoutActionForm.bankReference}
+                          onChange={(event) =>
+                            setPayoutActionForm((current) => ({
+                              ...current,
+                              bankReference: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="paid-at">Paid At</Label>
+                        <Input
+                          id="paid-at"
+                          type="datetime-local"
+                          value={payoutActionForm.paidAt}
+                          onChange={(event) =>
+                            setPayoutActionForm((current) => ({
+                              ...current,
+                              paidAt: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="void-reason">Void Reason</Label>
+                        <Input
+                          id="void-reason"
+                          placeholder="Enter reason"
+                          value={payoutActionForm.voidReason}
+                          onChange={(event) =>
+                            setPayoutActionForm((current) => ({
+                              ...current,
+                              voidReason: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Payout</TableHead>
+                        <TableHead>Investor</TableHead>
+                        <TableHead>Gross Profit</TableHead>
+                        <TableHead>Holdback</TableHead>
+                        <TableHead>Payout Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Bank Ref</TableHead>
+                        <TableHead>Timeline</TableHead>
+                        <TableHead>Ledger Txn</TableHead>
+                        {(canApprovePayout || canPayPayout || canVoidPayout) ? (
+                          <TableHead>Actions</TableHead>
+                        ) : null}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {profitPayouts.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.payoutNumber}</TableCell>
+                          <TableCell>
+                            {item.investor.name} ({item.investor.code})
+                          </TableCell>
+                          <TableCell className="text-right">{Number(item.grossProfitAmount).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            {Number(item.holdbackAmount).toFixed(2)} ({Number(item.holdbackPercent).toFixed(2)}%)
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {Number(item.payoutAmount).toFixed(2)} {item.currency}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                              item.status === 'PAID' 
+                                ? 'bg-green-100 text-green-800' 
+                                : item.status === 'APPROVED'
+                                ? 'bg-blue-100 text-blue-800'
+                                : item.status === 'PENDING_APPROVAL'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : item.status === 'VOID'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {item.status}
+                            </span>
+                          </TableCell>
+                          <TableCell>{item.paymentMethod || "-"}</TableCell>
+                          <TableCell>{item.bankReference || "-"}</TableCell>
+                          <TableCell className="text-xs">
+                            <div>A: {item.approvedAt ? item.approvedAt.slice(0, 10) : "-"}</div>
+                            <div>P: {item.paidAt ? item.paidAt.slice(0, 10) : "-"}</div>
+                            <div>V: {item.voidedAt ? item.voidedAt.slice(0, 10) : "-"}</div>
+                          </TableCell>
+                          <TableCell>{item.transaction?.transactionNumber ?? "-"}</TableCell>
+                          {(canApprovePayout || canPayPayout || canVoidPayout) ? (
+                            <TableCell>
+                              <div className="flex flex-wrap gap-2">
+                                {canApprovePayout && item.status === "PENDING_APPROVAL" ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => void processPayoutAction(item.id, "approve")}
+                                      disabled={actingPayoutId === item.id}
+                                    >
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => void processPayoutAction(item.id, "reject")}
+                                      disabled={actingPayoutId === item.id}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </>
+                                ) : null}
+                                {canPayPayout && item.status === "APPROVED" ? (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => void processPayoutAction(item.id, "pay")}
+                                    disabled={actingPayoutId === item.id}
+                                  >
+                                    Pay
+                                  </Button>
+                                ) : null}
+                                {canVoidPayout && (item.status === "APPROVED" || item.status === "PAID") ? (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => void processPayoutAction(item.id, "void")}
+                                    disabled={actingPayoutId === item.id}
+                                  >
+                                    Void
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                          ) : null}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to view the payout register.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       ) : null}
 
-      {canAccessSelectedSection && showSection("allocations") && canReadAllocations ? (
-        <Card>
-        <CardHeader>
-          <CardTitle>Allocations</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Investor</TableHead>
-                <TableHead>Variant</TableHead>
-                <TableHead>Participation %</TableHead>
-                <TableHead>Committed</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allocations.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.investor.name}</TableCell>
-                  <TableCell>{item.productVariant.product.name} ({item.productVariant.sku})</TableCell>
-                  <TableCell>{item.participationPercent || "-"}</TableCell>
-                  <TableCell>{item.committedAmount || "-"}</TableCell>
-                  <TableCell>{item.status}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-        </Card>
+
+
+      {canAccessSelectedSection && showSection("allocations") ? (
+        <Tabs defaultValue="form" className="space-y-4">
+          <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
+            <TabsTrigger value="form" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Create Allocation</TabsTrigger>
+            <TabsTrigger value="allocations" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">View Allocations</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="form" className="space-y-4">
+            {canManageAllocations ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Create Allocation</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Allocate investors to product variants with participation terms.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="allocation-investor">Investor</Label>
+                      <select
+                        id="allocation-investor"
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        value={allocationForm.investorId}
+                        onChange={(event) =>
+                          setAllocationForm((current) => ({ ...current, investorId: event.target.value }))
+                        }
+                      >
+                        <option value="">Select investor</option>
+                        {investors.map((investor) => (
+                          <option key={investor.id} value={investor.id}>
+                            {investor.name} ({investor.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="allocation-variant">Product Variant</Label>
+                      <select
+                        id="allocation-variant"
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        value={allocationForm.productVariantId}
+                        onChange={(event) =>
+                          setAllocationForm((current) => ({
+                            ...current,
+                            productVariantId: event.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Select variant</option>
+                        {variants.map((variant) => (
+                          <option key={variant.id} value={variant.id}>
+                            {variant.product.name} ({variant.sku})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="allocation-participation">Participation %</Label>
+                      <Input
+                        id="allocation-participation"
+                        placeholder="Enter percentage"
+                        value={allocationForm.participationPercent}
+                        onChange={(event) =>
+                          setAllocationForm((current) => ({
+                            ...current,
+                            participationPercent: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="allocation-committed">Committed Amount</Label>
+                      <Input
+                        id="allocation-committed"
+                        placeholder="Enter amount"
+                        value={allocationForm.committedAmount}
+                        onChange={(event) =>
+                          setAllocationForm((current) => ({
+                            ...current,
+                            committedAmount: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={() => void createAllocation()}
+                      disabled={!allocationForm.investorId || !allocationForm.productVariantId}
+                      className="min-w-[120px]"
+                    >
+                      Create Allocation
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to create allocations.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="allocations" className="space-y-4">
+            {canReadAllocations ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Investor Allocations</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    View all investor allocations to product variants.
+                  </p>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Investor</TableHead>
+                        <TableHead>Variant</TableHead>
+                        <TableHead>Participation %</TableHead>
+                        <TableHead>Committed</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allocations.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">
+                            {item.investor.name}
+                          </TableCell>
+                          <TableCell>
+                            {item.productVariant.product.name} ({item.productVariant.sku})
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.participationPercent || "-"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.committedAmount || "-"}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                              item.status === 'ACTIVE' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {item.status}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="p-6">
+                  <p className="text-center text-muted-foreground">
+                    You don't have permission to view allocations.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       ) : null}
 
       {canAccessSelectedSection && showSection("statements") && canReadStatement ? (
