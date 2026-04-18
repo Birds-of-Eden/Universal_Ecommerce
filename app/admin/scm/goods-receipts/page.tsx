@@ -1,15 +1,19 @@
 
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { uploadFile } from "@/lib/upload-file";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
+import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 import {
   Table,
   TableBody,
@@ -158,6 +162,7 @@ function getInitialEvaluationDraft(allowedRoles: ReceiptRole[]): EvaluationDraft
 }
 
 export default function GoodsReceiptsPage() {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
@@ -167,16 +172,18 @@ export default function GoodsReceiptsPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [receipts, setReceipts] = useState<GoodsReceipt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
-
-  const [selectedPurchaseOrderId, setSelectedPurchaseOrderId] = useState("");
-  const [receiptNote, setReceiptNote] = useState("");
-  const [quantityDraft, setQuantityDraft] = useState<Record<number, string>>({});
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [focus, setFocus] = useState((searchParams.get("focus") || "ALL").toUpperCase());
 
   const [confirmationNotes, setConfirmationNotes] = useState<Record<number, string>>({});
   const [attachmentDrafts, setAttachmentDrafts] = useState<Record<number, AttachmentDraft>>({});
   const [evaluationDrafts, setEvaluationDrafts] = useState<Record<number, EvaluationDraft>>({});
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setFocus((searchParams.get("focus") || "ALL").toUpperCase());
+  }, [searchParams]);
 
   const loadPageData = async () => {
     try {
@@ -208,29 +215,35 @@ export default function GoodsReceiptsPage() {
     [purchaseOrders],
   );
 
-  const selectedPurchaseOrder = useMemo(() => {
-    const purchaseOrderId = Number(selectedPurchaseOrderId);
-    if (!Number.isInteger(purchaseOrderId) || purchaseOrderId <= 0) return null;
-    return (
-      eligiblePurchaseOrders.find((purchaseOrder) => purchaseOrder.id === purchaseOrderId) ||
-      null
-    );
-  }, [eligiblePurchaseOrders, selectedPurchaseOrderId]);
+  const visibleReceipts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return receipts.filter((receipt) => {
+      if (focus === "PENDING-CONFIRMATION" && receipt.requesterConfirmedAt) return false;
+      if (focus === "VARIANCE" && receipt.matchSummary.status !== "VARIANCE") return false;
+      if (focus === "INCOMPLETE-EVALUATION" && receipt.workflow.evaluationCompleted) return false;
+      if (!query) return true;
+      return (
+        receipt.receiptNumber.toLowerCase().includes(query) ||
+        receipt.purchaseOrder.poNumber.toLowerCase().includes(query) ||
+        receipt.purchaseOrder.supplier.name.toLowerCase().includes(query.toLowerCase()) ||
+        receipt.warehouse.name.toLowerCase().includes(query) ||
+        receipt.purchaseOrder.purchaseRequisition?.requisitionNumber
+          ?.toLowerCase()
+          .includes(query)
+      );
+    });
+  }, [focus, receipts, search]);
 
-  useEffect(() => {
-    if (!selectedPurchaseOrder) {
-      setQuantityDraft({});
-      return;
-    }
-    setQuantityDraft(
-      Object.fromEntries(
-        selectedPurchaseOrder.items.map((item) => [
-          item.id,
-          String(Math.max(item.quantityOrdered - item.quantityReceived, 0)),
-        ]),
-      ),
-    );
-  }, [selectedPurchaseOrder]);
+  const summary = useMemo(
+    () => ({
+      total: receipts.length,
+      pendingConfirmation: receipts.filter((receipt) => !receipt.requesterConfirmedAt).length,
+      variance: receipts.filter((receipt) => receipt.matchSummary.status === "VARIANCE").length,
+      incompleteEvaluation: receipts.filter((receipt) => !receipt.workflow.evaluationCompleted).length,
+      readyToReceive: eligiblePurchaseOrders.length,
+    }),
+    [eligiblePurchaseOrders.length, receipts],
+  );
 
   const patchReceipt = async (
     receiptId: number,
@@ -252,40 +265,6 @@ export default function GoodsReceiptsPage() {
       toast.error(error?.message || "Failed to update goods receipt");
     } finally {
       setBusyKey(null);
-    }
-  };
-
-  const postReceipt = async () => {
-    if (!selectedPurchaseOrder) {
-      toast.error("Select a purchase order");
-      return;
-    }
-    try {
-      setSaving(true);
-      const response = await fetch("/api/scm/goods-receipts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          purchaseOrderId: selectedPurchaseOrder.id,
-          note: receiptNote,
-          items: selectedPurchaseOrder.items
-            .map((item) => ({
-              purchaseOrderItemId: item.id,
-              quantityReceived: Number(quantityDraft[item.id] || 0),
-            }))
-            .filter((item) => item.quantityReceived > 0),
-        }),
-      });
-      await readJson(response, "Failed to post goods receipt");
-      toast.success("Goods receipt posted");
-      setReceiptNote("");
-      setSelectedPurchaseOrderId("");
-      setQuantityDraft({});
-      await loadPageData();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to post goods receipt");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -393,90 +372,63 @@ export default function GoodsReceiptsPage() {
             Receive goods, requester confirmation, WO-vs-delivery-vs-invoice check, challan/bill upload, and 3-role vendor evaluation.
           </p>
         </div>
-        <Button variant="outline" onClick={() => void loadPageData()} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {canManagePosting ? (
+            <Button asChild>
+              <Link href="/admin/scm/goods-receipts/new">
+                <Plus className="mr-2 h-4 w-4" />
+                New GRN
+              </Link>
+            </Button>
+          ) : null}
+          <Button variant="outline" onClick={() => void loadPageData()} disabled={loading}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {canManagePosting ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Post Goods Receipt</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Purchase Order</Label>
-              <select
-                className="w-full rounded-md border bg-background px-3 py-2"
-                value={selectedPurchaseOrderId}
-                onChange={(event) => setSelectedPurchaseOrderId(event.target.value)}
-              >
-                <option value="">Select approved purchase order</option>
-                {eligiblePurchaseOrders.map((purchaseOrder) => (
-                  <option key={purchaseOrder.id} value={purchaseOrder.id}>
-                    {purchaseOrder.poNumber} • {purchaseOrder.supplier.name} • {purchaseOrder.warehouse.code}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <ScmStatCard label="Total GRN" value={String(summary.total)} hint="Visible receipt register" />
+        <ScmStatCard label="Pending Confirmation" value={String(summary.pendingConfirmation)} hint="Requester still needs to confirm" />
+        <ScmStatCard label="Variance" value={String(summary.variance)} hint="WO vs delivery vs invoice mismatch" />
+        <ScmStatCard label="Evaluation Pending" value={String(summary.incompleteEvaluation)} hint="One or more roles still missing" />
+        <ScmStatCard label="Ready To Receive" value={String(summary.readyToReceive)} hint="Approved PO still open for receipt" />
+      </div>
 
-            {selectedPurchaseOrder ? (
-              <div className="space-y-3 rounded-lg border p-4">
-                <div className="text-sm text-muted-foreground">
-                  {selectedPurchaseOrder.supplier.name} • {selectedPurchaseOrder.warehouse.name} • {selectedPurchaseOrder.status}
-                </div>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Ordered</TableHead>
-                        <TableHead>Received</TableHead>
-                        <TableHead>Remaining</TableHead>
-                        <TableHead>Receive Now</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedPurchaseOrder.items.map((item) => {
-                        const remaining = Math.max(item.quantityOrdered - item.quantityReceived, 0);
-                        return (
-                          <TableRow key={item.id}>
-                            <TableCell>
-                              <div className="font-medium">{item.productVariant.product.name}</div>
-                              <div className="text-xs text-muted-foreground">{item.productVariant.sku}</div>
-                            </TableCell>
-                            <TableCell>{item.quantityOrdered}</TableCell>
-                            <TableCell>{item.quantityReceived}</TableCell>
-                            <TableCell>{remaining}</TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                min="0"
-                                max={remaining}
-                                value={quantityDraft[item.id] ?? "0"}
-                                onChange={(event) =>
-                                  setQuantityDraft((prev) => ({ ...prev, [item.id]: event.target.value }))
-                                }
-                              />
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-                <div>
-                  <Label>Receipt Note</Label>
-                  <Textarea rows={4} value={receiptNote} onChange={(event) => setReceiptNote(event.target.value)} />
-                </div>
-                <Button onClick={() => void postReceipt()} disabled={saving}>
-                  {saving ? "Posting..." : "Post Goods Receipt"}
+      {focus !== "ALL" || search.trim() ? (
+        <Card className="border-amber-200 bg-amber-50/60 shadow-none">
+          <CardContent className="flex flex-col gap-2 p-4 text-sm md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-medium text-foreground">Focused queue active</p>
+              <p className="text-muted-foreground">
+                {focus === "PENDING-CONFIRMATION"
+                  ? "Showing receipts that still need requester confirmation."
+                  : focus === "VARIANCE"
+                    ? "Showing receipts with PO vs delivery vs invoice mismatch."
+                    : focus === "INCOMPLETE-EVALUATION"
+                      ? "Showing receipts missing one or more evaluation roles."
+                      : focus === "POST"
+                        ? "Use the guided GRN creation page to post a new inbound receipt."
+                        : "Showing a filtered goods receipt queue."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {canManagePosting && focus === "POST" ? (
+                <Button asChild>
+                  <Link href="/admin/scm/goods-receipts/new">Open GRN Creator</Link>
                 </Button>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Select an approved purchase order to receive stock.</p>
-            )}
+              ) : null}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFocus("ALL");
+                  setSearch("");
+                }}
+              >
+                Clear Focus
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -485,14 +437,40 @@ export default function GoodsReceiptsPage() {
         <CardHeader>
           <CardTitle>GRN Register</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]">
+            <Input
+              placeholder="Search receipt, PO, supplier, requisition, or warehouse..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <select
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              value={focus}
+              onChange={(event) => setFocus(event.target.value)}
+            >
+              <option value="ALL">All queues</option>
+              <option value="PENDING-CONFIRMATION">Pending confirmation</option>
+              <option value="VARIANCE">Variance</option>
+              <option value="INCOMPLETE-EVALUATION">Evaluation pending</option>
+              {canManagePosting ? <option value="POST">Ready to post</option> : null}
+            </select>
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              {visibleReceipts.length} visible receipt{visibleReceipts.length === 1 ? "" : "s"}
+            </div>
+            <Button variant="outline" onClick={() => void loadPageData()} disabled={loading}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
+
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading goods receipts...</p>
-          ) : receipts.length === 0 ? (
+          ) : visibleReceipts.length === 0 ? (
             <p className="text-sm text-muted-foreground">No goods receipts found.</p>
           ) : (
             <div className="space-y-4">
-              {receipts.map((receipt) => {
+              {visibleReceipts.map((receipt) => {
                 const attachmentDraft = getAttachmentDraft(receipt.id);
                 const evaluationDraft = getEvaluationDraft(receipt);
                 const evaluationsByRole = new Map(
@@ -506,7 +484,13 @@ export default function GoodsReceiptsPage() {
                         <div className="text-lg font-semibold">{receipt.receiptNumber}</div>
                         <div className="text-sm text-muted-foreground">{receipt.purchaseOrder.poNumber} • {receipt.purchaseOrder.supplier.name}</div>
                       </div>
-                      <div className="text-sm text-muted-foreground">{fmtDate(receipt.receivedAt)} • {receipt.warehouse.code}</div>
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/admin/scm/goods-receipts/${receipt.id}`}>Open Detail</Link>
+                        </Button>
+                        <ScmStatusChip status={receipt.matchSummary.status} />
+                        <span>{fmtDate(receipt.receivedAt)} • {receipt.warehouse.code}</span>
+                      </div>
                     </div>
 
                     <div className="grid gap-3 rounded-md border p-3 text-sm md:grid-cols-3">

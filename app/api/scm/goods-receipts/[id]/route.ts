@@ -114,6 +114,148 @@ function canEvaluateRole(
   );
 }
 
+function resolveAllowedEvaluationRoles(
+  access: Awaited<ReturnType<typeof getAccessContext>>,
+  receipt: ReceiptWithRelations,
+) {
+  const requesterUserId = resolveRequesterUserId(receipt);
+  const isRequester = requesterUserId !== null && requesterUserId === access.userId;
+
+  const roles = new Set<"REQUESTER" | "PROCUREMENT" | "ADMINISTRATION">();
+  if (isRequester || access.can("purchase_requisitions.approve", receipt.warehouseId)) {
+    roles.add("REQUESTER");
+  }
+  if (
+    PROCUREMENT_EVALUATION_PERMISSIONS.some((permission) =>
+      access.can(permission, receipt.warehouseId),
+    )
+  ) {
+    roles.add("PROCUREMENT");
+  }
+  if (
+    access.hasGlobal("supplier.feedback.manage") ||
+    access.hasGlobal("suppliers.manage") ||
+    access.hasGlobal("users.manage")
+  ) {
+    roles.add("ADMINISTRATION");
+  }
+  return [...roles];
+}
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const receiptId = Number(id);
+    if (!Number.isInteger(receiptId) || receiptId <= 0) {
+      return NextResponse.json({ error: "Invalid goods receipt id." }, { status: 400 });
+    }
+
+    const receipt = await prisma.goodsReceipt.findUnique({
+      where: { id: receiptId },
+      include: goodsReceiptInclude,
+    });
+    if (!receipt) {
+      return NextResponse.json({ error: "Goods receipt not found." }, { status: 404 });
+    }
+    if (!canViewReceipt(access, receipt)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const invoiceRows = await prisma.supplierInvoice.findMany({
+      where: {
+        purchaseOrderId: receipt.purchaseOrderId,
+        status: { not: "CANCELLED" },
+      },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        status: true,
+        total: true,
+        items: {
+          select: { quantityInvoiced: true },
+        },
+      },
+      orderBy: [{ postedAt: "desc" }, { id: "desc" }],
+    });
+
+    const invoiceCount = invoiceRows.length;
+    const invoicedQuantity = invoiceRows.reduce(
+      (sum, row) =>
+        sum +
+        row.items.reduce((lineSum, item) => lineSum + item.quantityInvoiced, 0),
+      0,
+    );
+    const matchedRows = await prisma.supplierInvoice.findMany({
+      where: {
+        purchaseOrderId: receipt.purchaseOrderId,
+        status: { not: "CANCELLED" },
+      },
+      select: {
+        matchStatus: true,
+      },
+    });
+    const hasMatchVariance = matchedRows.some((row) => row.matchStatus === "VARIANCE");
+    const allMatched =
+      matchedRows.length > 0 && matchedRows.every((row) => row.matchStatus === "MATCHED");
+
+    const poOrderedQty = receipt.purchaseOrder.items.reduce(
+      (sum, item) => sum + item.quantityOrdered,
+      0,
+    );
+    const poReceivedQty = receipt.purchaseOrder.items.reduce(
+      (sum, item) => sum + item.quantityReceived,
+      0,
+    );
+    const requiredRoles = ["REQUESTER", "PROCUREMENT", "ADMINISTRATION"] as const;
+    const submittedRoles = new Set(
+      receipt.vendorEvaluations.map((evaluation) => evaluation.evaluatorRole),
+    );
+
+    return NextResponse.json({
+      ...receipt,
+      workflow: {
+        requesterUserId: resolveRequesterUserId(receipt),
+        requesterConfirmed: Boolean(receipt.requesterConfirmedAt),
+        canRequesterConfirm: canRequesterConfirmReceipt(access, receipt),
+        canManageAttachments: canManageReceiptAttachments(access, receipt),
+        allowedEvaluationRoles: resolveAllowedEvaluationRoles(access, receipt),
+        submittedEvaluationRoles: [...submittedRoles],
+        missingEvaluationRoles: requiredRoles.filter((role) => !submittedRoles.has(role)),
+        evaluationCompleted: requiredRoles.every((role) => submittedRoles.has(role)),
+      },
+      invoices: invoiceRows,
+      matchSummary: {
+        orderedQuantity: poOrderedQty,
+        receivedQuantity: poReceivedQty,
+        invoicedQuantity,
+        invoiceCount,
+        status:
+          invoiceCount === 0
+            ? "PENDING"
+            : hasMatchVariance
+              ? "VARIANCE"
+              : allMatched
+                ? "MATCHED"
+                : "PENDING",
+      },
+    });
+  } catch (error) {
+    console.error("SCM GOODS RECEIPT GET ERROR:", error);
+    return NextResponse.json({ error: "Failed to load goods receipt." }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },

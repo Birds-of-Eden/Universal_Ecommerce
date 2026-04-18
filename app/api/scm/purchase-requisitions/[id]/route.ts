@@ -16,6 +16,87 @@ import {
 } from "@/lib/scm";
 import { dispatchPurchaseRequisitionEmailNotifications } from "@/lib/purchase-requisition-notifications";
 
+const purchaseRequisitionDetailInclude = {
+  ...purchaseRequisitionInclude,
+  rfqs: {
+    orderBy: [{ id: "desc" as const }],
+    select: {
+      id: true,
+      rfqNumber: true,
+      status: true,
+      comparativeStatements: {
+        orderBy: [{ id: "desc" as const }],
+        select: {
+          id: true,
+          csNumber: true,
+          status: true,
+          generatedPurchaseOrder: {
+            select: {
+              id: true,
+              poNumber: true,
+              status: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  purchaseOrders: {
+    orderBy: [{ id: "desc" as const }],
+    select: {
+      id: true,
+      poNumber: true,
+      status: true,
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+        },
+      },
+      goodsReceipts: {
+        orderBy: [{ receivedAt: "desc" as const }],
+        select: {
+          id: true,
+          receiptNumber: true,
+          status: true,
+        },
+      },
+      supplierInvoices: {
+        orderBy: [{ issueDate: "desc" as const }, { id: "desc" as const }],
+        select: {
+          id: true,
+          invoiceNumber: true,
+          status: true,
+          payments: {
+            orderBy: [{ paymentDate: "desc" as const }, { id: "desc" as const }],
+            select: {
+              id: true,
+              paymentNumber: true,
+              amount: true,
+            },
+          },
+        },
+      },
+      paymentRequests: {
+        orderBy: [{ requestedAt: "desc" as const }, { id: "desc" as const }],
+        select: {
+          id: true,
+          prfNumber: true,
+          status: true,
+          supplierPayment: {
+            select: {
+              id: true,
+              paymentNumber: true,
+              amount: true,
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.PurchaseRequisitionInclude;
+
 const PURCHASE_REQUISITION_READ_PERMISSIONS = [
   "purchase_requisitions.read",
   "purchase_requisitions.manage",
@@ -288,9 +369,9 @@ export async function GET(
     }
 
     const requisition = await prisma.purchaseRequisition.findUnique({
-      where: { id: requisitionId },
-      include: purchaseRequisitionInclude,
-    });
+    where: { id: requisitionId },
+    include: purchaseRequisitionDetailInclude,
+  });
     if (!requisition) {
       return NextResponse.json(
         { error: "Purchase requisition not found." },

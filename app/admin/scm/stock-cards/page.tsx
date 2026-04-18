@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
@@ -72,6 +73,7 @@ function formatDateTime(value: string | null) {
 }
 
 export default function StockCardsPage() {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
@@ -88,10 +90,10 @@ export default function StockCardsPage() {
 
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [warehouseId, setWarehouseId] = useState("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [warehouseId, setWarehouseId] = useState(searchParams.get("warehouseId") || "");
+  const [from, setFrom] = useState(searchParams.get("from") || "");
+  const [to, setTo] = useState(searchParams.get("to") || "");
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [summaries, setSummaries] = useState<StockCardSummary[]>([]);
   const [selected, setSelected] = useState<{ warehouseId: number; variantId: number } | null>(null);
@@ -167,6 +169,23 @@ export default function StockCardsPage() {
       void loadSummary();
     }
   }, [canRead]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setWarehouseId(searchParams.get("warehouseId") || "");
+    setFrom(searchParams.get("from") || "");
+    setTo(searchParams.get("to") || "");
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!canRead) return;
+    const variantId = Number(searchParams.get("variantId") || 0);
+    const queryWarehouseId = Number(searchParams.get("warehouseId") || 0);
+    if (!variantId || !queryWarehouseId) return;
+    const target = { warehouseId: queryWarehouseId, variantId };
+    setSelected(target);
+    void loadDetail(target);
+  }, [canRead, searchParams]);
 
   const selectedLabel = useMemo(() => {
     if (!detail) return "";

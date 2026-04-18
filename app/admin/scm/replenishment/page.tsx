@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
+import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,6 +109,8 @@ function formatDate(value: string | number | null | undefined) {
 }
 
 export default function ReplenishmentPlanningPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
@@ -125,8 +130,8 @@ export default function ReplenishmentPlanningPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ruleForm, setRuleForm] = useState(defaultForm);
-  const [warehouseFilter, setWarehouseFilter] = useState("");
-  const [search, setSearch] = useState("");
+  const [warehouseFilter, setWarehouseFilter] = useState(searchParams.get("warehouseId") || "");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [neededBy, setNeededBy] = useState("");
   const [requisitionNote, setRequisitionNote] = useState("");
   const [selectedRuleIds, setSelectedRuleIds] = useState<number[]>([]);
@@ -176,6 +181,11 @@ export default function ReplenishmentPlanningPage() {
     }
   }, [canRead, warehouseFilter]);
 
+  useEffect(() => {
+    setWarehouseFilter(searchParams.get("warehouseId") || "");
+    setSearch(searchParams.get("search") || "");
+  }, [searchParams]);
+
   const selectedWarehouseId = Number(ruleForm.warehouseId);
   const selectedVariant = useMemo(
     () =>
@@ -223,6 +233,9 @@ export default function ReplenishmentPlanningPage() {
 
   const purchasableSuggestions = visibleSuggestions.filter(
     (suggestion) => suggestion.purchaseQty > 0,
+  );
+  const transferableSuggestions = visibleSuggestions.filter(
+    (suggestion) => suggestion.transferQty > 0,
   );
 
   const saveRule = async () => {
@@ -321,7 +334,10 @@ export default function ReplenishmentPlanningPage() {
       setSelectedRuleIds([]);
       setNeededBy("");
       setRequisitionNote("");
-      await loadData(warehouseFilter);
+      router.push(
+        `/admin/scm/purchase-requisitions?search=${encodeURIComponent(requisition.requisitionNumber)}`,
+      );
+      router.refresh();
     } catch (error: any) {
       toast.error(error?.message || "Failed to create replenishment requisition");
     } finally {
@@ -361,7 +377,10 @@ export default function ReplenishmentPlanningPage() {
         "Failed to create transfer draft",
       );
       toast.success(`Transfer draft ${transfer.transferNumber} created from planning`);
-      await loadData(warehouseFilter);
+      router.push(
+        `/admin/scm/warehouse-transfers?search=${encodeURIComponent(transfer.transferNumber)}`,
+      );
+      router.refresh();
     } catch (error: any) {
       toast.error(error?.message || "Failed to create transfer draft");
     } finally {
@@ -386,11 +405,24 @@ export default function ReplenishmentPlanningPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Replenishment Planning</h1>
-        <p className="text-sm text-muted-foreground">
-          Define warehouse reorder rules, review shortage signals, and convert purchase needs into requisitions.
-        </p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Replenishment Planning</h1>
+          <p className="text-sm text-muted-foreground">
+            Define warehouse reorder rules, review shortage signals, and convert purchase needs into requisitions.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => void loadData(warehouseFilter)} disabled={loading}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ScmStatCard label="Rules" value={String(rules.length)} hint="Configured replenishment logic" />
+        <ScmStatCard label="Triggered" value={String(visibleSuggestions.length)} hint="Current shortage or planning signals" />
+        <ScmStatCard label="Purchase Signals" value={String(purchasableSuggestions.length)} hint="Can convert into requisitions" />
+        <ScmStatCard label="Transfer Signals" value={String(transferableSuggestions.length)} hint="Can convert into transfer drafts" />
       </div>
 
       {canManage ? (

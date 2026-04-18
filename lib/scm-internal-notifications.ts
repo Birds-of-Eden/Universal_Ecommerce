@@ -103,6 +103,7 @@ export async function getScmInternalNotifications({
           createdAt: true,
           purchaseRequisition: {
             select: {
+              id: true,
               requisitionNumber: true,
             },
           },
@@ -157,6 +158,7 @@ export async function getScmInternalNotifications({
           createdAt: true,
           purchaseOrder: {
             select: {
+              id: true,
               poNumber: true,
             },
           },
@@ -184,6 +186,7 @@ export async function getScmInternalNotifications({
           createdAt: true,
           paymentRequest: {
             select: {
+              id: true,
               prfNumber: true,
             },
           },
@@ -207,7 +210,7 @@ export async function getScmInternalNotifications({
       title: `${row.purchaseRequisition.requisitionNumber} • ${formatStage(row.stage)}`,
       message: row.message,
       entityNumber: row.purchaseRequisition.requisitionNumber,
-      href: "/admin/scm/purchase-requisitions",
+      href: `/admin/scm/purchase-requisitions/${row.purchaseRequisition.id}`,
       metadata: row.metadata ?? null,
       sentAt: row.sentAt?.toISOString() ?? null,
       readAt: row.readAt?.toISOString() ?? null,
@@ -235,7 +238,7 @@ export async function getScmInternalNotifications({
       title: `${row.purchaseOrder.poNumber} • ${formatStage(row.stage)}`,
       message: row.message,
       entityNumber: row.purchaseOrder.poNumber,
-      href: "/admin/scm/purchase-orders",
+      href: `/admin/scm/purchase-orders/${row.purchaseOrder.id}`,
       metadata: row.metadata ?? null,
       sentAt: row.sentAt?.toISOString() ?? null,
       readAt: row.readAt?.toISOString() ?? null,
@@ -249,7 +252,7 @@ export async function getScmInternalNotifications({
       title: `${row.paymentRequest.prfNumber} • ${formatStage(row.stage)}`,
       message: row.message,
       entityNumber: row.paymentRequest.prfNumber,
-      href: "/admin/scm/payment-requests",
+      href: `/admin/scm/payment-requests/${row.paymentRequest.id}`,
       metadata: row.metadata ?? null,
       sentAt: row.sentAt?.toISOString() ?? null,
       readAt: row.readAt?.toISOString() ?? null,

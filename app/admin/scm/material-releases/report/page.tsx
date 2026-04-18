@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -347,7 +348,12 @@ export default function MaterialReleaseReportPage() {
                   return (
                     <TableRow key={release.id}>
                       <TableCell>
-                        <div className="font-medium">{release.releaseNumber}</div>
+                        <Link
+                          href={`/admin/scm/material-releases/${release.id}`}
+                          className="font-medium underline-offset-4 hover:underline"
+                        >
+                          {release.releaseNumber}
+                        </Link>
                         <div className="text-xs text-muted-foreground">
                           {formatDateTime(release.releasedAt)}
                         </div>
@@ -358,7 +364,14 @@ export default function MaterialReleaseReportPage() {
                       <TableCell>
                         {release.warehouse.name} ({release.warehouse.code})
                       </TableCell>
-                      <TableCell>{release.materialRequest.requestNumber}</TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/admin/scm/material-requests/${release.materialRequest.id}`}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {release.materialRequest.requestNumber}
+                        </Link>
+                      </TableCell>
                       <TableCell>{release.status}</TableCell>
                       <TableCell>{qty}</TableCell>
                       <TableCell>{formatMoney(value)}</TableCell>

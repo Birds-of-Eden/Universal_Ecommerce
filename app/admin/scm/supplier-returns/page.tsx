@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -581,8 +582,13 @@ export default function SupplierReturnsPage() {
                           {supplierReturn.supplier.name} | {supplierReturn.warehouse.name} | GRN {supplierReturn.goodsReceipt.receiptNumber}
                         </CardDescription>
                       </div>
-                      <div className="rounded-full border px-3 py-1 text-xs font-medium">
-                        {supplierReturn.status}
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/admin/scm/supplier-returns/${supplierReturn.id}`}>Open Detail</Link>
+                        </Button>
+                        <div className="rounded-full border px-3 py-1 text-xs font-medium">
+                          {supplierReturn.status}
+                        </div>
                       </div>
                     </div>
                     <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">

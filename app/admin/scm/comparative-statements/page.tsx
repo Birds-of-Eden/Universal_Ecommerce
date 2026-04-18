@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -103,6 +104,7 @@ function formatMoney(value: string | number) {
 }
 
 export default function ComparativeStatementsPage() {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
@@ -128,11 +130,11 @@ export default function ComparativeStatementsPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
   const [statements, setStatements] = useState<ComparativeStatement[]>([]);
   const [rfqs, setRfqs] = useState<Rfq[]>([]);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(searchParams.get("selectedId") || "");
 
   const [rfqId, setRfqId] = useState("");
   const [technicalWeight, setTechnicalWeight] = useState("70");
@@ -184,6 +186,12 @@ export default function ComparativeStatementsPage() {
       void loadData();
     }
   }, [canRead]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setStatusFilter(searchParams.get("status") || "");
+    setSelectedId(searchParams.get("selectedId") || "");
+  }, [searchParams]);
 
   const visibleStatements = useMemo(() => {
     const query = search.trim().toLowerCase();

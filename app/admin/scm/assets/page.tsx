@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -399,6 +400,11 @@ export default function AssetLifecyclePage() {
                         )}
                       </TableCell>
                       <TableCell>
+                        <div className="mb-2">
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`/admin/scm/assets/${asset.id}`}>Open Detail</Link>
+                          </Button>
+                        </div>
                         {canManage ? (
                           <Button
                             size="sm"

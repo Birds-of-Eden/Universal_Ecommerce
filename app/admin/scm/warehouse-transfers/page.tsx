@@ -1,27 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { Plus, RefreshCw } from "lucide-react";
+import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
+import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 
 type Warehouse = {
   id: number;
   name: string;
   code: string;
-};
-
-type ProductVariant = {
-  id: number;
-  sku: string;
-  product?: {
-    name: string;
-  };
 };
 
 type WarehouseTransferItem = {
@@ -63,18 +58,6 @@ type WarehouseTransfer = {
   items: WarehouseTransferItem[];
 };
 
-type DraftItem = {
-  productVariantId: string;
-  quantityRequested: string;
-  description: string;
-};
-
-const emptyLine = (): DraftItem => ({
-  productVariantId: "",
-  quantityRequested: "",
-  description: "",
-});
-
 async function readJson<T>(response: Response, fallback: string): Promise<T> {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -98,6 +81,7 @@ function totalQuantity(
 }
 
 export default function WarehouseTransfersPage() {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
@@ -111,34 +95,22 @@ export default function WarehouseTransfersPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [sourceWarehouseId, setSourceWarehouseId] = useState("");
-  const [destinationWarehouseId, setDestinationWarehouseId] = useState("");
-  const [requiredBy, setRequiredBy] = useState("");
-  const [note, setNote] = useState("");
-  const [items, setItems] = useState<DraftItem[]>([emptyLine()]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
   const [transfers, setTransfers] = useState<WarehouseTransfer[]>([]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setStatusFilter(searchParams.get("status") || "");
+  }, [searchParams]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [transferData, warehouseData, variantData] = await Promise.all([
-        fetch("/api/scm/warehouse-transfers", { cache: "no-store" }).then((response) =>
+      const transferData = await fetch("/api/scm/warehouse-transfers", { cache: "no-store" }).then((response) =>
           readJson<WarehouseTransfer[]>(response, "Failed to load warehouse transfers"),
-        ),
-        fetch("/api/warehouses", { cache: "no-store" }).then((response) =>
-          readJson<Warehouse[]>(response, "Failed to load warehouses"),
-        ),
-        fetch("/api/product-variants", { cache: "no-store" }).then((response) =>
-          readJson<ProductVariant[]>(response, "Failed to load product variants"),
-        ),
-      ]);
+      );
       setTransfers(Array.isArray(transferData) ? transferData : []);
-      setWarehouses(Array.isArray(warehouseData) ? warehouseData : []);
-      setVariants(Array.isArray(variantData) ? variantData : []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load warehouse transfer data");
       setTransfers([]);
@@ -166,57 +138,6 @@ export default function WarehouseTransfersPage() {
     });
   }, [search, statusFilter, transfers]);
 
-  const createTransfer = async () => {
-    if (!sourceWarehouseId || !destinationWarehouseId) {
-      toast.error("Source and destination warehouses are required");
-      return;
-    }
-    if (sourceWarehouseId === destinationWarehouseId) {
-      toast.error("Source and destination warehouses must be different");
-      return;
-    }
-
-    const payloadItems = items
-      .map((item) => ({
-        productVariantId: Number(item.productVariantId),
-        quantityRequested: Number(item.quantityRequested),
-        description: item.description.trim(),
-      }))
-      .filter((item) => Number.isInteger(item.productVariantId) && item.productVariantId > 0 && Number.isInteger(item.quantityRequested) && item.quantityRequested > 0);
-
-    if (payloadItems.length === 0) {
-      toast.error("At least one valid transfer line is required");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const response = await fetch("/api/scm/warehouse-transfers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceWarehouseId: Number(sourceWarehouseId),
-          destinationWarehouseId: Number(destinationWarehouseId),
-          requiredBy: requiredBy || null,
-          note,
-          items: payloadItems,
-        }),
-      });
-      await readJson(response, "Failed to create warehouse transfer");
-      toast.success("Warehouse transfer created");
-      setSourceWarehouseId("");
-      setDestinationWarehouseId("");
-      setRequiredBy("");
-      setNote("");
-      setItems([emptyLine()]);
-      await loadData();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to create warehouse transfer");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const runAction = async (transferId: number, action: string) => {
     setSaving(true);
     try {
@@ -235,14 +156,6 @@ export default function WarehouseTransfersPage() {
     }
   };
 
-  const updateItem = (index: number, key: keyof DraftItem, value: string) => {
-    setItems((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [key]: value } : item,
-      ),
-    );
-  };
-
   const statusOptions = [
     "DRAFT",
     "SUBMITTED",
@@ -256,138 +169,35 @@ export default function WarehouseTransfersPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Warehouse Transfers</h1>
-        <p className="text-sm text-muted-foreground">
-          Approve, dispatch, and receive internal stock movement between warehouses.
-        </p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Warehouse Transfers</h1>
+          <p className="text-sm text-muted-foreground">
+            Approve, dispatch, and receive internal stock movement between warehouses.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {canManage ? (
+            <Button asChild>
+              <Link href="/admin/scm/warehouse-transfers/new">
+                <Plus className="mr-2 h-4 w-4" />
+                New Transfer
+              </Link>
+            </Button>
+          ) : null}
+          <Button variant="outline" onClick={() => void loadData()} disabled={loading}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {canManage ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Warehouse Transfer</CardTitle>
-            <CardDescription>
-              Start a transfer request from one warehouse to another, then submit it for approval.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="space-y-2">
-                <Label>Source Warehouse</Label>
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  value={sourceWarehouseId}
-                  onChange={(event) => setSourceWarehouseId(event.target.value)}
-                >
-                  <option value="">Select warehouse</option>
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name} ({warehouse.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Destination Warehouse</Label>
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  value={destinationWarehouseId}
-                  onChange={(event) => setDestinationWarehouseId(event.target.value)}
-                >
-                  <option value="">Select warehouse</option>
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name} ({warehouse.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Required By</Label>
-                <Input
-                  type="datetime-local"
-                  value={requiredBy}
-                  onChange={(event) => setRequiredBy(event.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Note</Label>
-                <Textarea
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  rows={2}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Transfer Items</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setItems((current) => [...current, emptyLine()])}
-                >
-                  Add Line
-                </Button>
-              </div>
-
-              {items.map((item, index) => (
-                <div key={index} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[2fr_1fr_2fr_auto]">
-                  <div className="space-y-2">
-                    <Label>Variant</Label>
-                    <select
-                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                      value={item.productVariantId}
-                      onChange={(event) => updateItem(index, "productVariantId", event.target.value)}
-                    >
-                      <option value="">Select variant</option>
-                      {variants.map((variant) => (
-                        <option key={variant.id} value={variant.id}>
-                          {variant.product?.name ?? "Variant"} ({variant.sku})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Qty</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={item.quantityRequested}
-                      onChange={(event) => updateItem(index, "quantityRequested", event.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Description</Label>
-                    <Input
-                      value={item.description}
-                      onChange={(event) => updateItem(index, "description", event.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={items.length === 1}
-                      onClick={() =>
-                        setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                      }
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <Button onClick={() => void createTransfer()} disabled={saving}>
-              {saving ? "Saving..." : "Create Transfer"}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ScmStatCard label="Total" value={String(transfers.length)} hint="Visible transfer queue" />
+        <ScmStatCard label="Pending Approval" value={String(transfers.filter((t) => t.status === "SUBMITTED").length)} hint="Waiting for approval" />
+        <ScmStatCard label="In Transit" value={String(transfers.filter((t) => ["APPROVED", "PARTIALLY_DISPATCHED", "DISPATCHED", "PARTIALLY_RECEIVED"].includes(t.status)).length)} hint="Still active between warehouses" />
+        <ScmStatCard label="Received" value={String(transfers.filter((t) => t.status === "RECEIVED").length)} hint="Completed internal movement" />
+      </div>
 
       <Card>
         <CardHeader>
@@ -416,6 +226,7 @@ export default function WarehouseTransfersPage() {
               ))}
             </select>
             <Button variant="outline" onClick={() => void loadData()} disabled={loading}>
+              <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
           </div>
@@ -459,7 +270,7 @@ export default function WarehouseTransfersPage() {
                         </div>
                       </TableCell>
                       <TableCell className="align-top">
-                        <div className="font-medium">{transfer.status}</div>
+                        <ScmStatusChip status={transfer.status} />
                         {transfer.requiredBy ? (
                           <div className="text-xs text-muted-foreground">
                             Need by {formatDate(transfer.requiredBy)}
@@ -486,6 +297,9 @@ export default function WarehouseTransfersPage() {
                       </TableCell>
                       <TableCell className="align-top text-right">
                         <div className="flex flex-wrap justify-end gap-2">
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`/admin/scm/warehouse-transfers/${transfer.id}`}>Open Detail</Link>
+                          </Button>
                           {canManage && transfer.status === "DRAFT" ? (
                             <Button size="sm" variant="outline" onClick={() => void runAction(transfer.id, "submit")} disabled={saving}>
                               Submit

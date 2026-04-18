@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Download, RefreshCw } from "lucide-react";
@@ -276,12 +278,61 @@ function formatMoney(value: number | null | undefined) {
   return Number(value || 0).toFixed(2);
 }
 
+function buildHref(path: string, query?: Record<string, string | number | null | undefined>) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query || {})) {
+    if (value === null || value === undefined || value === "") continue;
+    params.set(key, String(value));
+  }
+  const suffix = params.toString();
+  return suffix ? `${path}?${suffix}` : path;
+}
+
+function getAuditEntityHref(entity: string, entityId: string | null) {
+  switch (entity) {
+    case "purchase_requisition":
+      return entityId ? `/admin/scm/purchase-requisitions/${entityId}` : "/admin/scm/purchase-requisitions";
+    case "rfq":
+      return entityId ? `/admin/scm/rfqs/${entityId}` : "/admin/scm/rfqs";
+    case "comparative_statement":
+      return buildHref("/admin/scm/comparative-statements", {
+        selectedId: entityId,
+        search: entityId,
+      });
+    case "purchase_order":
+      return entityId ? `/admin/scm/purchase-orders/${entityId}` : "/admin/scm/purchase-orders";
+    case "goods_receipt":
+      return entityId ? `/admin/scm/goods-receipts/${entityId}` : "/admin/scm/goods-receipts";
+    case "payment_request":
+      return entityId ? `/admin/scm/payment-requests/${entityId}` : "/admin/scm/payment-requests";
+    case "material_request":
+      return entityId ? `/admin/scm/material-requests/${entityId}` : "/admin/scm/material-requests";
+    case "material_release":
+      return entityId ? `/admin/scm/material-releases/${entityId}` : "/admin/scm/material-releases";
+    case "warehouse_transfer":
+      return entityId ? `/admin/scm/warehouse-transfers/${entityId}` : "/admin/scm/warehouse-transfers";
+    case "supplier_return":
+      return entityId ? `/admin/scm/supplier-returns/${entityId}` : "/admin/scm/supplier-returns";
+    case "inventory_verification":
+      return entityId ? `/admin/scm/physical-verifications/${entityId}` : "/admin/scm/physical-verifications";
+    case "asset_register":
+      return entityId ? `/admin/scm/assets/${entityId}` : "/admin/scm/assets";
+    default:
+      return buildHref("/admin/settings/activitylog", {
+        entity,
+        search: entityId,
+      });
+  }
+}
+
 function StatusSummary({
   title,
   rows,
+  rowHref,
 }: {
   title: string;
   rows: StatusCount[];
+  rowHref?: (status: string) => string;
 }) {
   return (
     <Card>
@@ -294,7 +345,16 @@ function StatusSummary({
         ) : (
           rows.map((row) => (
             <div key={`${title}-${row.status}`} className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{row.status}</span>
+              {rowHref ? (
+                <Link
+                  href={rowHref(row.status)}
+                  className="text-muted-foreground underline-offset-4 hover:underline"
+                >
+                  {row.status}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground">{row.status}</span>
+              )}
               <span className="font-medium">{row.count}</span>
             </div>
           ))
@@ -305,6 +365,7 @@ function StatusSummary({
 }
 
 export default function ScmDashboardPage() {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
@@ -319,7 +380,7 @@ export default function ScmDashboardPage() {
     return date.toISOString().slice(0, 10);
   });
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10));
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
   const [exportSection, setExportSection] = useState<ExportSection>("pipeline");
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -353,6 +414,10 @@ export default function ScmDashboardPage() {
   useEffect(() => {
     void loadData();
   }, [canRead, from, to]);
+
+  useEffect(() => {
+    setActiveTab(searchParams.get("tab") || "overview");
+  }, [searchParams]);
 
   const exportCsv = async () => {
     setExporting(true);
@@ -390,12 +455,42 @@ export default function ScmDashboardPage() {
   const topCards = useMemo(() => {
     if (!report) return [];
     return [
-      { label: "Pending Approvals", value: report.overview.pendingApprovals },
-      { label: "PO Value", value: formatMoney(report.overview.totalOrderedAmount) },
-      { label: "Invoiced Value", value: formatMoney(report.overview.totalInvoicedAmount) },
-      { label: "Paid Value", value: formatMoney(report.overview.totalSupplierPayments) },
-      { label: "Low Stock Variants", value: report.overview.lowStockVariants },
-      { label: "Audit Events", value: report.overview.auditEvents },
+      {
+        label: "Pending Approvals",
+        value: report.overview.pendingApprovals,
+        href: "/admin/scm/my-tasks",
+        hint: "Open personal approval queue",
+      },
+      {
+        label: "PO Value",
+        value: formatMoney(report.overview.totalOrderedAmount),
+        href: buildHref("/admin/scm/purchase-orders", { status: "APPROVED" }),
+        hint: "Jump into approved order register",
+      },
+      {
+        label: "Invoiced Value",
+        value: formatMoney(report.overview.totalInvoicedAmount),
+        href: "/admin/scm/three-way-match",
+        hint: "Review invoice control queue",
+      },
+      {
+        label: "Paid Value",
+        value: formatMoney(report.overview.totalSupplierPayments),
+        href: "/admin/scm/payment-reports",
+        hint: "Open vendor payment report",
+      },
+      {
+        label: "Low Stock Variants",
+        value: report.overview.lowStockVariants,
+        href: "/admin/scm/replenishment",
+        hint: "Open replenishment signals",
+      },
+      {
+        label: "Audit Events",
+        value: report.overview.auditEvents,
+        href: "/admin/settings/activitylog",
+        hint: "Open SCM audit activity",
+      },
     ];
   }, [report]);
 
@@ -473,12 +568,15 @@ export default function ScmDashboardPage() {
       <div id="scm-dashboard-export" className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           {topCards.map((card) => (
-            <Card key={card.label}>
-              <CardContent className="pt-6">
-                <div className="text-xs uppercase text-muted-foreground">{card.label}</div>
-                <div className="text-2xl font-semibold">{card.value}</div>
-              </CardContent>
-            </Card>
+            <Link key={card.label} href={card.href} className="block">
+              <Card className="transition-colors hover:border-primary/40 hover:bg-muted/30">
+                <CardContent className="pt-6">
+                  <div className="text-xs uppercase text-muted-foreground">{card.label}</div>
+                  <div className="text-2xl font-semibold">{card.value}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">{card.hint}</div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
 
@@ -523,7 +621,14 @@ export default function ScmDashboardPage() {
                           report.vendorPerformance.topSuppliers.slice(0, 8).map((row) => (
                             <TableRow key={row.supplierId}>
                               <TableCell>
-                                <div className="font-medium">{row.supplierName}</div>
+                                <Link
+                                  href={buildHref("/admin/scm/supplier-intelligence", {
+                                    search: row.supplierCode,
+                                  })}
+                                  className="font-medium underline-offset-4 hover:underline"
+                                >
+                                  {row.supplierName}
+                                </Link>
                                 <div className="text-xs text-muted-foreground">{row.supplierCode}</div>
                               </TableCell>
                               <TableCell className="text-right">{row.averageRating.toFixed(2)}</TableCell>
@@ -565,7 +670,15 @@ export default function ScmDashboardPage() {
                           report.grnStockSummary.lowStockRows.map((row) => (
                             <TableRow key={`${row.variantId}-${row.warehouse.id}`}>
                               <TableCell>
-                                <div className="font-medium">{row.productName}</div>
+                                <Link
+                                  href={buildHref("/admin/scm/replenishment", {
+                                    warehouseId: row.warehouse.id,
+                                    search: row.sku,
+                                  })}
+                                  className="font-medium underline-offset-4 hover:underline"
+                                >
+                                  {row.productName}
+                                </Link>
                                 <div className="text-xs text-muted-foreground">{row.sku}</div>
                               </TableCell>
                               <TableCell>{row.warehouse.name}</TableCell>
@@ -589,10 +702,26 @@ export default function ScmDashboardPage() {
 
             <TabsContent value="pipeline" className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatusSummary title="MRF / Requisition" rows={report.procurementPipeline.requisitions} />
-                <StatusSummary title="RFQ" rows={report.procurementPipeline.rfqs} />
-                <StatusSummary title="CS" rows={report.procurementPipeline.comparativeStatements} />
-                <StatusSummary title="Payment Request" rows={report.procurementPipeline.paymentRequests} />
+                <StatusSummary
+                  title="MRF / Requisition"
+                  rows={report.procurementPipeline.requisitions}
+                  rowHref={(status) => buildHref("/admin/scm/purchase-requisitions", { status })}
+                />
+                <StatusSummary
+                  title="RFQ"
+                  rows={report.procurementPipeline.rfqs}
+                  rowHref={(status) => buildHref("/admin/scm/rfqs", { status })}
+                />
+                <StatusSummary
+                  title="CS"
+                  rows={report.procurementPipeline.comparativeStatements}
+                  rowHref={(status) => buildHref("/admin/scm/comparative-statements", { status })}
+                />
+                <StatusSummary
+                  title="Payment Request"
+                  rows={report.procurementPipeline.paymentRequests}
+                  rowHref={(status) => buildHref("/admin/scm/payment-requests", { status })}
+                />
               </div>
 
               <div className="grid gap-4 lg:grid-cols-2">
@@ -657,7 +786,16 @@ export default function ScmDashboardPage() {
                       {report.planStatusTracking.rows.length ? (
                         report.planStatusTracking.rows.map((row) => (
                           <TableRow key={row.requisitionNumber}>
-                            <TableCell>{row.requisitionNumber}</TableCell>
+                            <TableCell>
+                              <Link
+                                href={buildHref("/admin/scm/purchase-requisitions", {
+                                  search: row.requisitionNumber,
+                                })}
+                                className="font-medium underline-offset-4 hover:underline"
+                              >
+                                {row.requisitionNumber}
+                              </Link>
+                            </TableCell>
                             <TableCell>{row.projectPlan}</TableCell>
                             <TableCell>{row.status}</TableCell>
                             <TableCell>{row.assignedProcurementOfficer ?? "N/A"}</TableCell>
@@ -679,9 +817,21 @@ export default function ScmDashboardPage() {
 
             <TabsContent value="sourcing" className="space-y-6">
               <div className="grid gap-4 md:grid-cols-3">
-                <StatusSummary title="RFQ Status" rows={report.rfqStatus.counts} />
-                <StatusSummary title="CS Status" rows={report.comparativeStatementSummary.counts} />
-                <StatusSummary title="PO Status" rows={report.purchaseOrderTracking.counts} />
+                <StatusSummary
+                  title="RFQ Status"
+                  rows={report.rfqStatus.counts}
+                  rowHref={(status) => buildHref("/admin/scm/rfqs", { status })}
+                />
+                <StatusSummary
+                  title="CS Status"
+                  rows={report.comparativeStatementSummary.counts}
+                  rowHref={(status) => buildHref("/admin/scm/comparative-statements", { status })}
+                />
+                <StatusSummary
+                  title="PO Status"
+                  rows={report.purchaseOrderTracking.counts}
+                  rowHref={(status) => buildHref("/admin/scm/purchase-orders", { status })}
+                />
               </div>
 
               <div className="grid gap-4 xl:grid-cols-3">
@@ -702,7 +852,12 @@ export default function ScmDashboardPage() {
                         {report.rfqStatus.rows.map((row) => (
                           <TableRow key={row.id}>
                             <TableCell>
-                              <div className="font-medium">{row.rfqNumber}</div>
+                              <Link
+                                href={`/admin/scm/rfqs/${row.id}`}
+                                className="font-medium underline-offset-4 hover:underline"
+                              >
+                                {row.rfqNumber}
+                              </Link>
                               <div className="text-xs text-muted-foreground">{row.warehouseName}</div>
                             </TableCell>
                             <TableCell>{row.status}</TableCell>
@@ -731,7 +886,15 @@ export default function ScmDashboardPage() {
                         {report.comparativeStatementSummary.rows.map((row) => (
                           <TableRow key={row.id}>
                             <TableCell>
-                              <div className="font-medium">{row.csNumber}</div>
+                              <Link
+                                href={buildHref("/admin/scm/comparative-statements", {
+                                  search: row.csNumber,
+                                  selectedId: row.id,
+                                })}
+                                className="font-medium underline-offset-4 hover:underline"
+                              >
+                                {row.csNumber}
+                              </Link>
                               <div className="text-xs text-muted-foreground">{row.rfqNumber}</div>
                             </TableCell>
                             <TableCell>{row.status}</TableCell>
@@ -760,7 +923,12 @@ export default function ScmDashboardPage() {
                         {report.purchaseOrderTracking.rows.map((row) => (
                           <TableRow key={row.id}>
                             <TableCell>
-                              <div className="font-medium">{row.poNumber}</div>
+                              <Link
+                                href={`/admin/scm/purchase-orders/${row.id}`}
+                                className="font-medium underline-offset-4 hover:underline"
+                              >
+                                {row.poNumber}
+                              </Link>
                               <div className="text-xs text-muted-foreground">{row.supplierName}</div>
                             </TableCell>
                             <TableCell>{row.status}</TableCell>
@@ -776,7 +944,15 @@ export default function ScmDashboardPage() {
 
             <TabsContent value="warehouse" className="space-y-6">
               <div className="grid gap-4 md:grid-cols-3">
-                <StatusSummary title="GRN Status" rows={report.grnStockSummary.counts} />
+                <StatusSummary
+                  title="GRN Status"
+                  rows={report.grnStockSummary.counts}
+                  rowHref={(status) =>
+                    status === "POSTED"
+                      ? buildHref("/admin/scm/goods-receipts", { focus: "post" })
+                      : "/admin/scm/goods-receipts"
+                  }
+                />
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Warehouse Exceptions</CardTitle>
@@ -784,11 +960,21 @@ export default function ScmDashboardPage() {
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Pending Requester Confirmation</span>
-                      <span className="font-medium">{report.grnStockSummary.pendingRequesterConfirmation}</span>
+                      <Link
+                        href={buildHref("/admin/scm/goods-receipts", { focus: "pending-confirmation" })}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {report.grnStockSummary.pendingRequesterConfirmation}
+                      </Link>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Low Stock Variants</span>
-                      <span className="font-medium">{report.grnStockSummary.lowStockCount}</span>
+                      <Link
+                        href="/admin/scm/replenishment"
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {report.grnStockSummary.lowStockCount}
+                      </Link>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Latest Snapshot</span>
@@ -803,11 +989,21 @@ export default function ScmDashboardPage() {
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Goods Receipt Evaluations</span>
-                      <span className="font-medium">{report.vendorPerformance.evaluationCount}</span>
+                      <Link
+                        href={buildHref("/admin/scm/goods-receipts", { focus: "incomplete-evaluation" })}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {report.vendorPerformance.evaluationCount}
+                      </Link>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Supplier Return Cases</span>
-                      <span className="font-medium">{report.vendorPerformance.supplierReturnCount}</span>
+                      <Link
+                        href="/admin/scm/supplier-returns"
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {report.vendorPerformance.supplierReturnCount}
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
@@ -834,7 +1030,12 @@ export default function ScmDashboardPage() {
                         report.grnStockSummary.rows.map((row) => (
                           <TableRow key={row.id}>
                             <TableCell>
-                              <div className="font-medium">{row.receiptNumber}</div>
+                              <Link
+                                href={`/admin/scm/goods-receipts/${row.id}`}
+                                className="font-medium underline-offset-4 hover:underline"
+                              >
+                                {row.receiptNumber}
+                              </Link>
                               <div className="text-xs text-muted-foreground">{formatDateTime(row.receivedAt)}</div>
                             </TableCell>
                             <TableCell>{row.warehouseName}</TableCell>
@@ -859,7 +1060,11 @@ export default function ScmDashboardPage() {
 
             <TabsContent value="finance" className="space-y-6">
               <div className="grid gap-4 md:grid-cols-3">
-                <StatusSummary title="PRF Status" rows={report.paymentSummary.prfCounts} />
+                <StatusSummary
+                  title="PRF Status"
+                  rows={report.paymentSummary.prfCounts}
+                  rowHref={(status) => buildHref("/admin/scm/payment-requests", { status })}
+                />
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Payment Summary</CardTitle>
@@ -882,11 +1087,21 @@ export default function ScmDashboardPage() {
                   <CardContent className="space-y-2 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Budget Codes In Scope</span>
-                      <span className="font-medium">{report.budgetVsProcurement.length}</span>
+                      <Link
+                        href="/admin/scm/dashboard?tab=finance"
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {report.budgetVsProcurement.length}
+                      </Link>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Project / Plan Rows</span>
-                      <span className="font-medium">{report.projectProcurementSummary.length}</span>
+                      <Link
+                        href="/admin/scm/dashboard?tab=finance"
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {report.projectProcurementSummary.length}
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
@@ -911,7 +1126,16 @@ export default function ScmDashboardPage() {
                         {report.projectProcurementSummary.length ? (
                           report.projectProcurementSummary.map((row) => (
                             <TableRow key={row.projectPlan}>
-                              <TableCell>{row.projectPlan}</TableCell>
+                              <TableCell>
+                                <Link
+                                  href={buildHref("/admin/scm/purchase-requisitions", {
+                                    search: row.projectPlan,
+                                  })}
+                                  className="underline-offset-4 hover:underline"
+                                >
+                                  {row.projectPlan}
+                                </Link>
+                              </TableCell>
                               <TableCell className="text-right">{formatMoney(row.orderedAmount)}</TableCell>
                               <TableCell className="text-right">{formatMoney(row.invoicedAmount)}</TableCell>
                               <TableCell className="text-right">{formatMoney(row.paidAmount)}</TableCell>
@@ -947,7 +1171,16 @@ export default function ScmDashboardPage() {
                         {report.budgetVsProcurement.length ? (
                           report.budgetVsProcurement.map((row) => (
                             <TableRow key={row.budgetCode}>
-                              <TableCell>{row.budgetCode}</TableCell>
+                              <TableCell>
+                                <Link
+                                  href={buildHref("/admin/scm/purchase-requisitions", {
+                                    search: row.budgetCode,
+                                  })}
+                                  className="underline-offset-4 hover:underline"
+                                >
+                                  {row.budgetCode}
+                                </Link>
+                              </TableCell>
                               <TableCell className="text-right">{formatMoney(row.estimatedAmount)}</TableCell>
                               <TableCell className="text-right">{formatMoney(row.orderedAmount)}</TableCell>
                               <TableCell className="text-right">{formatMoney(row.remainingBudgetGap)}</TableCell>
@@ -987,7 +1220,12 @@ export default function ScmDashboardPage() {
                         report.paymentSummary.rows.map((row) => (
                           <TableRow key={row.id}>
                             <TableCell>
-                              <div className="font-medium">{row.prfNumber}</div>
+                              <Link
+                                href={`/admin/scm/payment-requests/${row.id}`}
+                                className="font-medium underline-offset-4 hover:underline"
+                              >
+                                {row.prfNumber}
+                              </Link>
                               <div className="text-xs text-muted-foreground">{row.approvalStage}</div>
                             </TableCell>
                             <TableCell>{row.supplierName}</TableCell>
@@ -1020,7 +1258,12 @@ export default function ScmDashboardPage() {
                     {report.auditSummary.entityBreakdown.length ? (
                       report.auditSummary.entityBreakdown.map((row) => (
                         <div key={row.entity} className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">{row.entity}</span>
+                          <Link
+                            href={buildHref("/admin/settings/activitylog", { entity: row.entity })}
+                            className="text-muted-foreground underline-offset-4 hover:underline"
+                          >
+                            {row.entity}
+                          </Link>
                           <span className="font-medium">{row.count}</span>
                         </div>
                       ))
@@ -1068,8 +1311,26 @@ export default function ScmDashboardPage() {
                         report.auditSummary.recentEvents.map((row) => (
                           <TableRow key={row.id}>
                             <TableCell>{row.action}</TableCell>
-                            <TableCell>{row.entity}</TableCell>
-                            <TableCell>{row.entityId ?? "N/A"}</TableCell>
+                            <TableCell>
+                              <Link
+                                href={buildHref("/admin/settings/activitylog", { entity: row.entity })}
+                                className="underline-offset-4 hover:underline"
+                              >
+                                {row.entity}
+                              </Link>
+                            </TableCell>
+                            <TableCell>
+                              {row.entityId ? (
+                                <Link
+                                  href={getAuditEntityHref(row.entity, row.entityId)}
+                                  className="underline-offset-4 hover:underline"
+                                >
+                                  {row.entityId}
+                                </Link>
+                              ) : (
+                                "N/A"
+                              )}
+                            </TableCell>
                             <TableCell>{row.actorName}</TableCell>
                             <TableCell>{formatDateTime(row.createdAt)}</TableCell>
                           </TableRow>

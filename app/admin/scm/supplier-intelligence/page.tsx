@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -112,6 +113,7 @@ function getBandVariant(band: SupplierIntelligenceRow["metrics"]["performanceBan
 }
 
 export default function SupplierIntelligencePage() {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
     ? ((session?.user as any).globalPermissions as string[])
@@ -120,7 +122,7 @@ export default function SupplierIntelligencePage() {
 
   const [loading, setLoading] = useState(true);
   const [windowDays, setWindowDays] = useState("365");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [bandFilter, setBandFilter] = useState("ALL");
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
   const [dataset, setDataset] = useState<SupplierIntelligenceResponse>({
@@ -167,6 +169,10 @@ export default function SupplierIntelligencePage() {
       void loadData();
     }
   }, [canRead, windowDays]);
+
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+  }, [searchParams]);
 
   const visibleRows = useMemo(() => {
     const query = search.trim().toLowerCase();

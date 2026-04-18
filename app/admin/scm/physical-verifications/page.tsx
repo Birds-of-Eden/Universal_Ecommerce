@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -518,7 +519,10 @@ export default function PhysicalVerificationsPage() {
                     <TableCell>{verification.status.replaceAll("_", " ")}</TableCell>
                     <TableCell>{verification.lines.length}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href={`/admin/scm/physical-verifications/${verification.id}`}>Open Detail</Link>
+                        </Button>
                         {canManage && verification.status === "DRAFT" ? (
                           <Button size="sm" onClick={() => void runAction(verification.id, "submit")}>
                             Submit

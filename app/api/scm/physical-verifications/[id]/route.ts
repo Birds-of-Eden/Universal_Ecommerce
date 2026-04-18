@@ -19,6 +19,85 @@ type ActionType =
   | "admin_reject"
   | "close";
 
+const VERIFICATION_READ_PERMISSIONS = [
+  "physical_verifications.read",
+  "physical_verifications.manage",
+  "physical_verifications.approve",
+] as const;
+
+function canReadVerifications(access: Awaited<ReturnType<typeof getAccessContext>>) {
+  return access.hasAny([...VERIFICATION_READ_PERMISSIONS]);
+}
+
+export async function GET(
+  _request: NextRequest,
+  context: { params: { id: string } },
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const access = await getAccessContext(
+      session?.user as { id?: string; role?: string } | undefined,
+    );
+
+    if (!access.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!canReadVerifications(access)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const id = Number(context.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return NextResponse.json({ error: "Invalid verification id." }, { status: 400 });
+    }
+
+    const verification = await prisma.inventoryVerification.findUnique({
+      where: { id },
+      include: {
+        warehouse: { select: { id: true, name: true, code: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
+        approvedBy: { select: { id: true, name: true, email: true } },
+        committeeMembers: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        lines: {
+          include: {
+            productVariant: {
+              select: {
+                id: true,
+                sku: true,
+                product: { select: { id: true, name: true } },
+              },
+            },
+            bin: { select: { id: true, code: true, name: true } },
+          },
+          orderBy: { id: "asc" },
+        },
+        approvalEvents: {
+          include: {
+            actedBy: { select: { id: true, name: true, email: true } },
+          },
+          orderBy: [{ actedAt: "asc" }, { id: "asc" }],
+        },
+      },
+    });
+
+    if (!verification) {
+      return NextResponse.json({ error: "Verification not found." }, { status: 404 });
+    }
+    if (!access.canAccessWarehouse(verification.warehouseId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    return NextResponse.json(verification);
+  } catch (error) {
+    console.error("PHYSICAL VERIFICATION GET ERROR:", error);
+    return NextResponse.json({ error: "Failed to load verification." }, { status: 500 });
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   context: { params: { id: string } },

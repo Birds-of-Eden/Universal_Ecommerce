@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
@@ -57,6 +59,7 @@ function fmtDate(value: Date) {
 }
 
 export default function StockReportsPage() {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
@@ -64,8 +67,8 @@ export default function StockReportsPage() {
   const canRead = permissions.includes("stock_reports.read") || permissions.includes("inventory.manage");
 
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [warehouseId, setWarehouseId] = useState("");
-  const [tab, setTab] = useState("daily");
+  const [warehouseId, setWarehouseId] = useState(searchParams.get("warehouseId") || "");
+  const [tab, setTab] = useState(searchParams.get("tab") || "daily");
   const [dailyDate, setDailyDate] = useState(() => fmtDate(new Date()));
   const [monthlyFrom, setMonthlyFrom] = useState(() => {
     const d = new Date();
@@ -130,6 +133,11 @@ export default function StockReportsPage() {
   useEffect(() => {
     void loadWarehouses();
   }, []);
+
+  useEffect(() => {
+    setWarehouseId(searchParams.get("warehouseId") || "");
+    setTab(searchParams.get("tab") || "daily");
+  }, [searchParams]);
 
   useEffect(() => {
     if (!canRead) return;
@@ -277,7 +285,12 @@ export default function StockReportsPage() {
                           <div className="text-xs text-muted-foreground">{row.warehouse.code}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{row.variant.product.name}</div>
+                          <Link
+                            href={`/admin/scm/stock-cards?warehouseId=${row.warehouse.id}&variantId=${row.variant.id}&search=${encodeURIComponent(row.variant.sku)}`}
+                            className="font-medium underline-offset-4 hover:underline"
+                          >
+                            {row.variant.product.name}
+                          </Link>
                           <div className="text-xs text-muted-foreground">{row.variant.sku}</div>
                         </TableCell>
                         <TableCell className="text-right">{row.quantity}</TableCell>
@@ -326,7 +339,12 @@ export default function StockReportsPage() {
                           <div className="text-xs text-muted-foreground">{row.warehouse.code}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{row.variant.product.name}</div>
+                          <Link
+                            href={`/admin/scm/stock-cards?warehouseId=${row.warehouse.id}&variantId=${row.variant.id}&search=${encodeURIComponent(row.variant.sku)}`}
+                            className="font-medium underline-offset-4 hover:underline"
+                          >
+                            {row.variant.product.name}
+                          </Link>
                           <div className="text-xs text-muted-foreground">{row.variant.sku}</div>
                         </TableCell>
                         <TableCell className="text-right">{row.quantity}</TableCell>
@@ -375,7 +393,12 @@ export default function StockReportsPage() {
                         <TableCell>
                           {row.warehouse ? (
                             <>
-                              <div className="font-medium">{row.warehouse.name}</div>
+                              <Link
+                                href={`/admin/scm/stock-cards?warehouseId=${row.warehouse.id}`}
+                                className="font-medium underline-offset-4 hover:underline"
+                              >
+                                {row.warehouse.name}
+                              </Link>
                               <div className="text-xs text-muted-foreground">{row.warehouse.code}</div>
                             </>
                           ) : (

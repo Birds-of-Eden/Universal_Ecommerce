@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import ActivityLogSkeleton from "@/components/ui/ActivityLogSkeleton";
 import { RefreshCcw, Search } from "lucide-react";
 
@@ -109,11 +110,12 @@ function getChanges(metadata: Record<string, unknown> | null | undefined): Activ
 }
 
 export default function ActivityLogPage() {
+  const searchParams = useSearchParams();
   const [logs, setLogs] = useState<ActivityLogRow[]>([]);
   const [entities, setEntities] = useState<string[]>([]);
-  const [entity, setEntity] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [entity, setEntity] = useState(searchParams.get("entity") || "");
+  const [searchInput, setSearchInput] = useState(searchParams.get("search") || "");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
@@ -160,6 +162,14 @@ export default function ActivityLogPage() {
   useEffect(() => {
     void loadLogs();
   }, [loadLogs]);
+
+  useEffect(() => {
+    const nextEntity = searchParams.get("entity") || "";
+    const nextSearch = searchParams.get("search") || "";
+    setEntity(nextEntity);
+    setSearchInput(nextSearch);
+    setSearch(nextSearch);
+  }, [searchParams]);
 
   useEffect(() => {
     setPage(1);

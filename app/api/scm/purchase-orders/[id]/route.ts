@@ -16,6 +16,45 @@ import {
   dispatchSupplierPortalEmailNotifications,
 } from "@/lib/supplier-portal-notifications";
 
+const purchaseOrderDetailInclude = {
+  ...purchaseOrderInclude,
+  supplierInvoices: {
+    orderBy: [{ issueDate: "desc" as const }, { id: "desc" as const }],
+    select: {
+      id: true,
+      invoiceNumber: true,
+      status: true,
+      total: true,
+      payments: {
+        orderBy: [{ paymentDate: "desc" as const }, { id: "desc" as const }],
+        select: {
+          id: true,
+          paymentNumber: true,
+          amount: true,
+          paymentDate: true,
+        },
+      },
+    },
+  },
+  paymentRequests: {
+    orderBy: [{ requestedAt: "desc" as const }, { id: "desc" as const }],
+    select: {
+      id: true,
+      prfNumber: true,
+      status: true,
+      amount: true,
+      supplierPayment: {
+        select: {
+          id: true,
+          paymentNumber: true,
+          amount: true,
+          paymentDate: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.PurchaseOrderInclude;
+
 const PURCHASE_ORDER_READ_PERMISSIONS = [
   "purchase_orders.read",
   "purchase_orders.manage",
@@ -216,7 +255,7 @@ export async function GET(
 
     const purchaseOrder = await prisma.purchaseOrder.findUnique({
       where: { id: purchaseOrderId },
-      include: purchaseOrderInclude,
+      include: purchaseOrderDetailInclude,
     });
     if (!purchaseOrder) {
       return NextResponse.json(

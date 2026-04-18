@@ -74,6 +74,14 @@ const adminPagePermissionRules: PermissionRule[] = [
     permissions: ["scm.access"],
   },
   {
+    prefix: "/admin/scm/my-tasks",
+    permissions: ["scm.access"],
+  },
+  {
+    prefix: "/admin/scm/exceptions",
+    permissions: ["scm.access"],
+  },
+  {
     prefix: "/admin/scm/suppliers",
     permissions: ["suppliers.read", "suppliers.manage"],
     globalOnly: true,
@@ -652,6 +660,16 @@ const apiPermissionRules: PermissionRule[] = [
   {
     prefix: "/api/scm/notifications",
     methods: ["GET", "POST", "PATCH", "PUT"],
+    permissions: ["scm.access"],
+  },
+  {
+    prefix: "/api/scm/my-tasks",
+    methods: ["GET"],
+    permissions: ["scm.access"],
+  },
+  {
+    prefix: "/api/scm/exceptions",
+    methods: ["GET"],
     permissions: ["scm.access"],
   },
   {

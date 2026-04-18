@@ -1,13 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
+import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Warehouse = {
@@ -87,16 +90,6 @@ type MaterialRelease = {
   }>;
 };
 
-type ReleaseDraftItem = {
-  materialRequestItemId: number;
-  productName: string;
-  sku: string;
-  quantityRequested: number;
-  quantityReleased: number;
-  remainingQty: number;
-  quantityToRelease: string;
-};
-
 async function readJson<T>(response: Response, fallback: string): Promise<T> {
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -117,6 +110,7 @@ function formatMoney(value: string | number | null | undefined) {
 }
 
 export default function MaterialReleasesPage() {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
@@ -133,35 +127,24 @@ export default function MaterialReleasesPage() {
   const canManage = permissions.includes("material_releases.manage");
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [materialRequests, setMaterialRequests] = useState<MaterialRequest[]>([]);
   const [materialReleases, setMaterialReleases] = useState<MaterialRelease[]>([]);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "ALL");
 
-  const [materialRequestId, setMaterialRequestId] = useState("");
-  const [note, setNote] = useState("");
-  const [challanNumber, setChallanNumber] = useState("");
-  const [waybillNumber, setWaybillNumber] = useState("");
-  const [releaseItems, setReleaseItems] = useState<ReleaseDraftItem[]>([]);
+  useEffect(() => {
+    setSearch(searchParams.get("search") || "");
+    setStatusFilter(searchParams.get("status") || "ALL");
+  }, [searchParams]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [requestData, releaseData] = await Promise.all([
-        fetch("/api/scm/material-requests", { cache: "no-store" }).then((res) =>
-          readJson<MaterialRequest[]>(res, "Failed to load material requests"),
-        ),
-        fetch("/api/scm/material-releases", { cache: "no-store" }).then((res) =>
-          readJson<MaterialRelease[]>(res, "Failed to load material releases"),
-        ),
-      ]);
-
-      setMaterialRequests(Array.isArray(requestData) ? requestData : []);
+      const releaseData = await fetch("/api/scm/material-releases", { cache: "no-store" }).then((res) =>
+        readJson<MaterialRelease[]>(res, "Failed to load material releases"),
+      );
       setMaterialReleases(Array.isArray(releaseData) ? releaseData : []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load material release data");
-      setMaterialRequests([]);
       setMaterialReleases([]);
     } finally {
       setLoading(false);
@@ -173,41 +156,6 @@ export default function MaterialReleasesPage() {
       void loadData();
     }
   }, [canRead]);
-
-  const releasableRequests = useMemo(
-    () =>
-      materialRequests.filter((request) =>
-        ["ADMIN_APPROVED", "PARTIALLY_RELEASED"].includes(request.status),
-      ),
-    [materialRequests],
-  );
-
-  const selectedMaterialRequest = useMemo(
-    () => releasableRequests.find((request) => request.id === Number(materialRequestId)) ?? null,
-    [materialRequestId, releasableRequests],
-  );
-
-  useEffect(() => {
-    if (!selectedMaterialRequest) {
-      setReleaseItems([]);
-      return;
-    }
-
-    const nextItems = selectedMaterialRequest.items.map((item) => {
-      const remainingQty = Math.max(0, item.quantityRequested - item.quantityReleased);
-      return {
-        materialRequestItemId: item.id,
-        productName: item.productVariant.product.name,
-        sku: item.productVariant.sku,
-        quantityRequested: item.quantityRequested,
-        quantityReleased: item.quantityReleased,
-        remainingQty,
-        quantityToRelease: remainingQty > 0 ? String(remainingQty) : "",
-      };
-    });
-
-    setReleaseItems(nextItems);
-  }, [selectedMaterialRequest]);
 
   const visibleReleases = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -224,60 +172,17 @@ export default function MaterialReleasesPage() {
     });
   }, [materialReleases, search, statusFilter]);
 
-  const updateReleaseItem = (index: number, value: string) => {
-    setReleaseItems((current) =>
-      current.map((item, idx) => (idx === index ? { ...item, quantityToRelease: value } : item)),
-    );
-  };
-
-  const createRelease = async () => {
-    if (!selectedMaterialRequest) {
-      toast.error("Material request is required");
-      return;
-    }
-
-    const payloadItems = releaseItems
-      .map((item) => ({
-        materialRequestItemId: item.materialRequestItemId,
-        quantityReleased: Number(item.quantityToRelease),
-      }))
-      .filter(
-        (item) => Number.isInteger(item.quantityReleased) && item.quantityReleased > 0,
-      );
-
-    if (payloadItems.length === 0) {
-      toast.error("No valid release quantity found");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const response = await fetch("/api/scm/material-releases", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          materialRequestId: selectedMaterialRequest.id,
-          note,
-          challanNumber: challanNumber || null,
-          waybillNumber: waybillNumber || null,
-          items: payloadItems,
-        }),
-      });
-
-      await readJson(response, "Failed to issue material release");
-      toast.success("Material release issued");
-      setMaterialRequestId("");
-      setNote("");
-      setChallanNumber("");
-      setWaybillNumber("");
-      setReleaseItems([]);
-      await loadData();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to issue material release");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const summary = useMemo(
+    () => ({
+      total: materialReleases.length,
+      issued: materialReleases.filter((release) => release.status === "ISSUED").length,
+      cancelled: materialReleases.filter((release) => release.status === "CANCELLED").length,
+      assetTagged: materialReleases.filter((release) =>
+        release.items.some((item) => item.assetRegisters.length > 0),
+      ).length,
+    }),
+    [materialReleases],
+  );
 
   if (!canRead) {
     return (
@@ -296,108 +201,35 @@ export default function MaterialReleasesPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Material Releases</h1>
-        <p className="text-sm text-muted-foreground">
-          Issue release notes from approved material requests and post warehouse stock-out.
-        </p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Material Releases</h1>
+          <p className="text-sm text-muted-foreground">
+            Issue release notes from approved material requests and post warehouse stock-out.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {canManage ? (
+            <Button asChild>
+              <Link href="/admin/scm/material-releases/new">
+                <Plus className="mr-2 h-4 w-4" />
+                New Release
+              </Link>
+            </Button>
+          ) : null}
+          <Button variant="outline" onClick={() => void loadData()} disabled={loading}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      {canManage ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Issue Material Release</CardTitle>
-            <CardDescription>
-              Select an admin-approved request, define release quantities, and generate challan/waybill.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="space-y-2 xl:col-span-2">
-                <Label>Material Request</Label>
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  value={materialRequestId}
-                  onChange={(event) => setMaterialRequestId(event.target.value)}
-                >
-                  <option value="">Select request</option>
-                  {releasableRequests.map((request) => (
-                    <option key={request.id} value={request.id}>
-                      {request.requestNumber} - {request.warehouse.name} ({request.status})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Challan No (optional)</Label>
-                <Input
-                  value={challanNumber}
-                  onChange={(event) => setChallanNumber(event.target.value)}
-                  placeholder="Auto if empty"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Waybill No (optional)</Label>
-                <Input
-                  value={waybillNumber}
-                  onChange={(event) => setWaybillNumber(event.target.value)}
-                  placeholder="Auto if empty"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Note</Label>
-              <Input value={note} onChange={(event) => setNote(event.target.value)} />
-            </div>
-
-            {selectedMaterialRequest ? (
-              <div className="rounded-lg border">
-                <div className="border-b px-4 py-3 text-sm text-muted-foreground">
-                  Request: {selectedMaterialRequest.requestNumber} | Warehouse: {selectedMaterialRequest.warehouse.name} | Required By: {formatDateTime(selectedMaterialRequest.requiredBy)}
-                </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Requested</TableHead>
-                      <TableHead>Released</TableHead>
-                      <TableHead>Remaining</TableHead>
-                      <TableHead>Release Qty</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {releaseItems.map((item, index) => (
-                      <TableRow key={item.materialRequestItemId}>
-                        <TableCell>
-                          <div className="font-medium">{item.productName}</div>
-                          <div className="text-xs text-muted-foreground">{item.sku}</div>
-                        </TableCell>
-                        <TableCell>{item.quantityRequested}</TableCell>
-                        <TableCell>{item.quantityReleased}</TableCell>
-                        <TableCell>{item.remainingQty}</TableCell>
-                        <TableCell className="w-40">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={item.remainingQty}
-                            value={item.quantityToRelease}
-                            onChange={(event) => updateReleaseItem(index, event.target.value)}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : null}
-
-            <Button onClick={() => void createRelease()} disabled={saving}>
-              {saving ? "Issuing..." : "Issue Release"}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ScmStatCard label="Total" value={String(summary.total)} hint="Visible release notes" />
+        <ScmStatCard label="Issued" value={String(summary.issued)} hint="Completed warehouse stock-out" />
+        <ScmStatCard label="Cancelled" value={String(summary.cancelled)} hint="Release notes voided before use" />
+        <ScmStatCard label="Asset Tagged" value={String(summary.assetTagged)} hint="Releases that generated asset tags" />
+      </div>
 
       <Card>
         <CardHeader>
@@ -446,7 +278,7 @@ export default function MaterialReleasesPage() {
 
                 return (
                   <Card key={release.id}>
-                    <CardHeader className="gap-3">
+                  <CardHeader className="gap-3">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <CardTitle className="text-lg">{release.releaseNumber}</CardTitle>
@@ -454,8 +286,11 @@ export default function MaterialReleasesPage() {
                             Request {release.materialRequest.requestNumber} | {release.warehouse.name}
                           </CardDescription>
                         </div>
-                        <div className="rounded-full border px-3 py-1 text-xs font-medium">
-                          {release.status}
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`/admin/scm/material-releases/${release.id}`}>Open Detail</Link>
+                          </Button>
+                          <ScmStatusChip status={release.status} />
                         </div>
                       </div>
                       <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">

@@ -149,10 +149,98 @@ async function resolveSupplierPortalRecipients(
 const paymentRequestInclude = {
   supplier: { select: { id: true, name: true, code: true, currency: true } },
   warehouse: { select: { id: true, name: true, code: true } },
-  purchaseOrder: { select: { id: true, poNumber: true, supplierId: true } },
-  comparativeStatement: { select: { id: true, csNumber: true } },
-  goodsReceipt: { select: { id: true, receiptNumber: true } },
-  supplierInvoice: { select: { id: true, invoiceNumber: true, total: true, status: true } },
+  purchaseOrder: {
+    select: {
+      id: true,
+      poNumber: true,
+      supplierId: true,
+      purchaseRequisition: {
+        select: {
+          id: true,
+          requisitionNumber: true,
+          status: true,
+        },
+      },
+      sourceComparativeStatement: {
+        select: {
+          id: true,
+          csNumber: true,
+          status: true,
+          rfq: {
+            select: {
+              id: true,
+              rfqNumber: true,
+              status: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  comparativeStatement: {
+    select: {
+      id: true,
+      csNumber: true,
+      status: true,
+      rfq: {
+        select: {
+          id: true,
+          rfqNumber: true,
+          status: true,
+          purchaseRequisition: {
+            select: {
+              id: true,
+              requisitionNumber: true,
+              status: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  goodsReceipt: {
+    select: {
+      id: true,
+      receiptNumber: true,
+      status: true,
+      purchaseOrderId: true,
+    },
+  },
+  supplierInvoice: {
+    select: {
+      id: true,
+      invoiceNumber: true,
+      total: true,
+      status: true,
+      purchaseOrder: {
+        select: {
+          id: true,
+          poNumber: true,
+          purchaseRequisition: {
+            select: {
+              id: true,
+              requisitionNumber: true,
+              status: true,
+            },
+          },
+          sourceComparativeStatement: {
+            select: {
+              id: true,
+              csNumber: true,
+              status: true,
+              rfq: {
+                select: {
+                  id: true,
+                  rfqNumber: true,
+                  status: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
   supplierPayment: { select: { id: true, paymentNumber: true, paymentDate: true, amount: true } },
   createdBy: { select: { id: true, name: true, email: true } },
   managerApprovedBy: { select: { id: true, name: true, email: true } },

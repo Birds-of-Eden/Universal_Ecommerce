@@ -16,6 +16,56 @@ import {
   toRfqLogSnapshot,
 } from "@/lib/scm";
 
+const rfqDetailInclude = {
+  ...rfqInclude,
+  comparativeStatements: {
+    orderBy: [{ id: "desc" as const }],
+    select: {
+      id: true,
+      csNumber: true,
+      status: true,
+      generatedPurchaseOrder: {
+        select: {
+          id: true,
+          poNumber: true,
+          status: true,
+          goodsReceipts: {
+            orderBy: [{ receivedAt: "desc" as const }],
+            select: {
+              id: true,
+              receiptNumber: true,
+              status: true,
+            },
+          },
+          supplierInvoices: {
+            orderBy: [{ issueDate: "desc" as const }, { id: "desc" as const }],
+            select: {
+              id: true,
+              invoiceNumber: true,
+              status: true,
+            },
+          },
+          paymentRequests: {
+            orderBy: [{ requestedAt: "desc" as const }, { id: "desc" as const }],
+            select: {
+              id: true,
+              prfNumber: true,
+              status: true,
+              supplierPayment: {
+                select: {
+                  id: true,
+                  paymentNumber: true,
+                  amount: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.RfqInclude;
+
 const RFQ_READ_PERMISSIONS = ["rfq.read", "rfq.manage", "rfq.approve"] as const;
 
 function cleanText(value: unknown, max = 500) {
@@ -167,7 +217,7 @@ export async function GET(
 
     const rfq = await prisma.rfq.findUnique({
       where: { id: rfqId },
-      include: rfqInclude,
+      include: rfqDetailInclude,
     });
     if (!rfq) {
       return NextResponse.json({ error: "RFQ not found." }, { status: 404 });

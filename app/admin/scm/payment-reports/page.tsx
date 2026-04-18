@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
@@ -47,6 +49,7 @@ function fmtDate(value: Date) {
 }
 
 export default function PaymentReportsPage() {
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
@@ -57,7 +60,7 @@ export default function PaymentReportsPage() {
     permissions.includes("supplier_payments.manage");
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [supplierId, setSupplierId] = useState("");
+  const [supplierId, setSupplierId] = useState(searchParams.get("supplierId") || "");
   const [from, setFrom] = useState(() => {
     const date = new Date();
     date.setDate(date.getDate() - 29);
@@ -94,6 +97,10 @@ export default function PaymentReportsPage() {
   useEffect(() => {
     void loadSuppliers();
   }, []);
+
+  useEffect(() => {
+    setSupplierId(searchParams.get("supplierId") || "");
+  }, [searchParams]);
 
   useEffect(() => {
     void loadReport();
@@ -210,7 +217,12 @@ export default function PaymentReportsPage() {
                 report.summary.map((row) => (
                   <TableRow key={row.supplier.id}>
                     <TableCell>
-                      <div className="font-medium">{row.supplier.name}</div>
+                      <Link
+                        href={`/admin/scm/payment-reports?supplierId=${row.supplier.id}`}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {row.supplier.name}
+                      </Link>
                       <div className="text-xs text-muted-foreground">{row.supplier.code}</div>
                     </TableCell>
                     <TableCell className="text-right">{row.paymentCount}</TableCell>
@@ -251,14 +263,35 @@ export default function PaymentReportsPage() {
                 report.rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>
-                      <div className="font-medium">{row.paymentNumber}</div>
+                      <Link
+                        href={`/admin/scm/payment-requests?search=${encodeURIComponent(row.paymentNumber)}`}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {row.paymentNumber}
+                      </Link>
                       <div className="text-xs text-muted-foreground">{row.reference ?? "N/A"}</div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">{row.supplier.name}</div>
+                      <Link
+                        href={`/admin/scm/payment-requests?search=${encodeURIComponent(row.supplier.name)}`}
+                        className="font-medium underline-offset-4 hover:underline"
+                      >
+                        {row.supplier.name}
+                      </Link>
                       <div className="text-xs text-muted-foreground">{row.supplier.code}</div>
                     </TableCell>
-                    <TableCell>{row.supplierInvoice?.invoiceNumber ?? "N/A"}</TableCell>
+                    <TableCell>
+                      {row.supplierInvoice?.invoiceNumber ? (
+                        <Link
+                          href={`/admin/scm/payment-requests?search=${encodeURIComponent(row.supplierInvoice.invoiceNumber)}`}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {row.supplierInvoice.invoiceNumber}
+                        </Link>
+                      ) : (
+                        "N/A"
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs uppercase">{row.method.replaceAll("_", " ")}</TableCell>
                     <TableCell className="text-right">
                       {Number(row.amount).toFixed(2)} {row.currency}
