@@ -176,6 +176,11 @@ const menuItems: MenuItem[] = [
         ],
       },
       {
+        name: "Notifications",
+        href: "/admin/scm/notifications",
+        requiredPermissions: ["scm.access"],
+      },
+      {
         name: "Suppliers",
         href: "/admin/scm/suppliers",
         requiredGlobalPermissions: ["suppliers.read", "suppliers.manage"],

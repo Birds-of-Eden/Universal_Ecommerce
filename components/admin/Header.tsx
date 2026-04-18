@@ -10,7 +10,7 @@ import {
   Moon,
   Sun,
   Check,
-  Image as ImageIcon,
+  Bell,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import Link from "next/link";
@@ -34,6 +34,19 @@ const THEME_OPTIONS = [
   { value: "rose", label: "Rose" },
 ] as const;
 
+type ScmNotificationPreview = {
+  id: number;
+  type: string;
+  title: string;
+  href: string;
+  readAt: string | null;
+};
+
+type ScmNotificationsResponse = {
+  unreadCount: number;
+  rows: ScmNotificationPreview[];
+};
+
 export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const { data: session } = useSession();
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -41,6 +54,9 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const [mounted, setMounted] = useState(false);
   const [siteSettings, setSiteSettings] = useState<any>(null);
   const [loadingSite, setLoadingSite] = useState(true);
+  const [scmNotifications, setScmNotifications] =
+    useState<ScmNotificationsResponse | null>(null);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   // Avoid hydration mismatch
   useEffect(() => {
@@ -64,6 +80,57 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     fetchSiteSettings();
   }, []);
 
+  const permissionKeys = Array.isArray((session?.user as any)?.permissions)
+    ? (((session?.user as any).permissions as string[]) ?? [])
+    : [];
+  const canViewScmNotifications = permissionKeys.includes("scm.access");
+
+  useEffect(() => {
+    if (!canViewScmNotifications) {
+      setScmNotifications(null);
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    const fetchNotifications = async () => {
+      try {
+        setLoadingNotifications(true);
+        const response = await fetch("/api/scm/notifications?limit=5", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to load notifications.");
+        }
+        if (active) {
+          setScmNotifications(payload as ScmNotificationsResponse);
+        }
+      } catch (error: any) {
+        if (active && error?.name !== "AbortError") {
+          console.error("Failed to load SCM notification preview:", error);
+        }
+      } finally {
+        if (active) {
+          setLoadingNotifications(false);
+        }
+      }
+    };
+
+    void fetchNotifications();
+    const interval = window.setInterval(() => {
+      void fetchNotifications();
+    }, 60000);
+
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [canViewScmNotifications]);
+
   const handleLogout = async () => {
     setIsPending(true);
     try {
@@ -84,6 +151,8 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     ((session?.user as any).roleNames as string[]).length > 0
       ? ((session?.user as any).roleNames as string[]).join(", ")
       : (session?.user as any)?.role || "admin";
+
+  const unreadNotificationCount = scmNotifications?.unreadCount ?? 0;
 
   return (
     <header className="w-full h-20 bg-background border-border border-b flex items-center justify-between px-4 sm:px-6 sticky top-0 z-20 shadow-sm">
@@ -174,6 +243,72 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+
+        {canViewScmNotifications ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative rounded-full bg-muted hover:bg-primary/80 text-foreground"
+                title="SCM notifications"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadNotificationCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-destructive px-1 text-[10px] font-semibold leading-5 text-destructive-foreground">
+                    {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                  </span>
+                ) : null}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <div className="flex items-center justify-between px-2 py-1.5">
+                <div>
+                  <p className="text-sm font-semibold">SCM Notifications</p>
+                  <p className="text-xs text-muted-foreground">
+                    {loadingNotifications
+                      ? "Loading..."
+                      : `${unreadNotificationCount} unread`}
+                  </p>
+                </div>
+                <Link
+                  href="/admin/scm/notifications"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  View all
+                </Link>
+              </div>
+              <div className="max-h-80 space-y-1 overflow-y-auto px-1 py-1">
+                {!scmNotifications || scmNotifications.rows.length === 0 ? (
+                  <div className="px-2 py-3 text-sm text-muted-foreground">
+                    No SCM notifications.
+                  </div>
+                ) : (
+                  scmNotifications.rows.map((row) => (
+                    <DropdownMenuItem key={`${row.type}-${row.id}`} asChild>
+                      <Link
+                        href={row.href}
+                        className="flex flex-col items-start gap-1 whitespace-normal rounded-md px-2 py-2"
+                      >
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <span className="text-sm font-medium leading-tight">
+                            {row.title}
+                          </span>
+                          {!row.readAt ? (
+                            <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                          ) : null}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {row.type}
+                        </span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
 
         {/* View Site Link */}
         <Link

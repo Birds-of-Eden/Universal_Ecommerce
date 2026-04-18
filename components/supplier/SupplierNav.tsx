@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,43 @@ const navItems = [
 export default function SupplierNav({ supplierName, supplierCode }: SupplierNavProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
+
+    const loadUnread = async () => {
+      try {
+        const response = await fetch("/api/supplier/notifications?unreadOnly=true", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to load notifications.");
+        }
+        if (active) {
+          setUnreadCount(Number(payload?.unreadCount || 0));
+        }
+      } catch (error: any) {
+        if (error?.name !== "AbortError") {
+          console.error("Failed to load supplier notification badge:", error);
+        }
+      }
+    };
+
+    void loadUnread();
+    const interval = window.setInterval(() => {
+      void loadUnread();
+    }, 60000);
+
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, []);
 
   return (
     <aside className="w-72 border-r border-border bg-card/70 backdrop-blur">
@@ -63,7 +101,12 @@ export default function SupplierNav({ supplierName, supplierCode }: SupplierNavP
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                {item.href === "/supplier/notifications" && unreadCount > 0 ? (
+                  <span className="rounded-full bg-destructive px-2 py-0.5 text-[10px] font-semibold text-destructive-foreground">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

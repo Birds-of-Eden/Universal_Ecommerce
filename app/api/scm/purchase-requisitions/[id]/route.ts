@@ -14,6 +14,7 @@ import {
   toPurchaseOrderLogSnapshot,
   toPurchaseRequisitionLogSnapshot,
 } from "@/lib/scm";
+import { dispatchPurchaseRequisitionEmailNotifications } from "@/lib/purchase-requisition-notifications";
 
 const PURCHASE_REQUISITION_READ_PERMISSIONS = [
   "purchase_requisitions.read",
@@ -192,7 +193,7 @@ async function createWorkflowNotifications(
     explicitUserIds?: string[];
     metadata?: Prisma.InputJsonValue;
   },
-) {
+): Promise<number[]> {
   const permissionRecipients = await resolveUsersByPermission(
     tx,
     input.recipientPermissionKeys ?? [],
@@ -209,10 +210,11 @@ async function createWorkflowNotifications(
   for (const user of [...permissionRecipients, ...explicitRecipients]) {
     recipientMap.set(user.id, user);
   }
-  if (recipientMap.size === 0) return;
+  if (recipientMap.size === 0) return [];
 
   const now = new Date();
   const records: Prisma.PurchaseRequisitionNotificationCreateManyInput[] = [];
+  const emailTargets: Array<{ userId: string; email: string }> = [];
   for (const recipient of recipientMap.values()) {
     records.push({
       purchaseRequisitionId: input.requisitionId,
@@ -235,8 +237,29 @@ async function createWorkflowNotifications(
       message: input.message,
       metadata: input.metadata,
     });
+    emailTargets.push({ userId: recipient.id, email: recipient.email });
   }
   await tx.purchaseRequisitionNotification.createMany({ data: records });
+
+  if (emailTargets.length === 0) {
+    return [];
+  }
+
+  const createdEmails = await tx.purchaseRequisitionNotification.findMany({
+    where: {
+      purchaseRequisitionId: input.requisitionId,
+      stage: input.stage,
+      channel: "EMAIL",
+      status: "PENDING",
+      recipientUserId: { in: emailTargets.map((item) => item.userId) },
+      recipientEmail: { in: emailTargets.map((item) => item.email) },
+    },
+    select: { id: true },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: emailTargets.length,
+  });
+
+  return createdEmails.map((row) => row.id);
 }
 
 export async function GET(
@@ -489,7 +512,7 @@ export async function PATCH(
           access.userId,
         );
 
-        await createWorkflowNotifications(tx, {
+        const emailNotificationIds = await createWorkflowNotifications(tx, {
           requisitionId: next.id,
           stage: "SUBMISSION",
           warehouseId: next.warehouseId,
@@ -502,23 +525,25 @@ export async function PATCH(
           },
         });
 
-        return next;
+        return { next, emailNotificationIds };
       });
 
       await logActivity({
         action: "submit",
         entity: "purchase_requisition",
-        entityId: updated.id,
+        entityId: updated.next.id,
         access,
         request,
         metadata: {
-          message: `Submitted purchase requisition ${updated.requisitionNumber}`,
+          message: `Submitted purchase requisition ${updated.next.requisitionNumber}`,
         },
         before,
-        after: toPurchaseRequisitionLogSnapshot(updated),
+        after: toPurchaseRequisitionLogSnapshot(updated.next),
       });
 
-      return NextResponse.json(updated);
+      void dispatchPurchaseRequisitionEmailNotifications(updated.emailNotificationIds);
+
+      return NextResponse.json(updated.next);
     }
 
     if (normalizedAction === "budget_clear") {
@@ -562,7 +587,7 @@ export async function PATCH(
           access.userId,
         );
 
-        await createWorkflowNotifications(tx, {
+        const emailNotificationIds = await createWorkflowNotifications(tx, {
           requisitionId: next.id,
           stage: "BUDGET_CLEARANCE",
           warehouseId: next.warehouseId,
@@ -575,23 +600,25 @@ export async function PATCH(
           },
         });
 
-        return next;
+        return { next, emailNotificationIds };
       });
 
       await logActivity({
         action: "budget_clear",
         entity: "purchase_requisition",
-        entityId: updated.id,
+        entityId: updated.next.id,
         access,
         request,
         metadata: {
-          message: `Budget cleared purchase requisition ${updated.requisitionNumber}`,
+          message: `Budget cleared purchase requisition ${updated.next.requisitionNumber}`,
         },
         before,
-        after: toPurchaseRequisitionLogSnapshot(updated),
+        after: toPurchaseRequisitionLogSnapshot(updated.next),
       });
 
-      return NextResponse.json(updated);
+      void dispatchPurchaseRequisitionEmailNotifications(updated.emailNotificationIds);
+
+      return NextResponse.json(updated.next);
     }
 
     if (normalizedAction === "endorse") {
@@ -657,8 +684,9 @@ export async function PATCH(
           access.userId,
         );
 
+        let emailNotificationIds: number[] = [];
         if (reachedRequiredEndorsements) {
-          await createWorkflowNotifications(tx, {
+          emailNotificationIds = await createWorkflowNotifications(tx, {
             requisitionId: next.id,
             stage: "ENDORSEMENT",
             warehouseId: next.warehouseId,
@@ -674,7 +702,7 @@ export async function PATCH(
           });
         }
 
-        return { next, endorsementCount, reachedRequiredEndorsements };
+        return { next, endorsementCount, reachedRequiredEndorsements, emailNotificationIds };
       });
 
       await logActivity({
@@ -692,6 +720,8 @@ export async function PATCH(
         before,
         after: toPurchaseRequisitionLogSnapshot(updated.next),
       });
+
+      void dispatchPurchaseRequisitionEmailNotifications(updated.emailNotificationIds);
 
       return NextResponse.json({
         ...updated.next,
@@ -760,7 +790,7 @@ export async function PATCH(
           access.userId,
         );
 
-        await createWorkflowNotifications(tx, {
+        const emailNotificationIds = await createWorkflowNotifications(tx, {
           requisitionId: next.id,
           stage: "ROUTED_TO_PROCUREMENT",
           warehouseId: next.warehouseId,
@@ -775,25 +805,27 @@ export async function PATCH(
           },
         });
 
-        return next;
+        return { next, emailNotificationIds };
       });
 
       await logActivity({
         action: "approve",
         entity: "purchase_requisition",
-        entityId: updated.id,
+        entityId: updated.next.id,
         access,
         request,
         metadata: {
-          message: `Final-approved purchase requisition ${updated.requisitionNumber}`,
-          routedToProcurementAt: updated.routedToProcurementAt?.toISOString() ?? null,
-          assignedProcurementOfficerId: updated.assignedProcurementOfficerId ?? null,
+          message: `Final-approved purchase requisition ${updated.next.requisitionNumber}`,
+          routedToProcurementAt: updated.next.routedToProcurementAt?.toISOString() ?? null,
+          assignedProcurementOfficerId: updated.next.assignedProcurementOfficerId ?? null,
         },
         before,
-        after: toPurchaseRequisitionLogSnapshot(updated),
+        after: toPurchaseRequisitionLogSnapshot(updated.next),
       });
 
-      return NextResponse.json(updated);
+      void dispatchPurchaseRequisitionEmailNotifications(updated.emailNotificationIds);
+
+      return NextResponse.json(updated.next);
     }
 
     if (normalizedAction === "reject") {
@@ -840,7 +872,7 @@ export async function PATCH(
           access.userId,
         );
 
-        await createWorkflowNotifications(tx, {
+        const emailNotificationIds = await createWorkflowNotifications(tx, {
           requisitionId: next.id,
           stage: "REJECTION",
           warehouseId: next.warehouseId,
@@ -852,23 +884,25 @@ export async function PATCH(
           },
         });
 
-        return next;
+        return { next, emailNotificationIds };
       });
 
       await logActivity({
         action: "reject",
         entity: "purchase_requisition",
-        entityId: updated.id,
+        entityId: updated.next.id,
         access,
         request,
         metadata: {
-          message: `Rejected purchase requisition ${updated.requisitionNumber}`,
+          message: `Rejected purchase requisition ${updated.next.requisitionNumber}`,
         },
         before,
-        after: toPurchaseRequisitionLogSnapshot(updated),
+        after: toPurchaseRequisitionLogSnapshot(updated.next),
       });
 
-      return NextResponse.json(updated);
+      void dispatchPurchaseRequisitionEmailNotifications(updated.emailNotificationIds);
+
+      return NextResponse.json(updated.next);
     }
 
     if (normalizedAction === "cancel") {

@@ -1348,6 +1348,7 @@ model PurchaseRequisitionNotification {
   recipientEmail        String?
   message               String
   sentAt                DateTime?
+  readAt                DateTime?
   createdAt             DateTime                         @default(now())
   metadata              Json?
   purchaseRequisition   PurchaseRequisition              @relation(fields: [purchaseRequisitionId], references: [id], onDelete: Cascade)
@@ -1355,6 +1356,7 @@ model PurchaseRequisitionNotification {
 
   @@index([purchaseRequisitionId, stage, createdAt])
   @@index([recipientUserId])
+  @@index([recipientUserId, readAt])
   @@index([status, channel])
 }
 
@@ -2405,12 +2407,14 @@ model ComparativeStatementNotification {
   message                String
   metadata               Json?
   sentAt                 DateTime?
+  readAt                 DateTime?
   createdAt              DateTime                          @default(now())
   comparativeStatement   ComparativeStatement              @relation(fields: [comparativeStatementId], references: [id], onDelete: Cascade)
   recipientUser          User?                             @relation("ComparativeStatementNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
 
   @@index([comparativeStatementId, stage, createdAt])
   @@index([recipientUserId])
+  @@index([recipientUserId, readAt])
   @@index([status, channel])
 }
 
@@ -2534,12 +2538,14 @@ model PurchaseOrderNotification {
   message         String
   metadata        Json?
   sentAt          DateTime?
+  readAt          DateTime?
   createdAt       DateTime                    @default(now())
   purchaseOrder   PurchaseOrder               @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   recipientUser   User?                       @relation("PurchaseOrderNotificationsReceived", fields: [recipientUserId], references: [id], onDelete: SetNull)
 
   @@index([purchaseOrderId, stage, createdAt])
   @@index([recipientUserId])
+  @@index([recipientUserId, readAt])
   @@index([status, channel])
 }
 
@@ -2859,6 +2865,7 @@ model PaymentRequestNotification {
   message          String
   metadata         Json?
   sentAt           DateTime?
+  readAt           DateTime?
   createdAt        DateTime                       @default(now())
   createdById      String?
   paymentRequest   PaymentRequest                 @relation(fields: [paymentRequestId], references: [id], onDelete: Cascade)
@@ -2867,6 +2874,7 @@ model PaymentRequestNotification {
 
   @@index([paymentRequestId, stage, createdAt])
   @@index([recipientUserId])
+  @@index([recipientUserId, readAt])
   @@index([status, channel])
   @@index([createdById])
 }

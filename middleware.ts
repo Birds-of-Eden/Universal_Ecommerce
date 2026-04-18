@@ -70,6 +70,10 @@ const adminPagePermissionRules: PermissionRule[] = [
     ],
   },
   {
+    prefix: "/admin/scm/notifications",
+    permissions: ["scm.access"],
+  },
+  {
     prefix: "/admin/scm/suppliers",
     permissions: ["suppliers.read", "suppliers.manage"],
     globalOnly: true,
@@ -644,6 +648,11 @@ const apiPermissionRules: PermissionRule[] = [
       "supplier_ledger.read",
       "three_way_match.read",
     ],
+  },
+  {
+    prefix: "/api/scm/notifications",
+    methods: ["GET", "POST", "PATCH", "PUT"],
+    permissions: ["scm.access"],
   },
   {
     prefix: "/api/scm/reports/export",
