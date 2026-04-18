@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ScmSectionHeader } from "@/components/admin/scm/ScmSectionHeader";
 import { ScmDocumentLifecycle } from "@/components/admin/scm/ScmDocumentLifecycle";
+import { ScmNextStepPanel } from "@/components/admin/scm/ScmNextStepPanel";
 import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
 import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 
@@ -411,24 +411,24 @@ export default function RfqDetailPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ScmStatCard
-          title="Warehouse"
+          label="Warehouse"
           value={rfq.warehouse.name}
-          helperText={rfq.warehouse.code}
+          hint={rfq.warehouse.code}
         />
         <ScmStatCard
-          title="Submission Deadline"
+          label="Submission Deadline"
           value={rfq.submissionDeadline ? new Date(rfq.submissionDeadline).toLocaleDateString() : "-"}
-          helperText={`Requested ${new Date(rfq.requestedAt).toLocaleDateString()}`}
+          hint={`Requested ${new Date(rfq.requestedAt).toLocaleDateString()}`}
         />
         <ScmStatCard
-          title="Invites / Quotes"
+          label="Invites / Quotes"
           value={`${rfq.supplierInvites.length} / ${rfq.quotationSubmissionCount ?? rfq.quotations.length}`}
-          helperText={`Round ${rfq.resubmissionRound ?? 0}`}
+          hint={`Round ${rfq.resubmissionRound ?? 0}`}
         />
         <ScmStatCard
-          title="Award"
+          label="Award"
           value={rfq.award?.supplier.name || "Pending"}
-          helperText={rfq.award?.purchaseOrderId ? "PO already created" : "No PO linked"}
+          hint={rfq.award?.purchaseOrderId ? "PO already created" : "No PO linked"}
         />
       </div>
 
@@ -455,7 +455,7 @@ export default function RfqDetailPage() {
           </Card>
 
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="justify-start">
+            <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
               <TabsTrigger value="proposals">Proposals</TabsTrigger>
@@ -848,39 +848,25 @@ export default function RfqDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Next Action</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ScmSectionHeader
-                title={rfq.status}
-                subtitle="This panel keeps RFQ workflow actions on the document instead of spreading them across the register."
-              />
-              <div className="space-y-2">
-                {canManage && rfq.status === "DRAFT" ? (
-                  <Button className="w-full justify-start" variant="outline" onClick={() => void patchAction("submit")} disabled={saving}>
-                    Submit RFQ
-                  </Button>
-                ) : null}
-                {canManage && ["SUBMITTED", "AWARDED"].includes(rfq.status) ? (
-                  <Button className="w-full justify-start" variant="outline" onClick={() => void patchAction("close")} disabled={saving}>
-                    Close RFQ
-                  </Button>
-                ) : null}
-                {canManage && ["DRAFT", "SUBMITTED", "CLOSED"].includes(rfq.status) ? (
-                  <Button className="w-full justify-start" variant="outline" onClick={() => void patchAction("cancel")} disabled={saving}>
-                    Cancel RFQ
-                  </Button>
-                ) : null}
-                {canConvertPo && rfq.status === "AWARDED" && rfq.award && !rfq.award.purchaseOrderId ? (
-                  <Button className="w-full justify-start" onClick={() => void patchAction("convert_to_po")} disabled={saving}>
-                    Convert Award To PO
-                  </Button>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
+          <ScmNextStepPanel
+            title={rfq.status}
+            subtitle="This panel keeps RFQ workflow actions on the document instead of spreading them across the register."
+            emptyMessage="No direct workflow action is available for your current permissions."
+            actions={[
+              ...(canManage && rfq.status === "DRAFT"
+                ? [{ key: "submit", label: "Submit RFQ", variant: "outline" as const, disabled: saving, onClick: () => void patchAction("submit") }]
+                : []),
+              ...(canManage && ["SUBMITTED", "AWARDED"].includes(rfq.status)
+                ? [{ key: "close", label: "Close RFQ", variant: "outline" as const, disabled: saving, onClick: () => void patchAction("close") }]
+                : []),
+              ...(canManage && ["DRAFT", "SUBMITTED", "CLOSED"].includes(rfq.status)
+                ? [{ key: "cancel", label: "Cancel RFQ", variant: "outline" as const, disabled: saving, onClick: () => void patchAction("cancel") }]
+                : []),
+              ...(canConvertPo && rfq.status === "AWARDED" && rfq.award && !rfq.award.purchaseOrderId
+                ? [{ key: "convert_to_po", label: "Convert Award To PO", disabled: saving, onClick: () => void patchAction("convert_to_po") }]
+                : []),
+            ]}
+          />
         </div>
       </div>
     </div>

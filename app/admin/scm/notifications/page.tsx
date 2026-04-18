@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
 
 type NotificationRow = {
   id: number;
@@ -61,6 +63,8 @@ export default function ScmNotificationsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [processingQueue, setProcessingQueue] = useState(false);
   const [retryingQueue, setRetryingQueue] = useState(false);
+  const [search, setSearch] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("ALL");
 
   const load = async (nextUnreadOnly = unreadOnly) => {
     try {
@@ -155,6 +159,41 @@ export default function ScmNotificationsPage() {
     }
   };
 
+  const moduleOptions = useMemo(() => {
+    if (!data) return [];
+    return data.health.modules
+      .map((module) => ({
+        value: module.key,
+        label: module.label,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }, [data]);
+
+  const visibleRows = useMemo(() => {
+    if (!data) return [];
+    const query = search.trim().toLowerCase();
+    return data.rows.filter((row) => {
+      if (moduleFilter !== "ALL" && row.type !== moduleFilter) return false;
+      if (!query) return true;
+      return (
+        row.title.toLowerCase().includes(query) ||
+        row.message.toLowerCase().includes(query) ||
+        row.entityNumber.toLowerCase().includes(query) ||
+        row.stage.toLowerCase().includes(query)
+      );
+    });
+  }, [data, moduleFilter, search]);
+
+  const needsActionRows = useMemo(
+    () => visibleRows.filter((row) => !row.readAt),
+    [visibleRows],
+  );
+
+  const recentUpdateRows = useMemo(
+    () => visibleRows.filter((row) => Boolean(row.readAt)),
+    [visibleRows],
+  );
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -203,12 +242,53 @@ export default function ScmNotificationsPage() {
 
       {!loading && !error && data ? (
         <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <ScmStatCard
+              label="Unread"
+              value={String(data.unreadCount)}
+              hint="Needs your attention"
+              tone={data.unreadCount > 0 ? "warning" : "default"}
+            />
+            <ScmStatCard
+              label="Visible Rows"
+              value={String(visibleRows.length)}
+              hint="After local filter/search"
+            />
+            <ScmStatCard
+              label="Failed Emails"
+              value={String(data.health.recentFailures.length)}
+              hint="Delivery issues in queue"
+              tone={data.health.recentFailures.length > 0 ? "critical" : "default"}
+            />
+            <ScmStatCard
+              label="Modules"
+              value={String(data.health.modules.length)}
+              hint="Notification-producing SCM areas"
+            />
+          </div>
+
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Inbox Summary</CardTitle>
+              <CardTitle className="text-base">Inbox Controls</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm">
-              Unread notifications: <span className="font-semibold">{data.unreadCount}</span>
+            <CardContent className="grid gap-3 md:grid-cols-[minmax(0,1fr)_260px]">
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search title, message, entity number, stage..."
+              />
+              <select
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                value={moduleFilter}
+                onChange={(event) => setModuleFilter(event.target.value)}
+              >
+                <option value="ALL">All modules</option>
+                {moduleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </CardContent>
           </Card>
 
@@ -242,7 +322,7 @@ export default function ScmNotificationsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Recent Delivery Failures</CardTitle>
+              <CardTitle className="text-base">System Alerts</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {data.health.recentFailures.length === 0 ? (
@@ -273,45 +353,98 @@ export default function ScmNotificationsPage() {
           </Card>
 
           <div className="space-y-3">
-            {data.rows.length === 0 ? (
+            {visibleRows.length === 0 ? (
               <Card>
                 <CardContent className="py-6 text-sm text-muted-foreground">
                   No SCM notifications found.
                 </CardContent>
               </Card>
             ) : (
-              data.rows.map((row) => (
-                <Card key={`${row.type}-${row.id}`}>
+              <>
+                <Card>
                   <CardHeader>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <CardTitle className="text-base">{row.title}</CardTitle>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline">{row.type}</Badge>
-                        {row.readAt ? <Badge variant="outline">READ</Badge> : <Badge>UNREAD</Badge>}
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Created: {fmtDate(row.createdAt)} | Stage: {row.stage}
-                    </p>
+                    <CardTitle className="text-base">Needs Action</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <p className="text-sm">{row.message}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Sent: {fmtDate(row.sentAt)} | Read: {fmtDate(row.readAt)}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={row.href}>Open Module</Link>
-                      </Button>
-                      {!row.readAt ? (
-                        <Button size="sm" variant="outline" onClick={() => void markRead(row)}>
-                          Mark Read
-                        </Button>
-                      ) : null}
-                    </div>
+                    {needsActionRows.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No unread workflow alerts in the current filter.
+                      </p>
+                    ) : (
+                      needsActionRows.map((row) => (
+                        <Card key={`${row.type}-${row.id}`} className="border-amber-200 bg-amber-50/40 shadow-none">
+                          <CardHeader>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <CardTitle className="text-base">{row.title}</CardTitle>
+                              <div className="flex flex-wrap gap-2">
+                                <Badge variant="outline">{row.type}</Badge>
+                                <Badge>{row.stage}</Badge>
+                                <Badge variant="secondary">UNREAD</Badge>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Entity: {row.entityNumber || "N/A"} | Created: {fmtDate(row.createdAt)}
+                            </p>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <p className="text-sm">{row.message}</p>
+                            <div className="flex flex-wrap gap-2">
+                              <Button asChild size="sm">
+                                <Link href={row.href}>Open Workflow</Link>
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => void markRead(row)}>
+                                Mark Read
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
                   </CardContent>
                 </Card>
-              ))
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Recent Updates</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {recentUpdateRows.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No read updates in the current filter.
+                      </p>
+                    ) : (
+                      recentUpdateRows.map((row) => (
+                        <Card key={`${row.type}-${row.id}`} className="shadow-none">
+                          <CardHeader>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <CardTitle className="text-base">{row.title}</CardTitle>
+                              <div className="flex flex-wrap gap-2">
+                                <Badge variant="outline">{row.type}</Badge>
+                                <Badge variant="outline">{row.stage}</Badge>
+                                <Badge variant="outline">READ</Badge>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Entity: {row.entityNumber || "N/A"} | Read: {fmtDate(row.readAt)}
+                            </p>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <p className="text-sm">{row.message}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Sent: {fmtDate(row.sentAt)}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              <Button asChild size="sm" variant="outline">
+                                <Link href={row.href}>Open Module</Link>
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </>
             )}
           </div>
         </>

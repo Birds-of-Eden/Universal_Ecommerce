@@ -19,8 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { ScmSectionHeader } from "@/components/admin/scm/ScmSectionHeader";
 import { ScmDocumentLifecycle } from "@/components/admin/scm/ScmDocumentLifecycle";
+import { ScmNextStepPanel } from "@/components/admin/scm/ScmNextStepPanel";
 import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
 import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 
@@ -538,7 +538,7 @@ export default function PurchaseOrderDetailPage() {
           </Card>
 
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="justify-start">
+            <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="items">Items</TabsTrigger>
               <TabsTrigger value="receipts">Receipts & Costs</TabsTrigger>
@@ -867,40 +867,19 @@ export default function PurchaseOrderDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Next Action</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ScmSectionHeader
-                title={purchaseOrder.status}
-                subtitle="This panel keeps approval actions visible without forcing users back into the register."
-              />
-              {actionButtons.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No direct workflow action is available for your current permissions.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {actionButtons.map((button) => (
-                    <Button
-                      key={button.action}
-                      className="w-full justify-start"
-                      variant={
-                        button.action === "reject" || button.action === "cancel"
-                          ? "outline"
-                          : "default"
-                      }
-                      onClick={() => void changeStatus(button.action)}
-                      disabled={saving}
-                    >
-                      {button.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ScmNextStepPanel
+            title={purchaseOrder.status}
+            subtitle="This panel keeps approval actions visible without forcing users back into the register."
+            emptyMessage="No direct workflow action is available for your current permissions."
+            actions={actionButtons.map((button) => ({
+              key: button.action,
+              label: button.label,
+              variant:
+                button.action === "reject" || button.action === "cancel" ? "outline" : "default",
+              disabled: saving,
+              onClick: () => void changeStatus(button.action),
+            }))}
+          />
 
           {(purchaseOrder.goodsReceipts?.length || 0) > 0 ? (
             <Card>

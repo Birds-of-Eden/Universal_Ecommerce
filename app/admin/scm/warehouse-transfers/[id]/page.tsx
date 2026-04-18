@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScmDocumentLifecycle } from "@/components/admin/scm/ScmDocumentLifecycle";
-import { ScmSectionHeader } from "@/components/admin/scm/ScmSectionHeader";
+import { ScmNextStepPanel } from "@/components/admin/scm/ScmNextStepPanel";
 import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
 import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 
@@ -260,7 +260,7 @@ export default function WarehouseTransferDetailPage() {
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="space-y-6">
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="justify-start">
+            <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="items">Items</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
@@ -342,23 +342,18 @@ export default function WarehouseTransferDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle>Next Action</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <ScmSectionHeader title={transfer.status} subtitle="This panel keeps approval, dispatch, and receipt actions on the document workspace." />
-              {actionButtons.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No direct workflow action is available for your current permissions.</p>
-              ) : (
-                <div className="space-y-2">
-                  {actionButtons.map((button) => (
-                    <Button key={button.action} className="w-full justify-start" variant={button.action === "cancel" ? "outline" : "default"} onClick={() => void runAction(button.action)} disabled={saving}>
-                      {button.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ScmNextStepPanel
+            title={transfer.status}
+            subtitle="This panel keeps approval, dispatch, and receipt actions on the document workspace."
+            actions={actionButtons.map((button) => ({
+              key: button.action,
+              label: button.label,
+              onClick: () => void runAction(button.action),
+              disabled: saving,
+              variant: button.action === "cancel" ? "outline" : "default",
+            }))}
+            emptyMessage="No direct workflow action is available for your current permissions."
+          />
         </div>
       </div>
     </div>

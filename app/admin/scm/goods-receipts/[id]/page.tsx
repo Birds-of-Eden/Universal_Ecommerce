@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ScmDocumentLifecycle } from "@/components/admin/scm/ScmDocumentLifecycle";
-import { ScmSectionHeader } from "@/components/admin/scm/ScmSectionHeader";
+import { ScmNextStepPanel } from "@/components/admin/scm/ScmNextStepPanel";
 import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
 import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 
@@ -365,7 +365,7 @@ export default function GoodsReceiptDetailPage() {
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="space-y-6">
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="justify-start">
+            <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="items">Items</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -550,16 +550,17 @@ export default function GoodsReceiptDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader><CardTitle>Next Action</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <ScmSectionHeader title={receipt.matchSummary.status} subtitle="This panel keeps confirmation, document upload, and evaluation inside the single GRN workspace." />
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <div>{receipt.requesterConfirmedAt ? `Confirmed ${fmtDate(receipt.requesterConfirmedAt)}` : "Requester confirmation pending"}</div>
-                <div>{receipt.workflow.evaluationCompleted ? "All evaluation roles completed" : `Missing: ${receipt.workflow.missingEvaluationRoles.map((role) => ROLE_LABEL[role]).join(", ")}`}</div>
-              </div>
-            </CardContent>
-          </Card>
+          <ScmNextStepPanel
+            title={receipt.matchSummary.status}
+            subtitle="This panel keeps confirmation, document upload, and evaluation inside the single GRN workspace."
+            actions={[]}
+            emptyMessage="No direct workflow action is required right now."
+          >
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <div>{receipt.requesterConfirmedAt ? `Confirmed ${fmtDate(receipt.requesterConfirmedAt)}` : "Requester confirmation pending"}</div>
+              <div>{receipt.workflow.evaluationCompleted ? "All evaluation roles completed" : `Missing: ${receipt.workflow.missingEvaluationRoles.map((role) => ROLE_LABEL[role]).join(", ")}`}</div>
+            </div>
+          </ScmNextStepPanel>
         </div>
       </div>
     </div>

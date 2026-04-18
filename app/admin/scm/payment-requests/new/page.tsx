@@ -183,10 +183,10 @@ export default function NewPaymentRequestPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScmStatCard title="Supplier" value={selectedSupplier?.name || "Not selected"} helperText={selectedSupplier?.code || "Choose legal supplier"} />
-        <ScmStatCard title="Purchase Order" value={selectedPo?.poNumber || "Optional"} helperText="Attach if payment is PO-backed" />
-        <ScmStatCard title="Invoice" value={selectedInvoice?.invoiceNumber || "Optional"} helperText={selectedInvoice ? `${Number(selectedInvoice.total).toFixed(2)}` : "Attach if AP already posted"} />
-        <ScmStatCard title="Amount" value={form.amount || "0.00"} helperText={form.currency || "BDT"} />
+        <ScmStatCard label="Supplier" value={selectedSupplier?.name || "Not selected"} hint={selectedSupplier?.code || "Choose legal supplier"} />
+        <ScmStatCard label="Purchase Order" value={selectedPo?.poNumber || "Optional"} hint="Attach if payment is PO-backed" />
+        <ScmStatCard label="Invoice" value={selectedInvoice?.invoiceNumber || "Optional"} hint={selectedInvoice ? `${Number(selectedInvoice.total).toFixed(2)}` : "Attach if AP already posted"} />
+        <ScmStatCard label="Amount" value={form.amount || "0.00"} hint={form.currency || "BDT"} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">

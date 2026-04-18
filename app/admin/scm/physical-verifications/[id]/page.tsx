@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScmDocumentLifecycle } from "@/components/admin/scm/ScmDocumentLifecycle";
-import { ScmSectionHeader } from "@/components/admin/scm/ScmSectionHeader";
+import { ScmNextStepPanel } from "@/components/admin/scm/ScmNextStepPanel";
 import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
 import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 
@@ -174,14 +174,25 @@ export default function PhysicalVerificationDetailPage() {
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="space-y-6">
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="justify-start"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="lines">Lines</TabsTrigger><TabsTrigger value="workflow">Workflow</TabsTrigger></TabsList>
+            <TabsList className="w-full justify-start overflow-x-auto"><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="lines">Lines</TabsTrigger><TabsTrigger value="workflow">Workflow</TabsTrigger></TabsList>
             <TabsContent value="overview"><Card><CardHeader><CardTitle>Verification Context</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2"><div><div className="text-xs uppercase tracking-wide text-muted-foreground">Frequency</div><p className="mt-2 text-sm">{toStageLabel(verification.frequency)}</p></div><div><div className="text-xs uppercase tracking-wide text-muted-foreground">Created By</div><p className="mt-2 text-sm">{verification.createdBy?.name || verification.createdBy?.email || "-"}</p></div><div><div className="text-xs uppercase tracking-wide text-muted-foreground">Committee Members</div><p className="mt-2 text-sm">{verification.committeeMembers.map((member) => member.user.name || member.user.email || member.user.id).join(", ") || "-"}</p></div><div><div className="text-xs uppercase tracking-wide text-muted-foreground">Note</div><p className="mt-2 text-sm whitespace-pre-wrap">{verification.note || "-"}</p></div></CardContent></Card></TabsContent>
             <TabsContent value="lines"><Card><CardHeader><CardTitle>Counted Lines</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Bin</TableHead><TableHead>System</TableHead><TableHead>Counted</TableHead><TableHead>Variance</TableHead></TableRow></TableHeader><TableBody>{verification.lines.map((line) => <TableRow key={line.id}><TableCell><div className="font-medium">{line.productVariant.product.name}</div><div className="text-xs text-muted-foreground">{line.productVariant.sku}</div></TableCell><TableCell>{line.bin ? `${line.bin.code} · ${line.bin.name}` : "N/A"}</TableCell><TableCell>{line.systemQty}</TableCell><TableCell>{line.countedQty}</TableCell><TableCell>{line.variance}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card></TabsContent>
             <TabsContent value="workflow"><Card><CardHeader><CardTitle>Approval Timeline</CardTitle></CardHeader><CardContent className="space-y-3">{verification.approvalEvents.map((event) => <div key={event.id} className="rounded-lg border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="font-medium">{toStageLabel(event.stage)} • {toStageLabel(event.decision)}</div><div className="text-xs text-muted-foreground">{formatDate(event.actedAt)}</div></div><div className="mt-2 text-sm text-muted-foreground">{event.actedBy?.name || event.actedBy?.email || "System"}</div>{event.note ? <p className="mt-2 text-sm">{event.note}</p> : null}</div>)}</CardContent></Card></TabsContent>
           </Tabs>
         </div>
         <div className="space-y-6">
-          <Card><CardHeader><CardTitle>Next Action</CardTitle></CardHeader><CardContent className="space-y-3"><ScmSectionHeader title={verification.status} subtitle="This panel keeps committee and final authority decisions on the same verification workspace." />{actionButtons.length === 0 ? <p className="text-sm text-muted-foreground">No direct workflow action is available for your current permissions.</p> : <div className="space-y-2">{actionButtons.map((button) => <Button key={button.action} className="w-full justify-start" variant={button.action.includes("reject") ? "outline" : "default"} onClick={() => void runAction(button.action)} disabled={saving}>{button.label}</Button>)}</div>}</CardContent></Card>
+          <ScmNextStepPanel
+            title={verification.status}
+            subtitle="This panel keeps committee and final authority decisions on the same verification workspace."
+            actions={actionButtons.map((button) => ({
+              key: button.action,
+              label: button.label,
+              onClick: () => void runAction(button.action),
+              disabled: saving,
+              variant: button.action.includes("reject") ? "outline" : "default",
+            }))}
+            emptyMessage="No direct workflow action is available for your current permissions."
+          />
         </div>
       </div>
     </div>

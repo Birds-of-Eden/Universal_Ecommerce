@@ -171,10 +171,10 @@ export default function NewPurchaseOrderPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScmStatCard title="Supplier" value={suppliers.find((row) => row.id === Number(supplierId))?.name || "Not selected"} helperText="Legal supplier on the order" />
-        <ScmStatCard title="Warehouse" value={warehouses.find((row) => row.id === Number(warehouseId))?.name || "Not selected"} helperText="Receiving warehouse" />
-        <ScmStatCard title="Lines" value={String(items.length)} helperText="Draft commercial lines" />
-        <ScmStatCard title="Estimated Total" value={estimatedTotal.toFixed(2)} helperText={suppliers.find((row) => row.id === Number(supplierId))?.currency || "BDT"} />
+        <ScmStatCard label="Supplier" value={suppliers.find((row) => row.id === Number(supplierId))?.name || "Not selected"} hint="Legal supplier on the order" />
+        <ScmStatCard label="Warehouse" value={warehouses.find((row) => row.id === Number(warehouseId))?.name || "Not selected"} hint="Receiving warehouse" />
+        <ScmStatCard label="Lines" value={String(items.length)} hint="Draft commercial lines" />
+        <ScmStatCard label="Estimated Total" value={estimatedTotal.toFixed(2)} hint={suppliers.find((row) => row.id === Number(supplierId))?.currency || "BDT"} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">

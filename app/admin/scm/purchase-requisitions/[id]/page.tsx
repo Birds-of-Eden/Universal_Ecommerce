@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ScmSectionHeader } from "@/components/admin/scm/ScmSectionHeader";
 import { ScmDocumentLifecycle } from "@/components/admin/scm/ScmDocumentLifecycle";
+import { ScmNextStepPanel } from "@/components/admin/scm/ScmNextStepPanel";
 import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
 import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 
@@ -566,24 +566,24 @@ export default function PurchaseRequisitionDetailPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ScmStatCard
-          title="Warehouse"
+          label="Warehouse"
           value={requisition.warehouse.name}
-          helperText={requisition.warehouse.code}
+          hint={requisition.warehouse.code}
         />
         <ScmStatCard
-          title="Needed By"
+          label="Needed By"
           value={requisition.neededBy ? new Date(requisition.neededBy).toLocaleDateString() : "-"}
-          helperText={`Requested ${new Date(requisition.requestedAt).toLocaleDateString()}`}
+          hint={`Requested ${new Date(requisition.requestedAt).toLocaleDateString()}`}
         />
         <ScmStatCard
-          title="Estimated Amount"
+          label="Estimated Amount"
           value={requisition.estimatedAmount || "0.00"}
-          helperText={requisition.budgetCode || "No budget code"}
+          hint={requisition.budgetCode || "No budget code"}
         />
         <ScmStatCard
-          title="Endorsements"
+          label="Endorsements"
           value={`${endorsementSummary.completed} / ${endorsementSummary.required}`}
-          helperText={
+          hint={
             requisition.assignedProcurementOfficer?.name ||
             requisition.assignedProcurementOfficer?.email ||
             "No procurement officer assigned"
@@ -628,7 +628,7 @@ export default function PurchaseRequisitionDetailPage() {
           </Card>
 
           <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="justify-start">
+            <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="items">Items</TabsTrigger>
               <TabsTrigger value="workflow">Workflow</TabsTrigger>
@@ -933,38 +933,19 @@ export default function PurchaseRequisitionDetailPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Next Action</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ScmSectionHeader
-                title={requisition.status}
-                subtitle="This panel keeps conversion and workflow decisions visible without leaving the document."
-              />
-              {workflowActionButtons.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No direct workflow action is available for your current permissions.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {workflowActionButtons.map((button) => (
-                    <Button
-                      key={button.action}
-                      className="w-full justify-start"
-                      variant={
-                        button.action === "reject" || button.action === "cancel" ? "outline" : "default"
-                      }
-                      onClick={() => void runWorkflowAction(button.action)}
-                      disabled={saving}
-                    >
-                      {button.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ScmNextStepPanel
+            title={requisition.status}
+            subtitle="This panel keeps conversion and workflow decisions visible without leaving the document."
+            emptyMessage="No direct workflow action is available for your current permissions."
+            actions={workflowActionButtons.map((button) => ({
+              key: button.action,
+              label: button.label,
+              variant:
+                button.action === "reject" || button.action === "cancel" ? "outline" : "default",
+              disabled: saving,
+              onClick: () => void runWorkflowAction(button.action),
+            }))}
+          />
 
           {requisition.status === "APPROVED" && canConvert ? (
             <Card>

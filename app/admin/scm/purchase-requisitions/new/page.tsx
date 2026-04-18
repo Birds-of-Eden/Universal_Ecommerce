@@ -263,10 +263,10 @@ export default function NewPurchaseRequisitionPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScmStatCard title="Warehouse" value={selectedWarehouse?.name || "Not selected"} helperText={selectedWarehouse?.code || "Choose operating warehouse"} />
-        <ScmStatCard title="Line Items" value={String(selectedItems.length)} helperText="Validated procurement lines" />
-        <ScmStatCard title="Attachments" value={String(attachments.length)} helperText="Supporting documents uploaded" />
-        <ScmStatCard title="Estimated Amount" value={estimatedAmount || "0.00"} helperText={budgetCode || "Budget code pending"} />
+        <ScmStatCard label="Warehouse" value={selectedWarehouse?.name || "Not selected"} hint={selectedWarehouse?.code || "Choose operating warehouse"} />
+        <ScmStatCard label="Line Items" value={String(selectedItems.length)} hint="Validated procurement lines" />
+        <ScmStatCard label="Attachments" value={String(attachments.length)} hint="Supporting documents uploaded" />
+        <ScmStatCard label="Estimated Amount" value={estimatedAmount || "0.00"} hint={budgetCode || "Budget code pending"} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">

@@ -215,10 +215,10 @@ export default function NewRfqPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScmStatCard title="Warehouse" value={selectedRequisition ? warehouses.find((item) => item.id === selectedRequisition.warehouseId)?.name || "Inherited" : warehouses.find((item) => item.id === Number(warehouseId))?.name || "Not selected"} helperText={selectedRequisition ? "Inherited from approved MRF" : "Choose sourcing warehouse"} />
-        <ScmStatCard title="Categories" value={String(selectedCategoryIds.length)} helperText="Vendor categories targeted" />
-        <ScmStatCard title="Lines" value={String(validLines.length)} helperText={purchaseRequisitionId && useRequisitionItems ? "Auto-pulled from MRF" : "Manual RFQ lines"} />
-        <ScmStatCard title="Attachments" value={String(attachments.length)} helperText="Scope and reference files" />
+        <ScmStatCard label="Warehouse" value={selectedRequisition ? warehouses.find((item) => item.id === selectedRequisition.warehouseId)?.name || "Inherited" : warehouses.find((item) => item.id === Number(warehouseId))?.name || "Not selected"} hint={selectedRequisition ? "Inherited from approved MRF" : "Choose sourcing warehouse"} />
+        <ScmStatCard label="Categories" value={String(selectedCategoryIds.length)} hint="Vendor categories targeted" />
+        <ScmStatCard label="Lines" value={String(validLines.length)} hint={purchaseRequisitionId && useRequisitionItems ? "Auto-pulled from MRF" : "Manual RFQ lines"} />
+        <ScmStatCard label="Attachments" value={String(attachments.length)} hint="Scope and reference files" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
