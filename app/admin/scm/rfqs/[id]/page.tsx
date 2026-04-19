@@ -27,7 +27,12 @@ import { ScmStatCard } from "@/components/admin/scm/ScmStatCard";
 import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
 
 type Warehouse = { id: number; name: string; code: string };
-type Supplier = { id: number; name: string; code: string };
+type Supplier = {
+  id: number;
+  name: string;
+  code: string;
+  categories?: Array<{ id: number; code: string; name: string; isActive?: boolean }>;
+};
 type SupplierCategory = { id: number; name: string; code: string };
 
 type Rfq = {
@@ -243,10 +248,27 @@ export default function RfqDetailPage() {
     }
   };
 
+  const suggestedSuppliers = useMemo(() => {
+    if (!rfq) return [] as Supplier[];
+    const targetCategoryIds = new Set(
+      (rfq.categoryTargets || []).map((target) => target.supplierCategoryId),
+    );
+    if (targetCategoryIds.size === 0) return suppliers;
+    return suppliers.filter((supplier) =>
+      (supplier.categories || []).some((category) => targetCategoryIds.has(category.id)),
+    );
+  }, [rfq, suppliers]);
+
   const inviteOptions = useMemo(() => {
     if (!rfq) return [];
-    return rfq.supplierInvites.length > 0 ? rfq.supplierInvites.map((item) => item.supplier) : suppliers;
-  }, [rfq, suppliers]);
+    const invitedIds = new Set(rfq.supplierInvites.map((item) => item.supplierId));
+    return suggestedSuppliers.filter((supplier) => !invitedIds.has(supplier.id));
+  }, [rfq, suggestedSuppliers]);
+
+  const quotationSupplierOptions = useMemo(() => {
+    if (!rfq) return [] as Supplier[];
+    return rfq.supplierInvites.map((item) => item.supplier);
+  }, [rfq]);
 
   const lifecycleStages = useMemo(() => {
     if (!rfq) return [];
@@ -531,7 +553,7 @@ export default function RfqDetailPage() {
             <TabsContent value="suppliers" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Invited Suppliers</CardTitle>
+                  <CardTitle>Supplier Scope</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {(rfq.categoryTargets?.length || 0) > 0 ? (
@@ -542,6 +564,37 @@ export default function RfqDetailPage() {
                         .join(", ")}
                     </div>
                   ) : null}
+                  <div className="rounded-lg border p-3">
+                    <div className="text-sm font-medium">Suggested Suppliers</div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Category targeting scopes suppliers here, but actual invite happens only when procurement explicitly clicks Invite.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {suggestedSuppliers.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No supplier matches the targeted categories.</p>
+                      ) : (
+                        suggestedSuppliers.map((supplier) => {
+                          const invited = rfq.supplierInvites.some((invite) => invite.supplierId === supplier.id);
+                          return (
+                            <div key={supplier.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+                              <div className="font-medium">
+                                {supplier.name} ({supplier.code})
+                              </div>
+                              <Badge variant={invited ? "secondary" : "outline"}>
+                                {invited ? "Already Invited" : "Suggested"}
+                              </Badge>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <div className="text-sm font-medium">Invited Suppliers</div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Only suppliers shown here have received an explicit RFQ invite and can be treated as active invitees.
+                    </p>
+                    <div className="mt-3 space-y-2">
                   {rfq.supplierInvites.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No supplier invited yet.</p>
                   ) : (
@@ -556,6 +609,8 @@ export default function RfqDetailPage() {
                       </div>
                     ))
                   )}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -628,7 +683,7 @@ export default function RfqDetailPage() {
                       onChange={(event) => setQuoteSupplier(event.target.value)}
                     >
                       <option value="">Quote supplier</option>
-                      {inviteOptions.map((supplier) => (
+                      {quotationSupplierOptions.map((supplier) => (
                         <option key={supplier.id} value={supplier.id}>
                           {supplier.name} ({supplier.code})
                         </option>

@@ -464,27 +464,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const selectedSupplierIds =
-      explicitSupplierIds.length > 0
-        ? explicitSupplierIds
-        : categoryIds.length > 0
-          ? (
-              await prisma.supplier.findMany({
-                where: {
-                  isActive: true,
-                  categories: {
-                    some: {
-                      supplierCategoryId: {
-                        in: categoryIds,
-                      },
-                    },
-                  },
-                },
-                select: { id: true },
-              })
-            ).map((supplier) => supplier.id)
-          : [];
-
     const [variants, selectedSuppliers] = await Promise.all([
       prisma.productVariant.findMany({
         where: {
@@ -500,10 +479,10 @@ export async function POST(request: NextRequest) {
           },
         },
       }),
-      selectedSupplierIds.length > 0
+      explicitSupplierIds.length > 0
         ? prisma.supplier.findMany({
             where: {
-              id: { in: selectedSupplierIds },
+              id: { in: explicitSupplierIds },
               isActive: true,
               ...(categoryIds.length > 0
                 ? {
@@ -531,7 +510,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    if (selectedSuppliers.length !== selectedSupplierIds.length) {
+    if (selectedSuppliers.length !== explicitSupplierIds.length) {
       return NextResponse.json(
         {
           error:
@@ -590,12 +569,7 @@ export async function POST(request: NextRequest) {
           })),
         }
       : null;
-
-    const createdBySupplierId = new Map(
-      selectedSuppliers.map((supplier) => [supplier.id, supplier]),
-    );
-
-    const { created, emailNotificationIds } = await prisma.$transaction(async (tx) => {
+    const { created } = await prisma.$transaction(async (tx) => {
       const rfqNumber = await generateRfqNumber(tx);
       const createdRfq = await tx.rfq.create({
         data: {
@@ -662,15 +636,12 @@ export async function POST(request: NextRequest) {
                 }
               : undefined,
           supplierInvites:
-            selectedSupplierIds.length > 0
+            explicitSupplierIds.length > 0
               ? {
-                  create: selectedSupplierIds.map((supplierId) => ({
+                  create: explicitSupplierIds.map((supplierId) => ({
                     supplierId,
                     status: "INVITED",
-                    note:
-                      categories.length > 0
-                        ? `Invited via category targeting (${categories.map((category) => category.code).join(", ")})`
-                        : null,
+                    note: "Manually invited during RFQ draft creation.",
                     lastNotifiedAt: new Date(),
                     createdById: access.userId,
                   })),
@@ -679,39 +650,8 @@ export async function POST(request: NextRequest) {
         },
         include: rfqInclude,
       });
-
-      const emailIds =
-        createdRfq.supplierInvites.length > 0
-          ? await createRfqNotifications({
-              tx,
-              rfqId: createdRfq.id,
-              recipients: createdRfq.supplierInvites.map((invite) => ({
-                supplierId: invite.supplierId,
-                inviteId: invite.id,
-                recipientEmail:
-                  createdBySupplierId.get(invite.supplierId)?.email ?? null,
-              })),
-              message:
-                `You have been invited to submit a quotation for ${createdRfq.rfqNumber}.` +
-                (submissionDeadline
-                  ? ` Submission deadline: ${submissionDeadline.toISOString()}.`
-                  : ""),
-              metadata: {
-                stage: "INVITED",
-                rfqNumber: createdRfq.rfqNumber,
-                categoryCodes: categories.map((category) => category.code),
-              },
-              createdById: access.userId,
-            })
-          : [];
-
-      return {
-        created: createdRfq,
-        emailNotificationIds: emailIds,
-      };
+      return { created: createdRfq };
     });
-
-    void dispatchRfqEmailNotifications(emailNotificationIds);
 
     await logActivity({
       action: "create",
@@ -726,6 +666,10 @@ export async function POST(request: NextRequest) {
           : null,
         supplierInviteCount: created.supplierInvites.length,
         supplierCategoryCount: created.categoryTargets.length,
+        inviteMode:
+          created.supplierInvites.length > 0
+            ? "manual_during_draft_creation"
+            : "category_targeting_only",
       },
       after: toRfqLogSnapshot(created),
     });
