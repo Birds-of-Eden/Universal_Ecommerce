@@ -409,6 +409,12 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (categoryIds.length === 0) {
+      return NextResponse.json(
+        { error: "At least one supplier category is required for a new RFQ." },
+        { status: 400 },
+      );
+    }
 
     if (hasPurchaseRequisition) {
       if (!requisition) {

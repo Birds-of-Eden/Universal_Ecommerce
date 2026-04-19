@@ -142,6 +142,10 @@ export default function NewRfqPage() {
       toast.error("Warehouse is required");
       return;
     }
+    if (selectedCategoryIds.length === 0) {
+      toast.error("At least one supplier category is required");
+      return;
+    }
 
     const shouldSendManualItems = !purchaseRequisitionId || !useRequisitionItems;
     if (shouldSendManualItems && validLines.length === 0) {
@@ -297,6 +301,15 @@ export default function NewRfqPage() {
                   );
                 })}
               </div>
+              {supplierCategories.length === 0 ? (
+                <p className="text-sm text-amber-700">
+                  No predefined supplier category is active. Create category master data in the supplier workspace before opening a new RFQ.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  RFQ targeting is category-driven. Select at least one predefined supplier category so only relevant vendors are scoped into sourcing.
+                </p>
+              )}
               <div className="space-y-2">
                 <Label>RFQ Attachments</Label>
                 <Input type="file" onChange={(event) => {
@@ -361,7 +374,7 @@ export default function NewRfqPage() {
             <CardContent className="space-y-3 text-sm">
               <div className={warehouseId ? "text-foreground" : "text-muted-foreground"}>1. Warehouse selected</div>
               <div className={submissionDeadline ? "text-foreground" : "text-muted-foreground"}>2. Submission deadline set</div>
-              <div className={selectedCategoryIds.length > 0 ? "text-foreground" : "text-muted-foreground"}>3. Vendor categories selected</div>
+              <div className={selectedCategoryIds.length > 0 ? "text-foreground" : "text-destructive"}>3. Vendor categories selected</div>
               <div className={purchaseRequisitionId && useRequisitionItems || validLines.length > 0 ? "text-foreground" : "text-muted-foreground"}>4. Items available for the RFQ</div>
             </CardContent>
           </Card>
