@@ -219,17 +219,30 @@ async function resolveUsersByPermission(
   });
 }
 
-async function resolveProcurementOfficerId(
+async function resolveProcurementOfficerCandidates(
   tx: Prisma.TransactionClient,
   warehouseId: number,
-  preferredUserId?: string | null,
 ) {
-  const candidates = await resolveUsersByPermission(tx, ["purchase_orders.manage"], warehouseId);
-  if (preferredUserId) {
-    const preferred = candidates.find((candidate) => candidate.id === preferredUserId);
-    if (preferred) return preferred.id;
-  }
-  return candidates[0]?.id ?? null;
+  return tx.user.findMany({
+    where: {
+      userRoles: {
+        some: {
+          OR: [{ scopeType: "GLOBAL" }, { scopeType: "WAREHOUSE", warehouseId }],
+          role: {
+            rolePermissions: {
+              some: {
+                permission: {
+                  key: { in: ["rfq.manage", "purchase_orders.manage"] },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    select: { id: true, name: true, email: true },
+    orderBy: [{ name: "asc" }, { email: "asc" }],
+  });
 }
 
 async function recordRequisitionVersion(
@@ -385,7 +398,15 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json(requisition);
+    const procurementOfficerCandidates = await resolveProcurementOfficerCandidates(
+      prisma,
+      requisition.warehouseId,
+    );
+
+    return NextResponse.json({
+      ...requisition,
+      procurementOfficerCandidates,
+    });
   } catch (error) {
     console.error("SCM PURCHASE REQUISITION GET ERROR:", error);
     return NextResponse.json(
@@ -831,14 +852,29 @@ export async function PATCH(
         );
       }
 
-      const preferredOfficerId = toCleanText(body.assignedProcurementOfficerId, 80) || null;
+      const selectedOfficerId = toCleanText(body.assignedProcurementOfficerId, 80) || null;
+      if (!selectedOfficerId) {
+        return NextResponse.json(
+          { error: "Procurement officer selection is required before final approval." },
+          { status: 400 },
+        );
+      }
+      const procurementOfficerCandidates = await resolveProcurementOfficerCandidates(
+        prisma,
+        requisition.warehouseId,
+      );
+      const assignedOfficer = procurementOfficerCandidates.find(
+        (candidate) => candidate.id === selectedOfficerId,
+      );
+      if (!assignedOfficer) {
+        return NextResponse.json(
+          { error: "Selected procurement officer is not eligible for this warehouse." },
+          { status: 400 },
+        );
+      }
 
       const updated = await prisma.$transaction(async (tx) => {
-        const assignedOfficerId = await resolveProcurementOfficerId(
-          tx,
-          requisition.warehouseId,
-          preferredOfficerId,
-        );
+        const assignedOfficerId = assignedOfficer.id;
 
         const next = await tx.purchaseRequisition.update({
           where: { id: requisition.id },
@@ -875,10 +911,8 @@ export async function PATCH(
           requisitionId: next.id,
           stage: "ROUTED_TO_PROCUREMENT",
           warehouseId: next.warehouseId,
-          explicitUserIds: [next.createdById || "", assignedOfficerId || ""],
-          message: assignedOfficerId
-            ? `MRF ${next.requisitionNumber} final-approved and routed to assigned procurement officer.`
-            : `MRF ${next.requisitionNumber} final-approved but no procurement officer was auto-assigned.`,
+          explicitUserIds: [next.createdById || "", assignedOfficerId],
+          message: `MRF ${next.requisitionNumber} final-approved and routed to assigned procurement officer.`,
           metadata: {
             status: next.status,
             requisitionNumber: next.requisitionNumber,

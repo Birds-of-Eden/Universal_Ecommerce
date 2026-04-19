@@ -59,6 +59,11 @@ type PurchaseRequisition = {
     name: string | null;
     email: string;
   } | null;
+  procurementOfficerCandidates?: Array<{
+    id: string;
+    name: string | null;
+    email: string;
+  }>;
   createdBy: {
     id: string;
     name: string | null;
@@ -247,6 +252,7 @@ export default function PurchaseRequisitionDetailPage() {
   const [requisition, setRequisition] = useState<PurchaseRequisition | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [workflowNote, setWorkflowNote] = useState("");
+  const [selectedProcurementOfficerId, setSelectedProcurementOfficerId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [conversionForm, setConversionForm] = useState<ConversionForm>({
@@ -282,6 +288,7 @@ export default function PurchaseRequisitionDetailPage() {
 
       setRequisition(requisitionData);
       setSuppliers(Array.isArray(supplierData) ? supplierData : []);
+      setSelectedProcurementOfficerId(requisitionData.assignedProcurementOfficerId || "");
       setConversionForm({
         supplierId: "",
         expectedAt: requisitionData.neededBy ? requisitionData.neededBy.slice(0, 10) : "",
@@ -437,6 +444,10 @@ export default function PurchaseRequisitionDetailPage() {
 
   const runWorkflowAction = async (action: string) => {
     if (!requisition) return;
+    if (action === "final_approve" && !selectedProcurementOfficerId) {
+      toast.error("Select a procurement officer before final approval");
+      return;
+    }
     try {
       setSaving(true);
       const response = await fetch(`/api/scm/purchase-requisitions/${requisition.id}`, {
@@ -445,6 +456,8 @@ export default function PurchaseRequisitionDetailPage() {
         body: JSON.stringify({
           action,
           note: workflowNote.trim() || null,
+          assignedProcurementOfficerId:
+            action === "final_approve" ? selectedProcurementOfficerId : undefined,
         }),
       });
       await readJson(response, `Failed to ${action} requisition`);
@@ -945,7 +958,30 @@ export default function PurchaseRequisitionDetailPage() {
               disabled: saving,
               onClick: () => void runWorkflowAction(button.action),
             }))}
-          />
+          >
+            {requisition.status === "ENDORSED" && (canFinalApprove || canApprove) ? (
+              <div className="space-y-2">
+                <Label htmlFor="assigned-procurement-officer">Procurement Officer</Label>
+                <select
+                  id="assigned-procurement-officer"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={selectedProcurementOfficerId}
+                  onChange={(event) => setSelectedProcurementOfficerId(event.target.value)}
+                  disabled={saving}
+                >
+                  <option value="">Select procurement officer</option>
+                  {(requisition.procurementOfficerCandidates ?? []).map((officer) => (
+                    <option key={officer.id} value={officer.id}>
+                      {officer.name || officer.email}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Final approval now routes manually to the selected procurement officer. Automatic first-match assignment has been removed.
+                </p>
+              </div>
+            ) : null}
+          </ScmNextStepPanel>
 
           {requisition.status === "APPROVED" && canConvert ? (
             <Card>
