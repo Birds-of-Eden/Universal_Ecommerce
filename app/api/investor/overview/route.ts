@@ -17,7 +17,15 @@ export async function GET() {
 
     const { investorId, investorCode, investorName } = resolved.context;
 
-    const [totalsGrouped, allocations, recentTransactions, recentPayouts, recentRuns] =
+    const [
+      totalsGrouped,
+      allocations,
+      recentTransactions,
+      recentPayouts,
+      recentRuns,
+      unreadNotificationCount,
+      pendingProfileRequestCount,
+    ] =
       await Promise.all([
         prisma.investorCapitalTransaction.groupBy({
           by: ["direction"],
@@ -81,6 +89,18 @@ export async function GET() {
             createdAt: true,
           },
         }),
+        prisma.investorPortalNotification.count({
+          where: {
+            investorId,
+            status: "UNREAD",
+          },
+        }),
+        prisma.investorProfileUpdateRequest.count({
+          where: {
+            investorId,
+            status: "PENDING",
+          },
+        }),
       ]);
 
     const credit = totalsGrouped
@@ -109,6 +129,8 @@ export async function GET() {
         allocationCount: allocations.length,
         activeAllocationCount: allocations.filter((item) => item.status === "ACTIVE").length,
         recentPayoutTotal: payoutTotals.toString(),
+        unreadNotificationCount,
+        pendingProfileRequestCount,
       },
       recentTransactions: recentTransactions.map((item) => ({
         ...item,

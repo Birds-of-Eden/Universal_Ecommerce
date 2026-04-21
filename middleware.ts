@@ -348,10 +348,55 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/investors/documents",
+    permissions: [
+      "investor_documents.read",
+      "investor_documents.manage",
+      "investor_documents.review",
+      "investors.manage",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/admin/investors/profile-requests",
+    permissions: [
+      "investor_profile_requests.read",
+      "investor_profile_requests.review",
+      "investors.manage",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/admin/investors/my-tasks",
+    permissions: [
+      "investors.manage",
+      "investor_profit.approve",
+      "investor_profit.post",
+      "investor_payout.approve",
+      "investor_payout.pay",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/admin/investors/exceptions",
+    permissions: [
+      "investors.read",
+      "investors.manage",
+      "investor_profit.read",
+      "investor_profit.manage",
+      "investor_payout.read",
+      "investor_payout.manage",
+    ],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/investors",
     permissions: [
       "investors.read",
       "investors.manage",
+      "investor_documents.read",
+      "investor_documents.manage",
+      "investor_documents.review",
       "investor_ledger.read",
       "investor_ledger.manage",
       "investor_allocations.read",
@@ -514,6 +559,18 @@ const investorPagePermissionRules: PermissionRule[] = [
     permissions: ["investor.portal.statement.read"],
   },
   {
+    prefix: "/investor/documents",
+    permissions: ["investor.portal.documents.read"],
+  },
+  {
+    prefix: "/investor/profile",
+    permissions: ["investor.portal.profile.read"],
+  },
+  {
+    prefix: "/investor/notifications",
+    permissions: ["investor.portal.notifications.read"],
+  },
+  {
     prefix: "/investor",
     permissions: ["investor.portal.access"],
   },
@@ -631,6 +688,47 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/investor/statements",
     methods: ["GET"],
     permissions: ["investor.portal.statement.read"],
+  },
+  {
+    prefix: "/api/investor/documents",
+    methods: ["GET"],
+    permissions: ["investor.portal.documents.read"],
+  },
+  {
+    prefix: "/api/investor/documents",
+    methods: ["POST"],
+    permissions: ["investor.portal.documents.submit"],
+  },
+  {
+    prefix: "/api/investor/profile",
+    methods: ["GET"],
+    permissions: ["investor.portal.profile.read"],
+  },
+  {
+    prefix: "/api/investor/profile",
+    methods: ["POST"],
+    permissions: ["investor.portal.profile.submit"],
+  },
+  {
+    prefix: "/api/investor/notifications",
+    methods: ["GET", "PATCH"],
+    permissions: ["investor.portal.notifications.read"],
+  },
+  {
+    prefix: "/api/admin/investor-profile-requests",
+    methods: ["GET"],
+    permissions: [
+      "investor_profile_requests.read",
+      "investor_profile_requests.review",
+      "investors.manage",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-profile-requests",
+    methods: ["PATCH"],
+    permissions: ["investor_profile_requests.review", "investors.manage"],
+    globalOnly: true,
   },
   {
     prefix: "/api/investor",
@@ -1299,6 +1397,19 @@ const apiPermissionRules: PermissionRule[] = [
   },
   {
     prefix: "/api/admin/investor-payouts",
+    methods: ["GET"],
+    permissions: [
+      "investor_payout.read",
+      "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+      "investor_statement.read",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-payouts",
     methods: ["PATCH"],
     permissions: [
       "investor_payout.approve",
@@ -1324,6 +1435,58 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/admin/investor-portal-access",
     methods: ["GET", "POST", "PATCH", "PUT"],
     permissions: ["investors.manage", "users.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-change-requests",
+    methods: ["PATCH"],
+    permissions: ["investors.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-documents",
+    methods: ["GET"],
+    permissions: [
+      "investor_documents.read",
+      "investor_documents.manage",
+      "investor_documents.review",
+      "investors.manage",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-documents",
+    methods: ["POST"],
+    permissions: ["investor_documents.manage", "investors.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-documents",
+    methods: ["PATCH"],
+    permissions: ["investor_documents.review", "investors.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-workspace",
+    methods: ["GET"],
+    permissions: [
+      "investors.read",
+      "investors.manage",
+      "investor_ledger.read",
+      "investor_ledger.manage",
+      "investor_allocations.read",
+      "investor_allocations.manage",
+      "investor_profit.read",
+      "investor_profit.manage",
+      "investor_profit.approve",
+      "investor_profit.post",
+      "investor_payout.read",
+      "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
+      "investor_statement.read",
+    ],
     globalOnly: true,
   },
   {

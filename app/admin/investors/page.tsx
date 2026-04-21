@@ -1,7 +1,7 @@
 "use client";
 
-import InvestorWorkspace from "./InvestorWorkspace";
+import InvestorOperationsClient from "./InvestorOperationsClient";
 
 export default function InvestorsPage() {
-  return <InvestorWorkspace section="overview" />;
+  return <InvestorOperationsClient mode="overview" />;
 }

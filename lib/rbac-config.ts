@@ -184,6 +184,21 @@ export const SYSTEM_PERMISSIONS = [
       "Read and export investor statement summaries and payout history.",
   },
   {
+    key: "investor_documents.read",
+    description:
+      "Read investor KYC documents, review status, expiry state, and document completeness.",
+  },
+  {
+    key: "investor_documents.manage",
+    description:
+      "Upload or replace investor KYC documents from the internal operations side.",
+  },
+  {
+    key: "investor_documents.review",
+    description:
+      "Approve or reject investor KYC documents and govern verification decisions.",
+  },
+  {
     key: "investor.portal.access",
     description: "Access investor self-service portal routes and dashboard.",
   },
@@ -213,6 +228,35 @@ export const SYSTEM_PERMISSIONS = [
     key: "investor.portal.statement.read",
     description:
       "Read and export own investor statements from investor portal.",
+  },
+  {
+    key: "investor.portal.documents.read",
+    description: "Read own investor KYC document vault and review results.",
+  },
+  {
+    key: "investor.portal.documents.submit",
+    description:
+      "Upload or re-submit own investor KYC documents for internal review.",
+  },
+  {
+    key: "investor.portal.notifications.read",
+    description: "Read investor portal notifications and request outcomes.",
+  },
+  {
+    key: "investor.portal.profile.read",
+    description: "Read own investor portal profile and beneficiary context.",
+  },
+  {
+    key: "investor.portal.profile.submit",
+    description: "Submit own investor profile or beneficiary update requests from portal.",
+  },
+  {
+    key: "investor_profile_requests.read",
+    description: "Read investor profile update requests submitted from portal.",
+  },
+  {
+    key: "investor_profile_requests.review",
+    description: "Approve or reject investor profile update requests from portal.",
   },
   {
     key: "profile.manage",
@@ -777,6 +821,11 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "reports.read",
       "investors.read",
       "investors.manage",
+      "investor_documents.read",
+      "investor_documents.manage",
+      "investor_documents.review",
+      "investor_profile_requests.read",
+      "investor_profile_requests.review",
       "investor_ledger.read",
       "investor_ledger.manage",
       "investor_allocations.read",
@@ -799,6 +848,7 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "dashboard.read",
       "reports.read",
       "investors.read",
+      "investor_documents.read",
       "investor_ledger.read",
       "investor_allocations.read",
       "investor_profit.read",
@@ -866,6 +916,11 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "investor.portal.profit.read",
       "investor.portal.payout.read",
       "investor.portal.statement.read",
+      "investor.portal.documents.read",
+      "investor.portal.documents.submit",
+      "investor.portal.notifications.read",
+      "investor.portal.profile.read",
+      "investor.portal.profile.submit",
       "profile.manage",
     ],
   },

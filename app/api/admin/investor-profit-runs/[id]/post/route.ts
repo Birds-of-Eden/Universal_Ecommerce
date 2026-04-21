@@ -11,6 +11,7 @@ import {
   toCleanText,
 } from "@/lib/investor";
 import { ensureInvestorProfitRunAllocationSnapshots } from "@/lib/investor-profit-run";
+import { summarizeInvestorProfitRunExceptions } from "@/lib/investor-profit-governance";
 
 function canPostInvestorProfit(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return access.hasGlobal("investor_profit.post");
@@ -55,6 +56,12 @@ export async function POST(
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const postingNote = toCleanText(body.note, 500) || null;
+    if (!postingNote) {
+      return NextResponse.json(
+        { error: "Posting note is required before posting investor profit run to ledger." },
+        { status: 400 },
+      );
+    }
 
     const run = await prisma.investorProfitRun.findUnique({
       where: { id: runId },
@@ -83,6 +90,34 @@ export async function POST(
 
     const created = await prisma.$transaction(async (tx) => {
       const snapshot = await ensureInvestorProfitRunAllocationSnapshots(tx, run.id);
+      const variantLines = await tx.investorProfitRunVariant.findMany({
+        where: { runId: run.id },
+        select: {
+          id: true,
+          unallocatedSharePct: true,
+          netProfit: true,
+        },
+      });
+      const allocationDetails = await tx.investorProfitRunAllocation.findMany({
+        where: { runId: run.id },
+        select: {
+          id: true,
+          allocatedNetProfit: true,
+          sourceAllocationId: true,
+          sourceAllocation: {
+            select: { status: true },
+          },
+        },
+      });
+      const governance = summarizeInvestorProfitRunExceptions({
+        variantLines,
+        allocationLines: allocationDetails,
+      });
+      if (governance.blockingIssues.length > 0) {
+        throw new Error(
+          `Run cannot be posted: ${governance.blockingIssues.join(" ")}`,
+        );
+      }
       const map = new Map<string, PostingEntry>();
       for (const line of snapshot.allocationLines) {
         if (line.allocatedNetProfit.eq(0)) continue;

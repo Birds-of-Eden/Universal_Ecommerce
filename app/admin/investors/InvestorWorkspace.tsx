@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -1006,8 +1007,16 @@ export default function InvestorWorkspace({
                     <TableBody>
                       {transactions.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.transactionNumber}</TableCell>
-                          <TableCell>{item.investor.name}</TableCell>
+                          <TableCell className="font-medium">
+                            <Link href={`/admin/investors/ledger/${item.id}`} className="hover:text-primary">
+                              {item.transactionNumber}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <Link href={`/admin/investors/${item.investor.id}`} className="hover:text-primary">
+                              {item.investor.name}
+                            </Link>
+                          </TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                               item.direction === 'CREDIT' 
@@ -1255,7 +1264,11 @@ export default function InvestorWorkspace({
                       <TableBody>
                         {profitRuns.map((run) => (
                           <TableRow key={run.id}>
-                            <TableCell className="font-medium">{run.runNumber}</TableCell>
+                            <TableCell className="font-medium">
+                              <Link href={`/admin/investors/profit-runs/${run.id}`} className="hover:text-primary">
+                                {run.runNumber}
+                              </Link>
+                            </TableCell>
                             <TableCell>
                               <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
                                 run.status === 'POSTED' 
@@ -1682,7 +1695,11 @@ export default function InvestorWorkspace({
                     <TableBody>
                       {profitPayouts.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.payoutNumber}</TableCell>
+                          <TableCell className="font-medium">
+                            <Link href={`/admin/investors/payouts/${item.id}`} className="hover:text-primary">
+                              {item.payoutNumber}
+                            </Link>
+                          </TableCell>
                           <TableCell>
                             {item.investor.name} ({item.investor.code})
                           </TableCell>
@@ -1913,10 +1930,14 @@ export default function InvestorWorkspace({
                       {allocations.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">
-                            {item.investor.name}
+                            <Link href={`/admin/investors/${item.investor.id}`} className="hover:text-primary">
+                              {item.investor.name}
+                            </Link>
                           </TableCell>
                           <TableCell>
-                            {item.productVariant.product.name} ({item.productVariant.sku})
+                            <Link href={`/admin/investors/allocations/${item.id}`} className="hover:text-primary">
+                              {item.productVariant.product.name} ({item.productVariant.sku})
+                            </Link>
                           </TableCell>
                           <TableCell className="text-right">
                             {item.participationPercent || "-"}

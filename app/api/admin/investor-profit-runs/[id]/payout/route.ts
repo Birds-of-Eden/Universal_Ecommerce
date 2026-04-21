@@ -10,6 +10,7 @@ import {
   toCleanText,
   toDecimalAmount,
 } from "@/lib/investor";
+import { toPayoutSnapshotFromInvestor } from "@/lib/investor-payout";
 
 function canManageInvestorPayout(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return access.hasGlobal("investor_payout.manage");
@@ -148,12 +149,22 @@ export async function POST(
     const created = await prisma.$transaction(async (tx) => {
       const activeInvestors = await tx.investor.findMany({
         where: { id: { in: investorIds } },
-        select: { id: true, status: true },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          bankName: true,
+          bankAccountName: true,
+          bankAccountNumber: true,
+          beneficiaryVerifiedAt: true,
+          beneficiaryVerificationNote: true,
+        },
       });
       const inactive = activeInvestors.find((item) => item.status !== "ACTIVE");
       if (inactive) {
         throw new Error("Only ACTIVE investors can receive payouts.");
       }
+      const investorMap = new Map(activeInvestors.map((item) => [item.id, item]));
 
       const timestamp = new Date();
       const payouts: Array<{
@@ -166,6 +177,10 @@ export async function POST(
 
       for (const candidate of candidates) {
         const payoutNumber = await generateInvestorProfitPayoutNumber(tx, timestamp);
+        const investor = investorMap.get(candidate.investorId);
+        if (!investor) {
+          throw new Error("Investor not found for payout snapshot.");
+        }
         const payout = await tx.investorProfitPayout.create({
           data: {
             payoutNumber,
@@ -180,6 +195,7 @@ export async function POST(
             status: "PENDING_APPROVAL",
             note,
             createdById: access.userId,
+            ...toPayoutSnapshotFromInvestor(investor),
           },
         });
 

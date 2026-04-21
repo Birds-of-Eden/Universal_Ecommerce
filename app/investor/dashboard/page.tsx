@@ -17,6 +17,8 @@ type OverviewPayload = {
     allocationCount: number;
     activeAllocationCount: number;
     recentPayoutTotal: string;
+    unreadNotificationCount: number;
+    pendingProfileRequestCount: number;
   };
   recentTransactions: Array<{
     id: number;
@@ -111,7 +113,7 @@ export default function InvestorDashboardPage() {
 
       {!loading && !error && data ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Credit</CardTitle>
@@ -136,6 +138,22 @@ export default function InvestorDashboardPage() {
               </CardHeader>
               <CardContent className="text-2xl font-semibold">
                 {data.summary.activeAllocationCount}/{data.summary.allocationCount}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Unread Notifications</CardTitle>
+              </CardHeader>
+              <CardContent className="text-2xl font-semibold">
+                {data.summary.unreadNotificationCount}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Pending Profile Requests</CardTitle>
+              </CardHeader>
+              <CardContent className="text-2xl font-semibold">
+                {data.summary.pendingProfileRequestCount}
               </CardContent>
             </Card>
           </div>

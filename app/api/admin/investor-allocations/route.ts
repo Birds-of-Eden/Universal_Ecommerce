@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { toCleanText, toDecimalAmount } from "@/lib/investor";
+import {
+  dateRangesOverlap,
+  parseInvestorAllocationStatus,
+  sumParticipationPercent,
+} from "@/lib/investor-allocation";
 
 function canReadInvestorAllocations(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return (
@@ -182,11 +187,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const status = toCleanText(body.status, 32).toUpperCase() || "ACTIVE";
+    const status = parseInvestorAllocationStatus(body.status);
     const note = toCleanText(body.note, 500) || null;
 
     const created = await prisma.$transaction(async (tx) => {
-      const [investor, variant, existingActive] = await Promise.all([
+      const [investor, variant, existingAllocations] = await Promise.all([
         tx.investor.findUnique({
           where: { id: investorId },
           select: { id: true, status: true },
@@ -195,14 +200,19 @@ export async function POST(request: NextRequest) {
           where: { id: productVariantId },
           select: { id: true, active: true },
         }),
-        tx.investorProductAllocation.findFirst({
+        tx.investorProductAllocation.findMany({
           where: {
-            investorId,
             productVariantId,
             status: "ACTIVE",
-            effectiveTo: null,
           },
-          select: { id: true },
+          select: {
+            id: true,
+            investorId: true,
+            participationPercent: true,
+            effectiveFrom: true,
+            effectiveTo: true,
+            status: true,
+          },
         }),
       ]);
 
@@ -215,10 +225,34 @@ export async function POST(request: NextRequest) {
       if (!variant || !variant.active) {
         throw new Error("Selected product variant is not active.");
       }
-      if (status === "ACTIVE" && existingActive) {
+
+      const overlappingActiveAllocations = existingAllocations.filter((allocation) =>
+        dateRangesOverlap({
+          startA: allocation.effectiveFrom,
+          endA: allocation.effectiveTo,
+          startB: effectiveFrom,
+          endB: effectiveTo,
+        }),
+      );
+
+      if (
+        status === "ACTIVE" &&
+        overlappingActiveAllocations.some((allocation) => allocation.investorId === investorId)
+      ) {
         throw new Error(
-          "An ACTIVE allocation already exists for this investor and product variant.",
+          "An overlapping ACTIVE allocation already exists for this investor and product variant.",
         );
+      }
+
+      if (status === "ACTIVE" && participationPercent) {
+        const totalPercent = sumParticipationPercent(overlappingActiveAllocations).plus(
+          participationPercent,
+        );
+        if (totalPercent.gt(100)) {
+          throw new Error(
+            "Overlapping active allocations exceed 100% participation for this product variant.",
+          );
+        }
       }
 
       return tx.investorProductAllocation.create({

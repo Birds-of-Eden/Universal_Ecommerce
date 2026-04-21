@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -12,6 +13,9 @@ import {
   TrendingUp,
   HandCoins,
   FileText,
+  FolderOpen,
+  Bell,
+  UserCircle2,
   LogOut,
 } from "lucide-react";
 
@@ -27,11 +31,46 @@ const navItems = [
   { href: "/investor/profit-runs", label: "Profit Runs", icon: TrendingUp },
   { href: "/investor/payouts", label: "Payouts", icon: HandCoins },
   { href: "/investor/statements", label: "Statements", icon: FileText },
+  { href: "/investor/documents", label: "Documents", icon: FolderOpen },
+  { href: "/investor/profile", label: "Profile", icon: UserCircle2 },
+  { href: "/investor/notifications", label: "Notifications", icon: Bell },
 ];
 
 export default function InvestorNav({ investorName, investorCode }: InvestorNavProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadUnreadCount() {
+      try {
+        const response = await fetch("/api/investor/notifications?unreadOnly=true", {
+          cache: "no-store",
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) return;
+        if (active) {
+          setUnreadCount(Number(payload?.unreadCount || 0));
+        }
+      } catch {
+        if (active) {
+          setUnreadCount(0);
+        }
+      }
+    }
+
+    void loadUnreadCount();
+    const interval = window.setInterval(() => {
+      void loadUnreadCount();
+    }, 60000);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   return (
     <aside className="w-72 border-r border-border bg-card/70 backdrop-blur">
@@ -57,7 +96,14 @@ export default function InvestorNav({ investorName, investorCode }: InvestorNavP
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
+                <span className="flex items-center gap-2">
+                  {item.label}
+                  {item.href === "/investor/notifications" && unreadCount > 0 ? (
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+                      {unreadCount}
+                    </span>
+                  ) : null}
+                </span>
               </Link>
             );
           })}

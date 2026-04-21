@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -15,7 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { TrendingUp, TrendingDown, Minus, User, CheckCircle, Clock } from "lucide-react";
 
 interface Investor {
-  id: string;
+  id: string | number;
   name: string;
   code: string;
   status: string;
@@ -117,14 +118,20 @@ export function InvestorTable({ investors, className = "" }: InvestorTableProps)
                       </AvatarFallback>
                     </Avatar>
                     <div className="space-y-1">
-                      <div className="font-semibold text-gray-900 transition-colors group-hover:text-primary">
+                      <Link
+                        href={`/admin/investors/${investor.id}`}
+                        className="font-semibold text-gray-900 transition-colors hover:text-primary group-hover:text-primary"
+                      >
                         {investor.name}
-                      </div>
+                      </Link>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-mono text-gray-400">ID:</span>
-                        <span className="text-xs font-mono font-medium text-gray-500">
+                        <Link
+                          href={`/admin/investors/${investor.id}`}
+                          className="text-xs font-mono font-medium text-gray-500 hover:text-primary"
+                        >
                           {investor.code}
-                        </span>
+                        </Link>
                       </div>
                     </div>
                   </div>

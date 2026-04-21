@@ -226,18 +226,43 @@ export function computeInvestorLedgerTotals(
 export function toInvestorSnapshot(investor: {
   code: string;
   name: string;
+  legalName?: string | null;
   status: string;
   kycStatus: string;
   email: string | null;
   phone: string | null;
+  taxNumber?: string | null;
+  nationalIdNumber?: string | null;
+  passportNumber?: string | null;
+  bankName?: string | null;
+  bankAccountName?: string | null;
+  bankAccountNumber?: string | null;
+  beneficiaryVerifiedAt?: Date | string | null;
+  beneficiaryVerificationNote?: string | null;
+  kycReference?: string | null;
+  notes?: string | null;
 }) {
   return {
     code: investor.code,
     name: investor.name,
+    legalName: investor.legalName ?? null,
     status: investor.status,
     kycStatus: investor.kycStatus,
     email: investor.email,
     phone: investor.phone,
+    taxNumber: investor.taxNumber ?? null,
+    nationalIdNumber: investor.nationalIdNumber ?? null,
+    passportNumber: investor.passportNumber ?? null,
+    bankName: investor.bankName ?? null,
+    bankAccountName: investor.bankAccountName ?? null,
+    bankAccountNumber: investor.bankAccountNumber ?? null,
+    beneficiaryVerifiedAt:
+      investor.beneficiaryVerifiedAt instanceof Date
+        ? investor.beneficiaryVerifiedAt.toISOString()
+        : (investor.beneficiaryVerifiedAt ?? null),
+    beneficiaryVerificationNote: investor.beneficiaryVerificationNote ?? null,
+    kycReference: investor.kycReference ?? null,
+    notes: investor.notes ?? null,
   };
 }
 

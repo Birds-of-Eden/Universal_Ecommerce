@@ -168,7 +168,16 @@ model User {
   investorProfitPayoutsApproved InvestorProfitPayout[]  @relation("InvestorProfitPayoutsApproved")
   investorProfitPayoutsRejected InvestorProfitPayout[]  @relation("InvestorProfitPayoutsRejected")
   investorProfitPayoutsPaid     InvestorProfitPayout[]  @relation("InvestorProfitPayoutsPaid")
+  investorProfitPayoutsReleased InvestorProfitPayout[]  @relation("InvestorProfitPayoutsReleased")
   investorProfitPayoutsVoided   InvestorProfitPayout[]  @relation("InvestorProfitPayoutsVoided")
+  investorDocumentsUploaded     InvestorDocument[]      @relation("InvestorDocumentsUploadedBy")
+  investorDocumentsReviewed     InvestorDocument[]      @relation("InvestorDocumentsReviewedBy")
+  investorMasterChangeRequestsRequested InvestorMasterChangeRequest[] @relation("InvestorMasterChangeRequestsRequestedBy")
+  investorMasterChangeRequestsReviewed  InvestorMasterChangeRequest[] @relation("InvestorMasterChangeRequestsReviewedBy")
+  investorsBeneficiaryVerified          Investor[]        @relation("InvestorBeneficiaryVerifiedBy")
+  investorProfileUpdateRequestsSubmitted InvestorProfileUpdateRequest[] @relation("InvestorProfileUpdateRequestsSubmittedBy")
+  investorProfileUpdateRequestsReviewed  InvestorProfileUpdateRequest[] @relation("InvestorProfileUpdateRequestsReviewedBy")
+  investorPortalNotificationsCreated     InvestorPortalNotification[]   @relation("InvestorPortalNotificationsCreatedBy")
 }
 
 model UserAddress {
@@ -1809,6 +1818,15 @@ model Investor {
   legalName            String?
   email                String?
   phone                String?
+  taxNumber            String?
+  nationalIdNumber     String?
+  passportNumber       String?
+  bankName             String?
+  bankAccountName      String?
+  bankAccountNumber    String?
+  beneficiaryVerifiedAt DateTime?
+  beneficiaryVerifiedById String?
+  beneficiaryVerificationNote String?
   status               InvestorStatus                @default(ACTIVE)
   kycStatus            InvestorKycStatus             @default(PENDING)
   kycVerifiedAt        DateTime?
@@ -1823,11 +1841,17 @@ model Investor {
   profitRunAllocations InvestorProfitRunAllocation[]
   payouts              InvestorProfitPayout[]
   portalAccesses       InvestorPortalAccess[]
+  documents            InvestorDocument[]
+  changeRequests       InvestorMasterChangeRequest[]
+  profileUpdateRequests InvestorProfileUpdateRequest[]
+  portalNotifications   InvestorPortalNotification[]
+  beneficiaryVerifiedBy User?                         @relation("InvestorBeneficiaryVerifiedBy", fields: [beneficiaryVerifiedById], references: [id], onDelete: SetNull)
 
   @@index([name])
   @@index([status])
   @@index([kycStatus])
   @@index([createdById])
+  @@index([beneficiaryVerifiedById])
 }
 
 model InvestorCapitalTransaction {
@@ -1982,6 +2006,11 @@ model InvestorProfitPayout {
   grossProfitAmount     Decimal                      @default(0) @db.Decimal(14, 2)
   holdbackAmount        Decimal                      @default(0) @db.Decimal(14, 2)
   payoutAmount          Decimal                      @default(0) @db.Decimal(14, 2)
+  beneficiaryNameSnapshot String?
+  beneficiaryBankNameSnapshot String?
+  beneficiaryAccountNumberSnapshot String?
+  beneficiaryVerifiedAt  DateTime?
+  beneficiaryVerificationNote String?
   status                InvestorProfitPayoutStatus   @default(PENDING_APPROVAL)
   approvalNote          String?
   approvedById          String?
@@ -1993,7 +2022,14 @@ model InvestorProfitPayout {
   bankReference         String?
   paidById              String?
   note                  String?
+  holdReason            String?
+  heldAt                DateTime?
   paidAt                DateTime?
+  releasedById          String?
+  releasedAt            DateTime?
+  releaseNote           String?
+  paymentProofUrl       String?
+  paymentProofUploadedAt DateTime?
   voidedById            String?
   voidedAt              DateTime?
   voidReason            String?
@@ -2005,6 +2041,7 @@ model InvestorProfitPayout {
   approvedBy            User?                        @relation("InvestorProfitPayoutsApproved", fields: [approvedById], references: [id], onDelete: SetNull)
   rejectedBy            User?                        @relation("InvestorProfitPayoutsRejected", fields: [rejectedById], references: [id], onDelete: SetNull)
   paidBy                User?                        @relation("InvestorProfitPayoutsPaid", fields: [paidById], references: [id], onDelete: SetNull)
+  releasedBy            User?                        @relation("InvestorProfitPayoutsReleased", fields: [releasedById], references: [id], onDelete: SetNull)
   voidedBy              User?                        @relation("InvestorProfitPayoutsVoided", fields: [voidedById], references: [id], onDelete: SetNull)
   investor              Investor                     @relation(fields: [investorId], references: [id], onDelete: Restrict)
   run                   InvestorProfitRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
@@ -2016,6 +2053,7 @@ model InvestorProfitPayout {
   @@index([approvedById])
   @@index([rejectedById])
   @@index([paidById])
+  @@index([releasedById])
   @@index([voidedById])
 }
 
@@ -2774,6 +2812,104 @@ model SupplierPayment {
   @@index([supplierId, paymentDate])
   @@index([supplierInvoiceId])
   @@index([createdById])
+}
+
+model InvestorMasterChangeRequest {
+  id               Int                               @id @default(autoincrement())
+  investorId       Int
+  status           InvestorMasterChangeRequestStatus @default(PENDING)
+  requestedChanges Json
+  currentSnapshot  Json?
+  changeSummary    String?
+  reviewNote       String?
+  requestedById    String?
+  reviewedById     String?
+  requestedAt      DateTime                          @default(now())
+  reviewedAt       DateTime?
+  appliedAt        DateTime?
+  createdAt        DateTime                          @default(now())
+  updatedAt        DateTime                          @updatedAt
+  investor         Investor                          @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  requestedBy      User?                             @relation("InvestorMasterChangeRequestsRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewedBy       User?                             @relation("InvestorMasterChangeRequestsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([investorId, status])
+  @@index([requestedById])
+  @@index([reviewedById])
+}
+
+model InvestorProfileUpdateRequest {
+  id               Int                                  @id @default(autoincrement())
+  investorId       Int
+  status           InvestorProfileUpdateRequestStatus   @default(PENDING)
+  requestedChanges Json
+  currentSnapshot  Json?
+  requestNote      String?
+  reviewNote       String?
+  submittedById    String?
+  reviewedById     String?
+  submittedAt      DateTime                             @default(now())
+  reviewedAt       DateTime?
+  appliedAt        DateTime?
+  createdAt        DateTime                             @default(now())
+  updatedAt        DateTime                             @updatedAt
+  investor         Investor                             @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  submittedBy      User?                                @relation("InvestorProfileUpdateRequestsSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedBy       User?                                @relation("InvestorProfileUpdateRequestsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([investorId, status])
+  @@index([submittedById])
+  @@index([reviewedById])
+}
+
+model InvestorPortalNotification {
+  id           Int                             @id @default(autoincrement())
+  investorId   Int
+  type         InvestorPortalNotificationType
+  title        String
+  message      String
+  status       InvestorPortalNotificationStatus @default(UNREAD)
+  targetUrl    String?
+  metadata     Json?
+  createdById  String?
+  readAt       DateTime?
+  createdAt    DateTime                        @default(now())
+  updatedAt    DateTime                        @updatedAt
+  investor     Investor                         @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  createdBy    User?                            @relation("InvestorPortalNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([investorId, status])
+  @@index([createdById])
+  @@index([type, createdAt])
+}
+
+model InvestorDocument {
+  id             Int                               @id @default(autoincrement())
+  investorId     Int
+  type           InvestorDocumentType
+  fileUrl        String
+  fileName       String?
+  mimeType       String?
+  fileSize       Int?
+  documentNumber String?
+  issuedAt       DateTime?
+  expiresAt      DateTime?
+  status         InvestorDocumentVerificationStatus @default(PENDING)
+  reviewNote     String?
+  uploadedById   String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime                          @default(now())
+  updatedAt      DateTime                          @updatedAt
+  investor       Investor                          @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  uploadedBy     User?                             @relation("InvestorDocumentsUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  reviewedBy     User?                             @relation("InvestorDocumentsReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([investorId, type])
+  @@index([investorId, status])
+  @@index([type])
+  @@index([uploadedById])
+  @@index([reviewedById])
 }
 
 model PaymentRequest {
@@ -4233,6 +4369,49 @@ enum InvestorKycStatus {
   UNDER_REVIEW
   VERIFIED
   REJECTED
+}
+
+enum InvestorDocumentType {
+  IDENTITY_PROOF
+  TAX_IDENTIFICATION
+  BANK_PROOF
+  ADDRESS_PROOF
+  INVESTMENT_AGREEMENT
+  SOURCE_OF_FUNDS
+}
+
+enum InvestorDocumentVerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum InvestorMasterChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InvestorProfileUpdateRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InvestorPortalNotificationType {
+  PROFILE_UPDATE_REQUEST
+  PROFILE_UPDATE_APPROVED
+  PROFILE_UPDATE_REJECTED
+  DOCUMENT_REVIEW
+  PAYOUT_STATUS
+  SYSTEM
+}
+
+enum InvestorPortalNotificationStatus {
+  UNREAD
+  READ
 }
 
 enum InvestorTransactionType {

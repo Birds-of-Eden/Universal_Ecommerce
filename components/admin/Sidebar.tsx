@@ -491,80 +491,137 @@ const menuItems: MenuItem[] = [
       "investor_payout.void",
       "investor_statement.read",
     ],
-    subItems: [
+    subSections: [
       {
-        name: "Workspace",
-        href: "/admin/investors",
-        requiredGlobalPermissions: [
-          "investors.read",
-          "investors.manage",
-          "investor_ledger.read",
-          "investor_ledger.manage",
-          "investor_allocations.read",
-          "investor_allocations.manage",
-          "investor_profit.read",
-          "investor_profit.manage",
-          "investor_profit.approve",
-          "investor_profit.post",
-          "investor_payout.read",
-          "investor_payout.manage",
-          "investor_payout.approve",
-          "investor_payout.pay",
-          "investor_payout.void",
-          "investor_statement.read",
+        label: "Workspace",
+        items: [
+          {
+            name: "Investor Home",
+            href: "/admin/investors",
+            requiredGlobalPermissions: [
+              "investors.read",
+              "investors.manage",
+              "investor_ledger.read",
+              "investor_ledger.manage",
+              "investor_allocations.read",
+              "investor_allocations.manage",
+              "investor_profit.read",
+              "investor_profit.manage",
+              "investor_profit.approve",
+              "investor_profit.post",
+              "investor_payout.read",
+              "investor_payout.manage",
+              "investor_payout.approve",
+              "investor_payout.pay",
+              "investor_payout.void",
+              "investor_statement.read",
+            ],
+          },
+          {
+            name: "My Tasks",
+            href: "/admin/investors/my-tasks",
+            requiredGlobalPermissions: [
+              "investors.manage",
+              "investor_profit.approve",
+              "investor_profit.post",
+              "investor_payout.approve",
+              "investor_payout.pay",
+            ],
+          },
+          {
+            name: "Exceptions",
+            href: "/admin/investors/exceptions",
+            requiredGlobalPermissions: [
+              "investors.read",
+              "investors.manage",
+              "investor_profit.read",
+              "investor_profit.manage",
+              "investor_payout.read",
+              "investor_payout.manage",
+            ],
+          },
         ],
       },
       {
-        name: "Investor Registry",
-        href: "/admin/investors/registry",
-        requiredGlobalPermissions: ["investors.read", "investors.manage"],
-      },
-      {
-        name: "Capital Ledger",
-        href: "/admin/investors/ledger",
-        requiredGlobalPermissions: [
-          "investor_ledger.read",
-          "investor_ledger.manage",
+        label: "Operations",
+        items: [
+          {
+            name: "Investor Registry",
+            href: "/admin/investors/registry",
+            requiredGlobalPermissions: ["investors.read", "investors.manage"],
+          },
+          {
+            name: "Documents",
+            href: "/admin/investors/documents",
+            requiredGlobalPermissions: [
+              "investor_documents.read",
+              "investor_documents.manage",
+              "investor_documents.review",
+              "investors.manage",
+            ],
+          },
+          {
+            name: "Capital Ledger",
+            href: "/admin/investors/ledger",
+            requiredGlobalPermissions: [
+              "investor_ledger.read",
+              "investor_ledger.manage",
+            ],
+          },
+          {
+            name: "Allocations",
+            href: "/admin/investors/allocations",
+            requiredGlobalPermissions: [
+              "investor_allocations.read",
+              "investor_allocations.manage",
+            ],
+          },
+          {
+            name: "Profit Runs",
+            href: "/admin/investors/profit-runs",
+            requiredGlobalPermissions: [
+              "investor_profit.read",
+              "investor_profit.manage",
+              "investor_profit.approve",
+              "investor_profit.post",
+            ],
+          },
+          {
+            name: "Payouts",
+            href: "/admin/investors/payouts",
+            requiredGlobalPermissions: [
+              "investor_payout.read",
+              "investor_payout.manage",
+              "investor_payout.approve",
+              "investor_payout.pay",
+              "investor_payout.void",
+            ],
+          },
+          {
+            name: "Statements",
+            href: "/admin/investors/statements",
+            requiredGlobalPermissions: ["investor_statement.read"],
+          },
         ],
       },
       {
-        name: "Allocations",
-        href: "/admin/investors/allocations",
-        requiredGlobalPermissions: [
-          "investor_allocations.read",
-          "investor_allocations.manage",
+        label: "Governance",
+        items: [
+          {
+            name: "Profile Requests",
+            href: "/admin/investors/profile-requests",
+            requiredGlobalPermissions: [
+              "investor_profile_requests.read",
+              "investor_profile_requests.review",
+              "investors.manage",
+            ],
+          },
+          {
+            name: "Portal Access",
+            href: "/admin/investors/portal-access",
+            requiredGlobalPermissions: ["investors.manage", "users.manage"],
+          },
         ],
-      },
-      {
-        name: "Profit Runs",
-        href: "/admin/investors/profit-runs",
-        requiredGlobalPermissions: [
-          "investor_profit.read",
-          "investor_profit.manage",
-          "investor_profit.approve",
-          "investor_profit.post",
-        ],
-      },
-      {
-        name: "Payouts",
-        href: "/admin/investors/payouts",
-        requiredGlobalPermissions: [
-          "investor_payout.read",
-          "investor_payout.manage",
-          "investor_payout.approve",
-          "investor_payout.pay",
-          "investor_payout.void",
-        ],
-      },
-      {
-        name: "Statements",
-        href: "/admin/investors/statements",
-        requiredGlobalPermissions: ["investor_statement.read"],
-      },
-      {
-        name: "Portal Access",
-        href: "/admin/investors/portal-access",
-        requiredGlobalPermissions: ["investors.manage", "users.manage"],
       },
     ],
   },
