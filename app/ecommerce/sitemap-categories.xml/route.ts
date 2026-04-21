@@ -1,16 +1,29 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const res = await fetch("https://hilfulfujulbd.com/api/categories", {
-    next: { revalidate: 3600 },
-  });
-  const categories = await res.json();
+  const siteUrl =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "http://localhost:3000";
+
+  let categories: any[] = [];
+  try {
+    const res = await fetch(`${siteUrl}/api/categories`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) throw new Error(`Failed to fetch categories: ${res.status}`);
+    const data = await res.json();
+    categories = Array.isArray(data) ? data : (data?.categories || []);
+  } catch (error) {
+    console.error("Error fetching categories for sitemap:", error);
+    categories = [];
+  }
 
   const urls = categories
     .map(
       (cat: any) => `
       <url>
-        <loc>https://hilfulfujulbd.com/ecommerce/categories/${cat.id}</loc>
+        <loc>${siteUrl}/ecommerce/categories/${cat.id}</loc>
         <lastmod>${new Date().toISOString()}</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.7</priority>

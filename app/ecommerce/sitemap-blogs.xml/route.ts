@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://hilfulfujulbd.com';
+const SITE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "http://localhost:3000";
 
 export async function GET() {
   let blogs = [];

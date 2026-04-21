@@ -24,8 +24,12 @@ const transporter = nodemailer.createTransport({
 });
 
 function getBaseUrl() {
-  if (process.env.NODE_ENV === "development") return "http://localhost:3000";
-  return process.env.NEXTAUTH_URL || "https://hilfulfujulbd.com";
+  return (
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "http://localhost:3000"
+  );
 }
 
 const buildEmailHTML = (resetLink: string) => `

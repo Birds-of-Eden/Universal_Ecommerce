@@ -1,6 +1,11 @@
 import { Metadata } from "next";
 import AllBlogs from "@/components/admin/blog/AllBlogs";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "http://localhost:3000";
+
 export const metadata: Metadata = {
   title: "সাম্প্রতিক ব্লগ পোস্ট - কিতাবঘর | হিলফুল ফুজুল",
   description:
@@ -16,7 +21,7 @@ export const metadata: Metadata = {
     "ধর্মীয় লেখা",
   ],
 
-  metadataBase: new URL("https://hilfulfujulbd.com"),
+  metadataBase: new URL(siteUrl),
   alternates: {
     canonical: "/ecommerce/blogs",
     languages: {
@@ -32,13 +37,13 @@ export const metadata: Metadata = {
     title: "সাম্প্রতিক ব্লগ পোস্ট - কিতাবঘর",
     description:
       "ইসলামিক বই, আধ্যাত্মিক জ্ঞান এবং জীবনমুখী আলোচনা নিয়ে কিতাবঘরের সাম্প্রতিক ব্লগ পোস্টসমূহ।",
-    url: "https://hilfulfujulbd.com/ecommerce/blogs",
+    url: `${siteUrl}/ecommerce/blogs`,
     siteName: "কিতাবঘর - হিলফুল ফুজুল",
     type: "website",
     locale: "bn_BD",
     images: [
       {
-        url: "https://hilfulfujulbd.com/images/books-collection.jpg",
+        url: `${siteUrl}/assets/favicon.png`,
         width: 1200,
         height: 630,
         alt: "কিতাবঘর ব্লগ - ইসলামিক বই ও জ্ঞানের সমাহার",
@@ -58,10 +63,6 @@ export const metadata: Metadata = {
     },
   },
 
-  verification: {
-    google: "your-google-verification-code",
-  },
-
   category: "Islamic Blog",
 };
 
@@ -75,19 +76,19 @@ export default function BlogsPage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Blog",
-            "@id": "https://hilfulfujulbd.com/ecommerce/blogs",
+            "@id": `${siteUrl}/ecommerce/blogs`,
             name: "কিতাবঘর ব্লগ",
             description:
               "ইসলামিক বই, আধ্যাত্মিক জ্ঞান ও জীবনমুখী আলোচনাসহ কিতাবঘরের সাম্প্রতিক ব্লগ পোস্টসমূহ।",
-            url: "https://hilfulfujulbd.com/ecommerce/blogs",
+            url: `${siteUrl}/ecommerce/blogs`,
             inLanguage: "bn-BD",
             publisher: {
               "@type": "Organization",
               name: "কিতাবঘর - হিলফুল ফুজুল",
-              url: "https://hilfulfujulbd.com",
+              url: siteUrl,
               logo: {
                 "@type": "ImageObject",
-                url: "https://hilfulfujulbd.com/logo.png",
+                url: `${siteUrl}/assets/favicon.png`,
                 width: 512,
                 height: 512,
               },
@@ -95,25 +96,6 @@ export default function BlogsPage() {
             author: {
               "@type": "Organization",
               name: "কিতাবঘর - হিলফুল ফুজুল",
-            },
-          }),
-        }}
-      />
-
-      {/* Website Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "WebSite",
-            name: "কিতাবঘর",
-            url: "https://hilfulfujulbd.com",
-            potentialAction: {
-              "@type": "SearchAction",
-              target:
-                "https://hilfulfujulbd.com/search?q={search_term_string}",
-              "query-input": "required name=search_term_string",
             },
           }),
         }}
@@ -131,19 +113,19 @@ export default function BlogsPage() {
                 "@type": "ListItem",
                 position: 1,
                 name: "হোম",
-                item: "https://hilfulfujulbd.com",
+                item: siteUrl,
               },
               {
                 "@type": "ListItem",
                 position: 2,
                 name: "কিতাবঘর",
-                item: "https://hilfulfujulbd.com/",
+                item: `${siteUrl}/`,
               },
               {
                 "@type": "ListItem",
                 position: 3,
                 name: "ব্লগসমূহ",
-                item: "https://hilfulfujulbd.com/ecommerce/blogs",
+                item: `${siteUrl}/ecommerce/blogs`,
               },
             ],
           }),

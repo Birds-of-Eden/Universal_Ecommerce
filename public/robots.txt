@@ -1,9 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://hilfulfujulbd.com/sitemap.xml
-Sitemap: https://hilfulfujulbd.com/ecommerce/sitemap-books.xml
-Sitemap: https://hilfulfujulbd.com/ecommerce/sitemap-categories.xml
-Sitemap: https://hilfulfujulbd.com/ecommerce/sitemap-authors.xml
-Sitemap: https://hilfulfujulbd.com/ecommerce/sitemap-publishers.xml
-Sitemap: https://hilfulfujulbd.com/ecommerce/sitemap-blogs.xml

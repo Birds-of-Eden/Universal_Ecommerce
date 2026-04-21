@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
+import { getSiteUrl } from "@/lib/seo";
 
 export default function robots(): MetadataRoute.Robots {
+  const siteUrl = getSiteUrl();
+
   return {
     rules: [
       {
@@ -18,19 +21,14 @@ export default function robots(): MetadataRoute.Robots {
           "/api/auth",
           "/api/cart",
           "/api/user",
-          "/_next/",
           "/private/",
+          "/ecommerce/user/",
+          "/track/",
+          "/print/",
         ],
       },
     ],
-    sitemap: [
-      "https://hilfulfujulbd.com/sitemap.xml",
-      "https://hilfulfujulbd.com/ecommerce/sitemap-books.xml",
-      "https://hilfulfujulbd.com/ecommerce/sitemap-categories.xml",
-      "https://hilfulfujulbd.com/ecommerce/sitemap-authors.xml",
-      "https://hilfulfujulbd.com/ecommerce/sitemap-publishers.xml",
-      "https://hilfulfujulbd.com/ecommerce/sitemap-blogs.xml",
-    ],
-    host: "https://hilfulfujulbd.com",
+    sitemap: `${siteUrl}/sitemap.xml`,
+    host: siteUrl,
   };
 }
