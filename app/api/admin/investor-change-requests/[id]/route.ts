@@ -97,17 +97,16 @@ export async function PATCH(
 
         await tx.activityLog.create({
           data: {
+            userId: access.userId,
             action: "update",
             entity: "investor",
             entityId: String(updatedInvestor.id),
-            actorId: access.userId,
-            actorName: session?.user?.name ?? null,
-            actorEmail: session?.user?.email ?? null,
             metadata: {
               message: `Approved investor master change for ${updatedInvestor.name} (${updatedInvestor.code})`,
               before,
               after: sanitizeInvestorMasterSnapshot(updatedInvestor),
             },
+            updatetAt: new Date(),
           },
         });
 
