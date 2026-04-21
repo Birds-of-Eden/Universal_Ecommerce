@@ -178,6 +178,8 @@ model User {
   investorProfileUpdateRequestsSubmitted InvestorProfileUpdateRequest[] @relation("InvestorProfileUpdateRequestsSubmittedBy")
   investorProfileUpdateRequestsReviewed  InvestorProfileUpdateRequest[] @relation("InvestorProfileUpdateRequestsReviewedBy")
   investorPortalNotificationsCreated     InvestorPortalNotification[]   @relation("InvestorPortalNotificationsCreatedBy")
+  investorStatementSchedulesCreated      InvestorStatementSchedule[]     @relation("InvestorStatementSchedulesCreatedBy")
+  investorStatementSchedulesUpdated      InvestorStatementSchedule[]     @relation("InvestorStatementSchedulesUpdatedBy")
 }
 
 model UserAddress {
@@ -1845,6 +1847,7 @@ model Investor {
   changeRequests       InvestorMasterChangeRequest[]
   profileUpdateRequests InvestorProfileUpdateRequest[]
   portalNotifications   InvestorPortalNotification[]
+  statementSchedules    InvestorStatementSchedule[]
   beneficiaryVerifiedBy User?                         @relation("InvestorBeneficiaryVerifiedBy", fields: [beneficiaryVerifiedById], references: [id], onDelete: SetNull)
 
   @@index([name])
@@ -2881,6 +2884,31 @@ model InvestorPortalNotification {
   @@index([investorId, status])
   @@index([createdById])
   @@index([type, createdAt])
+}
+
+model InvestorStatementSchedule {
+  id                 Int                              @id @default(autoincrement())
+  investorId         Int
+  frequency          InvestorStatementScheduleFrequency
+  deliveryFormat     InvestorStatementDeliveryFormat  @default(PDF)
+  statementWindowDays Int                             @default(30)
+  status             InvestorStatementScheduleStatus  @default(ACTIVE)
+  nextRunAt          DateTime
+  lastRunAt          DateTime?
+  lastDispatchedAt   DateTime?
+  lastDispatchNote   String?
+  createdById        String?
+  updatedById        String?
+  createdAt          DateTime                         @default(now())
+  updatedAt          DateTime                         @updatedAt
+  investor           Investor                         @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  createdBy          User?                            @relation("InvestorStatementSchedulesCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy          User?                            @relation("InvestorStatementSchedulesUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([investorId, status])
+  @@index([status, nextRunAt])
+  @@index([createdById])
+  @@index([updatedById])
 }
 
 model InvestorDocument {
@@ -4406,12 +4434,30 @@ enum InvestorPortalNotificationType {
   PROFILE_UPDATE_REJECTED
   DOCUMENT_REVIEW
   PAYOUT_STATUS
+  STATEMENT_READY
   SYSTEM
 }
 
 enum InvestorPortalNotificationStatus {
   UNREAD
   READ
+}
+
+enum InvestorStatementScheduleFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum InvestorStatementScheduleStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum InvestorStatementDeliveryFormat {
+  CSV
+  PDF
+  BOTH
 }
 
 enum InvestorTransactionType {

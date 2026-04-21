@@ -401,6 +401,13 @@ export default function InvestorOperationsClient({
                       href: "/admin/investors/payouts",
                       icon: Clock3,
                     },
+                    {
+                      id: "statement-followup",
+                      label: "Statement Schedules",
+                      description: "Dispatch due investor statements and clear overdue schedule backlog.",
+                      href: "/admin/investors/statement-schedules?dueOnly=true",
+                      icon: CheckCircle2,
+                    },
                   ].map((item) => (
                     <Link
                       key={item.id}

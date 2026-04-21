@@ -602,6 +602,11 @@ const menuItems: MenuItem[] = [
             href: "/admin/investors/statements",
             requiredGlobalPermissions: ["investor_statement.read"],
           },
+          {
+            name: "Statement Schedules",
+            href: "/admin/investors/statement-schedules",
+            requiredGlobalPermissions: ["investor_statement.read", "investors.manage"],
+          },
         ],
       },
       {

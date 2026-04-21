@@ -83,6 +83,9 @@ export async function getInvestorWorkspacePayload(
     pendingPayoutApprovalCount,
     approvedPayoutPendingPayCount,
     agedApprovedPayoutCount,
+    pendingProfileRequestCount,
+    dueStatementScheduleCount,
+    overdueStatementScheduleCount,
     postedRunWithoutPayoutCount,
     allocationGovernanceGapCount,
     recentActivity,
@@ -132,6 +135,23 @@ export async function getInvestorWorkspacePayload(
         status: "APPROVED",
         approvedAt: {
           lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        },
+      },
+    }),
+    prisma.investorProfileUpdateRequest.count({
+      where: { status: "PENDING" },
+    }),
+    prisma.investorStatementSchedule.count({
+      where: {
+        status: "ACTIVE",
+        nextRunAt: { lte: new Date() },
+      },
+    }),
+    prisma.investorStatementSchedule.count({
+      where: {
+        status: "ACTIVE",
+        nextRunAt: {
+          lt: new Date(Date.now() - 24 * 60 * 60 * 1000),
         },
       },
     }),
@@ -197,7 +217,7 @@ export async function getInvestorWorkspacePayload(
       title: "Profit runs awaiting approval",
       description: "Review and approve pending investor profitability runs.",
       count: pendingProfitApprovalCount,
-      href: "/admin/investors/profit-runs",
+      href: "/admin/investors/profit-runs?status=PENDING_APPROVAL",
       tone: "default",
     });
   }
@@ -208,7 +228,7 @@ export async function getInvestorWorkspacePayload(
       title: "Approved runs awaiting posting",
       description: "Approved investor profit runs still need ledger posting.",
       count: approvedProfitPendingPostCount,
-      href: "/admin/investors/profit-runs",
+      href: "/admin/investors/profit-runs?status=APPROVED",
       tone: "warning",
     });
   }
@@ -219,7 +239,7 @@ export async function getInvestorWorkspacePayload(
       title: "Payouts awaiting approval",
       description: "Investor payout drafts are waiting for approval decision.",
       count: pendingPayoutApprovalCount,
-      href: "/admin/investors/payouts",
+      href: "/admin/investors/payouts?status=PENDING_APPROVAL",
       tone: "default",
     });
   }
@@ -230,7 +250,29 @@ export async function getInvestorWorkspacePayload(
       title: "Approved payouts awaiting payment",
       description: "Approved investor payouts are ready for payment execution.",
       count: approvedPayoutPendingPayCount,
-      href: "/admin/investors/payouts",
+      href: "/admin/investors/payouts?status=APPROVED",
+      tone: "warning",
+    });
+  }
+
+  if (hasAnyPermission(access, ["investors.manage"]) && pendingProfileRequestCount > 0) {
+    tasks.push({
+      id: "profile-request-review",
+      title: "Profile requests awaiting review",
+      description: "Investor-submitted profile and bank updates are waiting for review.",
+      count: pendingProfileRequestCount,
+      href: "/admin/investors/profile-requests",
+      tone: "default",
+    });
+  }
+
+  if (hasAnyPermission(access, ["investor_statement.read", "investors.manage"]) && dueStatementScheduleCount > 0) {
+    tasks.push({
+      id: "statement-schedule-due",
+      title: "Scheduled statements due",
+      description: "Recurring investor statements are due for dispatch.",
+      count: dueStatementScheduleCount,
+      href: "/admin/investors/statement-schedules?dueOnly=true",
       tone: "warning",
     });
   }
@@ -266,7 +308,7 @@ export async function getInvestorWorkspacePayload(
       title: "Approved payouts aging",
       description: "Approved payouts have not been paid for more than three days.",
       count: agedApprovedPayoutCount,
-      href: "/admin/investors/payouts",
+      href: "/admin/investors/payouts?status=APPROVED",
       tone: "critical",
     });
   }
@@ -277,7 +319,7 @@ export async function getInvestorWorkspacePayload(
       title: "Posted runs without payout draft",
       description: "Posted profit runs still have no payout draft created.",
       count: postedRunWithoutPayoutCount,
-      href: "/admin/investors/profit-runs",
+      href: "/admin/investors/profit-runs?status=POSTED",
       tone: "warning",
     });
   }
@@ -301,6 +343,17 @@ export async function getInvestorWorkspacePayload(
       count: missingPortalCount,
       href: "/admin/investors/portal-access",
       tone: "warning",
+    });
+  }
+
+  if (overdueStatementScheduleCount > 0) {
+    exceptions.push({
+      id: "overdue-statement-schedules",
+      title: "Overdue statement dispatches",
+      description: "Scheduled investor statements were not dispatched within one day of due time.",
+      count: overdueStatementScheduleCount,
+      href: "/admin/investors/statement-schedules?dueOnly=true",
+      tone: "critical",
     });
   }
 
@@ -341,9 +394,18 @@ export async function getInvestorWorkspacePayload(
       description: "Provision investor self-service access and monitor status.",
       href: "/admin/investors/portal-access",
     },
+    {
+      id: "statement-schedules",
+      label: "Statement Schedules",
+      description: "Manage recurring investor statement dispatch cadence and due queue.",
+      href: "/admin/investors/statement-schedules",
+    },
   ].filter((item) => {
     if (item.id === "portal-access") {
       return hasAnyPermission(access, ["investors.manage", "users.manage"]);
+    }
+    if (item.id === "statement-schedules") {
+      return hasAnyPermission(access, ["investor_statement.read", "investors.manage"]);
     }
     return true;
   });

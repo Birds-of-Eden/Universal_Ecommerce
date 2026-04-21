@@ -367,6 +367,11 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/investors/statement-schedules",
+    permissions: ["investor_statement.read", "investors.manage"],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/investors/my-tasks",
     permissions: [
       "investors.manage",
@@ -1393,6 +1398,18 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/admin/investor-profit-runs",
     methods: ["POST"],
     permissions: ["investor_profit.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-statement-schedules",
+    methods: ["GET"],
+    permissions: ["investor_statement.read", "investors.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-statement-schedules",
+    methods: ["POST", "PATCH", "PUT"],
+    permissions: ["investors.manage"],
     globalOnly: true,
   },
   {

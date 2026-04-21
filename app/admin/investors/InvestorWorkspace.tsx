@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { InvestorTable } from "@/components/investors/InvestorTable";
+import { exportInvestorStatementPdf } from "@/lib/export-investor-statement-pdf";
 
 type Investor = {
   id: number;
@@ -159,6 +161,21 @@ type ProfitPayout = {
   } | null;
 };
 
+type PayoutRegisterItem = ProfitPayout & {
+  heldAt?: string | null;
+  releasedAt?: string | null;
+  run: {
+    id: number;
+    runNumber: string;
+    status: string;
+    fromDate: string;
+    toDate: string;
+  };
+  investor: ProfitPayout["investor"] & {
+    beneficiaryVerifiedAt?: string | null;
+  };
+};
+
 type ProfitPayload = {
   runs: ProfitRun[];
   selectedRunId: number | null;
@@ -194,11 +211,22 @@ async function readJson<T>(response: Response, fallback: string) {
   return payload as T;
 }
 
+function toInputDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
 export default function InvestorWorkspace({
   section = "overview",
 }: {
   section?: InvestorSection;
 }) {
+  const searchParams = useSearchParams();
+  const defaultStatementFrom = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return toInputDate(date);
+  }, []);
+  const defaultStatementTo = useMemo(() => toInputDate(new Date()), []);
   const { data: session } = useSession();
   const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
     ? ((session?.user as any).globalPermissions as string[])
@@ -279,15 +307,61 @@ export default function InvestorWorkspace({
   const [selectedInvestorId, setSelectedInvestorId] = useState("");
   const [profitRuns, setProfitRuns] = useState<ProfitRun[]>([]);
   const [selectedProfitRunId, setSelectedProfitRunId] = useState("");
+  const [payoutRunFilter, setPayoutRunFilter] = useState("");
+  const [profitStatusFilter, setProfitStatusFilter] = useState("");
+  const [payoutStatusFilter, setPayoutStatusFilter] = useState("");
+  const [statementFrom, setStatementFrom] = useState(defaultStatementFrom);
+  const [statementTo, setStatementTo] = useState(defaultStatementTo);
   const [profitVariantLines, setProfitVariantLines] = useState<ProfitVariantLine[]>([]);
   const [profitAllocationLines, setProfitAllocationLines] = useState<ProfitAllocationLine[]>([]);
   const [profitPayouts, setProfitPayouts] = useState<ProfitPayout[]>([]);
+  const [payoutRegister, setPayoutRegister] = useState<PayoutRegisterItem[]>([]);
   const [runningProfit, setRunningProfit] = useState(false);
   const [updatingRunStatus, setUpdatingRunStatus] = useState(false);
   const [postingRun, setPostingRun] = useState(false);
   const [processingPayout, setProcessingPayout] = useState(false);
   const [actingPayoutId, setActingPayoutId] = useState<number | null>(null);
   const [exportingStatement, setExportingStatement] = useState(false);
+
+  useEffect(() => {
+    const investorId = searchParams.get("investorId") || "";
+    const runId = searchParams.get("runId") || "";
+    const status = searchParams.get("status") || "";
+    const from = searchParams.get("from") || "";
+    const to = searchParams.get("to") || "";
+
+    if (investorId !== selectedInvestorId) {
+      setSelectedInvestorId(investorId);
+    }
+    if (runId !== selectedProfitRunId) {
+      setSelectedProfitRunId(runId);
+    }
+    if (section === "payouts" && runId !== payoutRunFilter) {
+      setPayoutRunFilter(runId);
+    }
+    if (section === "profit-runs" && status !== profitStatusFilter) {
+      setProfitStatusFilter(status);
+    }
+    if (section === "payouts" && status !== payoutStatusFilter) {
+      setPayoutStatusFilter(status);
+    }
+    if (from && from !== statementFrom) {
+      setStatementFrom(from);
+    }
+    if (to && to !== statementTo) {
+      setStatementTo(to);
+    }
+  }, [
+    payoutStatusFilter,
+    payoutRunFilter,
+    profitStatusFilter,
+    searchParams,
+    section,
+    selectedInvestorId,
+    selectedProfitRunId,
+    statementFrom,
+    statementTo,
+  ]);
 
   const [investorName, setInvestorName] = useState("");
   const [investorEmail, setInvestorEmail] = useState("");
@@ -343,10 +417,23 @@ export default function InvestorWorkspace({
         profitParams.set("runId", selectedProfitRunId);
       }
       const profitUrl = `/api/admin/investor-profit-runs${profitParams.size > 0 ? `?${profitParams.toString()}` : ""}`;
-      const [investorRes, txRes, allocationRes] = await Promise.all([
+      const payoutParams = new URLSearchParams();
+      if (selectedInvestorId) {
+        payoutParams.set("investorId", selectedInvestorId);
+      }
+      if (payoutRunFilter) {
+        payoutParams.set("runId", payoutRunFilter);
+      }
+      if (payoutStatusFilter) {
+        payoutParams.set("status", payoutStatusFilter);
+      }
+      const payoutUrl = `/api/admin/investor-payouts${payoutParams.size > 0 ? `?${payoutParams.toString()}` : ""}`;
+
+      const [investorRes, txRes, allocationRes, payoutRes] = await Promise.all([
         fetch("/api/admin/investors", { cache: "no-store" }),
         fetch(`/api/admin/investor-transactions${investorParam}`, { cache: "no-store" }),
         fetch(`/api/admin/investor-allocations${investorParam}`, { cache: "no-store" }),
+        fetch(payoutUrl, { cache: "no-store" }),
       ]);
 
       const investorData = await readJson<Investor[]>(investorRes, "Failed to load investors");
@@ -354,6 +441,10 @@ export default function InvestorWorkspace({
       const allocationData = await readJson<Allocation[]>(
         allocationRes,
         "Failed to load allocations",
+      );
+      const payoutData = await readJson<{ payouts: PayoutRegisterItem[] }>(
+        payoutRes,
+        "Failed to load investor payouts",
       );
       let profitData: ProfitPayload = {
         runs: [],
@@ -378,6 +469,7 @@ export default function InvestorWorkspace({
       setProfitVariantLines(profitData.variantLines || []);
       setProfitAllocationLines(profitData.allocationLines || []);
       setProfitPayouts(profitData.payouts || []);
+      setPayoutRegister(payoutData.payouts || []);
       const apiRunId =
         profitData.selectedRunId && Number.isInteger(profitData.selectedRunId)
           ? String(profitData.selectedRunId)
@@ -394,7 +486,7 @@ export default function InvestorWorkspace({
 
   useEffect(() => {
     void loadData();
-  }, [canReadProfit, selectedInvestorId, selectedProfitRunId]);
+  }, [canReadProfit, payoutRunFilter, payoutStatusFilter, selectedInvestorId, selectedProfitRunId]);
 
   useEffect(() => {
     if (!selectedInvestorId) return;
@@ -510,6 +602,25 @@ export default function InvestorWorkspace({
     }
     return profitRuns.find((run) => String(run.id) === selectedProfitRunId) ?? null;
   }, [profitRuns, selectedProfitRunId]);
+
+  const filteredProfitRuns = useMemo(() => {
+    if (!profitStatusFilter) {
+      return profitRuns;
+    }
+    return profitRuns.filter((run) => run.status === profitStatusFilter);
+  }, [profitRuns, profitStatusFilter]);
+
+  const filteredPayoutRegister = useMemo(() => {
+    return payoutRegister.filter((item) => {
+      if (payoutRunFilter && String(item.run.id) !== payoutRunFilter) {
+        return false;
+      }
+      if (payoutStatusFilter && item.status !== payoutStatusFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [payoutRegister, payoutRunFilter, payoutStatusFilter]);
 
   const changeProfitRunStatus = async (action: "approve" | "reject") => {
     if (!selectedProfitRun) {
@@ -643,6 +754,8 @@ export default function InvestorWorkspace({
       if (selectedInvestorId) {
         params.set("investorId", selectedInvestorId);
       }
+      params.set("from", statementFrom || defaultStatementFrom);
+      params.set("to", statementTo || defaultStatementTo);
       const response = await fetch(`/api/admin/investor-statements?${params.toString()}`, {
         cache: "no-store",
       });
@@ -662,6 +775,70 @@ export default function InvestorWorkspace({
       toast.success("Investor statement exported");
     } catch (error: any) {
       toast.error(error?.message || "Failed to export statement");
+    } finally {
+      setExportingStatement(false);
+    }
+  };
+
+  const exportStatementPdfFile = async () => {
+    try {
+      setExportingStatement(true);
+      const params = new URLSearchParams();
+      if (selectedInvestorId) {
+        params.set("investorId", selectedInvestorId);
+      }
+      params.set("from", statementFrom || defaultStatementFrom);
+      params.set("to", statementTo || defaultStatementTo);
+
+      const response = await fetch(`/api/admin/investor-statements?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const payload = await readJson<{
+        from: string;
+        to: string;
+        statements: Array<{
+          investor: { code: string; name: string; status: string };
+          totals: { credit: string; debit: string; net: string };
+          transactions: Array<{
+            transactionNumber: string;
+            transactionDate: string;
+            type: string;
+            direction: string;
+            amount: string;
+          }>;
+          payouts: Array<{
+            payoutNumber: string;
+            status: string;
+            payoutAmount: string;
+            createdAt: string;
+            paidAt: string | null;
+          }>;
+        }>;
+      }>(response, "Failed to load statement data");
+
+      await exportInvestorStatementPdf({
+        fileName: `investor-statement-${payload.from.slice(0, 10)}-to-${payload.to.slice(0, 10)}.pdf`,
+        title: "Investor Statement",
+        from: payload.from,
+        to: payload.to,
+        statements: payload.statements.map((statement) => ({
+          investorCode: statement.investor.code,
+          investorName: statement.investor.name,
+          status: statement.investor.status,
+          summary: statement.totals,
+          transactions: statement.transactions.map((item) => ({
+            ...item,
+            currency: "BDT",
+          })),
+          payouts: statement.payouts.map((item) => ({
+            ...item,
+            currency: "BDT",
+          })),
+        })),
+      });
+      toast.success("Investor statement PDF exported");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to export statement PDF");
     } finally {
       setExportingStatement(false);
     }
@@ -1234,8 +1411,8 @@ export default function InvestorWorkspace({
                     <select
                       id="profit-run-select"
                       className="h-10 w-full rounded-md border bg-background px-3 text-sm md:w-[460px]"
-                      value={selectedProfitRunId}
-                      onChange={(event) => setSelectedProfitRunId(event.target.value)}
+                      value={payoutRunFilter}
+                      onChange={(event) => setPayoutRunFilter(event.target.value)}
                     >
                       <option value="">Latest run</option>
                       {profitRuns.map((run) => (
@@ -1243,6 +1420,21 @@ export default function InvestorWorkspace({
                           {run.runNumber} • {run.fromDate.slice(0, 10)} to {run.toDate.slice(0, 10)}
                         </option>
                       ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="profit-status-filter">Run Status</Label>
+                    <select
+                      id="profit-status-filter"
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm md:w-[240px]"
+                      value={profitStatusFilter}
+                      onChange={(event) => setProfitStatusFilter(event.target.value)}
+                    >
+                      <option value="">All statuses</option>
+                      <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
+                      <option value="APPROVED">APPROVED</option>
+                      <option value="REJECTED">REJECTED</option>
+                      <option value="POSTED">POSTED</option>
                     </select>
                   </div>
                   <div className="overflow-x-auto">
@@ -1262,7 +1454,7 @@ export default function InvestorWorkspace({
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {profitRuns.map((run) => (
+                        {filteredProfitRuns.map((run) => (
                           <TableRow key={run.id}>
                             <TableCell className="font-medium">
                               <Link href={`/admin/investors/profit-runs/${run.id}`} className="hover:text-primary">
@@ -1296,6 +1488,13 @@ export default function InvestorWorkspace({
                             </TableCell>
                           </TableRow>
                         ))}
+                        {filteredProfitRuns.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={10} className="text-center text-sm text-muted-foreground">
+                              No profit runs matched the current filters.
+                            </TableCell>
+                          </TableRow>
+                        ) : null}
                       </TableBody>
                     </Table>
                   </div>
@@ -1591,6 +1790,44 @@ export default function InvestorWorkspace({
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4 overflow-x-auto">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="payout-run-filter">Profit Run</Label>
+                      <select
+                        id="payout-run-filter"
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        value={selectedProfitRunId}
+                        onChange={(event) => setSelectedProfitRunId(event.target.value)}
+                      >
+                        <option value="">All runs</option>
+                        {profitRuns.map((run) => (
+                          <option key={run.id} value={run.id}>
+                            {run.runNumber}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="payout-status-filter">Payout Status</Label>
+                      <select
+                        id="payout-status-filter"
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                        value={payoutStatusFilter}
+                        onChange={(event) => setPayoutStatusFilter(event.target.value)}
+                      >
+                        <option value="">All statuses</option>
+                        <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
+                        <option value="APPROVED">APPROVED</option>
+                        <option value="REJECTED">REJECTED</option>
+                        <option value="PAID">PAID</option>
+                        <option value="VOID">VOID</option>
+                      </select>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-xs text-muted-foreground">Visible Payouts</p>
+                      <p className="text-2xl font-semibold">{filteredPayoutRegister.length}</p>
+                    </div>
+                  </div>
                   {(canApprovePayout || canPayPayout || canVoidPayout) ? (
                     <div className="grid gap-4 md:grid-cols-5">
                       <div className="space-y-2">
@@ -1675,12 +1912,13 @@ export default function InvestorWorkspace({
                     </div>
                   ) : null}
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Payout</TableHead>
-                        <TableHead>Investor</TableHead>
-                        <TableHead>Gross Profit</TableHead>
-                        <TableHead>Holdback</TableHead>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Payout</TableHead>
+                          <TableHead>Run</TableHead>
+                          <TableHead>Investor</TableHead>
+                          <TableHead>Gross Profit</TableHead>
+                          <TableHead>Holdback</TableHead>
                         <TableHead>Payout Amount</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Method</TableHead>
@@ -1691,9 +1929,9 @@ export default function InvestorWorkspace({
                           <TableHead>Actions</TableHead>
                         ) : null}
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {profitPayouts.map((item) => (
+                      </TableHeader>
+                      <TableBody>
+                      {filteredPayoutRegister.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">
                             <Link href={`/admin/investors/payouts/${item.id}`} className="hover:text-primary">
@@ -1701,7 +1939,15 @@ export default function InvestorWorkspace({
                             </Link>
                           </TableCell>
                           <TableCell>
-                            {item.investor.name} ({item.investor.code})
+                            <Link href={`/admin/investors/profit-runs/${item.run.id}`} className="hover:text-primary">
+                              {item.run.runNumber}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <div>{item.investor.name} ({item.investor.code})</div>
+                            <div className="text-xs text-muted-foreground">
+                              Beneficiary {item.investor.beneficiaryVerifiedAt ? "verified" : "pending"}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">{Number(item.grossProfitAmount).toFixed(2)}</TableCell>
                           <TableCell className="text-right">
@@ -1729,6 +1975,8 @@ export default function InvestorWorkspace({
                           <TableCell>{item.bankReference || "-"}</TableCell>
                           <TableCell className="text-xs">
                             <div>A: {item.approvedAt ? item.approvedAt.slice(0, 10) : "-"}</div>
+                            <div>H: {item.heldAt ? item.heldAt.slice(0, 10) : "-"}</div>
+                            <div>R: {item.releasedAt ? item.releasedAt.slice(0, 10) : "-"}</div>
                             <div>P: {item.paidAt ? item.paidAt.slice(0, 10) : "-"}</div>
                             <div>V: {item.voidedAt ? item.voidedAt.slice(0, 10) : "-"}</div>
                           </TableCell>
@@ -1779,6 +2027,16 @@ export default function InvestorWorkspace({
                           ) : null}
                         </TableRow>
                       ))}
+                      {filteredPayoutRegister.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={(canApprovePayout || canPayPayout || canVoidPayout) ? 12 : 11}
+                            className="text-center text-sm text-muted-foreground"
+                          >
+                            No payouts matched the current filters.
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -1978,18 +2236,55 @@ export default function InvestorWorkspace({
           <CardHeader>
             <CardTitle>Statement Export</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Export investor statement as CSV for the selected investor filter.
+              Export investor statements for the selected investor and date range.
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void exportStatementCsv()}
-              disabled={exportingStatement}
-            >
-              {exportingStatement ? "Exporting..." : "Export Statement CSV"}
-            </Button>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="statement-from">From</Label>
+                <Input
+                  id="statement-from"
+                  type="date"
+                  value={statementFrom}
+                  onChange={(event) => setStatementFrom(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="statement-to">To</Label>
+                <Input
+                  id="statement-to"
+                  type="date"
+                  value={statementTo}
+                  onChange={(event) => setStatementTo(event.target.value)}
+                />
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Investor Scope</p>
+                <p className="text-sm font-medium">
+                  {selectedInvestorId
+                    ? investors.find((item) => String(item.id) === selectedInvestorId)?.name || "Selected investor"
+                    : "All investors"}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void exportStatementCsv()}
+                disabled={exportingStatement}
+              >
+                {exportingStatement ? "Exporting..." : "Export Statement CSV"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => void exportStatementPdfFile()}
+                disabled={exportingStatement}
+              >
+                {exportingStatement ? "Exporting..." : "Export Statement PDF"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}

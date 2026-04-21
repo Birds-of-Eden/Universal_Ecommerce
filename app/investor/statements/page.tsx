@@ -5,8 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { exportInvestorStatementPdf } from "@/lib/export-investor-statement-pdf";
 
 type StatementPayload = {
+  investor: {
+    id: number;
+    code: string;
+    name: string;
+  };
   from: string;
   to: string;
   totals: {
@@ -93,6 +99,25 @@ export default function InvestorStatementsPage() {
     window.location.href = `/api/investor/statements?${params.toString()}`;
   };
 
+  const downloadPdf = async () => {
+    if (!data) return;
+    await exportInvestorStatementPdf({
+      fileName: `investor-statement-${from}-to-${to}.pdf`,
+      title: "Investor Statement",
+      from: data.from,
+      to: data.to,
+      statements: [
+        {
+          investorCode: data.investor.code,
+          investorName: data.investor.name,
+          summary: data.totals,
+          transactions: data.transactions,
+          payouts: data.payouts,
+        },
+      ],
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -130,6 +155,9 @@ export default function InvestorStatementsPage() {
               <Button onClick={() => void load(from, to)}>Apply</Button>
               <Button variant="outline" onClick={downloadCsv}>
                 Export CSV
+              </Button>
+              <Button variant="outline" onClick={() => void downloadPdf()} disabled={!data}>
+                Export PDF
               </Button>
             </div>
           </div>
@@ -239,4 +267,3 @@ export default function InvestorStatementsPage() {
     </div>
   );
 }
-
