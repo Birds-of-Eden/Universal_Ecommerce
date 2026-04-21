@@ -17,12 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InvestorTable } from "@/components/investors/InvestorTable";
 import { exportInvestorStatementPdf } from "@/lib/export-investor-statement-pdf";
 
@@ -228,13 +223,17 @@ export default function InvestorWorkspace({
   }, []);
   const defaultStatementTo = useMemo(() => toInputDate(new Date()), []);
   const { data: session } = useSession();
-  const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
+  const globalPermissions = Array.isArray(
+    (session?.user as any)?.globalPermissions,
+  )
     ? ((session?.user as any).globalPermissions as string[])
     : [];
 
   const canManageInvestors = globalPermissions.includes("investors.manage");
   const canManageLedger = globalPermissions.includes("investor_ledger.manage");
-  const canManageAllocations = globalPermissions.includes("investor_allocations.manage");
+  const canManageAllocations = globalPermissions.includes(
+    "investor_allocations.manage",
+  );
   const canReadProfit =
     globalPermissions.includes("investor_profit.read") ||
     globalPermissions.includes("investor_profit.manage") ||
@@ -247,7 +246,9 @@ export default function InvestorWorkspace({
     globalPermissions.includes("investor_payout.void") ||
     globalPermissions.includes("investor_statement.read");
   const canManageProfit = globalPermissions.includes("investor_profit.manage");
-  const canApproveProfit = globalPermissions.includes("investor_profit.approve");
+  const canApproveProfit = globalPermissions.includes(
+    "investor_profit.approve",
+  );
   const canPostProfit = globalPermissions.includes("investor_profit.post");
   const canReadPayout =
     globalPermissions.includes("investor_payout.read") ||
@@ -257,16 +258,21 @@ export default function InvestorWorkspace({
     globalPermissions.includes("investor_payout.void") ||
     globalPermissions.includes("investor_statement.read");
   const canManagePayout = globalPermissions.includes("investor_payout.manage");
-  const canApprovePayout = globalPermissions.includes("investor_payout.approve");
+  const canApprovePayout = globalPermissions.includes(
+    "investor_payout.approve",
+  );
   const canPayPayout = globalPermissions.includes("investor_payout.pay");
   const canVoidPayout = globalPermissions.includes("investor_payout.void");
-  const canReadStatement = globalPermissions.includes("investor_statement.read");
+  const canReadStatement = globalPermissions.includes(
+    "investor_statement.read",
+  );
   const canReadInvestors =
     globalPermissions.includes("investors.read") || canManageInvestors;
   const canReadLedger =
     globalPermissions.includes("investor_ledger.read") || canManageLedger;
   const canReadAllocations =
-    globalPermissions.includes("investor_allocations.read") || canManageAllocations;
+    globalPermissions.includes("investor_allocations.read") ||
+    canManageAllocations;
   const isOverview = section === "overview";
   const showSection = (target: Exclude<InvestorSection, "overview">) =>
     isOverview || section === target;
@@ -312,10 +318,16 @@ export default function InvestorWorkspace({
   const [payoutStatusFilter, setPayoutStatusFilter] = useState("");
   const [statementFrom, setStatementFrom] = useState(defaultStatementFrom);
   const [statementTo, setStatementTo] = useState(defaultStatementTo);
-  const [profitVariantLines, setProfitVariantLines] = useState<ProfitVariantLine[]>([]);
-  const [profitAllocationLines, setProfitAllocationLines] = useState<ProfitAllocationLine[]>([]);
+  const [profitVariantLines, setProfitVariantLines] = useState<
+    ProfitVariantLine[]
+  >([]);
+  const [profitAllocationLines, setProfitAllocationLines] = useState<
+    ProfitAllocationLine[]
+  >([]);
   const [profitPayouts, setProfitPayouts] = useState<ProfitPayout[]>([]);
-  const [payoutRegister, setPayoutRegister] = useState<PayoutRegisterItem[]>([]);
+  const [payoutRegister, setPayoutRegister] = useState<PayoutRegisterItem[]>(
+    [],
+  );
   const [runningProfit, setRunningProfit] = useState(false);
   const [updatingRunStatus, setUpdatingRunStatus] = useState(false);
   const [postingRun, setPostingRun] = useState(false);
@@ -366,6 +378,15 @@ export default function InvestorWorkspace({
   const [investorName, setInvestorName] = useState("");
   const [investorEmail, setInvestorEmail] = useState("");
   const [investorPhone, setInvestorPhone] = useState("");
+  const [investorLegalName, setInvestorLegalName] = useState("");
+  const [investorTaxNumber, setInvestorTaxNumber] = useState("");
+  const [investorNationalIdNumber, setInvestorNationalIdNumber] = useState("");
+  const [investorPassportNumber, setInvestorPassportNumber] = useState("");
+  const [investorBankName, setInvestorBankName] = useState("");
+  const [investorBankAccountName, setInvestorBankAccountName] = useState("");
+  const [investorBankAccountNumber, setInvestorBankAccountNumber] =
+    useState("");
+  const [investorNotes, setInvestorNotes] = useState("");
   const [transactionForm, setTransactionForm] = useState({
     investorId: "",
     type: "CAPITAL_CONTRIBUTION" as (typeof TRANSACTION_TYPES)[number],
@@ -399,7 +420,11 @@ export default function InvestorWorkspace({
   });
   const [payoutActionForm, setPayoutActionForm] = useState({
     note: "",
-    paymentMethod: "BANK_TRANSFER" as "BANK_TRANSFER" | "MOBILE_BANKING" | "CHEQUE" | "CASH",
+    paymentMethod: "BANK_TRANSFER" as
+      | "BANK_TRANSFER"
+      | "MOBILE_BANKING"
+      | "CHEQUE"
+      | "CASH",
     bankReference: "",
     paidAt: "",
     voidReason: "",
@@ -408,7 +433,9 @@ export default function InvestorWorkspace({
   const loadData = async () => {
     try {
       setLoading(true);
-      const investorParam = selectedInvestorId ? `?investorId=${selectedInvestorId}` : "";
+      const investorParam = selectedInvestorId
+        ? `?investorId=${selectedInvestorId}`
+        : "";
       const profitParams = new URLSearchParams();
       if (selectedInvestorId) {
         profitParams.set("investorId", selectedInvestorId);
@@ -431,13 +458,23 @@ export default function InvestorWorkspace({
 
       const [investorRes, txRes, allocationRes, payoutRes] = await Promise.all([
         fetch("/api/admin/investors", { cache: "no-store" }),
-        fetch(`/api/admin/investor-transactions${investorParam}`, { cache: "no-store" }),
-        fetch(`/api/admin/investor-allocations${investorParam}`, { cache: "no-store" }),
+        fetch(`/api/admin/investor-transactions${investorParam}`, {
+          cache: "no-store",
+        }),
+        fetch(`/api/admin/investor-allocations${investorParam}`, {
+          cache: "no-store",
+        }),
         fetch(payoutUrl, { cache: "no-store" }),
       ]);
 
-      const investorData = await readJson<Investor[]>(investorRes, "Failed to load investors");
-      const txData = await readJson<TxPayload>(txRes, "Failed to load transactions");
+      const investorData = await readJson<Investor[]>(
+        investorRes,
+        "Failed to load investors",
+      );
+      const txData = await readJson<TxPayload>(
+        txRes,
+        "Failed to load transactions",
+      );
       const allocationData = await readJson<Allocation[]>(
         allocationRes,
         "Failed to load allocations",
@@ -486,12 +523,24 @@ export default function InvestorWorkspace({
 
   useEffect(() => {
     void loadData();
-  }, [canReadProfit, payoutRunFilter, payoutStatusFilter, selectedInvestorId, selectedProfitRunId]);
+  }, [
+    canReadProfit,
+    payoutRunFilter,
+    payoutStatusFilter,
+    selectedInvestorId,
+    selectedProfitRunId,
+  ]);
 
   useEffect(() => {
     if (!selectedInvestorId) return;
-    setTransactionForm((current) => ({ ...current, investorId: selectedInvestorId }));
-    setAllocationForm((current) => ({ ...current, investorId: selectedInvestorId }));
+    setTransactionForm((current) => ({
+      ...current,
+      investorId: selectedInvestorId,
+    }));
+    setAllocationForm((current) => ({
+      ...current,
+      investorId: selectedInvestorId,
+    }));
   }, [selectedInvestorId]);
 
   useEffect(() => {
@@ -512,16 +561,32 @@ export default function InvestorWorkspace({
       const response = await fetch("/api/admin/investors", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           name: investorName,
           email: investorEmail,
-          phone: investorPhone
+          phone: investorPhone,
+          legalName: investorLegalName,
+          taxNumber: investorTaxNumber,
+          nationalIdNumber: investorNationalIdNumber,
+          passportNumber: investorPassportNumber,
+          bankName: investorBankName,
+          bankAccountName: investorBankAccountName,
+          bankAccountNumber: investorBankAccountNumber,
+          notes: investorNotes,
         }),
       });
       await readJson(response, "Failed to create investor");
       setInvestorName("");
       setInvestorEmail("");
       setInvestorPhone("");
+      setInvestorLegalName("");
+      setInvestorTaxNumber("");
+      setInvestorNationalIdNumber("");
+      setInvestorPassportNumber("");
+      setInvestorBankName("");
+      setInvestorBankAccountName("");
+      setInvestorBankAccountNumber("");
+      setInvestorNotes("");
       toast.success("Investor created");
       await loadData();
     } catch (error: any) {
@@ -543,7 +608,11 @@ export default function InvestorWorkspace({
         }),
       });
       await readJson(response, "Failed to create transaction");
-      setTransactionForm((current) => ({ ...current, amount: "", productVariantId: "" }));
+      setTransactionForm((current) => ({
+        ...current,
+        amount: "",
+        productVariantId: "",
+      }));
       toast.success("Transaction posted");
       await loadData();
     } catch (error: any) {
@@ -600,7 +669,9 @@ export default function InvestorWorkspace({
     if (!selectedProfitRunId) {
       return profitRuns[0] ?? null;
     }
-    return profitRuns.find((run) => String(run.id) === selectedProfitRunId) ?? null;
+    return (
+      profitRuns.find((run) => String(run.id) === selectedProfitRunId) ?? null
+    );
   }, [profitRuns, selectedProfitRunId]);
 
   const filteredProfitRuns = useMemo(() => {
@@ -629,14 +700,17 @@ export default function InvestorWorkspace({
     }
     try {
       setUpdatingRunStatus(true);
-      const response = await fetch(`/api/admin/investor-profit-runs/${selectedProfitRun.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          note: runActionNote,
-        }),
-      });
+      const response = await fetch(
+        `/api/admin/investor-profit-runs/${selectedProfitRun.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            note: runActionNote,
+          }),
+        },
+      );
       await readJson(response, `Failed to ${action} run`);
       toast.success(
         action === "approve" ? "Profit run approved" : "Profit run rejected",
@@ -656,18 +730,23 @@ export default function InvestorWorkspace({
     }
     try {
       setPostingRun(true);
-      const response = await fetch(`/api/admin/investor-profit-runs/${selectedProfitRun.id}/post`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          note: runActionNote,
-        }),
-      });
+      const response = await fetch(
+        `/api/admin/investor-profit-runs/${selectedProfitRun.id}/post`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            note: runActionNote,
+          }),
+        },
+      );
       const result = await readJson<{ postedTransactionCount: number }>(
         response,
         "Failed to post run to ledger",
       );
-      toast.success(`Posted ${result.postedTransactionCount} ledger transaction(s)`);
+      toast.success(
+        `Posted ${result.postedTransactionCount} ledger transaction(s)`,
+      );
       await loadData();
     } catch (error: any) {
       toast.error(error?.message || "Failed to post run");
@@ -683,11 +762,14 @@ export default function InvestorWorkspace({
     }
     try {
       setProcessingPayout(true);
-      const response = await fetch(`/api/admin/investor-profit-runs/${selectedProfitRun.id}/payout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payoutForm),
-      });
+      const response = await fetch(
+        `/api/admin/investor-profit-runs/${selectedProfitRun.id}/payout`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payoutForm),
+        },
+      );
       const result = await readJson<{ payoutCount: number }>(
         response,
         "Failed to create investor payout draft",
@@ -756,12 +838,17 @@ export default function InvestorWorkspace({
       }
       params.set("from", statementFrom || defaultStatementFrom);
       params.set("to", statementTo || defaultStatementTo);
-      const response = await fetch(`/api/admin/investor-statements?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/admin/investor-statements?${params.toString()}`,
+        {
+          cache: "no-store",
+        },
+      );
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error((payload as { error?: string }).error || "Failed to export statement");
+        throw new Error(
+          (payload as { error?: string }).error || "Failed to export statement",
+        );
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -790,9 +877,12 @@ export default function InvestorWorkspace({
       params.set("from", statementFrom || defaultStatementFrom);
       params.set("to", statementTo || defaultStatementTo);
 
-      const response = await fetch(`/api/admin/investor-statements?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/admin/investor-statements?${params.toString()}`,
+        {
+          cache: "no-store",
+        },
+      );
       const payload = await readJson<{
         from: string;
         to: string;
@@ -847,8 +937,12 @@ export default function InvestorWorkspace({
   const summary = useMemo(
     () => ({
       totalInvestors: investors.length,
-      activeInvestors: investors.filter((item) => item.status === "ACTIVE").length,
-      totalBalance: investors.reduce((sum, item) => sum + Number(item.totals.balance || 0), 0),
+      activeInvestors: investors.filter((item) => item.status === "ACTIVE")
+        .length,
+      totalBalance: investors.reduce(
+        (sum, item) => sum + Number(item.totals.balance || 0),
+        0,
+      ),
     }),
     [investors],
   );
@@ -864,7 +958,9 @@ export default function InvestorWorkspace({
           </span>
         </p>
         {loading ? (
-          <p className="text-xs text-muted-foreground">Refreshing investor data...</p>
+          <p className="text-xs text-muted-foreground">
+            Refreshing investor data...
+          </p>
         ) : null}
       </div>
 
@@ -875,7 +971,8 @@ export default function InvestorWorkspace({
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              You do not have permission to access the {sectionTitleMap[section]} view.
+              You do not have permission to access the{" "}
+              {sectionTitleMap[section]} view.
             </p>
           </CardContent>
         </Card>
@@ -898,7 +995,9 @@ export default function InvestorWorkspace({
           <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Net Balance</p>
-              <p className="text-xl font-semibold">{summary.totalBalance.toFixed(2)}</p>
+              <p className="text-xl font-semibold">
+                {summary.totalBalance.toFixed(2)}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -907,17 +1006,30 @@ export default function InvestorWorkspace({
       {canAccessSelectedSection && showSection("registry") ? (
         <Tabs defaultValue="forms" className="space-y-4">
           <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
-            <TabsTrigger value="forms" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-foreground data-[state=active]:shadow">Create Investor</TabsTrigger>
-            <TabsTrigger value="registry" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-foreground data-[state=active]:shadow">Investor Registry</TabsTrigger>
+            <TabsTrigger
+              value="forms"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Create Investor
+            </TabsTrigger>
+            <TabsTrigger
+              value="registry"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Investor Registry
+            </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="forms" className="space-y-4">
             {canManageInvestors ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Create New Investor</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Create New Investor
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Add a new investor to the system with their contact information.
+                    Add a new investor to the system with their contact
+                    information.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -928,7 +1040,9 @@ export default function InvestorWorkspace({
                         id="investor-name"
                         placeholder="Enter investor name"
                         value={investorName}
-                        onChange={(event) => setInvestorName(event.target.value)}
+                        onChange={(event) =>
+                          setInvestorName(event.target.value)
+                        }
                         className="w-full"
                       />
                     </div>
@@ -939,7 +1053,9 @@ export default function InvestorWorkspace({
                         type="email"
                         placeholder="investor@example.com"
                         value={investorEmail}
-                        onChange={(event) => setInvestorEmail(event.target.value)}
+                        onChange={(event) =>
+                          setInvestorEmail(event.target.value)
+                        }
                         className="w-full"
                       />
                     </div>
@@ -949,13 +1065,113 @@ export default function InvestorWorkspace({
                         id="investor-phone"
                         placeholder="+880 1XXX XXXXXX"
                         value={investorPhone}
-                        onChange={(event) => setInvestorPhone(event.target.value)}
+                        onChange={(event) =>
+                          setInvestorPhone(event.target.value)
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-legal-name">Legal Name</Label>
+                      <Input
+                        id="investor-legal-name"
+                        placeholder="Legal business name"
+                        value={investorLegalName}
+                        onChange={(event) =>
+                          setInvestorLegalName(event.target.value)
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-tax-number">Tax Number</Label>
+                      <Input
+                        id="investor-tax-number"
+                        placeholder="TIN-1001"
+                        value={investorTaxNumber}
+                        onChange={(event) =>
+                          setInvestorTaxNumber(event.target.value)
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-nid">National ID Number</Label>
+                      <Input
+                        id="investor-nid"
+                        placeholder="NID number"
+                        value={investorNationalIdNumber}
+                        onChange={(event) =>
+                          setInvestorNationalIdNumber(event.target.value)
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-passport">Passport Number</Label>
+                      <Input
+                        id="investor-passport"
+                        placeholder="Passport number"
+                        value={investorPassportNumber}
+                        onChange={(event) =>
+                          setInvestorPassportNumber(event.target.value)
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-bank-name">Bank Name</Label>
+                      <Input
+                        id="investor-bank-name"
+                        placeholder="DBBL"
+                        value={investorBankName}
+                        onChange={(event) =>
+                          setInvestorBankName(event.target.value)
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-bank-account-name">
+                        Bank Account Name
+                      </Label>
+                      <Input
+                        id="investor-bank-account-name"
+                        placeholder="Account holder name"
+                        value={investorBankAccountName}
+                        onChange={(event) =>
+                          setInvestorBankAccountName(event.target.value)
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="investor-bank-account-number">
+                        Bank Account Number
+                      </Label>
+                      <Input
+                        id="investor-bank-account-number"
+                        placeholder="1234567890"
+                        value={investorBankAccountNumber}
+                        onChange={(event) =>
+                          setInvestorBankAccountNumber(event.target.value)
+                        }
                         className="w-full"
                       />
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="investor-notes">Notes</Label>
+                    <textarea
+                      id="investor-notes"
+                      placeholder="Additional notes about this investor"
+                      value={investorNotes}
+                      onChange={(event) => setInvestorNotes(event.target.value)}
+                      className="w-full h-20 rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
                   <div className="flex justify-end">
-                    <Button 
+                    <Button
                       onClick={() => void createInvestor()}
                       disabled={!investorName.trim()}
                       className="min-w-[120px]"
@@ -975,12 +1191,14 @@ export default function InvestorWorkspace({
               </Card>
             )}
           </TabsContent>
-          
+
           <TabsContent value="registry" className="space-y-4">
             {canReadInvestors ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Investor Registry</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Investor Registry
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     View and manage all registered investors.
                   </p>
@@ -988,13 +1206,20 @@ export default function InvestorWorkspace({
                 <CardContent className="space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="investor-filter" className="text-sm font-medium">Filter by Investor</Label>
+                      <Label
+                        htmlFor="investor-filter"
+                        className="text-sm font-medium"
+                      >
+                        Filter by Investor
+                      </Label>
                       <div className="relative">
                         <select
                           id="investor-filter"
                           className="h-11 w-full rounded-lg border border-input bg-background px-4 pr-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-[320px] appearance-none"
                           value={selectedInvestorId}
-                          onChange={(event) => setSelectedInvestorId(event.target.value)}
+                          onChange={(event) =>
+                            setSelectedInvestorId(event.target.value)
+                          }
                         >
                           <option value="">All Investors</option>
                           {investors.map((investor) => (
@@ -1004,17 +1229,30 @@ export default function InvestorWorkspace({
                           ))}
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                          <svg className="h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          <svg
+                            className="h-4 w-4 text-muted-foreground"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
                           </svg>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center text-sm text-muted-foreground">
-                    Total investors <span className="font-medium p-1">{investors.length}</span> 
+                      Total investors{" "}
+                      <span className="font-medium p-1">
+                        {investors.length}
+                      </span>
                     </div>
                   </div>
-                  
+
                   <InvestorTable investors={investors} />
                 </CardContent>
               </Card>
@@ -1034,15 +1272,27 @@ export default function InvestorWorkspace({
       {canAccessSelectedSection && showSection("ledger") ? (
         <Tabs defaultValue="form" className="space-y-4">
           <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
-            <TabsTrigger value="form" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Post Transaction</TabsTrigger>
-            <TabsTrigger value="transactions" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Transaction History</TabsTrigger>
+            <TabsTrigger
+              value="form"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Post Transaction
+            </TabsTrigger>
+            <TabsTrigger
+              value="transactions"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Transaction History
+            </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="form" className="space-y-4">
             {canManageLedger ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Post Transaction</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Post Transaction
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     Record capital transactions for investors.
                   </p>
@@ -1056,7 +1306,10 @@ export default function InvestorWorkspace({
                         className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                         value={transactionForm.investorId}
                         onChange={(event) =>
-                          setTransactionForm((current) => ({ ...current, investorId: event.target.value }))
+                          setTransactionForm((current) => ({
+                            ...current,
+                            investorId: event.target.value,
+                          }))
                         }
                       >
                         <option value="">Select investor</option>
@@ -1076,7 +1329,8 @@ export default function InvestorWorkspace({
                         onChange={(event) =>
                           setTransactionForm((current) => ({
                             ...current,
-                            type: event.target.value as (typeof TRANSACTION_TYPES)[number],
+                            type: event.target
+                              .value as (typeof TRANSACTION_TYPES)[number],
                           }))
                         }
                       >
@@ -1112,12 +1366,17 @@ export default function InvestorWorkspace({
                         placeholder="Enter amount"
                         value={transactionForm.amount}
                         onChange={(event) =>
-                          setTransactionForm((current) => ({ ...current, amount: event.target.value }))
+                          setTransactionForm((current) => ({
+                            ...current,
+                            amount: event.target.value,
+                          }))
                         }
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="transaction-variant">Product Variant</Label>
+                      <Label htmlFor="transaction-variant">
+                        Product Variant
+                      </Label>
                       <select
                         id="transaction-variant"
                         className="h-10 w-full rounded-md border bg-background px-3 text-sm"
@@ -1139,9 +1398,11 @@ export default function InvestorWorkspace({
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <Button 
+                    <Button
                       onClick={() => void createTransaction()}
-                      disabled={!transactionForm.investorId || !transactionForm.amount}
+                      disabled={
+                        !transactionForm.investorId || !transactionForm.amount
+                      }
                       className="min-w-[120px]"
                     >
                       Post Transaction
@@ -1159,12 +1420,14 @@ export default function InvestorWorkspace({
               </Card>
             )}
           </TabsContent>
-          
+
           <TabsContent value="transactions" className="space-y-4">
             {canReadLedger ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Transaction History</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Transaction History
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     View all capital transactions recorded in the ledger.
                   </p>
@@ -1185,30 +1448,40 @@ export default function InvestorWorkspace({
                       {transactions.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">
-                            <Link href={`/admin/investors/ledger/${item.id}`} className="hover:text-primary">
+                            <Link
+                              href={`/admin/investors/ledger/${item.id}`}
+                              className="hover:text-primary"
+                            >
                               {item.transactionNumber}
                             </Link>
                           </TableCell>
                           <TableCell>
-                            <Link href={`/admin/investors/${item.investor.id}`} className="hover:text-primary">
+                            <Link
+                              href={`/admin/investors/${item.investor.id}`}
+                              className="hover:text-primary"
+                            >
                               {item.investor.name}
                             </Link>
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                              item.direction === 'CREDIT' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
-                            }`}>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                item.direction === "CREDIT"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
                               {item.type}
                             </span>
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                              item.direction === 'CREDIT' 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : 'bg-orange-100 text-orange-800'
-                            }`}>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                item.direction === "CREDIT"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-orange-100 text-orange-800"
+                              }`}
+                            >
                               {item.direction}
                             </span>
                           </TableCell>
@@ -1242,19 +1515,42 @@ export default function InvestorWorkspace({
       {canAccessSelectedSection && showSection("profit-runs") ? (
         <Tabs defaultValue="form" className="space-y-4">
           <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
-            <TabsTrigger value="form" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Run Calculation</TabsTrigger>
-            <TabsTrigger value="runs" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Profit Runs</TabsTrigger>
-            <TabsTrigger value="workflow" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Workflow</TabsTrigger>
-            <TabsTrigger value="analysis" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Analysis</TabsTrigger>
+            <TabsTrigger
+              value="form"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Run Calculation
+            </TabsTrigger>
+            <TabsTrigger
+              value="runs"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Profit Runs
+            </TabsTrigger>
+            <TabsTrigger
+              value="workflow"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Workflow
+            </TabsTrigger>
+            <TabsTrigger
+              value="analysis"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Analysis
+            </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="form" className="space-y-4">
             {canManageProfit ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Run Product Profitability</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Run Product Profitability
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Calculate profit distribution across investors for a specific period.
+                    Calculate profit distribution across investors for a
+                    specific period.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1296,7 +1592,9 @@ export default function InvestorWorkspace({
                         onChange={(event) =>
                           setProfitRunForm((current) => ({
                             ...current,
-                            allocationBasis: event.target.value as "NET_REVENUE" | "NET_UNITS",
+                            allocationBasis: event.target.value as
+                              | "NET_REVENUE"
+                              | "NET_UNITS",
                           }))
                         }
                       >
@@ -1307,7 +1605,9 @@ export default function InvestorWorkspace({
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="marketing-expense">Marketing Expense</Label>
+                      <Label htmlFor="marketing-expense">
+                        Marketing Expense
+                      </Label>
                       <Input
                         id="marketing-expense"
                         placeholder="Enter amount"
@@ -1335,7 +1635,9 @@ export default function InvestorWorkspace({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="logistics-expense">Logistics Expense</Label>
+                      <Label htmlFor="logistics-expense">
+                        Logistics Expense
+                      </Label>
                       <Input
                         id="logistics-expense"
                         placeholder="Enter amount"
@@ -1370,13 +1672,16 @@ export default function InvestorWorkspace({
                       placeholder="Add any additional notes"
                       value={profitRunForm.note}
                       onChange={(event) =>
-                        setProfitRunForm((current) => ({ ...current, note: event.target.value }))
+                        setProfitRunForm((current) => ({
+                          ...current,
+                          note: event.target.value,
+                        }))
                       }
                     />
                   </div>
                   <div className="flex justify-end">
-                    <Button 
-                      onClick={() => void runProfitCalculation()} 
+                    <Button
+                      onClick={() => void runProfitCalculation()}
                       disabled={runningProfit}
                       className="min-w-[180px]"
                     >
@@ -1395,12 +1700,14 @@ export default function InvestorWorkspace({
               </Card>
             )}
           </TabsContent>
-          
+
           <TabsContent value="runs" className="space-y-4">
             {canReadProfit ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Profit Runs History</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Profit Runs History
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     View all profit calculation runs and their status.
                   </p>
@@ -1412,12 +1719,15 @@ export default function InvestorWorkspace({
                       id="profit-run-select"
                       className="h-10 w-full rounded-md border bg-background px-3 text-sm md:w-[460px]"
                       value={payoutRunFilter}
-                      onChange={(event) => setPayoutRunFilter(event.target.value)}
+                      onChange={(event) =>
+                        setPayoutRunFilter(event.target.value)
+                      }
                     >
                       <option value="">Latest run</option>
                       {profitRuns.map((run) => (
                         <option key={run.id} value={run.id}>
-                          {run.runNumber} • {run.fromDate.slice(0, 10)} to {run.toDate.slice(0, 10)}
+                          {run.runNumber} • {run.fromDate.slice(0, 10)} to{" "}
+                          {run.toDate.slice(0, 10)}
                         </option>
                       ))}
                     </select>
@@ -1428,7 +1738,9 @@ export default function InvestorWorkspace({
                       id="profit-status-filter"
                       className="h-10 w-full rounded-md border bg-background px-3 text-sm md:w-[240px]"
                       value={profitStatusFilter}
-                      onChange={(event) => setProfitStatusFilter(event.target.value)}
+                      onChange={(event) =>
+                        setProfitStatusFilter(event.target.value)
+                      }
                     >
                       <option value="">All statuses</option>
                       <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
@@ -1457,30 +1769,49 @@ export default function InvestorWorkspace({
                         {filteredProfitRuns.map((run) => (
                           <TableRow key={run.id}>
                             <TableCell className="font-medium">
-                              <Link href={`/admin/investors/profit-runs/${run.id}`} className="hover:text-primary">
+                              <Link
+                                href={`/admin/investors/profit-runs/${run.id}`}
+                                className="hover:text-primary"
+                              >
                                 {run.runNumber}
                               </Link>
                             </TableCell>
                             <TableCell>
-                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                                run.status === 'POSTED' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : run.status === 'APPROVED'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : run.status === 'PENDING_APPROVAL'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
+                              <span
+                                className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                  run.status === "POSTED"
+                                    ? "bg-green-100 text-green-800"
+                                    : run.status === "APPROVED"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : run.status === "PENDING_APPROVAL"
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : "bg-red-100 text-red-800"
+                                }`}
+                              >
                                 {run.status}
                               </span>
                             </TableCell>
                             <TableCell>{run.allocationBasis}</TableCell>
-                            <TableCell className="text-right">{Number(run.totalNetRevenue).toFixed(2)}</TableCell>
-                            <TableCell className="text-right">{Number(run.totalNetCogs).toFixed(2)}</TableCell>
-                            <TableCell className="text-right">{Number(run.totalOperatingExpense).toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-medium">{Number(run.totalNetProfit).toFixed(2)}</TableCell>
-                            <TableCell>{run.approvedAt ? run.approvedAt.slice(0, 10) : "-"}</TableCell>
-                            <TableCell>{run.postedAt ? run.postedAt.slice(0, 10) : "-"}</TableCell>
+                            <TableCell className="text-right">
+                              {Number(run.totalNetRevenue).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {Number(run.totalNetCogs).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {Number(run.totalOperatingExpense).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {Number(run.totalNetProfit).toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              {run.approvedAt
+                                ? run.approvedAt.slice(0, 10)
+                                : "-"}
+                            </TableCell>
+                            <TableCell>
+                              {run.postedAt ? run.postedAt.slice(0, 10) : "-"}
+                            </TableCell>
                             <TableCell className="text-xs">
                               {run._count?.variantLines || 0} variants /{" "}
                               {run._count?.allocationLines || 0} allocations /{" "}
@@ -1490,7 +1821,10 @@ export default function InvestorWorkspace({
                         ))}
                         {filteredProfitRuns.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={10} className="text-center text-sm text-muted-foreground">
+                            <TableCell
+                              colSpan={10}
+                              className="text-center text-sm text-muted-foreground"
+                            >
                               No profit runs matched the current filters.
                             </TableCell>
                           </TableRow>
@@ -1510,12 +1844,14 @@ export default function InvestorWorkspace({
               </Card>
             )}
           </TabsContent>
-          
+
           <TabsContent value="workflow" className="space-y-4">
             {canReadProfit && selectedProfitRun ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Run Workflow Controls</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Run Workflow Controls
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     Manage the approval and posting workflow for profit runs.
                   </p>
@@ -1524,7 +1860,9 @@ export default function InvestorWorkspace({
                   <div className="grid gap-4 md:grid-cols-4">
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">Run</p>
-                      <p className="font-medium">{selectedProfitRun.runNumber}</p>
+                      <p className="font-medium">
+                        {selectedProfitRun.runNumber}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">Status</p>
@@ -1533,18 +1871,28 @@ export default function InvestorWorkspace({
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">Approved</p>
                       <p className="font-medium">
-                        {selectedProfitRun.approvedAt ? selectedProfitRun.approvedAt.slice(0, 19).replace("T", " ") : "-"}
+                        {selectedProfitRun.approvedAt
+                          ? selectedProfitRun.approvedAt
+                              .slice(0, 19)
+                              .replace("T", " ")
+                          : "-"}
                       </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">Posted</p>
                       <p className="font-medium">
-                        {selectedProfitRun.postedAt ? selectedProfitRun.postedAt.slice(0, 19).replace("T", " ") : "-"}
+                        {selectedProfitRun.postedAt
+                          ? selectedProfitRun.postedAt
+                              .slice(0, 19)
+                              .replace("T", " ")
+                          : "-"}
                       </p>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="workflow-note">Governance Note (Optional)</Label>
+                    <Label htmlFor="workflow-note">
+                      Governance Note (Optional)
+                    </Label>
                     <Input
                       id="workflow-note"
                       placeholder="Add governance notes for this action"
@@ -1553,7 +1901,8 @@ export default function InvestorWorkspace({
                     />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {canApproveProfit && selectedProfitRun.status === "PENDING_APPROVAL" ? (
+                    {canApproveProfit &&
+                    selectedProfitRun.status === "PENDING_APPROVAL" ? (
                       <>
                         <Button
                           onClick={() => void changeProfitRunStatus("approve")}
@@ -1570,8 +1919,12 @@ export default function InvestorWorkspace({
                         </Button>
                       </>
                     ) : null}
-                    {canPostProfit && selectedProfitRun.status === "APPROVED" ? (
-                      <Button onClick={() => void postSelectedRun()} disabled={postingRun}>
+                    {canPostProfit &&
+                    selectedProfitRun.status === "APPROVED" ? (
+                      <Button
+                        onClick={() => void postSelectedRun()}
+                        disabled={postingRun}
+                      >
                         {postingRun ? "Posting..." : "Post To Investor Ledger"}
                       </Button>
                     ) : null}
@@ -1588,13 +1941,15 @@ export default function InvestorWorkspace({
               </Card>
             )}
           </TabsContent>
-          
+
           <TabsContent value="analysis" className="space-y-4">
             {canReadProfit ? (
               <div className="grid gap-6 xl:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg font-semibold">Variant Profit Lines</CardTitle>
+                    <CardTitle className="text-lg font-semibold">
+                      Variant Profit Lines
+                    </CardTitle>
                     <p className="text-sm text-muted-foreground">
                       Profit breakdown by product variants.
                     </p>
@@ -1616,14 +1971,29 @@ export default function InvestorWorkspace({
                         {profitVariantLines.map((line) => (
                           <TableRow key={line.id}>
                             <TableCell className="font-medium">
-                              {line.productVariant.product.name} ({line.productVariant.sku})
+                              {line.productVariant.product.name} (
+                              {line.productVariant.sku})
                             </TableCell>
-                            <TableCell className="text-right">{line.unitsNet}</TableCell>
-                            <TableCell className="text-right">{Number(line.netRevenue).toFixed(2)}</TableCell>
-                            <TableCell className="text-right">{Number(line.netCogs).toFixed(2)}</TableCell>
-                            <TableCell className="text-right">{Number(line.allocatedExpense).toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-medium">{Number(line.netProfit).toFixed(2)}</TableCell>
-                            <TableCell className="text-right">{(Number(line.unallocatedSharePct) * 100).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                              {line.unitsNet}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {Number(line.netRevenue).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {Number(line.netCogs).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {Number(line.allocatedExpense).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {Number(line.netProfit).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {(Number(line.unallocatedSharePct) * 100).toFixed(
+                                2,
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1633,7 +2003,9 @@ export default function InvestorWorkspace({
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg font-semibold">Investor Profit Share Lines</CardTitle>
+                    <CardTitle className="text-lg font-semibold">
+                      Investor Profit Share Lines
+                    </CardTitle>
                     <p className="text-sm text-muted-foreground">
                       Profit distribution across investors.
                     </p>
@@ -1656,11 +2028,20 @@ export default function InvestorWorkspace({
                               {line.investor.name} ({line.investor.code})
                             </TableCell>
                             <TableCell>
-                              {line.productVariant.product.name} ({line.productVariant.sku})
+                              {line.productVariant.product.name} (
+                              {line.productVariant.sku})
                             </TableCell>
-                            <TableCell className="text-right">{(Number(line.participationSharePct) * 100).toFixed(2)}</TableCell>
-                            <TableCell className="text-right">{Number(line.allocatedRevenue).toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-medium">{Number(line.allocatedNetProfit).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                              {(
+                                Number(line.participationSharePct) * 100
+                              ).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {Number(line.allocatedRevenue).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {Number(line.allocatedNetProfit).toFixed(2)}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -1684,17 +2065,30 @@ export default function InvestorWorkspace({
       {canAccessSelectedSection && showSection("payouts") ? (
         <Tabs defaultValue="form" className="space-y-4">
           <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
-            <TabsTrigger value="form" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Create Payout</TabsTrigger>
-            <TabsTrigger value="register" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Payout Register</TabsTrigger>
+            <TabsTrigger
+              value="form"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Create Payout
+            </TabsTrigger>
+            <TabsTrigger
+              value="register"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Payout Register
+            </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="form" className="space-y-4">
             {canManagePayout && selectedProfitRun?.status === "POSTED" ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Create Payout Draft</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Create Payout Draft
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Generate payout drafts for investors based on profit distribution.
+                    Generate payout drafts for investors based on profit
+                    distribution.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1714,7 +2108,9 @@ export default function InvestorWorkspace({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="holdback-percent">Holdback % (0-100)</Label>
+                      <Label htmlFor="holdback-percent">
+                        Holdback % (0-100)
+                      </Label>
                       <Input
                         id="holdback-percent"
                         placeholder="Enter percentage"
@@ -1757,12 +2153,14 @@ export default function InvestorWorkspace({
                     />
                   </div>
                   <div className="flex justify-end">
-                    <Button 
-                      onClick={() => void createPayout()} 
+                    <Button
+                      onClick={() => void createPayout()}
                       disabled={processingPayout}
                       className="min-w-[160px]"
                     >
-                      {processingPayout ? "Processing..." : "Create Payout Draft"}
+                      {processingPayout
+                        ? "Processing..."
+                        : "Create Payout Draft"}
                     </Button>
                   </div>
                 </CardContent>
@@ -1771,20 +2169,24 @@ export default function InvestorWorkspace({
               <Card>
                 <CardContent className="p-6">
                   <p className="text-center text-muted-foreground">
-                    {!selectedProfitRun ? "Select a posted profit run first." : 
-                     selectedProfitRun?.status !== "POSTED" ? "Only posted profit runs can generate payouts." :
-                     "You don't have permission to create payouts."}
+                    {!selectedProfitRun
+                      ? "Select a posted profit run first."
+                      : selectedProfitRun?.status !== "POSTED"
+                        ? "Only posted profit runs can generate payouts."
+                        : "You don't have permission to create payouts."}
                   </p>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
-          
+
           <TabsContent value="register" className="space-y-4">
             {canReadPayout ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Payout Register</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Payout Register
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     View and manage all payout records and their status.
                   </p>
@@ -1797,7 +2199,9 @@ export default function InvestorWorkspace({
                         id="payout-run-filter"
                         className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                         value={selectedProfitRunId}
-                        onChange={(event) => setSelectedProfitRunId(event.target.value)}
+                        onChange={(event) =>
+                          setSelectedProfitRunId(event.target.value)
+                        }
                       >
                         <option value="">All runs</option>
                         {profitRuns.map((run) => (
@@ -1808,15 +2212,21 @@ export default function InvestorWorkspace({
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="payout-status-filter">Payout Status</Label>
+                      <Label htmlFor="payout-status-filter">
+                        Payout Status
+                      </Label>
                       <select
                         id="payout-status-filter"
                         className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                         value={payoutStatusFilter}
-                        onChange={(event) => setPayoutStatusFilter(event.target.value)}
+                        onChange={(event) =>
+                          setPayoutStatusFilter(event.target.value)
+                        }
                       >
                         <option value="">All statuses</option>
-                        <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
+                        <option value="PENDING_APPROVAL">
+                          PENDING_APPROVAL
+                        </option>
                         <option value="APPROVED">APPROVED</option>
                         <option value="REJECTED">REJECTED</option>
                         <option value="PAID">PAID</option>
@@ -1824,11 +2234,15 @@ export default function InvestorWorkspace({
                       </select>
                     </div>
                     <div className="rounded-md border p-3">
-                      <p className="text-xs text-muted-foreground">Visible Payouts</p>
-                      <p className="text-2xl font-semibold">{filteredPayoutRegister.length}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Visible Payouts
+                      </p>
+                      <p className="text-2xl font-semibold">
+                        {filteredPayoutRegister.length}
+                      </p>
                     </div>
                   </div>
-                  {(canApprovePayout || canPayPayout || canVoidPayout) ? (
+                  {canApprovePayout || canPayPayout || canVoidPayout ? (
                     <div className="grid gap-4 md:grid-cols-5">
                       <div className="space-y-2">
                         <Label htmlFor="action-note">Action Note</Label>
@@ -1912,83 +2326,125 @@ export default function InvestorWorkspace({
                     </div>
                   ) : null}
                   <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Payout</TableHead>
-                          <TableHead>Run</TableHead>
-                          <TableHead>Investor</TableHead>
-                          <TableHead>Gross Profit</TableHead>
-                          <TableHead>Holdback</TableHead>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Payout</TableHead>
+                        <TableHead>Run</TableHead>
+                        <TableHead>Investor</TableHead>
+                        <TableHead>Gross Profit</TableHead>
+                        <TableHead>Holdback</TableHead>
                         <TableHead>Payout Amount</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Method</TableHead>
                         <TableHead>Bank Ref</TableHead>
                         <TableHead>Timeline</TableHead>
                         <TableHead>Ledger Txn</TableHead>
-                        {(canApprovePayout || canPayPayout || canVoidPayout) ? (
+                        {canApprovePayout || canPayPayout || canVoidPayout ? (
                           <TableHead>Actions</TableHead>
                         ) : null}
                       </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    </TableHeader>
+                    <TableBody>
                       {filteredPayoutRegister.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">
-                            <Link href={`/admin/investors/payouts/${item.id}`} className="hover:text-primary">
+                            <Link
+                              href={`/admin/investors/payouts/${item.id}`}
+                              className="hover:text-primary"
+                            >
                               {item.payoutNumber}
                             </Link>
                           </TableCell>
                           <TableCell>
-                            <Link href={`/admin/investors/profit-runs/${item.run.id}`} className="hover:text-primary">
+                            <Link
+                              href={`/admin/investors/profit-runs/${item.run.id}`}
+                              className="hover:text-primary"
+                            >
                               {item.run.runNumber}
                             </Link>
                           </TableCell>
                           <TableCell>
-                            <div>{item.investor.name} ({item.investor.code})</div>
+                            <div>
+                              {item.investor.name} ({item.investor.code})
+                            </div>
                             <div className="text-xs text-muted-foreground">
-                              Beneficiary {item.investor.beneficiaryVerifiedAt ? "verified" : "pending"}
+                              Beneficiary{" "}
+                              {item.investor.beneficiaryVerifiedAt
+                                ? "verified"
+                                : "pending"}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">{Number(item.grossProfitAmount).toFixed(2)}</TableCell>
                           <TableCell className="text-right">
-                            {Number(item.holdbackAmount).toFixed(2)} ({Number(item.holdbackPercent).toFixed(2)}%)
+                            {Number(item.grossProfitAmount).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {Number(item.holdbackAmount).toFixed(2)} (
+                            {Number(item.holdbackPercent).toFixed(2)}%)
                           </TableCell>
                           <TableCell className="text-right font-medium">
-                            {Number(item.payoutAmount).toFixed(2)} {item.currency}
+                            {Number(item.payoutAmount).toFixed(2)}{" "}
+                            {item.currency}
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                              item.status === 'PAID' 
-                                ? 'bg-green-100 text-green-800' 
-                                : item.status === 'APPROVED'
-                                ? 'bg-blue-100 text-blue-800'
-                                : item.status === 'PENDING_APPROVAL'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : item.status === 'VOID'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                item.status === "PAID"
+                                  ? "bg-green-100 text-green-800"
+                                  : item.status === "APPROVED"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : item.status === "PENDING_APPROVAL"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : item.status === "VOID"
+                                        ? "bg-red-100 text-red-800"
+                                        : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
                               {item.status}
                             </span>
                           </TableCell>
                           <TableCell>{item.paymentMethod || "-"}</TableCell>
                           <TableCell>{item.bankReference || "-"}</TableCell>
                           <TableCell className="text-xs">
-                            <div>A: {item.approvedAt ? item.approvedAt.slice(0, 10) : "-"}</div>
-                            <div>H: {item.heldAt ? item.heldAt.slice(0, 10) : "-"}</div>
-                            <div>R: {item.releasedAt ? item.releasedAt.slice(0, 10) : "-"}</div>
-                            <div>P: {item.paidAt ? item.paidAt.slice(0, 10) : "-"}</div>
-                            <div>V: {item.voidedAt ? item.voidedAt.slice(0, 10) : "-"}</div>
+                            <div>
+                              A:{" "}
+                              {item.approvedAt
+                                ? item.approvedAt.slice(0, 10)
+                                : "-"}
+                            </div>
+                            <div>
+                              H: {item.heldAt ? item.heldAt.slice(0, 10) : "-"}
+                            </div>
+                            <div>
+                              R:{" "}
+                              {item.releasedAt
+                                ? item.releasedAt.slice(0, 10)
+                                : "-"}
+                            </div>
+                            <div>
+                              P: {item.paidAt ? item.paidAt.slice(0, 10) : "-"}
+                            </div>
+                            <div>
+                              V:{" "}
+                              {item.voidedAt ? item.voidedAt.slice(0, 10) : "-"}
+                            </div>
                           </TableCell>
-                          <TableCell>{item.transaction?.transactionNumber ?? "-"}</TableCell>
-                          {(canApprovePayout || canPayPayout || canVoidPayout) ? (
+                          <TableCell>
+                            {item.transaction?.transactionNumber ?? "-"}
+                          </TableCell>
+                          {canApprovePayout || canPayPayout || canVoidPayout ? (
                             <TableCell>
                               <div className="flex flex-wrap gap-2">
-                                {canApprovePayout && item.status === "PENDING_APPROVAL" ? (
+                                {canApprovePayout &&
+                                item.status === "PENDING_APPROVAL" ? (
                                   <>
                                     <Button
                                       size="sm"
-                                      onClick={() => void processPayoutAction(item.id, "approve")}
+                                      onClick={() =>
+                                        void processPayoutAction(
+                                          item.id,
+                                          "approve",
+                                        )
+                                      }
                                       disabled={actingPayoutId === item.id}
                                     >
                                       Approve
@@ -1996,7 +2452,12 @@ export default function InvestorWorkspace({
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => void processPayoutAction(item.id, "reject")}
+                                      onClick={() =>
+                                        void processPayoutAction(
+                                          item.id,
+                                          "reject",
+                                        )
+                                      }
                                       disabled={actingPayoutId === item.id}
                                     >
                                       Reject
@@ -2006,17 +2467,23 @@ export default function InvestorWorkspace({
                                 {canPayPayout && item.status === "APPROVED" ? (
                                   <Button
                                     size="sm"
-                                    onClick={() => void processPayoutAction(item.id, "pay")}
+                                    onClick={() =>
+                                      void processPayoutAction(item.id, "pay")
+                                    }
                                     disabled={actingPayoutId === item.id}
                                   >
                                     Pay
                                   </Button>
                                 ) : null}
-                                {canVoidPayout && (item.status === "APPROVED" || item.status === "PAID") ? (
+                                {canVoidPayout &&
+                                (item.status === "APPROVED" ||
+                                  item.status === "PAID") ? (
                                   <Button
                                     size="sm"
                                     variant="destructive"
-                                    onClick={() => void processPayoutAction(item.id, "void")}
+                                    onClick={() =>
+                                      void processPayoutAction(item.id, "void")
+                                    }
                                     disabled={actingPayoutId === item.id}
                                   >
                                     Void
@@ -2030,7 +2497,11 @@ export default function InvestorWorkspace({
                       {filteredPayoutRegister.length === 0 ? (
                         <TableRow>
                           <TableCell
-                            colSpan={(canApprovePayout || canPayPayout || canVoidPayout) ? 12 : 11}
+                            colSpan={
+                              canApprovePayout || canPayPayout || canVoidPayout
+                                ? 12
+                                : 11
+                            }
                             className="text-center text-sm text-muted-foreground"
                           >
                             No payouts matched the current filters.
@@ -2054,22 +2525,33 @@ export default function InvestorWorkspace({
         </Tabs>
       ) : null}
 
-
-
       {canAccessSelectedSection && showSection("allocations") ? (
         <Tabs defaultValue="form" className="space-y-4">
           <TabsList className="inline-flex h-9 items-center justify-start rounded-lg p-1 bg-white text-muted-foreground max-w-md">
-            <TabsTrigger value="form" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">Create Allocation</TabsTrigger>
-            <TabsTrigger value="allocations" className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow">View Allocations</TabsTrigger>
+            <TabsTrigger
+              value="form"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              Create Allocation
+            </TabsTrigger>
+            <TabsTrigger
+              value="allocations"
+              className="inline-flex items-center justify-start whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow"
+            >
+              View Allocations
+            </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="form" className="space-y-4">
             {canManageAllocations ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Create Allocation</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Create Allocation
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Allocate investors to product variants with participation terms.
+                    Allocate investors to product variants with participation
+                    terms.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -2081,7 +2563,10 @@ export default function InvestorWorkspace({
                         className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                         value={allocationForm.investorId}
                         onChange={(event) =>
-                          setAllocationForm((current) => ({ ...current, investorId: event.target.value }))
+                          setAllocationForm((current) => ({
+                            ...current,
+                            investorId: event.target.value,
+                          }))
                         }
                       >
                         <option value="">Select investor</option>
@@ -2093,7 +2578,9 @@ export default function InvestorWorkspace({
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="allocation-variant">Product Variant</Label>
+                      <Label htmlFor="allocation-variant">
+                        Product Variant
+                      </Label>
                       <select
                         id="allocation-variant"
                         className="h-10 w-full rounded-md border bg-background px-3 text-sm"
@@ -2114,7 +2601,9 @@ export default function InvestorWorkspace({
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="allocation-participation">Participation %</Label>
+                      <Label htmlFor="allocation-participation">
+                        Participation %
+                      </Label>
                       <Input
                         id="allocation-participation"
                         placeholder="Enter percentage"
@@ -2128,7 +2617,9 @@ export default function InvestorWorkspace({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="allocation-committed">Committed Amount</Label>
+                      <Label htmlFor="allocation-committed">
+                        Committed Amount
+                      </Label>
                       <Input
                         id="allocation-committed"
                         placeholder="Enter amount"
@@ -2143,9 +2634,12 @@ export default function InvestorWorkspace({
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <Button 
+                    <Button
                       onClick={() => void createAllocation()}
-                      disabled={!allocationForm.investorId || !allocationForm.productVariantId}
+                      disabled={
+                        !allocationForm.investorId ||
+                        !allocationForm.productVariantId
+                      }
                       className="min-w-[120px]"
                     >
                       Create Allocation
@@ -2163,12 +2657,14 @@ export default function InvestorWorkspace({
               </Card>
             )}
           </TabsContent>
-          
+
           <TabsContent value="allocations" className="space-y-4">
             {canReadAllocations ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Investor Allocations</CardTitle>
+                  <CardTitle className="text-lg font-semibold">
+                    Investor Allocations
+                  </CardTitle>
                   <p className="text-sm text-muted-foreground">
                     View all investor allocations to product variants.
                   </p>
@@ -2188,13 +2684,20 @@ export default function InvestorWorkspace({
                       {allocations.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">
-                            <Link href={`/admin/investors/${item.investor.id}`} className="hover:text-primary">
+                            <Link
+                              href={`/admin/investors/${item.investor.id}`}
+                              className="hover:text-primary"
+                            >
                               {item.investor.name}
                             </Link>
                           </TableCell>
                           <TableCell>
-                            <Link href={`/admin/investors/allocations/${item.id}`} className="hover:text-primary">
-                              {item.productVariant.product.name} ({item.productVariant.sku})
+                            <Link
+                              href={`/admin/investors/allocations/${item.id}`}
+                              className="hover:text-primary"
+                            >
+                              {item.productVariant.product.name} (
+                              {item.productVariant.sku})
                             </Link>
                           </TableCell>
                           <TableCell className="text-right">
@@ -2204,11 +2707,13 @@ export default function InvestorWorkspace({
                             {item.committedAmount || "-"}
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                              item.status === 'ACTIVE' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                                item.status === "ACTIVE"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
                               {item.status}
                             </span>
                           </TableCell>
@@ -2231,14 +2736,17 @@ export default function InvestorWorkspace({
         </Tabs>
       ) : null}
 
-      {canAccessSelectedSection && showSection("statements") && canReadStatement ? (
+      {canAccessSelectedSection &&
+      showSection("statements") &&
+      canReadStatement ? (
         <Card>
           <CardHeader>
             <CardTitle>Statement Export</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Export investor statements for the selected investor and date range.
+              Export investor statements for the selected investor and date
+              range.
             </p>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
@@ -2263,7 +2771,9 @@ export default function InvestorWorkspace({
                 <p className="text-xs text-muted-foreground">Investor Scope</p>
                 <p className="text-sm font-medium">
                   {selectedInvestorId
-                    ? investors.find((item) => String(item.id) === selectedInvestorId)?.name || "Selected investor"
+                    ? investors.find(
+                        (item) => String(item.id) === selectedInvestorId,
+                      )?.name || "Selected investor"
                     : "All investors"}
                 </p>
               </div>
