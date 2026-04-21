@@ -11,9 +11,14 @@ import {
   sanitizeInvestorMasterSnapshot,
   serializeInvestorMasterChangeRequest,
 } from "@/lib/investor-master";
-import { computeInvestorLedgerTotals, toInvestorSnapshot } from "@/lib/investor";
+import {
+  computeInvestorLedgerTotals,
+  toInvestorSnapshot,
+} from "@/lib/investor";
 
-function canReadInvestors(access: Awaited<ReturnType<typeof getAccessContext>>) {
+function canReadInvestors(
+  access: Awaited<ReturnType<typeof getAccessContext>>,
+) {
   return (
     access.hasGlobal("investors.read") ||
     access.hasGlobal("investors.manage") ||
@@ -34,7 +39,9 @@ function canReadInvestors(access: Awaited<ReturnType<typeof getAccessContext>>) 
   );
 }
 
-function canManageInvestors(access: Awaited<ReturnType<typeof getAccessContext>>) {
+function canManageInvestors(
+  access: Awaited<ReturnType<typeof getAccessContext>>,
+) {
   return access.hasGlobal("investors.manage");
 }
 
@@ -107,7 +114,10 @@ export async function GET(
     });
 
     if (!investor) {
-      return NextResponse.json({ error: "Investor not found." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Investor not found." },
+        { status: 404 },
+      );
     }
 
     const transactionTotals = await prisma.investorCapitalTransaction.groupBy({
@@ -138,9 +148,14 @@ export async function GET(
         entity: true,
         entityId: true,
         createdAt: true,
-        actorName: true,
-        actorEmail: true,
+        userId: true,
         metadata: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 
@@ -216,13 +231,20 @@ export async function PATCH(
       },
     });
     if (!existing) {
-      return NextResponse.json({ error: "Investor not found." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Investor not found." },
+        { status: 404 },
+      );
     }
 
-    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const body = (await request.json().catch(() => ({}))) as Record<
+      string,
+      unknown
+    >;
     const directPayload = buildInvestorDirectChangePayload(body);
 
-    if (body.legalName !== undefined ||
+    if (
+      body.legalName !== undefined ||
       body.taxNumber !== undefined ||
       body.nationalIdNumber !== undefined ||
       body.passportNumber !== undefined ||
@@ -230,7 +252,8 @@ export async function PATCH(
       body.bankAccountName !== undefined ||
       body.bankAccountNumber !== undefined ||
       body.status !== undefined ||
-      body.kycReference !== undefined) {
+      body.kycReference !== undefined
+    ) {
       return NextResponse.json(
         {
           error:
@@ -241,12 +264,23 @@ export async function PATCH(
     }
 
     if (directPayload.name !== undefined && !directPayload.name) {
-      return NextResponse.json({ error: "Investor name cannot be empty." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Investor name cannot be empty." },
+        { status: 400 },
+      );
     }
 
     const current = sanitizeInvestorMasterSnapshot(existing);
-    if (!hasMeaningfulInvestorChanges(directPayload as Record<string, unknown>, current)) {
-      return NextResponse.json({ error: "No direct fields changed." }, { status: 400 });
+    if (
+      !hasMeaningfulInvestorChanges(
+        directPayload as Record<string, unknown>,
+        current,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "No direct fields changed." },
+        { status: 400 },
+      );
     }
 
     const updated = await prisma.investor.update({
