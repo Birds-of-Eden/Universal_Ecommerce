@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import ProductPicker from "@/components/admin/operations/products/bundles/ProductPicker";
+import ProductPicker from "./ProductPicker";
 import {
   calculateBundlePricing,
   mergeDuplicateBundleItems,
@@ -37,6 +37,12 @@ type Category = { id: number; name: string };
 type Brand = { id: number; name: string };
 type Warehouse = { id: number; name: string; code: string; isDefault: boolean };
 type VatClass = { id: number; name: string; code: string };
+
+type BundleSelectedItem = {
+  product: any;
+  variant?: any | null;
+  quantity: number;
+};
 
 type BundleFormModalProps = {
   open: boolean;
@@ -80,7 +86,7 @@ export default function BundleFormModal({
   const [discountType, setDiscountType] = useState<DiscountType>("PERCENTAGE");
   const [discountValue, setDiscountValue] = useState("15");
   const [manualPrice, setManualPrice] = useState("");
-  const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const [selectedItems, setSelectedItems] = useState<BundleSelectedItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -204,7 +210,7 @@ export default function BundleFormModal({
                 ) ||
                 item.product.variants?.[0] ||
                 null,
-              quantity: item.quantity,
+              quantity: Number(item.quantity) || 1,
             })),
           );
 
@@ -816,9 +822,14 @@ export default function BundleFormModal({
                   <CardContent>
                     <ProductPicker
                       selectedItems={selectedItems}
-                      onItemsChange={(items) =>
+                      onItemsChange={(items: BundleSelectedItem[]) =>
                         setSelectedItems(
-                          (items || []).filter((item) => item?.product?.id),
+                          ((items || []) as BundleSelectedItem[])
+                            .filter((item) => item?.product?.id)
+                            .map((item) => ({
+                              ...item,
+                              quantity: Number(item.quantity) || 1,
+                            })),
                         )
                       }
                       excludeBundleId={isEdit ? bundleId : undefined}

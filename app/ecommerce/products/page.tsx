@@ -2,6 +2,11 @@
 import { Metadata } from "next";
 import ProductsPage from "./AllProducts";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "http://localhost:3000";
+
 export const metadata: Metadata = {
   title: "All Products - BOED E-COMMERCE",
   description:
@@ -16,7 +21,7 @@ export const metadata: Metadata = {
     "bdt products",
   ],
 
-  metadataBase: new URL("http://localhost:3000/"),
+  metadataBase: new URL(siteUrl),
 
   alternates: {
     canonical: "/ecommerce/products",
@@ -29,16 +34,16 @@ export const metadata: Metadata = {
     title: "All Products - BOED E-COMMERCE",
     description:
       "Discover BOED E-COMMERCE’s full product collection—shop by category, compare prices, and find the best deals.",
-    url: "http://localhost:3000/ecommerce/products",
+    url: `${siteUrl}/ecommerce/products`,
     siteName: "BOED E-COMMERCE",
     locale: "en_US",
     type: "website",
     images: [
       {
-        url: "http://localhost:3000/images/logo.png",
+        url: `${siteUrl}/assets/favicon.png`,
         width: 1200,
         height: 630,
-        alt: "BOED E-COMMERCE - All Products",
+        alt: "Universal Ecommerce - All Products",
       },
     ],
   },
@@ -48,7 +53,7 @@ export const metadata: Metadata = {
     title: "All Products - BOED E-COMMERCE",
     description:
       "Browse BOED E-COMMERCE’s complete product collection—categories, pricing, and featured items.",
-    images: ["http://localhost:3000/images/logo.png"],
+    images: [`${siteUrl}/assets/favicon.png`],
   },
 
   robots: {
@@ -73,7 +78,7 @@ export default function BooksPage() {
             "@context": "https://schema.org",
             "@type": "CollectionPage",
             name: "All Products - BOED E-COMMERCE",
-            url: "http://localhost:3000/ecommerce/books",
+            url: `${siteUrl}/ecommerce/products`,
             description:
               "BOED E-COMMERCE all products collection—browse categories, compare prices, and shop confidently.",
             inLanguage: "en-US",
@@ -84,50 +89,32 @@ export default function BooksPage() {
                   "@type": "ListItem",
                   position: 1,
                   name: "Home",
-                  item: "http://localhost:3000/",
+                  item: `${siteUrl}/`,
                 },
                 {
                   "@type": "ListItem",
                   position: 2,
                   name: "BOED E-COMMERCE",
-                  item: "http://localhost:3000/",
+                  item: `${siteUrl}/`,
                 },
                 {
                   "@type": "ListItem",
                   position: 3,
                   name: "All Products",
-                  item: "http://localhost:3000/ecommerce/books",
+                  item: `${siteUrl}/ecommerce/products`,
                 },
               ],
             },
             publisher: {
               "@type": "Organization",
               name: "BOED E-COMMERCE",
-              url: "http://localhost:3000/",
+              url: `${siteUrl}/`,
               logo: {
                 "@type": "ImageObject",
-                url: "http://localhost:3000/logo.png",
+                url: `${siteUrl}/assets/favicon.png`,
                 width: 512,
                 height: 512,
               },
-            },
-          }),
-        }}
-      />
-
-      {/* Website Search Schema */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "WebSite",
-            name: "BOED E-COMMERCE",
-            url: "http://localhost:3000/",
-            potentialAction: {
-              "@type": "SearchAction",
-              target: "http://localhost:3000/search?q={search_term}",
-              "query-input": "required name=search_term",
             },
           }),
         }}
