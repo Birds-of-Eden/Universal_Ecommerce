@@ -248,7 +248,8 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "investor.portal.profile.submit",
-    description: "Submit own investor profile or beneficiary update requests from portal.",
+    description:
+      "Submit own investor profile or beneficiary update requests from portal.",
   },
   {
     key: "investor_profile_requests.read",
@@ -256,7 +257,8 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "investor_profile_requests.review",
-    description: "Approve or reject investor profile update requests from portal.",
+    description:
+      "Approve or reject investor profile update requests from portal.",
   },
   {
     key: "profile.manage",
@@ -486,15 +488,18 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "purchase_orders.approve_manager",
-    description: "Perform procurement manager approval on submitted purchase orders.",
+    description:
+      "Perform procurement manager approval on submitted purchase orders.",
   },
   {
     key: "purchase_orders.approve_committee",
-    description: "Perform procurement committee approval on manager-approved purchase orders.",
+    description:
+      "Perform procurement committee approval on manager-approved purchase orders.",
   },
   {
     key: "purchase_orders.approve_final",
-    description: "Perform final authority-matrix approval and issue purchase orders as work orders.",
+    description:
+      "Perform final authority-matrix approval and issue purchase orders as work orders.",
   },
   {
     key: "goods_receipts.read",
@@ -576,7 +581,8 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "payment_requests.approve_admin",
-    description: "Perform manager administration approval for payment requests.",
+    description:
+      "Perform manager administration approval for payment requests.",
   },
   {
     key: "payment_requests.approve_finance",
@@ -636,8 +642,7 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "material_releases.read",
-    description:
-      "Read material release notes, challan, and waybill history.",
+    description: "Read material release notes, challan, and waybill history.",
   },
   {
     key: "material_releases.manage",
@@ -646,13 +651,11 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "asset_register.read",
-    description:
-      "Read fixed asset register records and generated asset tags.",
+    description: "Read fixed asset register records and generated asset tags.",
   },
   {
     key: "asset_register.manage",
-    description:
-      "Manage fixed asset lifecycle states and assignment metadata.",
+    description: "Manage fixed asset lifecycle states and assignment metadata.",
   },
   {
     key: "warehouse_locations.read",
@@ -687,7 +690,8 @@ export const SYSTEM_PERMISSIONS = [
   },
   {
     key: "stock_reports.read",
-    description: "Read daily stock, aging, and monthly warehouse summary reports.",
+    description:
+      "Read daily stock, aging, and monthly warehouse summary reports.",
   },
   {
     key: "delivery.dashboard.access",
@@ -832,7 +836,13 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "investor_allocations.manage",
       "investor_profit.read",
       "investor_profit.manage",
+      "investor_profit.approve",
+      "investor_profit.post",
       "investor_payout.read",
+      "investor_payout.manage",
+      "investor_payout.approve",
+      "investor_payout.pay",
+      "investor_payout.void",
       "investor_statement.read",
       "profile.manage",
     ],
