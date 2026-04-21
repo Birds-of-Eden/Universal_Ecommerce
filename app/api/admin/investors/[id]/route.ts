@@ -175,8 +175,14 @@ export async function GET(
         serializeInvestorMasterChangeRequest(request),
       ),
       recentActivity: recentActivity.map((item) => ({
-        ...item,
+        id: String(item.id),
+        action: item.action,
+        entity: item.entity,
+        entityId: item.entityId,
         createdAt: item.createdAt.toISOString(),
+        userId: item.userId,
+        metadata: item.metadata,
+        user: item.user,
       })),
     });
   } catch (error: any) {
