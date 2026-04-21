@@ -87,6 +87,10 @@ export default function InvestorDocumentsPage() {
     () => new Map((data?.documents || []).map((document) => [document.type, document])),
     [data?.documents],
   );
+  const docsUnderReview = useMemo(
+    () => (data?.documents || []).filter((document) => document.status === "UNDER_REVIEW"),
+    [data?.documents],
+  );
 
   const submitDocument = async () => {
     if (!selectedType || !file) {
@@ -149,6 +153,13 @@ export default function InvestorDocumentsPage() {
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Documents Uploaded</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{data.documents.length}</CardContent></Card>
             <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Missing Required</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{data.missingDocumentTypes.length}</CardContent></Card>
           </div>
+
+          {data.investor?.kycStatus === "UNDER_REVIEW" && docsUnderReview.length > 0 ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              KYC is under review because approved profile changes require document re-verification.
+              Re-check these document(s): {docsUnderReview.map((item) => item.type).join(", ")}.
+            </div>
+          ) : null}
 
           <Card>
             <CardHeader>

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { createInvestorPortalNotification } from "@/lib/investor-portal-notifications";
+import { syncInvestorKycStatus } from "@/lib/investor-document-service";
 
 function canReviewProfileRequests(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return (
@@ -95,6 +96,23 @@ export async function PATCH(
       investorUpdateData.taxNumber !== undefined ||
       investorUpdateData.nationalIdNumber !== undefined ||
       investorUpdateData.passportNumber !== undefined;
+    const reverifyDocumentTypes = [
+      ...(identityFieldsChanged
+        ? ([
+            "IDENTITY_PROOF",
+            "TAX_IDENTIFICATION",
+          ] as const).filter((type) =>
+            type === "TAX_IDENTIFICATION"
+              ? investorUpdateData.taxNumber !== undefined
+              : investorUpdateData.legalName !== undefined ||
+                investorUpdateData.nationalIdNumber !== undefined ||
+                investorUpdateData.passportNumber !== undefined,
+          )
+        : []),
+      ...(bankFieldsChanged ? (["BANK_PROOF"] as const) : []),
+    ];
+    const reverifyNote =
+      "Document reopened for re-verification because approved profile changes affected compliance or beneficiary data.";
 
     const updated = await prisma.$transaction(async (tx) => {
       if (action === "approve") {
@@ -109,14 +127,25 @@ export async function PATCH(
                   beneficiaryVerificationNote: null,
                 }
               : {}),
-            ...(identityFieldsChanged
-              ? {
-                  kycStatus: "UNDER_REVIEW",
-                  kycVerifiedAt: null,
-                }
-              : {}),
           },
         });
+
+        if (reverifyDocumentTypes.length > 0) {
+          await tx.investorDocument.updateMany({
+            where: {
+              investorId: existing.investorId,
+              type: { in: reverifyDocumentTypes as string[] },
+            },
+            data: {
+              status: "UNDER_REVIEW",
+              reviewNote: reverifyNote,
+              reviewedById: access.userId,
+              reviewedAt: new Date(),
+            },
+          });
+
+          await syncInvestorKycStatus(tx, existing.investorId);
+        }
       }
 
       const requestRow = await tx.investorProfileUpdateRequest.update({
@@ -144,10 +173,13 @@ export async function PATCH(
               : "Profile Update Rejected",
           message:
             action === "approve"
-              ? "Your investor profile update request was approved and applied."
+              ? `Your investor profile update request was approved and applied.${reverifyDocumentTypes.length > 0 ? " Supporting documents now require re-verification." : ""}`
               : `Your investor profile update request was rejected.${reviewNote ? ` Note: ${reviewNote}` : ""}`,
           targetUrl: "/investor/profile",
-          metadata: { requestId: existing.id },
+          metadata: {
+            requestId: existing.id,
+            reverifyDocumentTypes,
+          },
           createdById: access.userId,
         },
       });

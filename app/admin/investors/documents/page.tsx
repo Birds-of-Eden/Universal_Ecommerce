@@ -299,6 +299,13 @@ export default function InvestorDocumentsPage() {
                   </div>
                 </div>
 
+                {investor.kycStatus === "UNDER_REVIEW" &&
+                investor.documents.some((document) => document.status === "UNDER_REVIEW") ? (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    KYC is under review because approved profile changes reopened supporting documents for verification.
+                  </div>
+                ) : null}
+
                 <div className="mt-4 grid gap-3 lg:grid-cols-2">
                   {investor.documents.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No documents uploaded yet.</p>
