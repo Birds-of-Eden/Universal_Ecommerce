@@ -46,9 +46,13 @@ export async function exportInvestorStatementPdf(params: {
   statements: StatementBlock[];
 }) {
   const jsPdfModule = await import("jspdf");
-  await import("jspdf-autotable");
+  const autoTableModule = await import("jspdf-autotable");
 
   const JsPdf = (jsPdfModule as any).jsPDF ?? (jsPdfModule as any).default;
+  const autoTable =
+    (autoTableModule as any).default ??
+    (autoTableModule as any).autoTable ??
+    autoTableModule;
   const doc = new JsPdf("p", "pt", "a4");
 
   let y = 40;
@@ -75,7 +79,7 @@ export async function exportInvestorStatementPdf(params: {
     );
     y += 14;
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: y,
       head: [["Transaction", "Date", "Type", "Direction", "Amount"]],
       body:
@@ -95,7 +99,7 @@ export async function exportInvestorStatementPdf(params: {
 
     y = (doc as any).lastAutoTable.finalY + 12;
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       startY: y,
       head: [["Payout", "Status", "Amount", "Created", "Paid"]],
       body:
