@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -171,6 +171,66 @@ type PayoutRegisterItem = ProfitPayout & {
   };
 };
 
+type StatementSummary = {
+  investorCount: number;
+  transactionCount: number;
+  payoutCount: number;
+  totalCredit: string;
+  totalDebit: string;
+  totalNet: string;
+};
+
+type StatementInvestorTransaction = {
+  id: number;
+  investorId: number;
+  transactionNumber: string;
+  direction: string;
+  type: string;
+  amount: string;
+  currency: string;
+  transactionDate: string;
+};
+
+type StatementInvestorPayout = {
+  id: number;
+  investorId: number;
+  payoutNumber: string;
+  status: string;
+  payoutAmount: string;
+  currency: string;
+  paidAt: string | null;
+  createdAt: string;
+  paymentMethod: string | null;
+  bankReference: string | null;
+};
+
+type StatementRow = {
+  investor: {
+    id: number;
+    code: string;
+    name: string;
+    status: string;
+  };
+  totals: {
+    credit: string;
+    debit: string;
+    net: string;
+  };
+  counts: {
+    transactionCount: number;
+    payoutCount: number;
+  };
+  transactions: StatementInvestorTransaction[];
+  payouts: StatementInvestorPayout[];
+};
+
+type StatementPayload = {
+  summary: StatementSummary;
+  from: string;
+  to: string;
+  statements: StatementRow[];
+};
+
 type ProfitPayload = {
   runs: ProfitRun[];
   selectedRunId: number | null;
@@ -208,6 +268,19 @@ async function readJson<T>(response: Response, fallback: string) {
 
 function toInputDate(value: Date) {
   return value.toISOString().slice(0, 10);
+}
+
+function formatMoney(value: string | number, currency = "BDT") {
+  const amount = typeof value === "number" ? value : Number(value || 0);
+  if (Number.isNaN(amount)) return `0.00 ${currency}`;
+  return `${amount.toFixed(2)} ${currency}`;
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "N/A";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "N/A";
+  return parsed.toLocaleString();
 }
 
 export default function InvestorWorkspace({
@@ -328,6 +401,17 @@ export default function InvestorWorkspace({
   const [payoutRegister, setPayoutRegister] = useState<PayoutRegisterItem[]>(
     [],
   );
+  const [statementSummary, setStatementSummary] = useState<StatementSummary>({
+    investorCount: 0,
+    transactionCount: 0,
+    payoutCount: 0,
+    totalCredit: "0",
+    totalDebit: "0",
+    totalNet: "0",
+  });
+  const [statementRows, setStatementRows] = useState<StatementRow[]>([]);
+  const [statementDetailInvestorId, setStatementDetailInvestorId] = useState("");
+  const [loadingStatementPreview, setLoadingStatementPreview] = useState(false);
   const [runningProfit, setRunningProfit] = useState(false);
   const [updatingRunStatus, setUpdatingRunStatus] = useState(false);
   const [postingRun, setPostingRun] = useState(false);
@@ -542,6 +626,61 @@ export default function InvestorWorkspace({
       investorId: selectedInvestorId,
     }));
   }, [selectedInvestorId]);
+
+  const loadStatementPreview = useCallback(async () => {
+    if (!canReadStatement) return;
+    try {
+      setLoadingStatementPreview(true);
+      const params = new URLSearchParams();
+      if (selectedInvestorId) {
+        params.set("investorId", selectedInvestorId);
+      }
+      params.set("from", statementFrom || defaultStatementFrom);
+      params.set("to", statementTo || defaultStatementTo);
+      const response = await fetch(
+        `/api/admin/investor-statements?${params.toString()}`,
+        {
+          cache: "no-store",
+        },
+      );
+      const payload = await readJson<StatementPayload>(
+        response,
+        "Failed to load investor statements",
+      );
+      setStatementSummary(payload.summary);
+      setStatementRows(payload.statements);
+      const preferredInvestorId = selectedInvestorId
+        ? String(selectedInvestorId)
+        : payload.statements[0]
+          ? String(payload.statements[0].investor.id)
+          : "";
+      setStatementDetailInvestorId((current) => {
+        if (
+          current &&
+          payload.statements.some((item) => String(item.investor.id) === current)
+        ) {
+          return current;
+        }
+        return preferredInvestorId;
+      });
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to load investor statements");
+    } finally {
+      setLoadingStatementPreview(false);
+    }
+  }, [
+    canReadStatement,
+    defaultStatementFrom,
+    defaultStatementTo,
+    selectedInvestorId,
+    statementFrom,
+    statementTo,
+  ]);
+
+  useEffect(() => {
+    if (!canReadStatement || section !== "statements") return;
+    void loadStatementPreview();
+  }, [canReadStatement, loadStatementPreview, section]);
 
   useEffect(() => {
     if (transactionForm.type === "ADJUSTMENT") return;
@@ -943,8 +1082,16 @@ export default function InvestorWorkspace({
         (sum, item) => sum + Number(item.totals.balance || 0),
         0,
       ),
-    }),
+      }),
     [investors],
+  );
+
+  const selectedStatementDetail = useMemo(
+    () =>
+      statementRows.find(
+        (item) => String(item.investor.id) === statementDetailInvestorId,
+      ) || null,
+    [statementDetailInvestorId, statementRows],
   );
 
   return (
@@ -2763,64 +2910,441 @@ export default function InvestorWorkspace({
       {canAccessSelectedSection &&
       showSection("statements") &&
       canReadStatement ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Statement Export</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Export investor statements for the selected investor and date
-              range.
-            </p>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="statement-from">From</Label>
-                <Input
-                  id="statement-from"
-                  type="date"
-                  value={statementFrom}
-                  onChange={(event) => setStatementFrom(event.target.value)}
-                />
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Investor Statements</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Review investor statement scope, preview ledger and payout
+                activity, then export the selected range.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="statement-investor">Investor Scope</Label>
+                  <div className="relative">
+                    <select
+                      id="statement-investor"
+                      className="h-11 w-full rounded-lg border border-input bg-background px-4 pr-10 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 appearance-none"
+                      value={selectedInvestorId}
+                      onChange={(event) =>
+                        setSelectedInvestorId(event.target.value)
+                      }
+                    >
+                      <option value="">All Investors</option>
+                      {investors.map((investor) => (
+                        <option key={investor.id} value={investor.id}>
+                          {investor.name} ({investor.code})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                      <svg
+                        className="h-4 w-4 text-muted-foreground"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="statement-from">From</Label>
+                  <Input
+                    id="statement-from"
+                    type="date"
+                    value={statementFrom}
+                    onChange={(event) => setStatementFrom(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="statement-to">To</Label>
+                  <Input
+                    id="statement-to"
+                    type="date"
+                    value={statementTo}
+                    onChange={(event) => setStatementTo(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Actions</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => void loadStatementPreview()}
+                      disabled={loadingStatementPreview}
+                    >
+                      {loadingStatementPreview ? "Refreshing..." : "Apply"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => void exportStatementCsv()}
+                      disabled={exportingStatement}
+                    >
+                      {exportingStatement ? "Exporting..." : "Export CSV"}
+                    </Button>
+                    <Button
+                      onClick={() => void exportStatementPdfFile()}
+                      disabled={exportingStatement}
+                    >
+                      {exportingStatement ? "Exporting..." : "Export PDF"}
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="statement-to">To</Label>
-                <Input
-                  id="statement-to"
-                  type="date"
-                  value={statementTo}
-                  onChange={(event) => setStatementTo(event.target.value)}
-                />
+
+              <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Investors In Scope
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold">
+                    {statementSummary.investorCount}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Transactions
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold">
+                    {statementSummary.transactionCount}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Payouts
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold">
+                    {statementSummary.payoutCount}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Total Credit
+                  </p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {formatMoney(statementSummary.totalCredit)}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Total Debit
+                  </p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {formatMoney(statementSummary.totalDebit)}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Net Movement
+                  </p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {formatMoney(statementSummary.totalNet)}
+                  </p>
+                </div>
               </div>
-              <div className="rounded-md border p-3">
-                <p className="text-xs text-muted-foreground">Investor Scope</p>
-                <p className="text-sm font-medium">
-                  {selectedInvestorId
-                    ? investors.find(
-                        (item) => String(item.id) === selectedInvestorId,
-                      )?.name || "Selected investor"
-                    : "All investors"}
-                </p>
+
+              <div className="rounded-lg border bg-muted/20 p-4 text-sm">
+                <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="font-medium">Statement Period</p>
+                    <p className="text-muted-foreground">
+                      {formatDateTime(
+                        `${statementFrom || defaultStatementFrom}T00:00:00`,
+                      )}{" "}
+                      to{" "}
+                      {formatDateTime(
+                        `${statementTo || defaultStatementTo}T23:59:59`,
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-muted-foreground">
+                    Scope:{" "}
+                    <span className="font-medium text-foreground">
+                      {selectedInvestorId
+                        ? investors.find(
+                            (item) => String(item.id) === selectedInvestorId,
+                          )?.name || "Selected investor"
+                        : "All investors"}
+                    </span>
+                  </div>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Investor Statement Register</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Each row shows the statement result for one investor in the
+                selected scope.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Investor</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Credit</TableHead>
+                    <TableHead className="text-right">Debit</TableHead>
+                    <TableHead className="text-right">Net</TableHead>
+                    <TableHead className="text-right">Transactions</TableHead>
+                    <TableHead className="text-right">Payouts</TableHead>
+                    <TableHead className="text-right">Detail</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {statementRows.map((row) => {
+                    const isSelected =
+                      String(row.investor.id) === statementDetailInvestorId;
+                    return (
+                      <TableRow key={row.investor.id}>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <button
+                              type="button"
+                              className="text-left font-medium hover:text-primary"
+                              onClick={() =>
+                                setStatementDetailInvestorId(
+                                  String(row.investor.id),
+                                )
+                              }
+                            >
+                              {row.investor.name}
+                            </button>
+                            <p className="text-xs text-muted-foreground">
+                              {row.investor.code}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{row.investor.status}</TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(row.totals.credit)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatMoney(row.totals.debit)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatMoney(row.totals.net)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.counts.transactionCount}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {row.counts.payoutCount}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant={isSelected ? "default" : "outline"}
+                            onClick={() =>
+                              setStatementDetailInvestorId(
+                                String(row.investor.id),
+                              )
+                            }
+                          >
+                            {isSelected ? "Viewing" : "View Detail"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {statementRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="text-center text-sm text-muted-foreground"
+                      >
+                        {loadingStatementPreview
+                          ? "Loading statement preview..."
+                          : "No statement data found for the selected scope."}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {selectedStatementDetail ? (
+            <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    Statement Detail: {selectedStatementDetail.investor.name}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Full transaction and payout activity for the selected
+                    investor.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-5">
+                    <div className="rounded-lg border p-3 md:col-span-2">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Investor
+                      </p>
+                      <p className="mt-2 text-base font-semibold">
+                        {selectedStatementDetail.investor.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {selectedStatementDetail.investor.code}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Credit
+                      </p>
+                      <p className="mt-2 font-semibold">
+                        {formatMoney(selectedStatementDetail.totals.credit)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Debit
+                      </p>
+                      <p className="mt-2 font-semibold">
+                        {formatMoney(selectedStatementDetail.totals.debit)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Net
+                      </p>
+                      <p className="mt-2 font-semibold">
+                        {formatMoney(selectedStatementDetail.totals.net)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">
+                        Ledger Transactions
+                      </h3>
+                      <span className="text-xs text-muted-foreground">
+                        {selectedStatementDetail.counts.transactionCount} item(s)
+                      </span>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>No</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Direction</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedStatementDetail.transactions.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">
+                              {item.transactionNumber}
+                            </TableCell>
+                            <TableCell>
+                              {formatDateTime(item.transactionDate)}
+                            </TableCell>
+                            <TableCell>{item.type}</TableCell>
+                            <TableCell>{item.direction}</TableCell>
+                            <TableCell className="text-right">
+                              {formatMoney(item.amount, item.currency)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {selectedStatementDetail.transactions.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={5}
+                              className="text-center text-sm text-muted-foreground"
+                            >
+                              No transactions in the selected date range.
+                            </TableCell>
+                          </TableRow>
+                        ) : null}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Payout Activity</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Payout records created within the selected statement period.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Payout Count
+                      </p>
+                      <p className="mt-1 text-xl font-semibold">
+                        {selectedStatementDetail.counts.payoutCount}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Investor Status
+                      </p>
+                      <p className="mt-1 font-medium">
+                        {selectedStatementDetail.investor.status}
+                      </p>
+                    </div>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Payout</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Paid</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedStatementDetail.payouts.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">
+                            {item.payoutNumber}
+                          </TableCell>
+                          <TableCell>{item.status}</TableCell>
+                          <TableCell>{formatDateTime(item.createdAt)}</TableCell>
+                          <TableCell>{formatDateTime(item.paidAt)}</TableCell>
+                          <TableCell className="text-right">
+                            {formatMoney(item.payoutAmount, item.currency)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {selectedStatementDetail.payouts.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={5}
+                            className="text-center text-sm text-muted-foreground"
+                          >
+                            No payouts in the selected date range.
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void exportStatementCsv()}
-                disabled={exportingStatement}
-              >
-                {exportingStatement ? "Exporting..." : "Export Statement CSV"}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => void exportStatementPdfFile()}
-                disabled={exportingStatement}
-              >
-                {exportingStatement ? "Exporting..." : "Export Statement PDF"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

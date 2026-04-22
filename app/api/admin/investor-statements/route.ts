@@ -22,8 +22,24 @@ function toDecimal(value: Prisma.Decimal | null | undefined) {
   return value ?? new Prisma.Decimal(0);
 }
 
-function parseDate(value: string | null, fallback: Date) {
+function isDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function parseDateStart(value: string | null, fallback: Date) {
   if (!value) return fallback;
+  const parsed = isDateOnly(value) ? new Date(`${value}T00:00:00`) : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+}
+
+function parseDateEndExclusive(value: string | null, fallback: Date) {
+  if (!value) return fallback;
+  if (isDateOnly(value)) {
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return fallback;
+    parsed.setDate(parsed.getDate() + 1);
+    return parsed;
+  }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 }
@@ -55,8 +71,13 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const defaultFrom = new Date(now);
     defaultFrom.setDate(defaultFrom.getDate() - 30);
-    const from = parseDate(request.nextUrl.searchParams.get("from"), defaultFrom);
-    const to = parseDate(request.nextUrl.searchParams.get("to"), now);
+    defaultFrom.setHours(0, 0, 0, 0);
+    const from = parseDateStart(request.nextUrl.searchParams.get("from"), defaultFrom);
+    const toDisplay = parseDateStart(request.nextUrl.searchParams.get("to"), now);
+    const toExclusive = parseDateEndExclusive(
+      request.nextUrl.searchParams.get("to"),
+      new Date(now),
+    );
     const format = (request.nextUrl.searchParams.get("format") || "json").toLowerCase();
 
     const whereInvestor = Number.isInteger(investorId) && investorId > 0 ? { id: investorId } : {};
@@ -73,46 +94,61 @@ export async function GET(request: NextRequest) {
     });
 
     if (investors.length === 0) {
-      return NextResponse.json({ investors: [], from: from.toISOString(), to: to.toISOString() });
+      return NextResponse.json({
+        summary: {
+          investorCount: 0,
+          transactionCount: 0,
+          payoutCount: 0,
+          totalCredit: "0",
+          totalDebit: "0",
+          totalNet: "0",
+        },
+        statements: [],
+        from: from.toISOString(),
+        to: toDisplay.toISOString(),
+      });
     }
 
     const investorIds = investors.map((item) => item.id);
     const [transactions, payouts] = await Promise.all([
       prisma.investorCapitalTransaction.findMany({
         where: {
-          investorId: { in: investorIds },
-          transactionDate: {
-            gte: from,
-            lte: to,
-          },
+        investorId: { in: investorIds },
+        transactionDate: {
+          gte: from,
+          lt: toExclusive,
         },
-        select: {
-          id: true,
-          investorId: true,
-          direction: true,
-          type: true,
-          amount: true,
-          transactionDate: true,
-        },
+      },
+      select: {
+        id: true,
+        investorId: true,
+        transactionNumber: true,
+        direction: true,
+        type: true,
+        amount: true,
+        currency: true,
+        transactionDate: true,
+      },
         orderBy: [{ transactionDate: "asc" }, { id: "asc" }],
       }),
       prisma.investorProfitPayout.findMany({
         where: {
-          investorId: { in: investorIds },
-          createdAt: {
-            gte: from,
-            lte: to,
-          },
+        investorId: { in: investorIds },
+        createdAt: {
+          gte: from,
+          lt: toExclusive,
         },
-        select: {
-          id: true,
-          investorId: true,
-          payoutNumber: true,
-          status: true,
-          payoutAmount: true,
-          paidAt: true,
-          createdAt: true,
-          paymentMethod: true,
+      },
+      select: {
+        id: true,
+        investorId: true,
+        payoutNumber: true,
+        status: true,
+        payoutAmount: true,
+        currency: true,
+        paidAt: true,
+        createdAt: true,
+        paymentMethod: true,
           bankReference: true,
         },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -138,6 +174,10 @@ export async function GET(request: NextRequest) {
           debit: debit.toString(),
           net: net.toString(),
         },
+        counts: {
+          transactionCount: txRows.length,
+          payoutCount: payoutRows.length,
+        },
         transactions: txRows.map((item) => ({
           ...item,
           amount: item.amount.toString(),
@@ -152,6 +192,25 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    const summary = result.reduce(
+      (acc, row) => {
+        acc.investorCount += 1;
+        acc.transactionCount += row.counts.transactionCount;
+        acc.payoutCount += row.counts.payoutCount;
+        acc.totalCredit = acc.totalCredit.plus(toDecimal(new Prisma.Decimal(row.totals.credit)));
+        acc.totalDebit = acc.totalDebit.plus(toDecimal(new Prisma.Decimal(row.totals.debit)));
+        return acc;
+      },
+      {
+        investorCount: 0,
+        transactionCount: 0,
+        payoutCount: 0,
+        totalCredit: new Prisma.Decimal(0),
+        totalDebit: new Prisma.Decimal(0),
+      },
+    );
+    const totalNet = summary.totalCredit.minus(summary.totalDebit);
+
     if (format === "csv") {
       const rows: string[][] = [[
         "Investor Code",
@@ -160,6 +219,7 @@ export async function GET(request: NextRequest) {
         "Total Credit",
         "Total Debit",
         "Net",
+        "Transaction Count",
         "Payout Count",
       ]];
       for (const row of result) {
@@ -170,6 +230,7 @@ export async function GET(request: NextRequest) {
           row.totals.credit,
           row.totals.debit,
           row.totals.net,
+          String(row.counts.transactionCount),
           String(row.payouts.length),
         ]);
       }
@@ -178,14 +239,22 @@ export async function GET(request: NextRequest) {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename=investor-statement-${from.toISOString().slice(0, 10)}-to-${to.toISOString().slice(0, 10)}.csv`,
+          "Content-Disposition": `attachment; filename=investor-statement-${from.toISOString().slice(0, 10)}-to-${toDisplay.toISOString().slice(0, 10)}.csv`,
         },
       });
     }
 
     return NextResponse.json({
+      summary: {
+        investorCount: summary.investorCount,
+        transactionCount: summary.transactionCount,
+        payoutCount: summary.payoutCount,
+        totalCredit: summary.totalCredit.toString(),
+        totalDebit: summary.totalDebit.toString(),
+        totalNet: totalNet.toString(),
+      },
       from: from.toISOString(),
-      to: to.toISOString(),
+      to: toDisplay.toISOString(),
       statements: result,
     });
   } catch (error) {
