@@ -19,6 +19,10 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InvestorTable } from "@/components/investors/InvestorTable";
+import {
+  InvestorWorkflowGuide,
+  type InvestorWorkflowSection,
+} from "@/components/investors/InvestorWorkflowGuide";
 import { exportInvestorStatementPdf } from "@/lib/export-investor-statement-pdf";
 
 type Investor = {
@@ -1110,6 +1114,8 @@ export default function InvestorWorkspace({
           </p>
         ) : null}
       </div>
+
+      <InvestorWorkflowGuide currentSection={section as InvestorWorkflowSection} />
 
       {!canAccessSelectedSection ? (
         <Card>

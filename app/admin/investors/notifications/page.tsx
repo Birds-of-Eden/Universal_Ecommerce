@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InvestorWorkflowGuide } from "@/components/investors/InvestorWorkflowGuide";
 import { Input } from "@/components/ui/input";
 
 type NotificationRow = {
@@ -144,6 +145,8 @@ export default function InvestorNotificationsPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <InvestorWorkflowGuide currentSection="notifications" />
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Investor Notifications</h1>

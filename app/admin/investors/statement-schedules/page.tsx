@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InvestorWorkflowGuide } from "@/components/investors/InvestorWorkflowGuide";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -168,6 +169,8 @@ export default function InvestorStatementSchedulesPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <InvestorWorkflowGuide currentSection="statement-schedules" />
+
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold">Investor Statement Schedules</h1>
         <p className="text-sm text-muted-foreground">

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, FolderKanban } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { InvestorWorkflowGuide } from "@/components/investors/InvestorWorkflowGuide";
 
 type WorkspaceCard = {
   id: string;
@@ -146,6 +147,16 @@ export default function InvestorOperationsClient({
 
       {!loading && !error && data ? (
         <>
+          <InvestorWorkflowGuide
+            currentSection={
+              mode === "overview"
+                ? "overview"
+                : mode === "tasks"
+                  ? "tasks"
+                  : "exceptions"
+            }
+          />
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {data.summary.map((card) => (
               <Link key={card.id} href={card.href}>

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { uploadFile } from "@/lib/upload-file";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InvestorWorkflowGuide } from "@/components/investors/InvestorWorkflowGuide";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -192,6 +193,8 @@ export default function InvestorDocumentsPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <InvestorWorkflowGuide currentSection="documents" />
+
       <div>
         <h1 className="text-2xl font-semibold">Investor Documents</h1>
         <p className="text-sm text-muted-foreground">

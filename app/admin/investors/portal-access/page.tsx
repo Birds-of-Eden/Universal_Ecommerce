@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InvestorWorkflowGuide } from "@/components/investors/InvestorWorkflowGuide";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -164,6 +165,8 @@ export default function InvestorPortalAccessPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <InvestorWorkflowGuide currentSection="portal-access" />
+
       <div>
         <h1 className="text-2xl font-bold">Investor Portal Access</h1>
         <p className="text-sm text-muted-foreground">
