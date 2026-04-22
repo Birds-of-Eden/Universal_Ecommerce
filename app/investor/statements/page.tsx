@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -69,6 +70,8 @@ export default function InvestorStatementsPage() {
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   const [loading, setLoading] = useState(true);
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<StatementPayload | null>(null);
 
@@ -94,28 +97,59 @@ export default function InvestorStatementsPage() {
     void load(defaultFrom, defaultTo);
   }, [defaultFrom, defaultTo]);
 
-  const downloadCsv = () => {
-    const params = new URLSearchParams({ from, to, format: "csv" });
-    window.location.href = `/api/investor/statements?${params.toString()}`;
+  const downloadCsv = async () => {
+    try {
+      setExportingCsv(true);
+      const params = new URLSearchParams({ from, to, format: "csv" });
+      const response = await fetch(`/api/investor/statements?${params.toString()}`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || "Failed to export statement CSV.");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `investor-statement-${from}-to-${to}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to export statement CSV.");
+    } finally {
+      setExportingCsv(false);
+    }
   };
 
   const downloadPdf = async () => {
-    if (!data) return;
-    await exportInvestorStatementPdf({
-      fileName: `investor-statement-${from}-to-${to}.pdf`,
-      title: "Investor Statement",
-      from: data.from,
-      to: data.to,
-      statements: [
-        {
-          investorCode: data.investor.code,
-          investorName: data.investor.name,
-          summary: data.totals,
-          transactions: data.transactions,
-          payouts: data.payouts,
-        },
-      ],
-    });
+    try {
+      if (!data) {
+        throw new Error("Load statement data before exporting PDF.");
+      }
+      setExportingPdf(true);
+      await exportInvestorStatementPdf({
+        fileName: `investor-statement-${from}-to-${to}.pdf`,
+        title: "Investor Statement",
+        from: data.from,
+        to: data.to,
+        statements: [
+          {
+            investorCode: data.investor.code,
+            investorName: data.investor.name,
+            summary: data.totals,
+            transactions: data.transactions,
+            payouts: data.payouts,
+          },
+        ],
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to export statement PDF.");
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   return (
@@ -153,11 +187,11 @@ export default function InvestorStatementsPage() {
             </div>
             <div className="flex items-end gap-2">
               <Button onClick={() => void load(from, to)}>Apply</Button>
-              <Button variant="outline" onClick={downloadCsv}>
-                Export CSV
+              <Button variant="outline" onClick={() => void downloadCsv()} disabled={exportingCsv}>
+                {exportingCsv ? "Exporting..." : "Export CSV"}
               </Button>
-              <Button variant="outline" onClick={() => void downloadPdf()} disabled={!data}>
-                Export PDF
+              <Button variant="outline" onClick={() => void downloadPdf()} disabled={!data || exportingPdf}>
+                {exportingPdf ? "Exporting..." : "Export PDF"}
               </Button>
             </div>
           </div>

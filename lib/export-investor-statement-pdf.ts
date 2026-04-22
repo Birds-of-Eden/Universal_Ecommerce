@@ -78,13 +78,16 @@ export async function exportInvestorStatementPdf(params: {
     (doc as any).autoTable({
       startY: y,
       head: [["Transaction", "Date", "Type", "Direction", "Amount"]],
-      body: statement.transactions.map((row) => [
-        row.transactionNumber,
-        fmtDate(row.transactionDate),
-        row.type,
-        row.direction,
-        `${row.amount} ${row.currency}`,
-      ]),
+      body:
+        statement.transactions.length > 0
+          ? statement.transactions.map((row) => [
+              row.transactionNumber,
+              fmtDate(row.transactionDate),
+              row.type,
+              row.direction,
+              `${row.amount} ${row.currency}`,
+            ])
+          : [["No transactions in selected range.", "", "", "", ""]],
       theme: "grid",
       styles: { fontSize: 8 },
       margin: { left: 40, right: 40 },
@@ -95,13 +98,16 @@ export async function exportInvestorStatementPdf(params: {
     (doc as any).autoTable({
       startY: y,
       head: [["Payout", "Status", "Amount", "Created", "Paid"]],
-      body: statement.payouts.map((row) => [
-        row.payoutNumber,
-        row.status,
-        `${row.payoutAmount} ${row.currency}`,
-        fmtDate(row.createdAt),
-        fmtDate(row.paidAt),
-      ]),
+      body:
+        statement.payouts.length > 0
+          ? statement.payouts.map((row) => [
+              row.payoutNumber,
+              row.status,
+              `${row.payoutAmount} ${row.currency}`,
+              fmtDate(row.createdAt),
+              fmtDate(row.paidAt),
+            ])
+          : [["No payouts in selected range.", "", "", "", ""]],
       theme: "grid",
       styles: { fontSize: 8 },
       margin: { left: 40, right: 40 },

@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename=investor-statement-${from.toISOString().slice(0, 10)}-to-${to.toISOString().slice(0, 10)}.csv`,
+          "Content-Disposition": `attachment; filename=investor-statement-${from.toISOString().slice(0, 10)}-to-${toDisplay.toISOString().slice(0, 10)}.csv`,
         },
       });
     }
