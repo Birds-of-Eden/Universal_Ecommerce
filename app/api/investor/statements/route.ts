@@ -3,8 +3,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { decimalToString, resolveInvestorRequestContext } from "@/app/api/investor/shared";
 
-function parseDate(value: string | null, fallback: Date) {
+function isDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function parseDateStart(value: string | null, fallback: Date) {
   if (!value) return fallback;
+  const parsed = isDateOnly(value) ? new Date(`${value}T00:00:00`) : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+}
+
+function parseDateEndExclusive(value: string | null, fallback: Date) {
+  if (!value) return fallback;
+  if (isDateOnly(value)) {
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return fallback;
+    parsed.setDate(parsed.getDate() + 1);
+    return parsed;
+  }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 }
@@ -30,9 +46,15 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const defaultFrom = new Date(now);
     defaultFrom.setDate(defaultFrom.getDate() - 30);
+    defaultFrom.setHours(0, 0, 0, 0);
 
-    const from = parseDate(request.nextUrl.searchParams.get("from"), defaultFrom);
-    const to = parseDate(request.nextUrl.searchParams.get("to"), now);
+    const from = parseDateStart(request.nextUrl.searchParams.get("from"), defaultFrom);
+    const toDisplay = parseDateStart(request.nextUrl.searchParams.get("to"), now);
+    const defaultToExclusive = new Date(now);
+    const toExclusive = parseDateEndExclusive(
+      request.nextUrl.searchParams.get("to"),
+      defaultToExclusive,
+    );
     const format = (request.nextUrl.searchParams.get("format") || "json").toLowerCase();
 
     const transactions = await prisma.investorCapitalTransaction.findMany({
@@ -40,7 +62,7 @@ export async function GET(request: NextRequest) {
         investorId: resolved.context.investorId,
         transactionDate: {
           gte: from,
-          lte: to,
+          lt: toExclusive,
         },
       },
       orderBy: [{ transactionDate: "asc" }, { id: "asc" }],
@@ -60,7 +82,7 @@ export async function GET(request: NextRequest) {
         investorId: resolved.context.investorId,
         createdAt: {
           gte: from,
-          lte: to,
+          lt: toExclusive,
         },
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -105,7 +127,7 @@ export async function GET(request: NextRequest) {
         resolved.context.investorCode,
         resolved.context.investorName,
         from.toISOString(),
-        to.toISOString(),
+        toDisplay.toISOString(),
         totals.credit.toString(),
         totals.debit.toString(),
         totals.credit.minus(totals.debit).toString(),
@@ -129,7 +151,7 @@ export async function GET(request: NextRequest) {
         name: resolved.context.investorName,
       },
       from: from.toISOString(),
-      to: to.toISOString(),
+      to: toDisplay.toISOString(),
       totals: {
         credit: totals.credit.toString(),
         debit: totals.debit.toString(),
