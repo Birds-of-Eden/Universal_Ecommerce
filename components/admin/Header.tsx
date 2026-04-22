@@ -47,6 +47,21 @@ type ScmNotificationsResponse = {
   rows: ScmNotificationPreview[];
 };
 
+type InvestorNotificationPreview = {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  targetUrl: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+type InvestorNotificationsResponse = {
+  unreadCount: number;
+  rows: InvestorNotificationPreview[];
+};
+
 export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const { data: session } = useSession();
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -56,6 +71,8 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const [loadingSite, setLoadingSite] = useState(true);
   const [scmNotifications, setScmNotifications] =
     useState<ScmNotificationsResponse | null>(null);
+  const [investorNotifications, setInvestorNotifications] =
+    useState<InvestorNotificationsResponse | null>(null);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   // Avoid hydration mismatch
@@ -84,34 +101,86 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     ? (((session?.user as any).permissions as string[]) ?? [])
     : [];
   const canViewScmNotifications = permissionKeys.includes("scm.access");
+  const canViewInvestorNotifications = permissionKeys.includes(
+    "investor.notifications.read",
+  );
+  const canViewAnyAdminNotifications =
+    canViewScmNotifications || canViewInvestorNotifications;
 
   useEffect(() => {
-    if (!canViewScmNotifications) {
+    if (!canViewAnyAdminNotifications) {
       setScmNotifications(null);
+      setInvestorNotifications(null);
       return;
     }
 
     let active = true;
-    const controller = new AbortController();
+    const scmController = new AbortController();
+    const investorController = new AbortController();
 
     const fetchNotifications = async () => {
       try {
         setLoadingNotifications(true);
-        const response = await fetch("/api/scm/notifications?limit=5", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          throw new Error(payload?.error || "Failed to load notifications.");
+        const requests: Promise<void>[] = [];
+
+        if (canViewScmNotifications) {
+          requests.push(
+            fetch("/api/scm/notifications?limit=5", {
+              cache: "no-store",
+              signal: scmController.signal,
+            })
+              .then(async (response) => {
+                const payload = await response.json().catch(() => null);
+                if (!response.ok) {
+                  throw new Error(
+                    payload?.error || "Failed to load SCM notifications.",
+                  );
+                }
+                if (active) {
+                  setScmNotifications(payload as ScmNotificationsResponse);
+                }
+              })
+              .catch((error: any) => {
+                if (active && error?.name !== "AbortError") {
+                  console.error("Failed to load SCM notification preview:", error);
+                }
+              }),
+          );
+        } else if (active) {
+          setScmNotifications(null);
         }
-        if (active) {
-          setScmNotifications(payload as ScmNotificationsResponse);
+
+        if (canViewInvestorNotifications) {
+          requests.push(
+            fetch("/api/admin/investor-notifications?limit=5", {
+              cache: "no-store",
+              signal: investorController.signal,
+            })
+              .then(async (response) => {
+                const payload = await response.json().catch(() => null);
+                if (!response.ok) {
+                  throw new Error(
+                    payload?.error || "Failed to load investor notifications.",
+                  );
+                }
+                if (active) {
+                  setInvestorNotifications(payload as InvestorNotificationsResponse);
+                }
+              })
+              .catch((error: any) => {
+                if (active && error?.name !== "AbortError") {
+                  console.error(
+                    "Failed to load investor notification preview:",
+                    error,
+                  );
+                }
+              }),
+          );
+        } else if (active) {
+          setInvestorNotifications(null);
         }
-      } catch (error: any) {
-        if (active && error?.name !== "AbortError") {
-          console.error("Failed to load SCM notification preview:", error);
-        }
+
+        await Promise.all(requests);
       } finally {
         if (active) {
           setLoadingNotifications(false);
@@ -126,10 +195,15 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
     return () => {
       active = false;
-      controller.abort();
+      scmController.abort();
+      investorController.abort();
       window.clearInterval(interval);
     };
-  }, [canViewScmNotifications]);
+  }, [
+    canViewAnyAdminNotifications,
+    canViewInvestorNotifications,
+    canViewScmNotifications,
+  ]);
 
   const handleLogout = async () => {
     setIsPending(true);
@@ -152,14 +226,32 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
       ? ((session?.user as any).roleNames as string[]).join(", ")
       : (session?.user as any)?.role || "admin";
 
-  const unreadNotificationCount = scmNotifications?.unreadCount ?? 0;
-  const unreadPreviewRows = useMemo(
+  const scmUnreadNotificationCount = scmNotifications?.unreadCount ?? 0;
+  const investorUnreadNotificationCount = investorNotifications?.unreadCount ?? 0;
+  const unreadNotificationCount =
+    scmUnreadNotificationCount + investorUnreadNotificationCount;
+
+  const scmUnreadPreviewRows = useMemo(
     () => (scmNotifications?.rows || []).filter((row) => !row.readAt).slice(0, 4),
     [scmNotifications],
   );
-  const recentPreviewRows = useMemo(
+  const scmRecentPreviewRows = useMemo(
     () => (scmNotifications?.rows || []).filter((row) => Boolean(row.readAt)).slice(0, 3),
     [scmNotifications],
+  );
+  const investorUnreadPreviewRows = useMemo(
+    () =>
+      (investorNotifications?.rows || [])
+        .filter((row) => !row.readAt)
+        .slice(0, 4),
+    [investorNotifications],
+  );
+  const investorRecentPreviewRows = useMemo(
+    () =>
+      (investorNotifications?.rows || [])
+        .filter((row) => Boolean(row.readAt))
+        .slice(0, 3),
+    [investorNotifications],
   );
 
   return (
@@ -252,14 +344,14 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
           </DropdownMenu>
         )}
 
-        {canViewScmNotifications ? (
+        {canViewAnyAdminNotifications ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
                 className="relative rounded-full bg-muted hover:bg-primary/80 text-foreground"
-                title="SCM notifications"
+                title="Admin notifications"
               >
                 <Bell className="h-5 w-5" />
                 {unreadNotificationCount > 0 ? (
@@ -272,72 +364,149 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
             <DropdownMenuContent align="end" className="w-80">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div>
-                  <p className="text-sm font-semibold">SCM Notifications</p>
+                  <p className="text-sm font-semibold">Admin Notifications</p>
                   <p className="text-xs text-muted-foreground">
                     {loadingNotifications
                       ? "Loading..."
                       : `${unreadNotificationCount} unread`}
                   </p>
                 </div>
-                <Link
-                  href="/admin/scm/notifications"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  View all
-                </Link>
               </div>
               <div className="max-h-80 space-y-1 overflow-y-auto px-1 py-1">
-                {!scmNotifications || scmNotifications.rows.length === 0 ? (
+                {!canViewScmNotifications &&
+                !canViewInvestorNotifications ? (
                   <div className="px-2 py-3 text-sm text-muted-foreground">
-                    No SCM notifications.
+                    No admin notifications.
                   </div>
                 ) : (
                   <>
-                    {unreadPreviewRows.length > 0 ? (
-                      <div className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Needs action
+                    {canViewScmNotifications ? (
+                      <div className="border-b border-border/60 pb-2 last:border-b-0">
+                        <div className="flex items-center justify-between px-2 pb-1 pt-1">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            SCM
+                          </div>
+                          <Link
+                            href="/admin/scm/notifications"
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            View all
+                          </Link>
+                        </div>
+                        {(!scmNotifications || scmNotifications.rows.length === 0) ? (
+                          <div className="px-2 py-2 text-sm text-muted-foreground">
+                            No SCM notifications.
+                          </div>
+                        ) : (
+                          <>
+                            {scmUnreadPreviewRows.map((row) => (
+                              <DropdownMenuItem key={`scm-${row.type}-${row.id}`} asChild>
+                                <Link
+                                  href={row.href}
+                                  className="flex flex-col items-start gap-1 whitespace-normal rounded-md px-2 py-2"
+                                >
+                                  <div className="flex w-full items-start justify-between gap-2">
+                                    <span className="text-sm font-medium leading-tight">
+                                      {row.title}
+                                    </span>
+                                    {!row.readAt ? (
+                                      <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                                    ) : null}
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {row.type}
+                                  </span>
+                                </Link>
+                              </DropdownMenuItem>
+                            ))}
+                            {scmRecentPreviewRows.map((row) => (
+                              <DropdownMenuItem key={`scm-${row.type}-${row.id}`} asChild>
+                                <Link
+                                  href={row.href}
+                                  className="flex flex-col items-start gap-1 whitespace-normal rounded-md px-2 py-2"
+                                >
+                                  <div className="flex w-full items-start justify-between gap-2">
+                                    <span className="text-sm font-medium leading-tight">
+                                      {row.title}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {row.type}
+                                  </span>
+                                </Link>
+                              </DropdownMenuItem>
+                            ))}
+                          </>
+                        )}
                       </div>
                     ) : null}
-                    {unreadPreviewRows.map((row) => (
-                      <DropdownMenuItem key={`${row.type}-${row.id}`} asChild>
-                        <Link
-                          href={row.href}
-                          className="flex flex-col items-start gap-1 whitespace-normal rounded-md px-2 py-2"
-                        >
-                          <div className="flex w-full items-start justify-between gap-2">
-                            <span className="text-sm font-medium leading-tight">
-                              {row.title}
-                            </span>
-                            <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    {canViewInvestorNotifications ? (
+                      <div className="pt-2">
+                        <div className="flex items-center justify-between px-2 pb-1 pt-1">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            Investors
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {row.type}
-                          </span>
-                        </Link>
-                      </DropdownMenuItem>
-                    ))}
-                    {recentPreviewRows.length > 0 ? (
-                      <div className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Recent updates
+                          <Link
+                            href="/admin/investors/notifications"
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            View all
+                          </Link>
+                        </div>
+                        {(!investorNotifications ||
+                          investorNotifications.rows.length === 0) ? (
+                          <div className="px-2 py-2 text-sm text-muted-foreground">
+                            No investor notifications.
+                          </div>
+                        ) : (
+                          <>
+                            {investorUnreadPreviewRows.map((row) => (
+                              <DropdownMenuItem
+                                key={`investor-${row.type}-${row.id}`}
+                                asChild
+                              >
+                                <Link
+                                  href={row.targetUrl || "/admin/investors/notifications"}
+                                  className="flex flex-col items-start gap-1 whitespace-normal rounded-md px-2 py-2"
+                                >
+                                  <div className="flex w-full items-start justify-between gap-2">
+                                    <span className="text-sm font-medium leading-tight">
+                                      {row.title}
+                                    </span>
+                                    {!row.readAt ? (
+                                      <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                                    ) : null}
+                                  </div>
+                                  <span className="line-clamp-2 text-xs text-muted-foreground">
+                                    {row.message}
+                                  </span>
+                                </Link>
+                              </DropdownMenuItem>
+                            ))}
+                            {investorRecentPreviewRows.map((row) => (
+                              <DropdownMenuItem
+                                key={`investor-${row.type}-${row.id}`}
+                                asChild
+                              >
+                                <Link
+                                  href={row.targetUrl || "/admin/investors/notifications"}
+                                  className="flex flex-col items-start gap-1 whitespace-normal rounded-md px-2 py-2"
+                                >
+                                  <div className="flex w-full items-start justify-between gap-2">
+                                    <span className="text-sm font-medium leading-tight">
+                                      {row.title}
+                                    </span>
+                                  </div>
+                                  <span className="line-clamp-2 text-xs text-muted-foreground">
+                                    {row.message}
+                                  </span>
+                                </Link>
+                              </DropdownMenuItem>
+                            ))}
+                          </>
+                        )}
                       </div>
                     ) : null}
-                    {recentPreviewRows.map((row) => (
-                      <DropdownMenuItem key={`${row.type}-${row.id}`} asChild>
-                        <Link
-                          href={row.href}
-                          className="flex flex-col items-start gap-1 whitespace-normal rounded-md px-2 py-2"
-                        >
-                          <div className="flex w-full items-start justify-between gap-2">
-                            <span className="text-sm font-medium leading-tight">
-                              {row.title}
-                            </span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {row.type}
-                          </span>
-                        </Link>
-                      </DropdownMenuItem>
-                    ))}
                   </>
                 )}
               </div>
