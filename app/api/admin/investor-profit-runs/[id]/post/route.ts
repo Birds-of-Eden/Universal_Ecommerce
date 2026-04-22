@@ -12,6 +12,7 @@ import {
 } from "@/lib/investor";
 import { ensureInvestorProfitRunAllocationSnapshots } from "@/lib/investor-profit-run";
 import { summarizeInvestorProfitRunExceptions } from "@/lib/investor-profit-governance";
+import { createInvestorInternalNotificationsForPermissions } from "@/lib/investor-internal-notifications";
 
 function canPostInvestorProfit(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return access.hasGlobal("investor_profit.post");
@@ -254,6 +255,26 @@ export async function POST(
           postedAt: true,
           postedById: true,
         },
+      });
+
+      await createInvestorInternalNotificationsForPermissions({
+        tx,
+        permissionKeys: ["investor_payout.manage"],
+        notification: {
+          type: "PROFIT_RUN",
+          title: "Investor Profit Run Posted",
+          message: `${updatedRun.runNumber} was posted and is ready for payout draft creation.`,
+          targetUrl: `/admin/investors/profit-runs/${updatedRun.id}`,
+          entity: "investor_profit_run",
+          entityId: String(updatedRun.id),
+          metadata: {
+            runId: updatedRun.id,
+            runNumber: updatedRun.runNumber,
+            status: updatedRun.status,
+          },
+          createdById: access.userId,
+        },
+        excludeUserIds: access.userId ? [access.userId] : [],
       });
 
       return {

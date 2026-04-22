@@ -395,6 +395,11 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/investors/notifications",
+    permissions: ["investor.notifications.read"],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/investors",
     permissions: [
       "investors.read",
@@ -733,6 +738,12 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/admin/investor-profile-requests",
     methods: ["PATCH"],
     permissions: ["investor_profile_requests.review", "investors.manage"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-notifications",
+    methods: ["GET", "PATCH"],
+    permissions: ["investor.notifications.read"],
     globalOnly: true,
   },
   {

@@ -11,6 +11,7 @@ import {
   toCleanText,
   toDecimalAmount,
 } from "@/lib/investor";
+import { createInvestorInternalNotificationsForPermissions } from "@/lib/investor-internal-notifications";
 
 function canReadInvestorProfit(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return (
@@ -842,6 +843,26 @@ export async function POST(request: NextRequest) {
         tx.investorProfitRunVariant.count({ where: { runId: run.id } }),
         tx.investorProfitRunAllocation.count({ where: { runId: run.id } }),
       ]);
+
+      await createInvestorInternalNotificationsForPermissions({
+        tx,
+        permissionKeys: ["investor_profit.approve"],
+        notification: {
+          type: "PROFIT_RUN",
+          title: "Investor Profit Run Pending Approval",
+          message: `${run.runNumber} was generated and is waiting for approval.`,
+          targetUrl: `/admin/investors/profit-runs/${run.id}`,
+          entity: "investor_profit_run",
+          entityId: String(run.id),
+          metadata: {
+            runId: run.id,
+            runNumber: run.runNumber,
+            status: run.status,
+          },
+          createdById: access.userId,
+        },
+        excludeUserIds: access.userId ? [access.userId] : [],
+      });
 
       return {
         run,

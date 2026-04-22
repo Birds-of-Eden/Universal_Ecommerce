@@ -6,6 +6,10 @@ import { getAccessContext } from "@/lib/rbac";
 import { logActivity } from "@/lib/activity-log";
 import { toCleanText } from "@/lib/investor";
 import { summarizeInvestorProfitRunExceptions } from "@/lib/investor-profit-governance";
+import {
+  createInvestorInternalNotification,
+  createInvestorInternalNotificationsForPermissions,
+} from "@/lib/investor-internal-notifications";
 
 function canApproveInvestorProfit(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return access.hasGlobal("investor_profit.approve");
@@ -375,22 +379,67 @@ export async function PATCH(
     }
 
     const now = new Date();
-    const updated = await prisma.investorProfitRun.update({
-      where: { id: runId },
-      data: {
-        status: action === "approve" ? "APPROVED" : "REJECTED",
-        approvedById: access.userId,
-        approvedAt: now,
-        ...(action === "reject" ? { postingNote: note ?? "Rejected in approval step." } : {}),
-      },
-      include: {
-        approvedBy: {
-          select: { id: true, name: true, email: true },
+    const updated = await prisma.$transaction(async (tx) => {
+      const next = await tx.investorProfitRun.update({
+        where: { id: runId },
+        data: {
+          status: action === "approve" ? "APPROVED" : "REJECTED",
+          approvedById: access.userId,
+          approvedAt: now,
+          ...(action === "reject" ? { postingNote: note ?? "Rejected in approval step." } : {}),
         },
-        postedBy: {
-          select: { id: true, name: true, email: true },
+        include: {
+          approvedBy: {
+            select: { id: true, name: true, email: true },
+          },
+          postedBy: {
+            select: { id: true, name: true, email: true },
+          },
         },
-      },
+      });
+
+      if (action === "approve") {
+        await createInvestorInternalNotificationsForPermissions({
+          tx,
+          permissionKeys: ["investor_profit.post"],
+          notification: {
+            type: "PROFIT_RUN",
+            title: "Investor Profit Run Ready To Post",
+            message: `${next.runNumber} was approved and is ready for posting to investor ledger.`,
+            targetUrl: `/admin/investors/profit-runs/${next.id}`,
+            entity: "investor_profit_run",
+            entityId: String(next.id),
+            metadata: {
+              runId: next.id,
+              runNumber: next.runNumber,
+              status: next.status,
+            },
+            createdById: access.userId,
+          },
+          excludeUserIds: access.userId ? [access.userId] : [],
+        });
+      } else if (existing.createdById && existing.createdById !== access.userId) {
+        await createInvestorInternalNotification({
+          tx,
+          notification: {
+            userId: existing.createdById,
+            type: "PROFIT_RUN",
+            title: "Investor Profit Run Rejected",
+            message: `${next.runNumber} was rejected.${note ? ` Note: ${note}` : ""}`,
+            targetUrl: `/admin/investors/profit-runs/${next.id}`,
+            entity: "investor_profit_run",
+            entityId: String(next.id),
+            metadata: {
+              runId: next.id,
+              runNumber: next.runNumber,
+              status: next.status,
+            },
+            createdById: access.userId,
+          },
+        });
+      }
+
+      return next;
     });
 
     await logActivity({

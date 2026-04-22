@@ -178,6 +178,8 @@ model User {
   investorProfileUpdateRequestsSubmitted InvestorProfileUpdateRequest[] @relation("InvestorProfileUpdateRequestsSubmittedBy")
   investorProfileUpdateRequestsReviewed  InvestorProfileUpdateRequest[] @relation("InvestorProfileUpdateRequestsReviewedBy")
   investorPortalNotificationsCreated     InvestorPortalNotification[]   @relation("InvestorPortalNotificationsCreatedBy")
+  investorInternalNotifications          InvestorInternalNotification[] @relation("InvestorInternalNotificationsUser")
+  investorInternalNotificationsCreated   InvestorInternalNotification[] @relation("InvestorInternalNotificationsCreatedBy")
   investorStatementSchedulesCreated      InvestorStatementSchedule[]     @relation("InvestorStatementSchedulesCreatedBy")
   investorStatementSchedulesUpdated      InvestorStatementSchedule[]     @relation("InvestorStatementSchedulesUpdatedBy")
 }
@@ -2886,6 +2888,30 @@ model InvestorPortalNotification {
   @@index([type, createdAt])
 }
 
+model InvestorInternalNotification {
+  id          Int                              @id @default(autoincrement())
+  userId      String
+  type        InvestorInternalNotificationType
+  title       String
+  message     String
+  status      InvestorInternalNotificationStatus @default(UNREAD)
+  targetUrl   String?
+  entity      String?
+  entityId    String?
+  metadata    Json?
+  createdById String?
+  readAt      DateTime?
+  createdAt   DateTime                         @default(now())
+  updatedAt   DateTime                         @updatedAt
+  user        User                             @relation("InvestorInternalNotificationsUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy   User?                            @relation("InvestorInternalNotificationsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([createdById])
+  @@index([type, createdAt])
+  @@index([entity, entityId])
+}
+
 model InvestorStatementSchedule {
   id                 Int                              @id @default(autoincrement())
   investorId         Int
@@ -4439,6 +4465,20 @@ enum InvestorPortalNotificationType {
 }
 
 enum InvestorPortalNotificationStatus {
+  UNREAD
+  READ
+}
+
+enum InvestorInternalNotificationType {
+  PROFILE_REQUEST
+  DOCUMENT_REVIEW
+  PROFIT_RUN
+  PAYOUT
+  STATEMENT_SCHEDULE
+  SYSTEM
+}
+
+enum InvestorInternalNotificationStatus {
   UNREAD
   READ
 }

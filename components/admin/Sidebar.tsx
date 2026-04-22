@@ -540,6 +540,11 @@ const menuItems: MenuItem[] = [
               "investor_payout.manage",
             ],
           },
+          {
+            name: "Notifications",
+            href: "/admin/investors/notifications",
+            requiredGlobalPermissions: ["investor.notifications.read"],
+          },
         ],
       },
       {

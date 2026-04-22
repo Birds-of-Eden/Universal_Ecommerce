@@ -10,6 +10,7 @@ import {
   getInvestorDocumentReadSummary,
   syncInvestorKycStatus,
 } from "@/lib/investor-document-service";
+import { createInvestorInternalNotificationsForPermissions } from "@/lib/investor-internal-notifications";
 
 function toCleanText(value: unknown, max = 500) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -70,6 +71,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid investor document upload URL." }, { status: 400 });
     }
 
+    const investor = await prisma.investor.findUnique({
+      where: { id: resolved.context.investorId },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+      },
+    });
+    if (!investor) {
+      return NextResponse.json({ error: "Investor not found." }, { status: 404 });
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.investorDocument.upsert({
         where: {
@@ -116,6 +129,25 @@ export async function POST(request: NextRequest) {
         },
       });
       await syncInvestorKycStatus(tx, resolved.context.investorId);
+      await createInvestorInternalNotificationsForPermissions({
+        tx,
+        permissionKeys: ["investor_documents.review", "investors.manage"],
+        notification: {
+          type: "DOCUMENT_REVIEW",
+          title: "Investor Document Submitted",
+          message: `${investor.name} (${investor.code}) submitted or re-submitted ${type.replaceAll("_", " ").toLowerCase()} for review.`,
+          targetUrl: "/admin/investors/documents",
+          entity: "investor_document",
+          entityId: `${resolved.context.investorId}:${type}`,
+          metadata: {
+            investorId: investor.id,
+            investorCode: investor.code,
+            type,
+          },
+          createdById: resolved.context.userId,
+        },
+        excludeUserIds: resolved.context.userId ? [resolved.context.userId] : [],
+      });
     });
 
     const summary = await getInvestorDocumentReadSummary(resolved.context.investorId);

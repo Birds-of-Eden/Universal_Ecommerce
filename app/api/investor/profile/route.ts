@@ -8,6 +8,7 @@ import {
   sanitizeInvestorMasterSnapshot,
 } from "@/lib/investor-master";
 import { createInvestorPortalNotification } from "@/lib/investor-portal-notifications";
+import { createInvestorInternalNotificationsForPermissions } from "@/lib/investor-internal-notifications";
 
 function stripUnsupportedPortalFields(body: Record<string, unknown>) {
   const next = { ...body };
@@ -186,6 +187,26 @@ export async function POST(request: NextRequest) {
           metadata: { requestId: requestRow.id },
           createdById: resolved.context.userId,
         },
+      });
+
+      await createInvestorInternalNotificationsForPermissions({
+        tx,
+        permissionKeys: ["investor_profile_requests.review", "investors.manage"],
+        notification: {
+          type: "PROFILE_REQUEST",
+          title: "Investor Profile Request Submitted",
+          message: `${existing.name} (${existing.code}) submitted a profile or beneficiary update request and is waiting for review.`,
+          targetUrl: "/admin/investors/profile-requests",
+          entity: "investor_profile_update_request",
+          entityId: String(requestRow.id),
+          metadata: {
+            requestId: requestRow.id,
+            investorId: existing.id,
+            investorCode: existing.code,
+          },
+          createdById: resolved.context.userId,
+        },
+        excludeUserIds: resolved.context.userId ? [resolved.context.userId] : [],
       });
 
       return requestRow;

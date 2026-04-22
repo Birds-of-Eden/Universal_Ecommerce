@@ -11,6 +11,7 @@ import {
   toDecimalAmount,
 } from "@/lib/investor";
 import { toPayoutSnapshotFromInvestor } from "@/lib/investor-payout";
+import { createInvestorInternalNotificationsForPermissions } from "@/lib/investor-internal-notifications";
 
 function canManageInvestorPayout(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return access.hasGlobal("investor_payout.manage");
@@ -207,6 +208,26 @@ export async function POST(
           status: payout.status,
         });
       }
+
+      await createInvestorInternalNotificationsForPermissions({
+        tx,
+        permissionKeys: ["investor_payout.approve"],
+        notification: {
+          type: "PAYOUT",
+          title: "Investor Payout Drafts Pending Approval",
+          message: `${run.runNumber} generated ${payouts.length} payout draft(s) waiting for approval.`,
+          targetUrl: "/admin/investors/payouts",
+          entity: "investor_profit_run",
+          entityId: String(run.id),
+          metadata: {
+            runId: run.id,
+            runNumber: run.runNumber,
+            payoutCount: payouts.length,
+          },
+          createdById: access.userId,
+        },
+        excludeUserIds: access.userId ? [access.userId] : [],
+      });
 
       return {
         createdAt: timestamp,

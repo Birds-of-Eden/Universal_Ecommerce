@@ -17,6 +17,7 @@ import {
   payoutIsOnHold,
 } from "@/lib/investor-payout";
 import { createInvestorPortalNotification } from "@/lib/investor-portal-notifications";
+import { createInvestorInternalNotificationsForPermissions } from "@/lib/investor-internal-notifications";
 
 function canReadPayout(access: Awaited<ReturnType<typeof getAccessContext>>) {
   return (
@@ -322,6 +323,27 @@ export async function PATCH(
             createdById: access.userId,
           },
         });
+        if (action === "approve") {
+          await createInvestorInternalNotificationsForPermissions({
+            tx,
+            permissionKeys: ["investor_payout.pay"],
+            notification: {
+              type: "PAYOUT",
+              title: "Investor Payout Ready To Pay",
+              message: `${next.payoutNumber} was approved and is ready for settlement.`,
+              targetUrl: `/admin/investors/payouts/${next.id}`,
+              entity: "investor_profit_payout",
+              entityId: String(next.id),
+              metadata: {
+                payoutId: next.id,
+                payoutNumber: next.payoutNumber,
+                status: next.status,
+              },
+              createdById: access.userId,
+            },
+            excludeUserIds: access.userId ? [access.userId] : [],
+          });
+        }
         return next;
       });
 
