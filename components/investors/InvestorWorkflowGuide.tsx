@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, CircleDotDashed, FolderKanban, Landmark, ShieldCheck, Wallet } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  CircleDotDashed,
+  FolderKanban,
+  Landmark,
+  ShieldCheck,
+  Wallet,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -219,13 +227,6 @@ const SECTION_META: Record<
   },
 };
 
-function stageTone(stageId: string, currentStageId: string) {
-  if (stageId === currentStageId) {
-    return "border-emerald-300 bg-emerald-50";
-  }
-  return "border-slate-200 bg-white";
-}
-
 export function InvestorWorkflowGuide({
   currentSection,
 }: {
@@ -233,18 +234,21 @@ export function InvestorWorkflowGuide({
 }) {
   const currentMeta = SECTION_META[currentSection];
   const currentStage = WORKFLOW_STAGES.find((stage) => stage.id === currentMeta.stageId);
+  const currentStageIndex = WORKFLOW_STAGES.findIndex(
+    (stage) => stage.id === currentMeta.stageId,
+  );
 
   return (
     <Card className="border-slate-200">
-      <CardHeader className="pb-4">
+      <CardHeader className="pb-2">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
+          <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-lg">Investor Workflow Guide</CardTitle>
+              <CardTitle className="text-base">Investor Workflow</CardTitle>
               <Badge variant="outline">{currentMeta.title}</Badge>
             </div>
-            <p className="max-w-3xl text-sm text-muted-foreground">
-              {currentMeta.description}
+            <p className="max-w-3xl text-xs text-muted-foreground">
+              Keep the current stage clean, then move right.
             </p>
           </div>
           <Button asChild variant="outline" size="sm">
@@ -252,80 +256,116 @@ export function InvestorWorkflowGuide({
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="grid gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <CardContent className="space-y-3">
+        <div className="overflow-x-auto">
+          <div className="flex min-w-[760px] items-center gap-2">
             {WORKFLOW_STAGES.map((stage, index) => {
               const Icon = stage.icon;
               const isCurrent = stage.id === currentMeta.stageId;
+              const isComplete = currentStageIndex > index;
               return (
-                <div
-                  key={stage.id}
-                  className={`rounded-xl border p-4 ${stageTone(stage.id, currentMeta.stageId)}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-2">
+                <div key={stage.id} className="flex items-center gap-2">
+                  <div
+                    className={`flex min-w-[160px] items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                      isCurrent
+                        ? "border-emerald-300 bg-emerald-50"
+                        : isComplete
+                          ? "border-slate-300 bg-slate-50"
+                          : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
+                        isCurrent
+                          ? "border-emerald-300 bg-emerald-100 text-emerald-700"
+                          : isComplete
+                            ? "border-slate-300 bg-slate-100 text-slate-700"
+                            : "border-slate-200 bg-white text-slate-500"
+                      }`}
+                    >
+                      {isComplete ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <Icon className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                           Step {index + 1}
                         </span>
-                        {isCurrent ? <Badge>Current</Badge> : null}
+                        {isCurrent ? <Badge className="h-5 px-2 text-[10px]">Current</Badge> : null}
                       </div>
-                      <p className="font-semibold">{stage.title}</p>
-                      <p className="text-sm text-muted-foreground">{stage.description}</p>
+                      <p className="mt-1 text-sm font-semibold leading-tight">{stage.title}</p>
                     </div>
-                    <Icon className="h-5 w-5 text-emerald-700" />
                   </div>
-                  <div className="mt-4 space-y-2">
-                    {stage.steps.map((step) => {
-                      const isPage = step.id === currentSection;
-                      return (
-                        <Link
-                          key={step.id}
-                          href={step.href}
-                          className={`flex items-start justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:border-emerald-400 ${
-                            isPage ? "border-emerald-400 bg-emerald-100/70" : "border-slate-200 bg-white"
-                          }`}
-                        >
-                          <div className="space-y-1">
-                            <p className="font-medium">{step.title}</p>
-                            <p className="text-xs text-muted-foreground">{step.description}</p>
-                          </div>
-                          {isPage ? (
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-700" />
-                          ) : (
-                            <ArrowRight className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </div>
+                  {index < WORKFLOW_STAGES.length - 1 ? (
+                    <div className="h-px w-6 bg-slate-300" />
+                  ) : null}
                 </div>
               );
             })}
           </div>
+        </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-            <div className="flex items-center gap-2">
-              <CircleDotDashed className="h-4 w-4 text-emerald-700" />
-              <p className="font-semibold">
-                {currentStage ? `${currentStage.title} stage` : "Recommended next steps"}
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3">
+          <div className="flex flex-wrap items-start gap-3">
+            <div className="min-w-[180px] flex-1">
+              <div className="flex items-center gap-2">
+                <CircleDotDashed className="h-4 w-4 text-emerald-700" />
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Current
+                </p>
+              </div>
+              <p className="mt-1 text-sm font-medium">{currentMeta.title}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {currentMeta.description}
               </p>
             </div>
-            <div className="mt-4 space-y-3">
-              {currentMeta.next.map((step, index) => (
-                <Link
-                  key={step.id}
-                  href={step.href}
-                  className="block rounded-lg border border-slate-200 bg-white p-3 transition-colors hover:border-emerald-400"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                    Next {index + 1}
-                  </p>
-                  <p className="mt-1 font-medium">{step.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{step.description}</p>
-                </Link>
-              ))}
+
+            <div className="min-w-[220px] flex-[1.2]">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                In This Stage
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {currentStage?.steps.map((step) => {
+                  const isPage = step.id === currentSection;
+                  return (
+                    <Link
+                      key={step.id}
+                      href={step.href}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:border-emerald-400 ${
+                        isPage
+                          ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                          : "border-slate-200 bg-white text-foreground"
+                      }`}
+                    >
+                      {isPage ? (
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                      ) : null}
+                      <span>{step.title}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="min-w-[220px] flex-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Next
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {currentMeta.next.map((step) => (
+                  <Link
+                    key={step.id}
+                    href={step.href}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-emerald-400"
+                  >
+                    <span>{step.title}</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </div>
