@@ -147,9 +147,13 @@ export async function GET(
         entity: true,
         entityId: true,
         createdAt: true,
-        actorName: true,
-        actorEmail: true,
         metadata: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 
@@ -178,8 +182,14 @@ export async function GET(
         canPay: payout.status === "APPROVED" && !payoutIsOnHold(payout),
       },
       recentActivity: recentActivity.map((item) => ({
-        ...item,
+        id: item.id.toString(),
+        action: item.action,
+        entity: item.entity,
+        entityId: item.entityId,
         createdAt: item.createdAt.toISOString(),
+        actorName: item.user?.name ?? null,
+        actorEmail: item.user?.email ?? null,
+        metadata: item.metadata as { message?: string } | null,
       })),
     });
   } catch (error) {
