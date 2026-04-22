@@ -2670,19 +2670,32 @@ export default function InvestorWorkspace({
                   </p>
                 </CardHeader>
                 <CardContent className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Investor</TableHead>
-                        <TableHead>Variant</TableHead>
-                        <TableHead>Participation %</TableHead>
-                        <TableHead>Committed</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allocations.map((item) => (
-                        <TableRow key={item.id}>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Allocation</TableHead>
+                          <TableHead>Investor</TableHead>
+                          <TableHead>Variant</TableHead>
+                          <TableHead>Participation %</TableHead>
+                          <TableHead>Committed</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allocations.map((item) => (
+                          <TableRow key={item.id}>
+                          <TableCell className="font-medium">
+                            <Link
+                              href={`/admin/investors/allocations/${item.id}`}
+                              className="hover:text-primary"
+                            >
+                              Allocation #{item.id}
+                            </Link>
+                            <div className="text-xs text-muted-foreground">
+                              Open allocation detail
+                            </div>
+                          </TableCell>
                           <TableCell className="font-medium">
                             <Link
                               href={`/admin/investors/${item.investor.id}`}
@@ -2690,15 +2703,12 @@ export default function InvestorWorkspace({
                             >
                               {item.investor.name}
                             </Link>
+                            <div className="text-xs text-muted-foreground">
+                              Investor profile
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <Link
-                              href={`/admin/investors/allocations/${item.id}`}
-                              className="hover:text-primary"
-                            >
-                              {item.productVariant.product.name} (
-                              {item.productVariant.sku})
-                            </Link>
+                            {item.productVariant.product.name} ({item.productVariant.sku})
                           </TableCell>
                           <TableCell className="text-right">
                             {item.participationPercent || "-"}
@@ -2717,8 +2727,22 @@ export default function InvestorWorkspace({
                               {item.status}
                             </span>
                           </TableCell>
+                          <TableCell className="text-right">
+                            <Button asChild size="sm" variant="outline">
+                              <Link href={`/admin/investors/allocations/${item.id}`}>
+                                Open Detail
+                              </Link>
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
+                      {allocations.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                            No allocations found.
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
                     </TableBody>
                   </Table>
                 </CardContent>

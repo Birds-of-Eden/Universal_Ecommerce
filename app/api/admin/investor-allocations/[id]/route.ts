@@ -140,7 +140,7 @@ export async function GET(
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 20,
         include: {
-          profitRun: {
+          run: {
             select: {
               id: true,
               runNumber: true,
@@ -190,9 +190,9 @@ export async function GET(
         allocatedNetProfit: item.allocatedNetProfit.toString(),
         participationSharePct: item.participationSharePct.toString(),
         profitRun: {
-          ...item.profitRun,
-          fromDate: item.profitRun.fromDate.toISOString(),
-          toDate: item.profitRun.toDate.toISOString(),
+          ...item.run,
+          fromDate: item.run.fromDate.toISOString(),
+          toDate: item.run.toDate.toISOString(),
         },
       })),
     });
