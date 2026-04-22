@@ -400,6 +400,11 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/investors/activity-log",
+    permissions: ["investor.activity_log.read", "settings.activitylog.read", "settings.manage"],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/investors",
     permissions: [
       "investors.read",
@@ -1525,7 +1530,11 @@ const apiPermissionRules: PermissionRule[] = [
   },
   {
     prefix: "/api/admin/activity-log",
-    permissions: ["settings.activitylog.read", "settings.manage"],
+    permissions: [
+      "investor.activity_log.read",
+      "settings.activitylog.read",
+      "settings.manage",
+    ],
   },
   {
     prefix: "/api/admin/rbac",

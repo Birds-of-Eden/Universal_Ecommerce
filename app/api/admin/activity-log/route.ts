@@ -7,6 +7,7 @@ import {
   canAccessActivityEntity,
   getVisibleActivityEntities,
   hasFullActivityLogAccess,
+  isInvestorActivityEntity,
   logActivity,
 } from "@/lib/activity-log";
 
@@ -29,7 +30,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!access.hasAny(["settings.activitylog.read", "settings.manage"])) {
+    if (
+      !access.hasAny([
+        "settings.activitylog.read",
+        "settings.manage",
+        "investor.activity_log.read",
+      ])
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -38,7 +45,20 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(toPositiveInt(url.searchParams.get("pageSize"), 20), 100);
     const search = url.searchParams.get("search")?.trim() || "";
     const requestedEntity = url.searchParams.get("entity")?.trim() || "";
+    const scope = url.searchParams.get("scope")?.trim() || "";
+    const investorOnlyScope = scope === "investor";
     const fullAccess = hasFullActivityLogAccess(access);
+
+    if (investorOnlyScope && requestedEntity && !isInvestorActivityEntity(requestedEntity)) {
+      return NextResponse.json({
+        logs: [],
+        total: 0,
+        page,
+        pageSize,
+        entities: [],
+        fullAccess,
+      });
+    }
 
     if (requestedEntity && !canAccessActivityEntity(access, requestedEntity)) {
       return NextResponse.json({
@@ -58,10 +78,30 @@ export async function GET(request: NextRequest) {
       },
     };
 
+    const scopedEntityFilters = investorOnlyScope
+      ? [
+          {
+            entity: {
+              startsWith: "investor",
+            },
+          },
+        ]
+      : [];
+
     if (requestedEntity) {
       where.entity = requestedEntity.toLowerCase();
-    } else if (!fullAccess) {
-      if (visibleEntities.length === 0) {
+    } else if (!fullAccess || investorOnlyScope) {
+      const baseFilters = !fullAccess
+        ? visibleEntities.map((entity) => ({
+            entity: {
+              startsWith: entity.toLowerCase(),
+            },
+          }))
+        : [];
+
+      const combinedFilters = [...baseFilters, ...scopedEntityFilters];
+
+      if (combinedFilters.length === 0) {
         return NextResponse.json({
           logs: [],
           total: 0,
@@ -72,11 +112,34 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      where.OR = visibleEntities.map((entity) => ({
-        entity: {
-          startsWith: entity.toLowerCase(),
-        },
-      }));
+      if (baseFilters.length === 0 && investorOnlyScope) {
+        where.OR = scopedEntityFilters;
+      } else {
+        where.AND = [
+          ...(Array.isArray(where.AND) ? (where.AND as unknown[]) : []),
+          {
+            OR: baseFilters.length > 0 ? baseFilters : scopedEntityFilters,
+          },
+          ...(investorOnlyScope
+            ? [
+                {
+                  OR: scopedEntityFilters,
+                },
+              ]
+            : []),
+        ];
+      }
+
+      if (!fullAccess && visibleEntities.length === 0) {
+        return NextResponse.json({
+          logs: [],
+          total: 0,
+          page,
+          pageSize,
+          entities: [],
+          fullAccess: false,
+        });
+      }
     }
 
     if (search) {
@@ -93,6 +156,22 @@ export async function GET(request: NextRequest) {
         },
       ];
     }
+
+    const distinctWhere = requestedEntity
+      ? { entity: requestedEntity.toLowerCase() }
+      : investorOnlyScope
+        ? {
+            OR: scopedEntityFilters,
+          }
+        : !fullAccess && visibleEntities.length > 0
+          ? {
+              OR: visibleEntities.map((entity) => ({
+                entity: {
+                  startsWith: entity.toLowerCase(),
+                },
+              })),
+            }
+          : undefined;
 
     const [rows, total, distinctEntities] = await Promise.all([
       prisma.activityLog.findMany({
@@ -113,17 +192,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.activityLog.count({ where }),
       prisma.activityLog.findMany({
-        where: requestedEntity
-          ? { entity: requestedEntity.toLowerCase() }
-          : !fullAccess && visibleEntities.length > 0
-            ? {
-                OR: visibleEntities.map((entity) => ({
-                  entity: {
-                    startsWith: entity.toLowerCase(),
-                  },
-                })),
-              }
-            : undefined,
+        where: distinctWhere,
         distinct: ["entity"],
         select: { entity: true },
         orderBy: { entity: "asc" },

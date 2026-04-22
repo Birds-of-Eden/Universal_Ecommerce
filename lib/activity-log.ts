@@ -10,6 +10,20 @@ type ActivityEntityRule = {
   permissions: PermissionKey[];
 };
 
+export const INVESTOR_ACTIVITY_ENTITY_PREFIXES = [
+  "investor",
+  "investor_capital_transaction",
+  "investor_product_allocation",
+  "investor_profit_run",
+  "investor_profit_payout",
+  "investor_portal_access",
+  "investor_document",
+  "investor_profile_update_request",
+  "investor_master_change_request",
+  "investor_beneficiary_verification",
+  "investor_statement_schedule",
+] as const;
+
 const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
   {
     match: ["activity_log", "activity-log"],
@@ -198,6 +212,7 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
   {
     match: ["investor", "investor_capital_transaction", "investor_product_allocation"],
     permissions: [
+      "investor.activity_log.read",
       "investors.read",
       "investors.manage",
       "investor_ledger.read",
@@ -218,7 +233,7 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
   },
   {
     match: ["investor_portal_access"],
-    permissions: ["investors.manage", "users.manage"],
+    permissions: ["investor.activity_log.read", "investors.manage", "users.manage"],
   },
   {
     match: ["payroll"],
@@ -232,6 +247,14 @@ const ACTIVITY_ENTITY_RULES: ActivityEntityRule[] = [
 
 function normalizeEntityKey(entity: string): string {
   return entity.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+}
+
+export function isInvestorActivityEntity(entity: string): boolean {
+  const normalized = normalizeEntityKey(entity);
+  return INVESTOR_ACTIVITY_ENTITY_PREFIXES.some((candidate) => {
+    const key = normalizeEntityKey(candidate);
+    return normalized === key || normalized.startsWith(`${key}_`);
+  });
 }
 
 function getClientIp(request?: Request | NextRequest | null): string | null {

@@ -627,6 +627,11 @@ const menuItems: MenuItem[] = [
             ],
           },
           {
+            name: "Activity Log",
+            href: "/admin/investors/activity-log",
+            requiredGlobalPermissions: ["investor.activity_log.read"],
+          },
+          {
             name: "Portal Access",
             href: "/admin/investors/portal-access",
             requiredGlobalPermissions: ["investors.manage", "users.manage"],
