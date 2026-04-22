@@ -10,6 +10,7 @@ export function summarizeInvestorProfitRunExceptions(input: {
   variantLines: Array<{
     id: number;
     unallocatedSharePct: Prisma.Decimal;
+    netRevenue: Prisma.Decimal;
     netProfit: Prisma.Decimal;
   }>;
   allocationLines: Array<{
@@ -36,21 +37,36 @@ export function summarizeInvestorProfitRunExceptions(input: {
     (total, line) => total.plus(line.unallocatedSharePct),
     new Prisma.Decimal(0),
   );
+  const companyRetainedRevenueTotal = variantsWithUnallocated.reduce(
+    (total, line) => total.plus(asDecimal(line.netRevenue).mul(asDecimal(line.unallocatedSharePct))),
+    new Prisma.Decimal(0),
+  );
+  const companyRetainedProfitTotal = variantsWithUnallocated.reduce(
+    (total, line) => total.plus(asDecimal(line.netProfit).mul(asDecimal(line.unallocatedSharePct))),
+    new Prisma.Decimal(0),
+  );
+  const nonBlockingWarnings = [
+    ...(variantsWithUnallocated.length > 0
+      ? [
+          "One or more variants have partial investor allocation. The remaining share will stay as company retained profit and will not be posted to investor ledger payouts.",
+        ]
+      : []),
+  ];
 
   return {
     variantLineCount: input.variantLines.length,
     allocationLineCount: input.allocationLines.length,
     variantsWithUnallocatedCount: variantsWithUnallocated.length,
     unallocatedShareTotal: unallocatedShareTotal.toString(),
+    companyRetainedRevenueTotal: companyRetainedRevenueTotal.toString(),
+    companyRetainedProfitTotal: companyRetainedProfitTotal.toString(),
     missingSourceAllocationCount,
     inactiveSourceAllocationCount,
     negativeDistributionCount,
+    nonBlockingWarnings,
     blockingIssues: [
       ...(input.variantLines.length === 0 ? ["No variant lines exist for this run."] : []),
       ...(input.allocationLines.length === 0 ? ["No investor allocation snapshot exists for this run."] : []),
-      ...(variantsWithUnallocated.length > 0
-        ? ["One or more variants still have unallocated investor share."]
-        : []),
     ],
   };
 }

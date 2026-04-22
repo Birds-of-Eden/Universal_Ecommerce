@@ -141,6 +141,7 @@ export async function GET(
       variantLines: run.variantLines.map((line) => ({
         id: line.id,
         unallocatedSharePct: line.unallocatedSharePct,
+        netRevenue: line.netRevenue,
         netProfit: line.netProfit,
       })),
       allocationLines: run.allocationLines.map((line) => ({
@@ -346,6 +347,7 @@ export async function PATCH(
           select: {
             id: true,
             unallocatedSharePct: true,
+            netRevenue: true,
             netProfit: true,
           },
         }),

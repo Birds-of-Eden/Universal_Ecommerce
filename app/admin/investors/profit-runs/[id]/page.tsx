@@ -73,9 +73,12 @@ type Payload = {
     allocationLineCount: number;
     variantsWithUnallocatedCount: number;
     unallocatedShareTotal: string;
+    companyRetainedRevenueTotal: string;
+    companyRetainedProfitTotal: string;
     missingSourceAllocationCount: number;
     inactiveSourceAllocationCount: number;
     negativeDistributionCount: number;
+    nonBlockingWarnings: string[];
     blockingIssues: string[];
   };
   recentActivity: Array<{
@@ -196,7 +199,7 @@ export default function InvestorProfitRunDetailPage() {
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Run Status</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{run.status}</CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Variants</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{run._count.variantLines}</CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Allocations</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{run._count.allocationLines}</CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Blocking Issues</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{governance.blockingIssues.length}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Warnings</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{governance.nonBlockingWarnings.length}</CardContent></Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[2fr,1fr]">
@@ -223,8 +226,10 @@ export default function InvestorProfitRunDetailPage() {
             <CardTitle className="text-base">Governance Checks</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Variants With Unallocated Share</div><div className="mt-1 font-medium">{governance.variantsWithUnallocatedCount}</div></div>
-            <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Unallocated Share Total</div><div className="mt-1 font-medium">{governance.unallocatedShareTotal}</div></div>
+            <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Variants With Company Retained Share</div><div className="mt-1 font-medium">{governance.variantsWithUnallocatedCount}</div></div>
+            <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Company Retained Share Total</div><div className="mt-1 font-medium">{(Number(governance.unallocatedShareTotal) * 100).toFixed(2)}%</div></div>
+            <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Company Retained Revenue</div><div className="mt-1 font-medium">{fmtMoney(governance.companyRetainedRevenueTotal)}</div></div>
+            <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Company Retained Profit</div><div className="mt-1 font-medium">{fmtMoney(governance.companyRetainedProfitTotal)}</div></div>
             <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Missing Source Allocation</div><div className="mt-1 font-medium">{governance.missingSourceAllocationCount}</div></div>
             <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Inactive Source Allocation</div><div className="mt-1 font-medium">{governance.inactiveSourceAllocationCount}</div></div>
             <div><div className="text-xs uppercase tracking-wide text-muted-foreground">Negative Distribution Lines</div><div className="mt-1 font-medium">{governance.negativeDistributionCount}</div></div>
@@ -242,6 +247,15 @@ export default function InvestorProfitRunDetailPage() {
               <div className="font-medium">Posting/approval blockers</div>
               <ul className="mt-2 list-disc pl-5">
                 {governance.blockingIssues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            </div>
+          ) : governance.nonBlockingWarnings.length > 0 ? (
+            <div className="rounded-lg border border-blue-300 bg-blue-50 p-4 text-sm text-blue-900">
+              <div className="font-medium">Controlled warnings</div>
+              <ul className="mt-2 list-disc pl-5">
+                {governance.nonBlockingWarnings.map((issue) => (
                   <li key={issue}>{issue}</li>
                 ))}
               </ul>
@@ -288,7 +302,7 @@ export default function InvestorProfitRunDetailPage() {
             <div key={line.id} className="rounded-lg border p-4 text-sm">
               <div className="font-medium">{line.productVariant.product.name} ({line.productVariant.sku})</div>
               <div className="mt-1 text-muted-foreground">
-                Units {line.unitsNet} | Revenue {fmtMoney(line.netRevenue)} | COGS {fmtMoney(line.netCogs)} | Expense {fmtMoney(line.allocatedExpense)} | Profit {fmtMoney(line.netProfit)} | Unallocated {(Number(line.unallocatedSharePct) * 100).toFixed(2)}%
+                Units {line.unitsNet} | Revenue {fmtMoney(line.netRevenue)} | COGS {fmtMoney(line.netCogs)} | Expense {fmtMoney(line.allocatedExpense)} | Profit {fmtMoney(line.netProfit)} | Company Retained Share {(Number(line.unallocatedSharePct) * 100).toFixed(2)}%
               </div>
             </div>
           ))}

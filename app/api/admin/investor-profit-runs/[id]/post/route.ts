@@ -95,6 +95,7 @@ export async function POST(
         select: {
           id: true,
           unallocatedSharePct: true,
+          netRevenue: true,
           netProfit: true,
         },
       });
