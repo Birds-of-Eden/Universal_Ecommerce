@@ -25,6 +25,7 @@ export type InvestorWorkflowSection =
   | "allocations"
   | "profit-runs"
   | "payouts"
+  | "withdrawals"
   | "statements"
   | "statement-schedules";
 
@@ -82,6 +83,7 @@ const WORKFLOW_STAGES: WorkflowStage[] = [
     icon: Wallet,
     steps: [
       { id: "payouts", title: "Payouts", description: "Approve, hold, pay, and void payout drafts.", href: "/admin/investors/payouts" },
+      { id: "withdrawals", title: "Withdrawals", description: "Review, approve, and settle capital withdrawal requests.", href: "/admin/investors/withdrawals" },
       { id: "statements", title: "Statements", description: "Preview and export investor statements.", href: "/admin/investors/statements" },
       { id: "statement-schedules", title: "Statement Schedules", description: "Automate recurring statement dispatch.", href: "/admin/investors/statement-schedules" },
       { id: "notifications", title: "Notifications", description: "Watch internal investor workflow alerts.", href: "/admin/investors/notifications" },
@@ -203,8 +205,18 @@ const SECTION_META: Record<
     description: "This stage is approval, hold, release, payment, and reversal control.",
     stageId: "settle",
     next: [
+      { id: "withdrawals", title: "Withdrawals", description: "Handle capital return requests separately from payout drafts.", href: "/admin/investors/withdrawals" },
       { id: "statements", title: "Statements", description: "Preview final investor-facing output.", href: "/admin/investors/statements" },
       { id: "notifications", title: "Notifications", description: "Track payout-ready and settlement alerts.", href: "/admin/investors/notifications" },
+    ],
+  },
+  withdrawals: {
+    title: "Capital Return Control",
+    description: "Use this stage to govern requested capital withdrawals before the final ledger debit is posted.",
+    stageId: "settle",
+    next: [
+      { id: "statements", title: "Statements", description: "Confirm the withdrawal impacts final investor-facing reporting.", href: "/admin/investors/statements" },
+      { id: "notifications", title: "Notifications", description: "Track reviewer and settlement alerts after withdrawal events.", href: "/admin/investors/notifications" },
     ],
   },
   statements: {

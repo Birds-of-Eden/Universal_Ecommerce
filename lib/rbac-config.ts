@@ -184,6 +184,21 @@ export const SYSTEM_PERMISSIONS = [
       "Read and export investor statement summaries and payout history.",
   },
   {
+    key: "investor_withdrawals.read",
+    description:
+      "Read investor withdrawal requests, balances, and settlement history.",
+  },
+  {
+    key: "investor_withdrawals.review",
+    description:
+      "Approve or reject investor withdrawal requests under maker-checker control.",
+  },
+  {
+    key: "investor_withdrawals.settle",
+    description:
+      "Settle approved investor withdrawal requests and post withdrawal ledger entries.",
+  },
+  {
     key: "investor_documents.read",
     description:
       "Read investor KYC documents, review status, expiry state, and document completeness.",
@@ -228,6 +243,16 @@ export const SYSTEM_PERMISSIONS = [
     key: "investor.portal.statement.read",
     description:
       "Read and export own investor statements from investor portal.",
+  },
+  {
+    key: "investor.portal.withdrawals.read",
+    description:
+      "Read own investor withdrawal requests and withdrawable balance in investor portal.",
+  },
+  {
+    key: "investor.portal.withdrawals.submit",
+    description:
+      "Submit own investor withdrawal requests from investor portal.",
   },
   {
     key: "investor.portal.documents.read",
@@ -818,6 +843,9 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "investor_payout.approve",
       "investor_payout.pay",
       "investor_payout.void",
+      "investor_withdrawals.read",
+      "investor_withdrawals.review",
+      "investor_withdrawals.settle",
       "investor_statement.read",
       "investor.notifications.read",
       "investor.activity_log.read",
@@ -855,6 +883,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "investor_payout.approve",
       "investor_payout.pay",
       "investor_payout.void",
+      "investor_withdrawals.read",
+      "investor_withdrawals.review",
       "investor_statement.read",
       "investor.notifications.read",
       "investor.activity_log.read",
@@ -877,6 +907,7 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "investor_allocations.read",
       "investor_profit.read",
       "investor_payout.read",
+      "investor_withdrawals.read",
       "investor_statement.read",
       "investor.notifications.read",
       "investor.activity_log.read",
@@ -1076,6 +1107,45 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
     ],
   },
   {
+    name: "investor_withdrawal_reviewer",
+    label: "Investor Withdrawal Reviewer",
+    description:
+      "Review and approve investor withdrawal requests before finance settlement.",
+    immutable: false,
+    permissions: [
+      "admin.panel.access",
+      "dashboard.read",
+      "reports.read",
+      "investors.read",
+      "investor_withdrawals.read",
+      "investor_withdrawals.review",
+      "investor_statement.read",
+      "investor.notifications.read",
+      "investor.activity_log.read",
+      "profile.manage",
+    ],
+  },
+  {
+    name: "investor_withdrawal_settler",
+    label: "Investor Withdrawal Settler",
+    description:
+      "Settle approved investor withdrawal requests and post the final cash-out ledger entry.",
+    immutable: false,
+    permissions: [
+      "admin.panel.access",
+      "dashboard.read",
+      "reports.read",
+      "investors.read",
+      "investor_ledger.read",
+      "investor_withdrawals.read",
+      "investor_withdrawals.settle",
+      "investor_statement.read",
+      "investor.notifications.read",
+      "investor.activity_log.read",
+      "profile.manage",
+    ],
+  },
+  {
     name: "hr",
     label: "HR Manager",
     description: "Human resources and payroll management role.",
@@ -1134,6 +1204,8 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "investor.portal.profit.read",
       "investor.portal.payout.read",
       "investor.portal.statement.read",
+      "investor.portal.withdrawals.read",
+      "investor.portal.withdrawals.submit",
       "investor.portal.documents.read",
       "investor.portal.documents.submit",
       "investor.portal.notifications.read",

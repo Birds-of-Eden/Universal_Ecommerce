@@ -603,6 +603,16 @@ const menuItems: MenuItem[] = [
             ],
           },
           {
+            name: "Withdrawals",
+            href: "/admin/investors/withdrawals",
+            requiredGlobalPermissions: [
+              "investor_withdrawals.read",
+              "investor_withdrawals.review",
+              "investor_withdrawals.settle",
+              "investors.manage",
+            ],
+          },
+          {
             name: "Retained Profit",
             href: "/admin/investors/retained-profit",
             requiredGlobalPermissions: [

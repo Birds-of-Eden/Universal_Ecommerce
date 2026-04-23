@@ -383,6 +383,16 @@ const adminPagePermissionRules: PermissionRule[] = [
     globalOnly: true,
   },
   {
+    prefix: "/admin/investors/withdrawals",
+    permissions: [
+      "investor_withdrawals.read",
+      "investor_withdrawals.review",
+      "investor_withdrawals.settle",
+      "investors.manage",
+    ],
+    globalOnly: true,
+  },
+  {
     prefix: "/admin/investors/my-tasks",
     permissions: [
       "investors.manage",
@@ -581,6 +591,10 @@ const investorPagePermissionRules: PermissionRule[] = [
     permissions: ["investor.portal.payout.read"],
   },
   {
+    prefix: "/investor/withdrawals",
+    permissions: ["investor.portal.withdrawals.read"],
+  },
+  {
     prefix: "/investor/statements",
     permissions: ["investor.portal.statement.read"],
   },
@@ -711,6 +725,16 @@ const apiPermissionRules: PermissionRule[] = [
     permissions: ["investor.portal.payout.read"],
   },
   {
+    prefix: "/api/investor/withdrawals",
+    methods: ["GET"],
+    permissions: ["investor.portal.withdrawals.read"],
+  },
+  {
+    prefix: "/api/investor/withdrawals",
+    methods: ["POST"],
+    permissions: ["investor.portal.withdrawals.submit"],
+  },
+  {
     prefix: "/api/investor/statements",
     methods: ["GET"],
     permissions: ["investor.portal.statement.read"],
@@ -760,6 +784,27 @@ const apiPermissionRules: PermissionRule[] = [
     prefix: "/api/admin/investor-notifications",
     methods: ["GET", "PATCH"],
     permissions: ["investor.notifications.read"],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-withdrawals",
+    methods: ["GET"],
+    permissions: [
+      "investor_withdrawals.read",
+      "investor_withdrawals.review",
+      "investor_withdrawals.settle",
+      "investors.manage",
+    ],
+    globalOnly: true,
+  },
+  {
+    prefix: "/api/admin/investor-withdrawals",
+    methods: ["PATCH"],
+    permissions: [
+      "investor_withdrawals.review",
+      "investor_withdrawals.settle",
+      "investors.manage",
+    ],
     globalOnly: true,
   },
   {
