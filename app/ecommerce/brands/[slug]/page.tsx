@@ -50,6 +50,8 @@ type Product = {
   variants?: Array<{
     stock?: number | string | null;
     price?: number | string | null;
+    options?: Record<string, string | number | null | undefined> | null;
+    colorImage?: string | null;
   }>;
   type?: string;
   bundleStockLimit?: number | string | null;

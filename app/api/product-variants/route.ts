@@ -2,7 +2,21 @@ import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { ensureVariantCodes } from "@/lib/product-codes";
+import { Prisma } from "@/generated/prisma";
 import { NextResponse } from "next/server";
+
+async function getVariantColorImageMap(variantIds: number[]) {
+  const uniqueIds = Array.from(new Set(variantIds.filter(Number.isFinite)));
+  if (uniqueIds.length === 0) return new Map<number, string | null>();
+
+  const rows = await prisma.$queryRaw<Array<{ id: number; colorImage: string | null }>>(
+    Prisma.sql`SELECT "id", "colorImage" FROM "ProductVariant" WHERE "id" IN (${Prisma.join(uniqueIds)})`,
+  );
+
+  return new Map(
+    rows.map((row) => [Number(row.id), row.colorImage ?? null]),
+  );
+}
 
 /* =========================
    GET PRODUCT VARIANTS
@@ -35,7 +49,16 @@ export async function GET(req: Request) {
       },
     });
 
-    return NextResponse.json(variants);
+    const colorImageMap = await getVariantColorImageMap(
+      variants.map((variant) => Number(variant.id)),
+    );
+
+    return NextResponse.json(
+      variants.map((variant) => ({
+        ...variant,
+        colorImage: colorImageMap.get(Number(variant.id)) ?? null,
+      })),
+    );
   } catch (error) {
     console.error("GET PRODUCT VARIANTS ERROR:", error);
     return NextResponse.json(
@@ -102,6 +125,10 @@ export async function POST(req: Request) {
     }
 
     const initialStock = product.type === "PHYSICAL" ? stock : 0;
+    const colorImage =
+      typeof body.colorImage === "string" && body.colorImage.trim()
+        ? body.colorImage.trim()
+        : null;
 
     const created = await prisma.$transaction(async (tx) => {
       const variant = await tx.productVariant.create({
@@ -118,6 +145,12 @@ export async function POST(req: Request) {
           options: body.options ?? {},
         },
       });
+
+      await tx.$executeRaw`
+        UPDATE "ProductVariant"
+        SET "colorImage" = ${colorImage}
+        WHERE "id" = ${variant.id}
+      `;
 
       await syncVariantWarehouseStock({
         tx,
@@ -146,7 +179,10 @@ export async function POST(req: Request) {
       });
     });
 
-    return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(
+      created ? { ...created, colorImage } : created,
+      { status: 201 },
+    );
   } catch (error: any) {
     console.error("POST PRODUCT VARIANT ERROR:", error);
     if (error?.code === "P2002") {

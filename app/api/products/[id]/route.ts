@@ -8,7 +8,7 @@ import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { getAccessContext } from "@/lib/rbac";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
-import type { Prisma, ProductType } from "@/generated/prisma";
+import { Prisma, type ProductType } from "@/generated/prisma";
 import slugify from "slugify";
 
 const productInclude = {
@@ -39,6 +39,34 @@ const productInclude = {
     },
   },
 } as const;
+
+async function getVariantColorImageMap(variantIds: number[]) {
+  const uniqueIds = Array.from(new Set(variantIds.filter(Number.isFinite)));
+  if (uniqueIds.length === 0) return new Map<number, string | null>();
+
+  const rows = await prisma.$queryRaw<Array<{ id: number; colorImage: string | null }>>(
+    Prisma.sql`SELECT "id", "colorImage" FROM "ProductVariant" WHERE "id" IN (${Prisma.join(uniqueIds)})`,
+  );
+
+  return new Map(
+    rows.map((row) => [Number(row.id), row.colorImage ?? null]),
+  );
+}
+
+function attachVariantColorImages<T extends { variants?: any[] | null }>(
+  product: T,
+  colorImageMap: Map<number, string | null>,
+) {
+  if (!Array.isArray(product.variants)) return product;
+
+  return {
+    ...product,
+    variants: product.variants.map((variant) => ({
+      ...variant,
+      colorImage: colorImageMap.get(Number(variant.id)) ?? null,
+    })),
+  };
+}
 
 function toProductLogSnapshot(product: any) {
   return {
@@ -76,6 +104,7 @@ function toProductLogSnapshot(product: any) {
           lowStockThreshold: variant.lowStockThreshold,
           active: variant.active,
           isDefault: variant.isDefault,
+          colorImage: variant.colorImage ?? null,
           options: variant.options ?? {},
         }))
       : [],
@@ -91,6 +120,7 @@ type VariantPayload = {
   lowStockThreshold: number;
   currency: string;
   digitalAssetId: number | null;
+  colorImage: string | null;
   options: Record<string, unknown>;
   active: boolean;
 };
@@ -128,7 +158,13 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(product);
+    const colorImageMap = await getVariantColorImageMap(
+      Array.isArray(product.variants)
+        ? product.variants.map((variant: any) => Number(variant.id))
+        : [],
+    );
+
+    return NextResponse.json(attachVariantColorImages(product, colorImageMap));
   } catch (err) {
     return NextResponse.json(
       { error: "Failed to fetch product" },
@@ -306,6 +342,10 @@ export async function PUT(
           currency,
           active: item?.active !== undefined ? Boolean(item.active) : true,
           digitalAssetId: item?.digitalAssetId ? Number(item.digitalAssetId) : null,
+          colorImage:
+            typeof item?.colorImage === "string" && item.colorImage.trim()
+              ? item.colorImage.trim()
+              : null,
           options:
             item?.options && typeof item.options === "object"
               ? sortOptionObject(item.options, orderedOptionNames)
@@ -548,6 +588,12 @@ export async function PUT(
                 },
               });
 
+          await tx.$executeRaw`
+            UPDATE "ProductVariant"
+            SET "colorImage" = ${variant.colorImage}
+            WHERE "id" = ${savedVariant.id}
+          `;
+
           await syncVariantWarehouseStock({
             tx,
             productId: id,
@@ -642,22 +688,33 @@ export async function PUT(
       include: productInclude,
     });
 
-    if (withRelations) {
+    const withRelationsWithColorImages = withRelations
+      ? attachVariantColorImages(
+          withRelations,
+          await getVariantColorImageMap(
+            Array.isArray(withRelations.variants)
+              ? withRelations.variants.map((variant: any) => Number(variant.id))
+              : [],
+          ),
+        )
+      : withRelations;
+
+    if (withRelationsWithColorImages) {
       await logActivity({
         action: "update_product",
         entity: "product",
-        entityId: withRelations.id,
+        entityId: withRelationsWithColorImages.id,
         access,
         request: req,
         metadata: {
-          message: `Product updated: ${withRelations.name}`,
+          message: `Product updated: ${withRelationsWithColorImages.name}`,
         },
         before: toProductLogSnapshot(existing),
-        after: toProductLogSnapshot(withRelations),
+        after: toProductLogSnapshot(withRelationsWithColorImages),
       });
     }
 
-    return NextResponse.json(withRelations);
+    return NextResponse.json(withRelationsWithColorImages);
   } catch (err) {
     console.error(err);
     const message =

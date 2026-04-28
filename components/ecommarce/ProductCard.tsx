@@ -12,9 +12,11 @@ type ProductVariant = {
   stock?: number | string | null;
   price?: number | string | null;
   sku?: string | null;
+  image?: string | null;
   options?: Record<string, string | number | null | undefined> | null;
   color?: string | null;
   colour?: string | null;
+  colorImage?: string | null;
   hex?: string | null;
   swatch?: string | null;
 };
@@ -148,7 +150,12 @@ function getColorSwatches(variants?: ProductVariant[] | null) {
     const color = resolveSwatchColor(label);
     if (!color) return;
 
-    const image = getVariantMetaImage(variant);
+    const image =
+      typeof variant.colorImage === "string" && variant.colorImage.trim()
+        ? variant.colorImage.trim()
+        : typeof variant.image === "string" && variant.image.trim()
+          ? variant.image.trim()
+          : getVariantMetaImage(variant);
 
     const dedupeKey = label.toLowerCase();
     if (!swatches.has(dedupeKey)) {
@@ -320,7 +327,10 @@ export default function ProductCardCompact({
         className,
       )}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseLeave={() => {
+        setIsHovered(false);
+        setActiveVariantImage(null);
+      }}
     >
       <Link href={product.href} className="block h-full">
         <div className="flex h-full flex-col">
@@ -397,6 +407,7 @@ export default function ProductCardCompact({
             {/* Product Image */}
             <div className="relative h-full w-full overflow-hidden">
               <Image
+                key={primaryImageSrc}
                 src={primaryImageSrc}
                 alt={product.name}
                 fill
@@ -435,14 +446,21 @@ export default function ProductCardCompact({
                 {visibleColorSwatches.map((swatch) => (
                   <span
                     key={swatch.label}
-                    className="h-3.5 w-3.5 rounded-full border border-black/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.35)] sm:h-4 sm:w-4"
+                    className={cn(
+                      "h-3.5 w-3.5 rounded-full border border-black/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.35)] sm:h-4 sm:w-4",
+                      swatch.image ? "cursor-pointer" : "",
+                    )}
                     style={{ backgroundColor: swatch.color }}
                     title={swatch.label}
                     aria-label={`${swatch.label} color variant`}
+                    tabIndex={swatch.image ? 0 : -1}
                     onMouseEnter={() => {
                       if (swatch.image) setActiveVariantImage(swatch.image);
                     }}
-                    onMouseLeave={() => setActiveVariantImage(null)}
+                    onFocus={() => {
+                      if (swatch.image) setActiveVariantImage(swatch.image);
+                    }}
+                    onBlur={() => setActiveVariantImage(null)}
                   />
                 ))}
                 {hiddenColorCount > 0 && (

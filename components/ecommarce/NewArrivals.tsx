@@ -36,6 +36,8 @@ type Category = {
 type ApiVariant = {
   stock?: number | string | null;
   price?: number | string | null;
+  options?: Record<string, string | number | null | undefined> | null;
+  colorImage?: string | null;
 };
 
 type ProductDTO = {

@@ -23,6 +23,8 @@ type ApiVariant = {
   stock?: number | string | null;
   price?: number | string | null;
   active?: boolean | null;
+  image?: string | null;
+  colorImage?: string | null;
   options?: Record<string, string> | null;
 };
 
@@ -1077,6 +1079,7 @@ export default function ProductsPage() {
                             type: product.type,
                             shortDesc: product.shortDesc,
                             stock: product.stock,
+                            variants: product.variants,
                             ratingAvg: product.ratingAvg,
                             ratingCount: product.ratingCount,
                             available: product.stock > 0,

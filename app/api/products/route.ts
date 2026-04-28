@@ -6,6 +6,7 @@ import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variant
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { ensureVariantCodes } from "@/lib/product-codes";
 import { getAccessContext } from "@/lib/rbac";
+import { Prisma } from "@/generated/prisma";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
@@ -14,6 +15,34 @@ const createVariantSku = (slug: string, index: number) =>
   `${slug.substring(0, 20)}-V${index + 1}-${Math.random()
     .toString(36)
     .slice(2, 5)}`.toUpperCase();
+
+async function getVariantColorImageMap(variantIds: number[]) {
+  const uniqueIds = Array.from(new Set(variantIds.filter(Number.isFinite)));
+  if (uniqueIds.length === 0) return new Map<number, string | null>();
+
+  const rows = await prisma.$queryRaw<Array<{ id: number; colorImage: string | null }>>(
+    Prisma.sql`SELECT "id", "colorImage" FROM "ProductVariant" WHERE "id" IN (${Prisma.join(uniqueIds)})`,
+  );
+
+  return new Map(
+    rows.map((row) => [Number(row.id), row.colorImage ?? null]),
+  );
+}
+
+function attachVariantColorImages<T extends { variants?: any[] | null }>(
+  product: T,
+  colorImageMap: Map<number, string | null>,
+) {
+  if (!Array.isArray(product.variants)) return product;
+
+  return {
+    ...product,
+    variants: product.variants.map((variant) => ({
+      ...variant,
+      colorImage: colorImageMap.get(Number(variant.id)) ?? null,
+    })),
+  };
+}
 
 const productInclude = {
   category: true,
@@ -91,6 +120,7 @@ function toProductLogSnapshot(product: any) {
           lowStockThreshold: variant.lowStockThreshold,
           active: variant.active,
           isDefault: variant.isDefault,
+          colorImage: variant.colorImage ?? null,
           options: variant.options ?? {},
         }))
       : [],
@@ -139,6 +169,13 @@ export async function GET(req: Request) {
         },
       },
     });
+    const colorImageMap = await getVariantColorImageMap(
+      products.flatMap((product) =>
+        Array.isArray(product.variants)
+          ? product.variants.map((variant: any) => Number(variant.id))
+          : [],
+      ),
+    );
 
     // Calculate rating averages and bundle stats for each product
     const productsWithRatings = await Promise.all(
@@ -149,7 +186,7 @@ export async function GET(req: Request) {
         });
 
         return {
-          ...product,
+          ...attachVariantColorImages(product, colorImageMap),
           ratingAvg: ratingAggregation._avg.rating || 0,
           ratingCount: product._count.reviews,
         };
@@ -302,6 +339,10 @@ export async function POST(req: Request) {
           lowStockThreshold: variantLowStockThreshold,
           isDefault: false,
           active: item?.active !== undefined ? Boolean(item.active) : true,
+          colorImage:
+            typeof item?.colorImage === "string" && item.colorImage.trim()
+              ? item.colorImage.trim()
+              : null,
           options:
             item?.options && typeof item.options === "object"
               ? sortOptionObject(item.options, orderedOptionNames)
@@ -425,6 +466,14 @@ export async function POST(req: Request) {
             },
           });
 
+          if (variant.colorImage !== null) {
+            await tx.$executeRaw`
+              UPDATE "ProductVariant"
+              SET "colorImage" = ${variant.colorImage}
+              WHERE "id" = ${createdVariant.id}
+            `;
+          }
+
           await syncVariantWarehouseStock({
             tx,
             productId: created.id,
@@ -483,6 +532,16 @@ export async function POST(req: Request) {
       );
     }
 
+    const colorImageMap = await getVariantColorImageMap(
+      Array.isArray(product.variants)
+        ? product.variants.map((variant: any) => Number(variant.id))
+        : [],
+    );
+    const productWithColorImages = attachVariantColorImages(
+      product,
+      colorImageMap,
+    );
+
     await logActivity({
       action: "create_product",
       entity: "product",
@@ -492,10 +551,10 @@ export async function POST(req: Request) {
       metadata: {
         message: `Product created: ${product.name}`,
       },
-      after: toProductLogSnapshot(product),
+      after: toProductLogSnapshot(productWithColorImages),
     });
 
-    return NextResponse.json(product, { status: 201 });
+    return NextResponse.json(productWithColorImages, { status: 201 });
   } catch (err) {
     console.error(err);
     return NextResponse.json(

@@ -8,6 +8,8 @@ type Variant = {
   price?: number | string | null;
   stock?: number | null;
   sku?: string | null;
+  image?: string | null;
+  colorImage?: string | null;
   options?: Record<string, string> | null;
 };
 
@@ -19,6 +21,57 @@ type VariantSelectorProps = {
 
 function normalizeKey(key: string) {
   return key.trim().toLowerCase();
+}
+
+const HEX_COLOR_REGEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+const CSS_COLOR_FUNCTION_REGEX = /^(?:rgb|rgba|hsl|hsla)\(/i;
+const COLOR_NAME_TO_HEX: Record<string, string> = {
+  black: "#262626",
+  white: "#f5f5f4",
+  gray: "#9ca3af",
+  grey: "#9ca3af",
+  silver: "#c0c0c0",
+  red: "#dc2626",
+  maroon: "#7f1d1d",
+  burgundy: "#6d1f2f",
+  blue: "#2563eb",
+  navy: "#1e3a8a",
+  sky: "#38bdf8",
+  green: "#16a34a",
+  olive: "#6b8e23",
+  mint: "#86efac",
+  yellow: "#eab308",
+  gold: "#b48a2c",
+  orange: "#f59e0b",
+  brown: "#8b5e3c",
+  coffee: "#6f4e37",
+  beige: "#d6c1a2",
+  cream: "#eee6d8",
+  tan: "#b08968",
+  pink: "#ec4899",
+  purple: "#7c3aed",
+};
+
+function isColorOptionKey(key: string) {
+  return /colou?r/i.test(key);
+}
+
+function resolveSwatchColor(value: string) {
+  const normalizedValue = value.trim().toLowerCase();
+  if (!normalizedValue) return null;
+
+  if (
+    HEX_COLOR_REGEX.test(normalizedValue) ||
+    CSS_COLOR_FUNCTION_REGEX.test(normalizedValue)
+  ) {
+    return value.trim();
+  }
+
+  const matchedEntry = Object.entries(COLOR_NAME_TO_HEX).find(([token]) =>
+    normalizedValue.includes(token),
+  );
+
+  return matchedEntry?.[1] ?? "#9ca3af";
 }
 
 function toStockNumber(stock: number | null | undefined) {
@@ -97,10 +150,7 @@ export default function VariantSelector({
   );
 
   const hasOptionData = optionKeys.length > 0;
-  const uniqueSignatures = new Set(
-    normalizedVariants.map((variant) => variant.signature || "(none)"),
-  );
-  const useVariantCards = !hasOptionData || uniqueSignatures.size > 1;
+  const useVariantCards = !hasOptionData;
 
   const [selectedOptions, setSelectedOptions] = useState<
     Record<string, string>
@@ -225,22 +275,47 @@ export default function VariantSelector({
                         disabled={!matchesAny}
                         onClick={() => handleChipSelect(optionKey, optionValue)}
                         className={cn(
-                          "rounded-md border px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                          isColorOptionKey(optionKey)
+                            ? "inline-flex h-9 min-w-9 items-center justify-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                            : "rounded-md border px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                           active &&
-                            "border-primary bg-primary text-primary-foreground",
+                            (isColorOptionKey(optionKey)
+                              ? "border-primary ring-2 ring-primary/30"
+                              : "border-primary bg-primary text-primary-foreground"),
                           !active &&
                             matchesAny &&
-                            "border-border bg-background text-foreground hover:border-primary/60",
+                            (isColorOptionKey(optionKey)
+                              ? "border-border bg-background hover:border-primary/60"
+                              : "border-border bg-background text-foreground hover:border-primary/60"),
                           !matchesAny &&
-                            "cursor-not-allowed border-border/40 bg-muted/30 text-muted-foreground opacity-50",
+                            (isColorOptionKey(optionKey)
+                              ? "cursor-not-allowed border-border/40 bg-muted/30 opacity-50"
+                              : "cursor-not-allowed border-border/40 bg-muted/30 text-muted-foreground opacity-50"),
                         )}
+                        title={optionValue}
+                        aria-label={`${optionMeta.labelByKey.get(optionKey) ?? optionKey}: ${optionValue}`}
                       >
-                        {optionValue}
+                        {isColorOptionKey(optionKey) ? (
+                          <span
+                            className="h-5 w-5 rounded-full border border-black/10"
+                            style={{
+                              backgroundColor:
+                                resolveSwatchColor(optionValue) ?? "#9ca3af",
+                            }}
+                          />
+                        ) : (
+                          optionValue
+                        )}
                       </button>
                     );
                   },
                 )}
               </div>
+              {isColorOptionKey(optionKey) && selectedOptions[optionKey] && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Selected: {selectedOptions[optionKey]}
+                </p>
+              )}
             </div>
           ))}
         </div>

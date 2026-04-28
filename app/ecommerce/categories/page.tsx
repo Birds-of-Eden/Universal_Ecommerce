@@ -32,6 +32,8 @@ type ApiCategory = {
 
 type ApiVariant = {
   stock?: number | string | null;
+  options?: Record<string, string | number | null | undefined> | null;
+  colorImage?: string | null;
 };
 
 type ApiProduct = {
@@ -78,6 +80,7 @@ type ProductUI = {
   ratingAvg: number;
   ratingCount: number;
   categoryId: number | null;
+  variants?: ApiVariant[] | null;
 };
 
 const toNumber = (value: unknown) => {
@@ -287,6 +290,7 @@ export default function CategoriesPage() {
             stock,
             ratingAvg: rating.count ? rating.sum / rating.count : 0,
             ratingCount: rating.count,
+            variants: Array.isArray(product.variants) ? product.variants : [],
             categoryId:
               product.categoryId === null || product.categoryId === undefined
                 ? null

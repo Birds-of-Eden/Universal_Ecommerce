@@ -65,6 +65,17 @@ function getDefaultVariant(product: Product | null): Variant | null {
   );
 }
 
+function getVariantDisplayImage(variant: Variant | null | undefined) {
+  if (!variant) return null;
+  if (typeof variant.colorImage === "string" && variant.colorImage.trim()) {
+    return variant.colorImage.trim();
+  }
+  if (typeof variant.image === "string" && variant.image.trim()) {
+    return variant.image.trim();
+  }
+  return null;
+}
+
 /* ─────────────────── sub-components ─────────────────── */
 function StarRow({ avg, count }: { avg: number; count: number }) {
   return (
@@ -150,18 +161,30 @@ export default function ProductDetails() {
       try {
         setLoading(true);
         setErr(null);
-        const res = await fetch("/api/products", { cache: "no-store" });
-        if (!res.ok) throw new Error("Failed to load products");
-        const data = (await res.json()) as unknown[];
+        const [detailRes, allRes] = await Promise.all([
+          fetch(`/api/products/${id}`, { cache: "no-store" }),
+          fetch("/api/products", { cache: "no-store" }),
+        ]);
+        if (!detailRes.ok) throw new Error("Failed to load product");
+        if (!allRes.ok) throw new Error("Failed to load products");
+        const detailData = (await detailRes.json()) as Product;
+        const data = (await allRes.json()) as unknown[];
         if (!mounted) return;
         const list: Product[] = Array.isArray(data) ? (data as Product[]) : [];
         setAll(list);
-        const found = list.find((i) => String(i.id) === String(id)) ?? null;
+        const found =
+          detailData && String(detailData.id) === String(id)
+            ? detailData
+            : list.find((i) => String(i.id) === String(id)) ?? null;
         if (!found) { setErr("Product not found"); return; }
         setProduct(found);
         const iv = getDefaultVariant(found);
         setSelectedVariant(iv);
-        setActiveImg(iv?.image || found.image || (found.gallery?.[0] ?? null));
+        setActiveImg(
+          getVariantDisplayImage(iv) ||
+            found.image ||
+            (found.gallery?.[0] ?? null),
+        );
       } catch (e: any) {
         if (mounted) setErr(e?.message || "Something went wrong");
       } finally {
@@ -178,7 +201,8 @@ export default function ProductDetails() {
   }, [product]);
 
   useEffect(() => {
-    if (selectedVariant?.image) { setActiveImg(selectedVariant.image); return; }
+    const variantImage = getVariantDisplayImage(selectedVariant);
+    if (variantImage) { setActiveImg(variantImage); return; }
     setActiveImg(product?.image || product?.gallery?.[0] || null);
   }, [product, selectedVariant]);
 
@@ -200,8 +224,13 @@ export default function ProductDetails() {
 
   const images = useMemo(() => {
     const list: string[] = [];
-    if (selectedVariant?.image) list.push(selectedVariant.image);
+    const selectedVariantImage = getVariantDisplayImage(selectedVariant);
+    if (selectedVariantImage) list.push(selectedVariantImage);
     else if (product?.image) list.push(product.image);
+    (product?.variants ?? []).forEach((variant) => {
+      const variantImage = getVariantDisplayImage(variant);
+      if (variantImage && !list.includes(variantImage)) list.push(variantImage);
+    });
     product?.gallery?.forEach((img) => { if (img && !list.includes(img)) list.push(img); });
     if (product?.image && !list.includes(product.image)) list.unshift(product.image);
     return list;
@@ -343,7 +372,11 @@ export default function ProductDetails() {
                   type="button"
                   onClick={async (e) => {
                     e.stopPropagation();
-                    inWishlist ? await removeFromWishlist(product.id) : await addToWishlist(product.id);
+                    if (inWishlist) {
+                      await removeFromWishlist(product.id);
+                    } else {
+                      await addToWishlist(product.id);
+                    }
                   }}
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-full bg-background/90 backdrop-blur-sm shadow transition hover:scale-105",

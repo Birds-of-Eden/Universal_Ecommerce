@@ -65,6 +65,7 @@ interface VariantRowForm {
   key: string;
   optionSummary: string;
   options: Record<string, any>;
+  colorImage?: string;
   sku: string;
   price: string;
   costPrice: string;
@@ -123,6 +124,10 @@ const emptyVariantOption = (): VariantOptionForm => ({ attributeId: "", name: ""
 const clean = (value: string) => value.trim();
 
 const isColorOptionName = (name: string) => /colou?r/i.test(clean(name));
+const stripVariantMeta = (options: Record<string, any>) =>
+  Object.fromEntries(
+    Object.entries(options ?? {}).filter(([key]) => key !== "__meta"),
+  );
 
 function buildVariantKey(optionNames: string[], options: Record<string, string>) {
   return optionNames.map((name) => `${name}:${options[name] ?? ""}`).join("|");
@@ -174,6 +179,8 @@ function inferOptionForms(editing: any, variants: any[]): VariantOptionForm[] {
         : {};
 
     Object.entries(options).forEach(([name, value]) => {
+      if (name === "__meta") return;
+
       const optionName = clean(name);
       const optionValue = clean(String(value || ""));
       if (!optionName || !optionValue) return;
@@ -282,7 +289,12 @@ export default function ProductAddModal({
           ? (variant.options as Record<string, unknown>)
           : {};
       const meta = (options as any)?.__meta;
-      const image = typeof meta?.image === "string" ? meta.image.trim() : "";
+      const image =
+        typeof variant?.colorImage === "string" && variant.colorImage.trim()
+          ? variant.colorImage.trim()
+          : typeof meta?.image === "string"
+            ? meta.image.trim()
+            : "";
       if (!image) return;
       const colorKey = Object.keys(options).find((key) => isColorOptionName(key));
       const colorValueRaw = colorKey ? options[colorKey] : null;
@@ -308,12 +320,19 @@ export default function ProductAddModal({
     const mappedRows = variants
       .filter((variant: any) => (isVariantProduct ? Object.keys(variant?.options ?? {}).length > 0 : true))
       .map((variant: any, index: number) => {
-        const options = variant?.options && typeof variant.options === "object" ? variant.options : {};
+        const options =
+          variant?.options && typeof variant.options === "object"
+            ? stripVariantMeta(variant.options)
+            : {};
         return {
           id: variant?.id ? Number(variant.id) : undefined,
           key: isVariantProduct ? buildVariantKey(optionNameOrder, options) : `simple-${variant.id ?? index}`,
           optionSummary: isVariantProduct ? buildVariantSummary(optionNameOrder, options) : "Default variant",
           options,
+          colorImage:
+            typeof variant?.colorImage === "string" && variant.colorImage.trim()
+              ? variant.colorImage.trim()
+              : "",
           sku: String(variant?.sku || ""),
           price: String(variant?.price ?? ""),
           costPrice: variant?.costPrice != null ? String(variant.costPrice) : "",
@@ -378,12 +397,7 @@ export default function ProductAddModal({
         const image = colorVariantImages[colorValue];
         if (!image) return row;
 
-        const nextMeta = {
-          ...((row.options as any)?.__meta ?? {}),
-          image,
-        };
-        const nextOptions = { ...row.options, __meta: nextMeta };
-        return { ...row, options: nextOptions };
+        return { ...row, colorImage: image };
       }),
     );
   }, [colorOptionName, colorVariantImages, hasVariants]);
@@ -431,6 +445,12 @@ export default function ProductAddModal({
           key,
           optionSummary: buildVariantSummary(optionNames, combination),
           options: combination,
+          colorImage:
+            colorOptionName &&
+            typeof combination[colorOptionName] === "string" &&
+            colorVariantImages[clean(String(combination[colorOptionName]))]
+              ? colorVariantImages[clean(String(combination[colorOptionName]))]
+              : previous?.colorImage ?? "",
           sku: previous?.sku ?? "",
           price: previous?.price ?? "",
           costPrice: previous?.costPrice ?? form.baseCostPrice ?? "",
@@ -440,7 +460,15 @@ export default function ProductAddModal({
         };
       });
     });
-  }, [form.lowStockThreshold, generatedCombinations, hasVariants, optionNames]);
+  }, [
+    colorOptionName,
+    colorVariantImages,
+    form.baseCostPrice,
+    form.lowStockThreshold,
+    generatedCombinations,
+    hasVariants,
+    optionNames,
+  ]);
 
   if (!open) return null;
 
@@ -570,7 +598,8 @@ export default function ProductAddModal({
         ? Number(row.lowStockThreshold)
         : Number(form.lowStockThreshold || "10"),
       active: row.active,
-      options: row.options,
+      colorImage: row.colorImage?.trim() || null,
+      options: stripVariantMeta(row.options),
     }));
 
     const invalidVariant = normalizedVariants.find(
@@ -662,6 +691,7 @@ export default function ProductAddModal({
           stock: form.type === "PHYSICAL" ? variant.stock : 0,
           lowStockThreshold: variant.lowStockThreshold,
           active: variant.active,
+          colorImage: variant.colorImage,
           options: variant.options,
         }));
       }

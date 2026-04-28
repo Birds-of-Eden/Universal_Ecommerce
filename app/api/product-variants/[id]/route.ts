@@ -2,7 +2,21 @@ import { prisma } from "@/lib/prisma";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { ensureVariantCodes } from "@/lib/product-codes";
+import { Prisma } from "@/generated/prisma";
 import { NextResponse } from "next/server";
+
+async function getVariantColorImageMap(variantIds: number[]) {
+  const uniqueIds = Array.from(new Set(variantIds.filter(Number.isFinite)));
+  if (uniqueIds.length === 0) return new Map<number, string | null>();
+
+  const rows = await prisma.$queryRaw<Array<{ id: number; colorImage: string | null }>>(
+    Prisma.sql`SELECT "id", "colorImage" FROM "ProductVariant" WHERE "id" IN (${Prisma.join(uniqueIds)})`,
+  );
+
+  return new Map(
+    rows.map((row) => [Number(row.id), row.colorImage ?? null]),
+  );
+}
 
 /* =========================
    UPDATE PRODUCT VARIANT
@@ -76,6 +90,12 @@ export async function PUT(
       hasStockUpdate && existing.product.type === "PHYSICAL"
         ? newStockValue
         : 0;
+    const nextColorImage =
+      body.colorImage !== undefined
+        ? typeof body.colorImage === "string" && body.colorImage.trim()
+          ? body.colorImage.trim()
+          : null
+        : undefined;
     const lowStockThreshold =
       body.lowStockThreshold !== undefined
         ? normalizeLowStockThreshold(body.lowStockThreshold)
@@ -101,6 +121,14 @@ export async function PUT(
             body.options !== undefined ? body.options ?? {} : existing.options,
         },
       });
+
+      if (nextColorImage !== undefined) {
+        await tx.$executeRaw`
+          UPDATE "ProductVariant"
+          SET "colorImage" = ${nextColorImage}
+          WHERE "id" = ${savedVariant.id}
+        `;
+      }
 
       if (hasStockUpdate) {
         await syncVariantWarehouseStock({
@@ -132,7 +160,12 @@ export async function PUT(
       });
     });
 
-    return NextResponse.json(updated);
+    const colorImageMap = await getVariantColorImageMap([id]);
+    return NextResponse.json(
+      updated
+        ? { ...updated, colorImage: colorImageMap.get(id) ?? null }
+        : updated,
+    );
   } catch (error: any) {
     console.error("PUT PRODUCT VARIANT ERROR:", error);
     if (error?.code === "P2002") {
