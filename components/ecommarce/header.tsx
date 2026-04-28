@@ -611,7 +611,7 @@ export default function Header({
   const dashboardHref = getDashboardRoute(sessionUser);
 
   const topBtnClass =
-    "h-10 px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 text-sm font-semibold transition-colors hover:bg-accent hover:text-primary-foreground";
+    "h-10 md:h-11 px-3 lg:px-5 rounded-lg bg-muted text-foreground border border-border flex items-center gap-2 lg:gap-2 text-sm font-semibold transition-colors hover:bg-accent hover:text-primary-foreground";
 
   const goCategoryFromMobile = (slug: string) => {
     setMobileMenuOpen(false);
@@ -623,9 +623,12 @@ export default function Header({
       <div className="bg-primary text-primary-foreground border-b border-border">
         <div className="container mx-auto px-4 py-4">
           {/* ✅ Desktop: single line header */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex flex-wrap items-center gap-4">
             {/* Left */}
-            <Link href="/" className="flex items-center gap-3 min-w-0 shrink-0">
+            <Link
+              href="/"
+              className="order-1 flex items-center gap-3 min-w-0 shrink-0"
+            >
               <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-border bg-background/10 shrink-0">
                 <Image
                   src={siteSettings.logo || "/assets/examplelogo.jpg"}
@@ -640,15 +643,15 @@ export default function Header({
             </Link>
 
             {/* Middle */}
-            <div className="flex-1 flex items-center min-w-0">
+            <div className="order-3 w-full lg:order-2 lg:w-auto lg:flex-1 flex items-center min-w-0">
               {/* All Category */}
               <div ref={catWrapRef} className="relative shrink-0">
                 <button
                   type="button"
                   onClick={() => setCatOpen((p) => !p)}
                   className="
-                    h-11 w-[190px]
-                    rounded-l-md rounded-r-none
+                    h-11 w-full sm:w-[190px]
+                    rounded-md sm:rounded-l-md sm:rounded-r-none
                     bg-background text-foreground
                     border border-border
                     flex items-center justify-between
@@ -683,9 +686,9 @@ export default function Header({
                     placeholder="Search for products..."
                     className="
                       w-full h-11
-                      rounded-r-md rounded-l-none
+                      rounded-md sm:rounded-r-md sm:rounded-l-none
                       bg-background text-foreground
-                      border border-border border-l-0
+                      border border-border sm:border-l-0
                       pl-4 pr-[54px]
                       placeholder:text-muted-foreground
                       focus:outline-none focus:ring-2 focus:ring-primary/40
@@ -740,7 +743,7 @@ export default function Header({
             </div>
 
             {/* Right */}
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="order-2 ml-auto flex items-center gap-3 shrink-0">
               {hasMounted && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -774,12 +777,12 @@ export default function Header({
 
               <Link href="/ecommerce/blogs" className={topBtnClass}>
                 <Newspaper className="h-4 w-4" />
-                Blog
+                <span className="hidden lg:inline">Blog</span>
               </Link>
 
               <Link href="/ecommerce/products" className={topBtnClass}>
                 <Boxes className="h-4 w-4" />
-                All Products
+                <span className="hidden lg:inline">All Products</span>
               </Link>
 
               <Link
