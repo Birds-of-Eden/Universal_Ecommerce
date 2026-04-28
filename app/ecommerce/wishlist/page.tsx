@@ -468,7 +468,7 @@ export default function WishlistPage() {
 
                         <Button onClick={() => handleAddToCart(item)} className="btn-primary rounded-xl h-10 px-4">
                           <ShoppingCart className="h-4 w-4 mr-2" />
-                          Buy Now
+                          Add to Cart
                         </Button>
                       </div>
                     </CardContent>

@@ -4,6 +4,7 @@ export type Product = {
   slug?: string | null;
   sku?: string | null;
   model?: string | null;
+  type?: 'PHYSICAL' | 'DIGITAL' | 'SERVICE' | 'BUNDLE' | null;
   available?: boolean;
   featured?: boolean;
   image: string | null;
@@ -21,6 +22,9 @@ export type Product = {
   variants?: Variant[];
   ratingAvg?: number | null;
   ratingCount?: number | null;
+  bundleItemCount?: number | null;
+  bundleSavings?: string | null;
+  rank?: number | null;
 };
 
 export type Variant = {

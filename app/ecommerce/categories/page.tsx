@@ -701,7 +701,7 @@ export default function CategoriesPage() {
             <div className="space-y-7">
               {sections.map((section) => (
                 <section key={section.department.id} className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {section.products.map((product) => (
                       <ProductCardCompact
                         key={product.id}

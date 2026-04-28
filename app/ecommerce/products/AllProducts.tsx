@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Search, Sparkles } from "lucide-react";
+import { ChevronDown, Search, Sparkles, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
@@ -553,44 +553,55 @@ export default function ProductsPage() {
     }));
   }, []);
 
-  
+  const activeFilterCount = [
+    searchTerm.trim().length > 0,
+    inStockOnly,
+    selectedCategoryId !== "",
+    selectedType !== "",
+    featuredOnly,
+    selectedBrandIds.size > 0,
+    priceMin !== priceMinBound || priceMax !== priceMaxBound,
+  ].filter(Boolean).length;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="container px-6 py-6">
-        <div className="overflow-hidden rounded-md border border-border bg-gradient-to-br from-background to-muted/50 dark:from-card dark:to-muted/20">
-          <div className="grid gap-4 p-4 md:grid-cols-[1.2fr_1fr] md:items-center md:p-5">
+      <div className="container px-4 py-4 md:px-6 md:py-6">
+        {/* Hero Header */}
+        <div className="overflow-hidden rounded-xl border border-border bg-gradient-to-br from-background to-muted/50 dark:from-card dark:to-muted/20">
+          <div className="grid gap-4 p-4 md:grid-cols-[1.2fr_1fr] md:items-center md:p-6 lg:p-8">
             <div className="space-y-3">
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-primary shadow-sm dark:bg-primary/20">
                 <Sparkles className="h-3.5 w-3.5" />
                 All Products
               </div>
               <div>
-                <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
+                <h1 className="text-2xl font-semibold text-foreground sm:text-3xl lg:text-4xl">
                   Browse all products
                 </h1>
-                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
                   Explore our complete product catalog with advanced filtering,
                   sorting, and quick add to cart functionality.
                 </p>
               </div>
             </div>
 
-            <div className="relative min-h-[120px] overflow-hidden rounded-md gradient-soft">
-              <div className="absolute -right-5 top-0 h-24 w-24 rounded-[24px] bg-primary/30" />
-              <div className="absolute right-14 top-7 h-20 w-20 rounded-[18px] bg-accent/40" />
-              <div className="absolute bottom-2 right-28 h-16 w-16 rounded-[16px] bg-secondary/30" />
+            <div className="relative min-h-[100px] overflow-hidden rounded-lg md:min-h-[120px]">
+              <div className="absolute -right-5 top-0 h-20 w-20 rounded-[24px] bg-primary/30 md:h-24 md:w-24" />
+              <div className="absolute right-10 top-6 h-16 w-16 rounded-[18px] bg-accent/40 md:right-14 md:top-7 md:h-20 md:w-20" />
+              <div className="absolute bottom-2 right-20 h-12 w-12 rounded-[16px] bg-secondary/30 md:right-28 md:h-16 md:w-16" />
             </div>
           </div>
         </div>
 
         <div className="mt-6">
           {loading ? (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {[...Array(12)].map((_, index) => (
                 <div key={index} className="animate-pulse">
-                  <div className="mb-2 h-48 rounded-lg bg-gray-200"></div>
-                  <div className="mb-2 h-4 rounded bg-gray-200"></div>
-                  <div className="h-3 w-3/4 rounded bg-gray-200"></div>
+                  <div className="aspect-square rounded-xl bg-muted/60" />
+                  <div className="mt-3 h-4 w-3/4 rounded bg-muted/60" />
+                  <div className="mt-2 h-3 w-1/2 rounded bg-muted/60" />
+                  <div className="mt-2 h-8 rounded bg-muted/60" />
                 </div>
               ))}
             </div>
@@ -602,7 +613,7 @@ export default function ProductsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+            <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
               {/* Mobile Overlay */}
               {mobileFilterOpen && (
                 <div
@@ -614,7 +625,7 @@ export default function ProductsPage() {
               {/* ── FILTER SIDEBAR ── */}
               <aside
                 className={`
-                  fixed left-0 top-0 h-full w-72 bg-background z-50 flex flex-col
+                  fixed left-0 top-0 h-full w-[280px] bg-background z-50 flex flex-col
                   border-r border-border shadow-xl
                   transition-transform duration-300 ease-in-out
                   lg:sticky lg:top-[88px] lg:h-[calc(100vh-88px)] lg:w-auto lg:shadow-none
@@ -627,9 +638,9 @@ export default function ProductsPage() {
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-1 rounded-full bg-primary" />
                     <h2 className="text-sm font-semibold text-foreground tracking-wide">Filters</h2>
-                    {hasActiveFilters && (
-                      <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold h-4 w-4">
-                        •
+                    {activeFilterCount > 0 && (
+                      <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold min-w-[18px] h-[18px] px-1">
+                        {activeFilterCount}
                       </span>
                     )}
                   </div>
@@ -648,7 +659,7 @@ export default function ProductsPage() {
                       onClick={() => setMobileFilterOpen(false)}
                       className="lg:hidden h-7 w-7 rounded-md flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      ✕
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -725,11 +736,38 @@ export default function ProductsPage() {
                     openSections={openSections}
                     toggleSection={toggleSection}
                   >
-                    <div className="space-y-0.5">
-                      {[{ id: "", name: "All categories" }, ...categories].map((cat) => (
+                    <div className="space-y-0.5 max-h-56 overflow-y-auto">
+                      <label
+                        className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors ${
+                          selectedCategoryId === ""
+                            ? "bg-primary/10 text-primary"
+                            : "hover:bg-muted text-foreground"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="category-filter"
+                          checked={selectedCategoryId === ""}
+                          onChange={() => setSelectedCategoryId("")}
+                          className="hidden"
+                        />
+                        <span
+                          className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+                            selectedCategoryId === ""
+                              ? "border-primary bg-primary"
+                              : "border-border"
+                          }`}
+                        >
+                          {selectedCategoryId === "" && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
+                          )}
+                        </span>
+                        <span className="truncate">All categories</span>
+                      </label>
+                      {categories.map((cat) => (
                         <label
                           key={cat.id}
-                          className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors group ${
+                          className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors ${
                             selectedCategoryId === String(cat.id)
                               ? "bg-primary/10 text-primary"
                               : "hover:bg-muted text-foreground"
@@ -746,7 +784,7 @@ export default function ProductsPage() {
                             className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
                               selectedCategoryId === String(cat.id)
                                 ? "border-primary bg-primary"
-                                : "border-border group-hover:border-muted-foreground"
+                                : "border-border"
                             }`}
                           >
                             {selectedCategoryId === String(cat.id) && (
@@ -770,11 +808,11 @@ export default function ProductsPage() {
                         openSections={openSections}
                         toggleSection={toggleSection}
                       >
-                        <div className="space-y-0.5 max-h-52 overflow-y-auto">
+                        <div className="space-y-0.5 max-h-48 overflow-y-auto">
                           {brands.map((brand) => (
                             <label
                               key={brand.id}
-                              className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors group ${
+                              className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors ${
                                 selectedBrandIds.has(brand.id)
                                   ? "bg-primary/10 text-primary"
                                   : "hover:bg-muted text-foreground"
@@ -786,7 +824,11 @@ export default function ProductsPage() {
                                 onChange={(e) => {
                                   setSelectedBrandIds((curr) => {
                                     const next = new Set(curr);
-                                    e.target.checked ? next.add(brand.id) : next.delete(brand.id);
+                                    if (e.target.checked) {
+                                      next.add(brand.id);
+                                    } else {
+                                      next.delete(brand.id);
+                                    }
                                     return next;
                                   });
                                 }}
@@ -796,7 +838,7 @@ export default function ProductsPage() {
                                 className={`h-3.5 w-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
                                   selectedBrandIds.has(brand.id)
                                     ? "border-primary bg-primary"
-                                    : "border-border group-hover:border-muted-foreground"
+                                    : "border-border"
                                 }`}
                               >
                                 {selectedBrandIds.has(brand.id) && (
@@ -822,11 +864,38 @@ export default function ProductsPage() {
                     toggleSection={toggleSection}
                   >
                     <div className="space-y-0.5">
-                      {[{ val: "", label: "All types" }, ...productTypes.map((t) => ({ val: t, label: t }))].map(({ val, label }) => (
+                      <label
+                        className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors ${
+                          selectedType === ""
+                            ? "bg-primary/10 text-primary"
+                            : "hover:bg-muted text-foreground"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="type-filter"
+                          checked={selectedType === ""}
+                          onChange={() => setSelectedType("")}
+                          className="hidden"
+                        />
+                        <span
+                          className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+                            selectedType === ""
+                              ? "border-primary bg-primary"
+                              : "border-border"
+                          }`}
+                        >
+                          {selectedType === "" && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
+                          )}
+                        </span>
+                        <span className="capitalize">All types</span>
+                      </label>
+                      {productTypes.map((type) => (
                         <label
-                          key={val}
-                          className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors group ${
-                            selectedType === val
+                          key={type}
+                          className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors ${
+                            selectedType === type
                               ? "bg-primary/10 text-primary"
                               : "hover:bg-muted text-foreground"
                           }`}
@@ -834,22 +903,22 @@ export default function ProductsPage() {
                           <input
                             type="radio"
                             name="type-filter"
-                            checked={selectedType === val}
-                            onChange={() => setSelectedType(val)}
+                            checked={selectedType === type}
+                            onChange={() => setSelectedType(type)}
                             className="hidden"
                           />
                           <span
                             className={`h-3.5 w-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
-                              selectedType === val
+                              selectedType === type
                                 ? "border-primary bg-primary"
-                                : "border-border group-hover:border-muted-foreground"
+                                : "border-border"
                             }`}
                           >
-                            {selectedType === val && (
+                            {selectedType === type && (
                               <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />
                             )}
                           </span>
-                          <span className="capitalize">{label}</span>
+                          <span className="capitalize">{type.toLowerCase()}</span>
                         </label>
                       ))}
                     </div>
@@ -865,32 +934,42 @@ export default function ProductsPage() {
                     toggleSection={toggleSection}
                   >
                     <div className="space-y-1">
-                      {[
-                        { label: "In stock only", checked: inStockOnly, onChange: setInStockOnly },
-                        { label: "Featured only", checked: featuredOnly, onChange: setFeaturedOnly },
-                      ].map(({ label, checked, onChange }) => (
-                        <label
-                          key={label}
-                          className="flex items-center justify-between px-2 py-2 rounded-md cursor-pointer hover:bg-muted transition-colors group"
+                      <label className="flex items-center justify-between px-2 py-2 rounded-md cursor-pointer hover:bg-muted transition-colors group">
+                        <span className="text-sm text-foreground">In stock only</span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={inStockOnly}
+                          onClick={() => setInStockOnly(!inStockOnly)}
+                          className={`relative h-5 w-9 rounded-full transition-colors shrink-0 ${
+                            inStockOnly ? "bg-primary" : "bg-border"
+                          }`}
                         >
-                          <span className="text-sm text-foreground">{label}</span>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={checked}
-                            onClick={() => onChange(!checked)}
-                            className={`relative h-5 w-9 rounded-full transition-colors shrink-0 ${
-                              checked ? "bg-primary" : "bg-border"
+                          <span
+                            className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                              inStockOnly ? "translate-x-4" : "translate-x-0"
                             }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                                checked ? "translate-x-4" : "translate-x-0"
-                              }`}
-                            />
-                          </button>
-                        </label>
-                      ))}
+                          />
+                        </button>
+                      </label>
+                      <label className="flex items-center justify-between px-2 py-2 rounded-md cursor-pointer hover:bg-muted transition-colors group">
+                        <span className="text-sm text-foreground">Featured only</span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={featuredOnly}
+                          onClick={() => setFeaturedOnly(!featuredOnly)}
+                          className={`relative h-5 w-9 rounded-full transition-colors shrink-0 ${
+                            featuredOnly ? "bg-primary" : "bg-border"
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                              featuredOnly ? "translate-x-4" : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </label>
                     </div>
                   </FilterSection>
 
@@ -907,13 +986,13 @@ export default function ProductsPage() {
                     variant="outline"
                     className="w-full gap-2 border-dashed"
                   >
-                    <Search className="h-4 w-4" />
-                    Filters {hasActiveFilters && `(active)`}
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filters {activeFilterCount > 0 && `(${activeFilterCount} active)`}
                   </Button>
                 </div>
 
                 {/* Toolbar */}
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card px-4 py-3">
+                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card px-4 py-3">
                   <p className="text-sm text-muted-foreground">
                     Showing{" "}
                     <span className="font-semibold text-foreground">
@@ -932,7 +1011,7 @@ export default function ProductsPage() {
                       <select
                         value={showCount}
                         onChange={(e) => setShowCount(Number(e.target.value))}
-                        className="h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none cursor-pointer"
+                        className="h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none cursor-pointer hover:bg-muted/50 transition-colors"
                       >
                         <option value={20}>20</option>
                         <option value={40}>40</option>
@@ -948,7 +1027,7 @@ export default function ProductsPage() {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as any)}
-                        className="h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none cursor-pointer"
+                        className="h-8 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none cursor-pointer hover:bg-muted/50 transition-colors"
                       >
                         <option value="default">Default</option>
                         <option value="price_low">Price: Low → High</option>
@@ -960,12 +1039,29 @@ export default function ProductsPage() {
                 </div>
 
                 {visibleProducts.length === 0 ? (
-                  <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
-                    No products found for your filters.
+                  <div className="rounded-xl border border-border bg-card p-12 text-center">
+                    <p className="text-muted-foreground">No products found for your filters.</p>
+                    {hasActiveFilters && (
+                      <Button
+                        variant="link"
+                        onClick={clearAllFilters}
+                        className="mt-2"
+                      >
+                        Clear all filters
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 md:gap-5">
+                    {/* 
+                      Responsive Grid:
+                      - Mobile: 1 card (full width)
+                      - Tablet (sm): 2 cards
+                      - Desktop (lg): 3 cards
+                      - Large desktop (xl): 4 cards
+                      - Extra large (2xl): 5 cards  
+                    */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {visibleProducts.map((product) => (
                         <ProductCard
                           key={product.id}
@@ -984,8 +1080,8 @@ export default function ProductsPage() {
                             ratingAvg: product.ratingAvg,
                             ratingCount: product.ratingCount,
                             available: product.stock > 0,
-                            bundleStockLimit:
-                              product.bundleStockLimit ?? undefined,
+                            totalSold: product.ratingCount > 0 ? product.ratingCount : undefined,
+                            bundleStockLimit: product.bundleStockLimit ?? undefined,
                             bundleItems: product.bundleItems ?? undefined,
                             bundleItemCount: product.bundleItemCount,
                             bundleSavings: product.bundleSavings,
@@ -994,25 +1090,30 @@ export default function ProductsPage() {
                           onWishlistClick={() => toggleWishlist(product)}
                           onAddToCart={() => handleAddToCart(product)}
                           formatPrice={formatBDT}
-                          showMeta
+                          addToCartLabel="Add to Cart"
                         />
                       ))}
                     </div>
 
-                    {hasMoreProducts ? (
+                    {hasMoreProducts && (
                       <div
                         ref={loadMoreRef}
-                        className="flex justify-center py-6 text-sm text-muted-foreground"
+                        className="flex justify-center py-8"
                       >
-                        Loading more products...
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 border-t-primary animate-spin" />
+                          Loading more products...
+                        </div>
                       </div>
-                    ) : filteredProducts.length > showCount ? (
+                    )}
+
+                    {!hasMoreProducts && filteredProducts.length > showCount && (
                       <div className="py-8 text-center">
-                        <div className="inline-flex items-center rounded-full bg-primary/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-primary">
+                        <div className="inline-flex items-center rounded-full bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
                           End of results
                         </div>
                       </div>
-                    ) : null}
+                    )}
                   </>
                 )}
               </div>
@@ -1042,7 +1143,7 @@ export default function ProductsPage() {
               <Link
                 href="/signin"
                 onClick={() => setLoginModalOpen(false)}
-                className="btn-primary inline-flex h-10 items-center justify-center rounded-lg px-4 font-semibold transition"
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 font-semibold text-primary-foreground transition hover:bg-primary/90"
               >
                 Login
               </Link>

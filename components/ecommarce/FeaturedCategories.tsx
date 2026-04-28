@@ -48,14 +48,13 @@ function getCardTheme(index: number) {
 
 function CategoryCardSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 auto-rows-[220px]">
-      <div className="rounded-[28px] bg-muted/40 animate-pulse xl:col-span-2 xl:row-span-2 min-h-[280px] xl:min-h-full" />
-      <div className="rounded-[28px] bg-muted/40 animate-pulse sm:col-span-2 xl:col-span-2" />
-      <div className="rounded-[28px] bg-muted/40 animate-pulse sm:col-span-2 xl:col-span-2" />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="min-h-[320px] animate-pulse rounded-[32px] bg-muted/40 sm:col-span-2 xl:row-span-2 xl:min-h-[460px]" />
+
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="rounded-[28px] bg-muted/40 animate-pulse min-h-[220px]"
+          className="min-h-[220px] animate-pulse rounded-[28px] bg-muted/40"
         />
       ))}
     </div>
@@ -80,8 +79,8 @@ function CategoryBackgroundImage({
         alt={alt}
         fill
         priority={priority}
-        className="object-cover object-center scale-[1.02] transition-transform duration-500 group-hover:scale-105"
-        sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
+        className="scale-[1.02] object-cover object-center transition-transform duration-700 group-hover:scale-110"
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
       />
     </div>
   );
@@ -116,7 +115,8 @@ export default function FeaturedCategories({
 
         const list: CategoryDTO[] = Array.isArray(data)
           ? data
-          : (data?.data ?? []);
+          : data?.data ?? [];
+
         setCats(Array.isArray(list) ? list : []);
       } catch (e: any) {
         if (!mounted) return;
@@ -133,26 +133,32 @@ export default function FeaturedCategories({
     };
   }, [categoriesData]);
 
-  const first8ParentCategories = useMemo(() => {
+  const firstParentCategories = useMemo(() => {
     return cats
       .filter((item) => item.parentId === null && !item.deleted)
-      .slice(0, 6);
+      .slice(0, 4);
   }, [cats]);
 
-  const featuredCategories = first8ParentCategories.slice(0, 2);
-  const regularCategories = first8ParentCategories.slice(2, 6);
+  const featuredCategories = firstParentCategories.slice(0, 2);
+  const regularCategories = firstParentCategories.slice(2, 6);
 
   return (
     <section className="w-full bg-background">
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
-            {title}
-          </h2>
+      <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="mb-2 inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-primary">
+              Categories
+            </span>
+
+            <h2 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+              {title}
+            </h2>
+          </div>
 
           <Link
             href="/ecommerce/categories"
-            className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline underline-offset-4"
+            className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
           >
             See All
             <ArrowUpRight className="h-4 w-4" />
@@ -166,45 +172,49 @@ export default function FeaturedCategories({
         ) : loading ? (
           <CategoryCardSkeleton />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 auto-rows-[220px]">
-            {/* All Products */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <Link
               href="/ecommerce/categories"
               className={cn(
-                "group relative overflow-hidden rounded-[28px] border border-border/60",
-                "bg-gradient-to-br from-sky-100 via-cyan-50 to-blue-100",
-                "shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
-                "xl:col-span-2 xl:row-span-2 min-h-[280px] xl:min-h-full",
+                "group relative min-h-[320px] overflow-hidden rounded-[32px] border border-primary/15",
+                "bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.22),transparent_34%),linear-gradient(135deg,#f7fff7_0%,#ecfdf5_45%,#ffffff_100%)]",
+                "shadow-[0_18px_50px_rgba(22,163,74,0.12)] transition-all duration-500",
+                "hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(22,163,74,0.18)]",
+                "sm:col-span-2 xl:row-span-2 xl:min-h-[460px]",
               )}
             >
               <div className="absolute inset-0">
-                <div className="absolute -top-10 -left-8 h-40 w-40 rounded-full bg-white/40 blur-3xl" />
-                <div className="absolute -bottom-10 right-0 h-52 w-52 rounded-full bg-cyan-200/40 blur-3xl" />
+                <div className="absolute -left-16 -top-16 h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
+                <div className="absolute -bottom-20 right-0 h-72 w-72 rounded-full bg-emerald-300/25 blur-3xl" />
+                <div className="absolute right-6 top-6 h-24 w-24 rounded-full border border-primary/20" />
+                <div className="absolute bottom-10 left-10 h-16 w-16 rounded-full border border-primary/15" />
               </div>
 
-              <div className="relative flex h-full flex-col justify-between p-6 md:p-8">
-                <div className="space-y-4">
-                  <span className="inline-flex w-fit rounded-full bg-white/85 px-3 py-1 text-sm font-semibold text-foreground shadow-sm backdrop-blur">
+              <div className="relative flex h-full flex-col justify-between p-5 sm:p-7 lg:p-8">
+                <div className="space-y-5">
+                  <span className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/15 bg-white/80 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-primary shadow-sm backdrop-blur">
+                    <LayoutGrid className="h-4 w-4" />
                     All Products
                   </span>
 
-                  <div className="max-w-lg">
-                    <h3 className="text-2xl md:text-4xl font-black leading-tight text-foreground">
+                  <div className="max-w-xl">
+                    <h3 className="text-3xl font-black leading-[1.05] tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                       Explore all categories in one place
                     </h3>
-                    <p className="mt-2 text-sm md:text-base text-foreground/70">
-                      Find grocery, electronics, healthy food, home care, and
-                      more.
+
+                    <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">
+                      Discover grocery, electronics, healthy food, home
+                      essentials and more from one clean shopping space.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-end justify-between gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/60 bg-white/80 shadow-sm backdrop-blur">
-                    <LayoutGrid className="h-7 w-7 text-foreground" />
+                <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="grid h-16 w-16 place-items-center rounded-3xl border border-primary/15 bg-white/85 shadow-sm backdrop-blur">
+                    <LayoutGrid className="h-8 w-8 text-primary" />
                   </div>
 
-                  <div className="inline-flex items-center gap-2 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-transform duration-300 group-hover:translate-x-1">
+                  <div className="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 group-hover:translate-x-1">
                     Browse Now
                     <ArrowUpRight className="h-4 w-4" />
                   </div>
@@ -212,15 +222,14 @@ export default function FeaturedCategories({
               </div>
             </Link>
 
-            {/* 2 big cards */}
             {featuredCategories.map((category, index) => (
               <Link
                 key={category.id}
                 href={`/ecommerce/categories?slug=${category.slug}`}
                 className={cn(
-                  "group relative overflow-hidden rounded-[28px] border border-border/60",
-                  "shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl",
-                  "sm:col-span-2 xl:col-span-2",
+                  "group relative min-h-[220px] overflow-hidden rounded-[28px] border border-border/60",
+                  "shadow-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-xl",
+                  "sm:col-span-1 lg:col-span-1",
                 )}
               >
                 {category.image ? (
@@ -230,8 +239,8 @@ export default function FeaturedCategories({
                       alt={category.name}
                       priority={index < 2}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/72 via-white/38 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/8 via-transparent to-black/5" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-black/5 to-black/35" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/20" />
                   </>
                 ) : (
                   <div
@@ -242,19 +251,19 @@ export default function FeaturedCategories({
                   />
                 )}
 
-                <div className="relative flex h-full flex-col justify-between p-5 md:p-6">
+                <div className="relative flex h-full flex-col justify-between p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <span className="inline-flex rounded-md bg-primary/90 px-3 py-1.5 text-base md:text-lg font-bold text-primary-foreground shadow-sm backdrop-blur">
+                    <span className="line-clamp-1 max-w-[80%] rounded-full bg-white/90 px-4 py-2 text-sm font-black text-foreground shadow-sm backdrop-blur">
                       {category.name}
                     </span>
 
-                    <span className="rounded-full bg-white/65 p-2 backdrop-blur shadow-sm">
+                    <span className="rounded-full bg-white/80 p-2 shadow-sm backdrop-blur">
                       <ArrowUpRight className="h-4 w-4 text-foreground transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
                     </span>
                   </div>
 
                   {!category.image && (
-                    <div className="absolute right-5 bottom-5 grid h-24 w-24 place-items-center rounded-3xl border border-white/60 bg-white/55 text-2xl font-black text-foreground/80 shadow-sm backdrop-blur">
+                    <div className="ml-auto grid h-20 w-20 place-items-center rounded-3xl border border-white/60 bg-white/55 text-2xl font-black text-foreground/80 shadow-sm backdrop-blur">
                       {getInitials(category.name)}
                     </div>
                   )}
@@ -262,14 +271,13 @@ export default function FeaturedCategories({
               </Link>
             ))}
 
-            {/* Remaining 6 cards */}
             {regularCategories.map((category, index) => (
               <Link
                 key={category.id}
                 href={`/ecommerce/categories?slug=${category.slug}`}
                 className={cn(
-                  "group relative overflow-hidden rounded-[28px] border border-border/60",
-                  "shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg",
+                  "group relative min-h-[220px] overflow-hidden rounded-[28px] border border-border/60",
+                  "shadow-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-lg",
                 )}
               >
                 {category.image ? (
@@ -278,7 +286,7 @@ export default function FeaturedCategories({
                       src={category.image}
                       alt={category.name}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/58 via-white/20 to-white/12" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-white/15" />
                   </>
                 ) : (
                   <div
@@ -289,19 +297,19 @@ export default function FeaturedCategories({
                   />
                 )}
 
-                <div className="relative flex h-full flex-col justify-between p-4">
+                <div className="relative flex h-full flex-col justify-between p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <span className="inline-flex max-w-[82%] rounded-md bg-primary/90 px-3 py-1.5 text-base font-bold text-primary-foreground shadow-sm backdrop-blur line-clamp-1">
+                    <span className="line-clamp-1 max-w-[80%] rounded-full bg-white/90 px-4 py-2 text-sm font-black text-foreground shadow-sm backdrop-blur">
                       {category.name}
                     </span>
 
-                    <span className="rounded-full bg-white/65 p-2 backdrop-blur shadow-sm">
+                    <span className="rounded-full bg-white/80 p-2 shadow-sm backdrop-blur">
                       <ArrowUpRight className="h-4 w-4 text-foreground/80 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
                     </span>
                   </div>
 
                   {!category.image && (
-                    <div className="ml-auto grid h-14 w-14 place-items-center rounded-2xl border border-white/60 bg-white/55 text-sm font-bold text-foreground/80 shadow-sm backdrop-blur">
+                    <div className="ml-auto grid h-16 w-16 place-items-center rounded-2xl border border-white/60 bg-white/55 text-base font-black text-foreground/80 shadow-sm backdrop-blur">
                       {getInitials(category.name)}
                     </div>
                   )}

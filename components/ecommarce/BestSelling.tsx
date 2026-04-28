@@ -313,7 +313,7 @@ export default function BestSelling({
         ) : null}
 
         <div className="group/slider relative mt-5 overflow-visible sm:mt-6">
-          {visible.length >= 6 && (
+          {visible.length >= 4 && (
             <SliderNavButton
               direction="left"
               onClick={() => scrollByCards("left")}
@@ -356,8 +356,8 @@ export default function BestSelling({
                   return (
                     <div
                       key={String(p.id)}
-                      className="snap-start"
                       data-card="1"
+                      className="snap-start shrink-0 w-[210px] xs:w-[220px] sm:w-[240px] md:w-[250px] lg:w-[260px]"
                     >
                       <ProductCardCompact
                         product={{
@@ -389,7 +389,7 @@ export default function BestSelling({
                 })}
           </div>
 
-          {visible.length >= 6 && (
+          {visible.length >= 4 && (
             <SliderNavButton
               direction="right"
               onClick={() => scrollByCards("right")}

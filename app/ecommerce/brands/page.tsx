@@ -7,7 +7,7 @@ import { cachedFetchJson } from "@/lib/client-cache-fetch";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { useSession } from "@/lib/auth-client";
-import ProductCardCompact from "@/components/ecommarce/ProductCard";
+import ProductCard from "@/components/ecommarce/ProductCard";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SliderNavButton from "@/components/ecommarce/SliderNavButton";
 
@@ -508,7 +508,7 @@ export default function BrandsPage() {
                     </Link>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {mapped.map((p) => {
                       const discountPct = calcDiscountPercent(
                         p.basePrice,
@@ -517,7 +517,7 @@ export default function BrandsPage() {
 
                       return (
                         <div key={`${brand.id}-${p.id}`} className="min-w-0 h-full">
-                          <ProductCardCompact
+                          <ProductCard
                             product={{
                               id: p.id,
                               name: p.name,
