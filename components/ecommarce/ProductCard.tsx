@@ -441,7 +441,22 @@ export default function ProductCardCompact({
               </h3>
             </div>
 
-            {colorSwatches.length > 0 && (
+           <div className="flex items-center justify-between">
+            {/* Rating */}
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <Stars value={ratingAvg} />
+              {ratingCount > 0 && (
+                <span className="text-[12px] text-muted-foreground sm:text-[14px]">
+                  ({ratingCount})
+                </span>
+              )}
+              {product.totalSold && product.totalSold > 0 && (
+                <span className="text-[11px] text-muted-foreground sm:text-[12px]">
+                  • {product.totalSold.toLocaleString()} sold
+                </span>
+              )}
+            </div>
+             {colorSwatches.length > 0 && (
               <div className="mt-1 flex items-center gap-1.5">
                 {visibleColorSwatches.map((swatch) => (
                   <span
@@ -471,20 +486,8 @@ export default function ProductCardCompact({
               </div>
             )}
 
-            {/* Rating */}
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <Stars value={ratingAvg} />
-              {ratingCount > 0 && (
-                <span className="text-[12px] text-muted-foreground sm:text-[14px]">
-                  ({ratingCount})
-                </span>
-              )}
-              {product.totalSold && product.totalSold > 0 && (
-                <span className="text-[11px] text-muted-foreground sm:text-[12px]">
-                  • {product.totalSold.toLocaleString()} sold
-                </span>
-              )}
-            </div>
+            
+           </div>
 
             {/* Bundle Info */}
             {product.type === "BUNDLE" && (
