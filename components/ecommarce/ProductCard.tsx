@@ -1,11 +1,23 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Loader2, ShoppingCart, Flame, Eye } from "lucide-react";
+import { Flame, Heart, Loader2, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/ecommarce/CartContext";
+
+type ProductVariant = {
+  id?: number | string;
+  stock?: number | string | null;
+  price?: number | string | null;
+  sku?: string | null;
+  options?: Record<string, string | number | null | undefined> | null;
+  color?: string | null;
+  colour?: string | null;
+  hex?: string | null;
+  swatch?: string | null;
+};
 
 export type ProductCardData = {
   id: number | string;
@@ -20,6 +32,7 @@ export type ProductCardData = {
   discountPct?: number;
   sku?: string;
   type?: string;
+  variants?: ProductVariant[] | null;
   shortDesc?: string;
   available?: boolean;
   totalSold?: number | null;
@@ -51,6 +64,106 @@ type Props = {
 
 const defaultFormatPrice = (value: number) =>
   `৳${Math.round(value).toLocaleString("en-US")}`;
+
+const HEX_COLOR_REGEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+const CSS_COLOR_FUNCTION_REGEX = /^(?:rgb|rgba|hsl|hsla)\(/i;
+const COLOR_NAME_TO_HEX: Record<string, string> = {
+  black: "#262626",
+  white: "#f5f5f4",
+  gray: "#9ca3af",
+  grey: "#9ca3af",
+  silver: "#c0c0c0",
+  red: "#dc2626",
+  maroon: "#7f1d1d",
+  burgundy: "#6d1f2f",
+  blue: "#2563eb",
+  navy: "#1e3a8a",
+  sky: "#38bdf8",
+  green: "#16a34a",
+  olive: "#6b8e23",
+  mint: "#86efac",
+  yellow: "#eab308",
+  gold: "#b48a2c",
+  orange: "#f59e0b",
+  brown: "#8b5e3c",
+  coffee: "#6f4e37",
+  beige: "#d6c1a2",
+  cream: "#eee6d8",
+  tan: "#b08968",
+  pink: "#ec4899",
+  purple: "#7c3aed",
+};
+
+function resolveSwatchColor(value: string) {
+  const normalizedValue = value.trim().toLowerCase();
+  if (!normalizedValue) return null;
+
+  if (
+    HEX_COLOR_REGEX.test(normalizedValue) ||
+    CSS_COLOR_FUNCTION_REGEX.test(normalizedValue)
+  ) {
+    return value.trim();
+  }
+
+  const matchedEntry = Object.entries(COLOR_NAME_TO_HEX).find(([token]) =>
+    normalizedValue.includes(token),
+  );
+
+  return matchedEntry?.[1] ?? "#9ca3af";
+}
+
+function getVariantMetaImage(variant: ProductVariant) {
+  const options = variant.options as unknown;
+  if (!options || typeof options !== "object") return null;
+  const meta = (options as any)?.__meta;
+  const img = meta?.image;
+  return typeof img === "string" && img.trim() ? img.trim() : null;
+}
+
+function getColorSwatches(variants?: ProductVariant[] | null) {
+  if (!Array.isArray(variants) || variants.length === 0) return [];
+
+  const swatches = new Map<
+    string,
+    { label: string; color: string; image: string | null }
+  >();
+
+  variants.forEach((variant) => {
+    const optionColor = Object.entries(variant.options ?? {}).find(
+      ([key, value]) =>
+        /colou?r/i.test(key) && typeof value === "string" && value.trim(),
+    )?.[1];
+
+    const labelSource = [
+      optionColor,
+      variant.color,
+      variant.colour,
+      variant.hex,
+      variant.swatch,
+    ].find((value) => typeof value === "string" && value.trim());
+
+    if (typeof labelSource !== "string" || !labelSource.trim()) return;
+
+    const label = labelSource.trim();
+    const color = resolveSwatchColor(label);
+    if (!color) return;
+
+    const image = getVariantMetaImage(variant);
+
+    const dedupeKey = label.toLowerCase();
+    if (!swatches.has(dedupeKey)) {
+      swatches.set(dedupeKey, { label, color, image });
+    } else if (image && !swatches.get(dedupeKey)?.image) {
+      swatches.set(dedupeKey, {
+        label,
+        color,
+        image,
+      });
+    }
+  });
+
+  return Array.from(swatches.values());
+}
 
 function Stars({ value }: { value: number }) {
   const v = Math.max(0, Math.min(5, value || 0));
@@ -91,6 +204,9 @@ export default function ProductCardCompact({
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [buttonAnimate, setButtonAnimate] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [activeVariantImage, setActiveVariantImage] = useState<string | null>(
+    null,
+  );
   const { addToCart } = useCart();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const imageFrameRef = useRef<HTMLDivElement>(null);
@@ -104,6 +220,14 @@ export default function ProductCardCompact({
   const ratingAvg = Number(product.ratingAvg ?? 0);
   const ratingCount = Number(product.ratingCount ?? 0);
   const isBestSeller = Boolean(product.rank && product.rank <= 3);
+  const colorSwatches = getColorSwatches(product.variants);
+  const visibleColorSwatches = colorSwatches.slice(0, 4);
+  const hiddenColorCount = Math.max(
+    0,
+    colorSwatches.length - visibleColorSwatches.length,
+  );
+
+  const primaryImageSrc = activeVariantImage || product.image || "/placeholder.svg";
 
   const showOriginal =
     (product.originalPrice ?? 0) > (product.price ?? 0) && !isOutOfStock;
@@ -273,7 +397,7 @@ export default function ProductCardCompact({
             {/* Product Image */}
             <div className="relative h-full w-full overflow-hidden">
               <Image
-                src={product.image || "/placeholder.svg"}
+                src={primaryImageSrc}
                 alt={product.name}
                 fill
                 className={cn(
@@ -298,16 +422,39 @@ export default function ProductCardCompact({
           </div>
 
           {/* Content Section */}
-          <div className="flex flex-1 flex-col px-3 pb-4 pt-3 sm:px-4">
+          <div className="flex flex-1 flex-col px-3 pb-3.5 pt-2.5 sm:px-4 sm:pt-3">
             {/* Product Title */}
-            <div className="min-h-[52px]">
+            <div className="min-h-[44px] sm:min-h-[48px]">
               <h3 className="line-clamp-2 text-[16px] font-semibold leading-tight text-foreground transition-colors group-hover:text-primary sm:text-[18px]">
                 {product.name}
               </h3>
             </div>
 
+            {colorSwatches.length > 0 && (
+              <div className="mt-1 flex items-center gap-1.5">
+                {visibleColorSwatches.map((swatch) => (
+                  <span
+                    key={swatch.label}
+                    className="h-3.5 w-3.5 rounded-full border border-black/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.35)] sm:h-4 sm:w-4"
+                    style={{ backgroundColor: swatch.color }}
+                    title={swatch.label}
+                    aria-label={`${swatch.label} color variant`}
+                    onMouseEnter={() => {
+                      if (swatch.image) setActiveVariantImage(swatch.image);
+                    }}
+                    onMouseLeave={() => setActiveVariantImage(null)}
+                  />
+                ))}
+                {hiddenColorCount > 0 && (
+                  <span className="text-[12px] font-medium text-muted-foreground sm:text-[13px]">
+                    +{hiddenColorCount}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Rating */}
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <div className="mt-1 flex flex-wrap items-center gap-2">
               <Stars value={ratingAvg} />
               {ratingCount > 0 && (
                 <span className="text-[12px] text-muted-foreground sm:text-[14px]">
@@ -323,7 +470,7 @@ export default function ProductCardCompact({
 
             {/* Bundle Info */}
             {product.type === "BUNDLE" && (
-              <div className="mt-2 space-y-1">
+              <div className="mt-1.5 space-y-1">
                 {product.bundleSavings && (
                   <div className="text-[11px] font-semibold text-emerald-600 sm:text-[12px]">
                     Save {product.bundleSavings}
@@ -343,7 +490,7 @@ export default function ProductCardCompact({
             )}
 
             {/* Price Section */}
-            <div className="mt-3 flex items-baseline flex-wrap gap-2">
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-2">
               <span className="text-[18px] font-bold text-primary sm:text-[20px]">
                 {formatPrice(product.price)}
               </span>
@@ -355,7 +502,7 @@ export default function ProductCardCompact({
             </div>
 
             {/* Add to Cart Button */}
-            <div className="mt-3 sm:mt-4">
+            <div className="mt-2.5 sm:mt-3">
               <button
                 ref={buttonRef}
                 type="button"

@@ -600,6 +600,7 @@ export default function FeaturedProducts({
                           price: p.basePrice,
                           originalPrice: p.originalPrice,
                           stock: p.stock,
+                          variants: p.variants,
                           type: p.type,
                           bundleStockLimit: p.bundleStockLimit ?? undefined,
                           bundleItems: p.bundleItems,

@@ -64,7 +64,7 @@ interface VariantRowForm {
   id?: number;
   key: string;
   optionSummary: string;
-  options: Record<string, string>;
+  options: Record<string, any>;
   sku: string;
   price: string;
   costPrice: string;
@@ -121,6 +121,8 @@ const emptyForm: ProductForm = {
 
 const emptyVariantOption = (): VariantOptionForm => ({ attributeId: "", name: "", values: [], valueInput: "" });
 const clean = (value: string) => value.trim();
+
+const isColorOptionName = (name: string) => /colou?r/i.test(clean(name));
 
 function buildVariantKey(optionNames: string[], options: Record<string, string>) {
   return optionNames.map((name) => `${name}:${options[name] ?? ""}`).join("|");
@@ -223,6 +225,7 @@ export default function ProductAddModal({
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [variantOptions, setVariantOptions] = useState<VariantOptionForm[]>([]);
   const [variantRows, setVariantRows] = useState<VariantRowForm[]>([]);
+  const [colorVariantImages, setColorVariantImages] = useState<Record<string, string>>({});
 
   const categoryOptions = useMemo(() => {
     const childrenByParent = new Map<number | null, CategoryEntity[]>();
@@ -254,6 +257,10 @@ export default function ProductAddModal({
     [variantOptions],
   );
   const optionNames = useMemo(() => normalizedVariantOptions.map((option) => option.name), [normalizedVariantOptions]);
+  const colorOptionName = useMemo(
+    () => optionNames.find((name) => isColorOptionName(name)) ?? null,
+    [optionNames],
+  );
   const generatedCombinations = useMemo(() => (hasVariants ? buildCombinations(variantOptions) : []), [hasVariants, variantOptions]);
   const totalVariantStock = useMemo(() => variantRows.reduce((sum, row) => sum + (Number(row.stock) || 0), 0), [variantRows]);
 
@@ -263,10 +270,28 @@ export default function ProductAddModal({
       setHasVariants(false);
       setVariantOptions([]);
       setVariantRows([]);
+      setColorVariantImages({});
       return;
     }
 
     const variants = Array.isArray(editing.variants) ? editing.variants : [];
+    const seededColorImages: Record<string, string> = {};
+    variants.forEach((variant: any) => {
+      const options =
+        variant?.options && typeof variant.options === "object"
+          ? (variant.options as Record<string, unknown>)
+          : {};
+      const meta = (options as any)?.__meta;
+      const image = typeof meta?.image === "string" ? meta.image.trim() : "";
+      if (!image) return;
+      const colorKey = Object.keys(options).find((key) => isColorOptionName(key));
+      const colorValueRaw = colorKey ? options[colorKey] : null;
+      const colorValue =
+        typeof colorValueRaw === "string" ? colorValueRaw.trim() : "";
+      if (!colorValue) return;
+      if (!seededColorImages[colorValue]) seededColorImages[colorValue] = image;
+    });
+    setColorVariantImages(seededColorImages);
     const optionForms = inferOptionForms(editing, variants);
     const optionFormsWithAttributeIds = optionForms.map((option) => {
       const matchedAttribute = attributes.find(
@@ -340,6 +365,30 @@ export default function ProductAddModal({
   }, [attributes, editing]);
 
   useEffect(() => {
+    if (!hasVariants || !colorOptionName) return;
+    if (!Object.keys(colorVariantImages).length) return;
+
+    setVariantRows((prev) =>
+      prev.map((row) => {
+        const colorValue =
+          typeof row.options?.[colorOptionName] === "string"
+            ? String(row.options[colorOptionName]).trim()
+            : "";
+        if (!colorValue) return row;
+        const image = colorVariantImages[colorValue];
+        if (!image) return row;
+
+        const nextMeta = {
+          ...((row.options as any)?.__meta ?? {}),
+          image,
+        };
+        const nextOptions = { ...row.options, __meta: nextMeta };
+        return { ...row, options: nextOptions };
+      }),
+    );
+  }, [colorOptionName, colorVariantImages, hasVariants]);
+
+  useEffect(() => {
     if (!showBookFields && (form.writerId || form.publisherId)) {
       setForm((prev) => ({ ...prev, writerId: "", publisherId: "" }));
     }
@@ -402,6 +451,17 @@ export default function ProductAddModal({
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.url) throw new Error(data?.message || "Upload failed");
     return data.url as string;
+  };
+
+  const handleColorVariantImageUpload = async (colorValue: string, file: File) => {
+    const value = clean(colorValue);
+    if (!value) return;
+    try {
+      const url = await uploadFile(file, "color-variant");
+      setColorVariantImages((prev) => ({ ...prev, [value]: url }));
+    } catch (err: any) {
+      toast.error(err?.message || "Image upload failed");
+    }
   };
 
   const handleMainImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -808,6 +868,33 @@ export default function ProductAddModal({
                         option.values.map((value) => (
                           <span key={`${option.name}-${value}`} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
                             {value}
+                            {isColorOptionName(option.name) && (
+                              <span className="inline-flex items-center gap-2">
+                                {colorVariantImages[clean(value)] && (
+                                  <span className="relative h-6 w-6 overflow-hidden rounded border">
+                                    <Image
+                                      src={colorVariantImages[clean(value)]}
+                                      alt={value}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </span>
+                                )}
+                                <label className="cursor-pointer rounded-full border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted">
+                                  Upload
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      void handleColorVariantImageUpload(value, file);
+                                    }}
+                                  />
+                                </label>
+                              </span>
+                            )}
                             <button type="button" onClick={() => removeOptionValue(index, value)} className="text-muted-foreground hover:text-foreground">
                               <X className="h-3 w-3" />
                             </button>

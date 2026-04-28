@@ -31,5 +31,9 @@ export function sortOptionObject(
     .map((name) => [name, options[name]])
     .filter(([, value]) => value !== undefined);
 
+  if (options.__meta !== undefined) {
+    sortedEntries.push(["__meta", options.__meta]);
+  }
+
   return Object.fromEntries(sortedEntries);
 }
