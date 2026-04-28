@@ -940,3 +940,19 @@ body {
 .animate-flap-right {
   animation: flap-right 1.25s ease-in-out infinite;
 }
+
+
+@keyframes pulse-glow {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0px rgba(251, 191, 36, 0.6);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.9);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 1.2s ease-in-out infinite;
+}

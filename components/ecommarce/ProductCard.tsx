@@ -236,9 +236,9 @@ export default function ProductCardCompact({
 
             {/* Best Seller Badge */}
             {isBestSeller && (
-              <div className="absolute left-3 top-3 z-20">
-                <div className="flex items-center gap-1 rounded-full bg-amber-500 px-2.5 py-1 shadow-md">
-                  <Flame className="h-3 w-3 text-white" />
+              <div className="absolute right-3 top-3 z-20">
+                <div className="flex items-center gap-1 rounded-full bg-amber-500 px-2.5 py-1 shadow-md animate-pulse-glow">
+                  <Flame className="h-3 w-3 text-white animate-pulse" />
                   <span className="text-[10px] font-bold text-white uppercase tracking-wide">
                     Best Seller
                   </span>
@@ -277,7 +277,7 @@ export default function ProductCardCompact({
                 alt={product.name}
                 fill
                 className={cn(
-                  "object-contain p-4 transition-all duration-500 ease-out",
+                  "object-cover transition-all duration-500 ease-out",
                   "group-hover:scale-110",
                   isHovered ? "scale-105" : "scale-100",
                 )}

@@ -140,7 +140,7 @@ export default function FeaturedCategories({
   }, [cats]);
 
   const featuredCategories = firstParentCategories.slice(0, 2);
-  const regularCategories = firstParentCategories.slice(2, 6);
+  const regularCategories = firstParentCategories.slice(2, 4);
 
   return (
     <section className="w-full bg-background">
