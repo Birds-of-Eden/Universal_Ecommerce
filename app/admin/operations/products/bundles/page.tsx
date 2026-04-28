@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import BundleFormModal from "@/components/admin/operations/products/bundles/BundleFormModal";
+import BundleFormModal from "@/components/admin/products/bundles/BundleFormModal";
 
 interface Bundle {
   id: number;
