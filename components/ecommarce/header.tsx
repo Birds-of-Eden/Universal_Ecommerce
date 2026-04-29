@@ -289,7 +289,7 @@ function MobileCategoryTree({
   loading: boolean;
   onGo: (slug: string) => void;
 }) {
-  const [openIds, setOpenIds] = useState<Set<number>>(new Set());
+  const [openIds, setOpenIds] = useState<Set<number>>(() => new Set());
 
   const toggle = (id: number) => {
     setOpenIds((prev) => {
@@ -319,59 +319,71 @@ function MobileCategoryTree({
     );
   }
 
-  const Node = ({ node, level }: { node: CategoryNode; level: number }) => {
+  const Row = ({ node, level }: { node: CategoryNode; level: number }) => {
     const hasChildren = (node.children?.length ?? 0) > 0;
     const isOpen = openIds.has(node.id);
+    const padLeft = 16 + level * 14;
 
     return (
       <div>
         <div
-          className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2"
-          style={{ marginLeft: level * 10 }}
+          className="flex items-center justify-between gap-3 py-3 text-left hover:bg-accent transition"
+          style={{ paddingLeft: padLeft, paddingRight: 12 }}
         >
           <button
             type="button"
             onClick={() => onGo(node.slug)}
-            className="flex-1 text-left text-sm font-medium text-foreground truncate"
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
             title={node.name}
           >
-            {node.name}
+            <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
+              <Image
+                src={node.image || "/placeholder.svg"}
+                alt={node.name}
+                fill
+                className="object-cover"
+                sizes="36px"
+              />
+            </span>
+            <span className="truncate text-sm font-semibold text-foreground">
+              {node.name}
+            </span>
           </button>
 
           {hasChildren ? (
             <button
               type="button"
               onClick={() => toggle(node.id)}
-              className="h-8 w-8 rounded-md border border-border bg-muted hover:bg-accent flex items-center justify-center"
-              aria-label="Toggle subcategories"
-              title="Toggle"
+              className="h-9 w-9 rounded-full border border-border bg-background hover:bg-muted flex items-center justify-center"
+              aria-label={isOpen ? "Collapse" : "Expand"}
+              title={isOpen ? "Collapse" : "Expand"}
             >
               <ChevronRight
-                className={`h-4 w-4 transition-transform ${
+                className={`h-5 w-5 text-muted-foreground transition-transform ${
                   isOpen ? "rotate-90" : "rotate-0"
                 }`}
               />
             </button>
           ) : (
-            <span className="w-8" />
+            <span className="h-9 w-9" />
           )}
         </div>
 
-        {hasChildren && isOpen && (
-          <div className="mt-2 space-y-2">
-            {node.children.map((ch) => (
-              <Node key={ch.id} node={ch} level={level + 1} />
+        {hasChildren && isOpen ? (
+          <div className="border-l border-border/60" style={{ marginLeft: padLeft + 18 }}>
+            {node.children.map((child) => (
+              <Row key={child.id} node={child} level={level + 1} />
             ))}
           </div>
-        )}
+        ) : null}
       </div>
     );
   };
 
   return (
-    <div className="space-y-2">
+    <div className="divide-y divide-border rounded-xl border border-border bg-background overflow-hidden">
       {categories.map((c) => (
-        <Node key={c.id} node={c} level={0} />
+        <Row key={c.id} node={c} level={0} />
       ))}
     </div>
   );
@@ -615,7 +627,7 @@ export default function Header({
 
   const goCategoryFromMobile = (slug: string) => {
     setMobileMenuOpen(false);
-    router.push(`/ecommerce/categories/${slug}`);
+    router.push(`/ecommerce/categories?slug=${encodeURIComponent(slug)}`);
   };
 
   return (
@@ -967,9 +979,32 @@ export default function Header({
           />
 
           {/* panel */}
-          <div className="absolute right-0 top-0 h-full w-[86%] max-w-[380px] bg-background text-foreground border-l border-border shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-              <div className="font-semibold">Menu</div>
+          <div className="absolute left-0 top-0 h-full w-[86%] max-w-[380px] bg-background text-foreground border-r border-border shadow-2xl">
+            <div className="flex items-start justify-between gap-3 px-4 py-4 border-b border-border">
+              <Link
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 min-w-0"
+              >
+                <div className="relative h-11 w-11 rounded-xl overflow-hidden border border-border bg-muted shrink-0">
+                  <Image
+                    src={siteSettings.logo || "/assets/examplelogo.jpg"}
+                    alt="Logo"
+                    fill
+                    className="object-contain"
+                    sizes="44px"
+                  />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-base font-bold leading-tight truncate">
+                    {siteSettings.siteTitle || "BOED"}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {siteSettings.footerDescription || "E-Commerce"}
+                  </div>
+                </div>
+              </Link>
+
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
@@ -980,78 +1015,78 @@ export default function Header({
               </button>
             </div>
 
-            <div className="p-4 space-y-4 overflow-y-auto h-[calc(100%-64px)]">
-              {/* quick links */}
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  href="/ecommerce/products"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-lg border border-border bg-muted hover:bg-accent px-3 py-2 text-sm font-semibold flex items-center gap-2"
-                >
-                  <Boxes className="h-4 w-4" />
-                  All Products
-                </Link>
-                <Link
-                  href="/ecommerce/blogs"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-lg border border-border bg-muted hover:bg-accent px-3 py-2 text-sm font-semibold flex items-center gap-2"
-                >
-                  <Newspaper className="h-4 w-4" />
-                  Blog
-                </Link>
-              </div>
-
+            <div className="h-[calc(100%-64px)] space-y-5 overflow-y-auto bg-muted/30 p-4">
               {/* account */}
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm">
                 {hasMounted && session ? (
                   <>
-                    <div className="px-4 py-3 border-b border-border">
-                      <div className="text-sm font-semibold">{userName}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {displayRole}
+                    <div className="border-b border-border/70 bg-primary/5 px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                          {userName?.charAt(0)?.toUpperCase() || "U"}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-bold">
+                            {userName}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {displayRole}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    <Link
-                      href={dashboardHref}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
-                    >
-                      <LayoutDashboard className="h-4 w-4" />
-                      Dashboard
-                    </Link>
+                    <div className="p-2">
+                      <Link
+                        href={dashboardHref}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition hover:bg-muted"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
+                      </Link>
 
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={async () => {
-                        setMobileMenuOpen(false);
-                        await handleSignOut();
-                      }}
-                      className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Logout
-                    </button>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={async () => {
+                          setMobileMenuOpen(false);
+                          await handleSignOut();
+                        }}
+                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Logout
+                      </button>
+                    </div>
                   </>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      router.push("/signin");
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted transition"
-                  >
-                    <LogIn className="h-4 w-4" />
-                    Login
-                  </button>
+                  <div className="p-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        router.push("/signin");
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      Login
+                    </button>
+                  </div>
                 )}
               </div>
 
               {/* categories */}
-              <div>
-                <div className="mb-2 text-sm font-semibold">All Categories</div>
+              <div className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm">
+                <div className="mb-3">
+                  <div className="text-sm font-bold">All Categories</div>
+                  <div className="text-xs text-muted-foreground">
+                    Browse products by category
+                  </div>
+                </div>
+
                 <MobileCategoryTree
                   categories={categoryTree}
                   loading={categoryLoading}

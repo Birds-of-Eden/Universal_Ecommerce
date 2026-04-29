@@ -12,10 +12,7 @@ import { Providers } from "./providers";
 import SupportChatWidget from "@/components/chat/SupportChatWidget";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import ScrollToTopButton from "@/components/ecommarce/ScrollToTopButton";
-import {
-  buildDefaultMetadata,
-  getSiteUrl,
-} from "@/lib/seo";
+import { buildDefaultMetadata, getSiteUrl } from "@/lib/seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -62,7 +59,9 @@ export default function RootLayout({
       >
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
         />
         <ThemeProvider
           attribute="class"
@@ -70,12 +69,12 @@ export default function RootLayout({
           defaultTheme="light"
         >
           <Providers>
-             <AnalyticsTracker />
+            <AnalyticsTracker />
             <TreeProvider>
               <CartProvider>
                 <WishlistProvider>
                   <main className="flex-1">{children}</main>
-                          <ScrollToTopButton />
+                  <ScrollToTopButton />
                   <SupportChatWidget />
                 </WishlistProvider>
               </CartProvider>

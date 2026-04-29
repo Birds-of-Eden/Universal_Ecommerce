@@ -115,7 +115,7 @@ export default function FeaturedCategories({
 
         const list: CategoryDTO[] = Array.isArray(data)
           ? data
-          : data?.data ?? [];
+          : (data?.data ?? []);
 
         setCats(Array.isArray(list) ? list : []);
       } catch (e: any) {
@@ -209,15 +209,9 @@ export default function FeaturedCategories({
                   </div>
                 </div>
 
-                <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="grid h-16 w-16 place-items-center rounded-3xl border border-primary/15 bg-white/85 shadow-sm backdrop-blur">
-                    <LayoutGrid className="h-8 w-8 text-primary" />
-                  </div>
-
-                  <div className="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 group-hover:translate-x-1">
-                    Browse Now
-                    <ArrowUpRight className="h-4 w-4" />
-                  </div>
+                <div className="ml-auto inline-flex w-fit items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 group-hover:translate-x-1">
+                  Browse Now
+                  <ArrowUpRight className="h-4 w-4" />
                 </div>
               </div>
             </Link>

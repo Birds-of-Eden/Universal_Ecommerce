@@ -564,7 +564,7 @@ export default function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-background pb-12 text-foreground">
-      <div className="container p-6">
+      <div className="container px-4 py-5 sm:p-6">
         <div className="overflow-hidden rounded-md border border-border bg-gradient-to-br from-background to-muted/50 dark:from-card dark:to-muted/20">
           <div className="grid gap-4 p-4 md:grid-cols-[1.2fr_1fr] md:items-center md:p-5">
             <div className="space-y-3">
@@ -573,10 +573,10 @@ export default function CategoriesPage() {
                 Category
               </div>
               <div>
-                <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
+                <h1 className="text-xl font-semibold text-foreground sm:text-3xl">
                   Browse products by category
                 </h1>
-                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                <p className="mt-2 max-w-2xl text-xs text-muted-foreground sm:text-sm">
                   Three-level category filtering with matched product listing,
                   quick add to cart, and wishlist support.
                 </p>
@@ -591,7 +591,7 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        <div className="sticky top-24 z-40 mt-5">
+        <div className="sticky top-20 z-40 mt-4 sm:top-28 sm:mt-5">
           <div className="space-y-4 rounded-xl border border-border/60 bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="group/slider relative">
               <div
@@ -605,7 +605,7 @@ export default function CategoriesPage() {
                       data-category="1"
                       type="button"
                       onClick={() => setActiveDepartmentId(department.id)}
-                      className={`snap-start rounded-full border px-4 py-1.5 text-lg font-medium transition ${
+                      className={`snap-start rounded-full border px-3 py-1 text-sm font-medium transition sm:px-4 sm:py-1.5 sm:text-lg ${
                         activeDepartment?.id === department.id
                           ? "border-primary bg-primary text-primary-foreground shadow-lg"
                           : "border-border bg-card text-foreground hover:border-primary hover:bg-primary/5 dark:border-border dark:bg-card dark:text-foreground"
@@ -635,27 +635,29 @@ export default function CategoriesPage() {
             </div>
 
             {/* child categories normal, sticky na */}
-            <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3 shadow-sm md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-wrap gap-2">
-                {activeDepartment?.children.map((child) => (
-                  <button
-                    key={child.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveChildId(child.id);
-                      setActiveGrandChildId(null);
-                    }}
-                    className={`rounded-full border px-3 py-1 text-md transition ${
-                      activeChild?.id === child.id
-                        ? "border-secondary bg-secondary text-secondary-foreground shadow-md"
-                        : "border-border bg-background text-muted-foreground hover:border-secondary hover:bg-secondary/10 dark:border-border dark:bg-background dark:text-muted-foreground"
-                    }`}
-                  >
-                    {child.name}
-                  </button>
-                ))}
+            {activeDepartment && activeDepartment.children.length > 0 && (
+              <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap gap-2">
+                  {activeDepartment?.children.map((child) => (
+                    <button
+                      key={child.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveChildId(child.id);
+                        setActiveGrandChildId(null);
+                      }}
+                      className={`rounded-full border px-3 py-1 text-xs transition sm:text-sm ${
+                        activeChild?.id === child.id
+                          ? "border-secondary bg-secondary text-secondary-foreground shadow-md"
+                          : "border-border bg-background text-muted-foreground hover:border-secondary hover:bg-secondary/10 dark:border-border dark:bg-background dark:text-muted-foreground"
+                      }`}
+                    >
+                      {child.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* grandchild normal, sticky na */}
             {activeChild && activeChild.children.length > 0 && (
@@ -663,7 +665,7 @@ export default function CategoriesPage() {
                 <button
                   type="button"
                   onClick={() => setActiveGrandChildId(null)}
-                  className={`rounded-full border px-3 py-1 text-sm transition ${
+                  className={`rounded-full border px-3 py-1 text-xs transition sm:text-sm ${
                     activeGrandChild === null
                       ? "border-accent bg-accent text-accent-foreground shadow-md"
                       : "border-border bg-card text-muted-foreground hover:border-accent hover:bg-accent/10 dark:border-border dark:bg-card dark:text-muted-foreground"
@@ -676,7 +678,7 @@ export default function CategoriesPage() {
                     key={grandChild.id}
                     type="button"
                     onClick={() => setActiveGrandChildId(grandChild.id)}
-                    className={`rounded-full border px-3 py-1 text-sm transition ${
+                    className={`rounded-full border px-3 py-1 text-xs transition sm:text-sm ${
                       activeGrandChild?.id === grandChild.id
                         ? "border-accent bg-accent text-accent-foreground shadow-md"
                         : "border-border bg-card text-muted-foreground hover:border-accent hover:bg-accent/10 dark:border-border dark:bg-card dark:text-muted-foreground"

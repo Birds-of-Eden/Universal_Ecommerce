@@ -25,11 +25,12 @@ import {
 import { useSession, signIn } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import VariantSelectionModal from "@/components/ecommarce/VariantSelectionModal";
 
 const STORAGE_KEY = "floating-cart-position";
-const BUTTON_WIDTH = 68;
-const BUTTON_HEIGHT = 64;
+const BUTTON_WIDTH_MOBILE = 56;
+const BUTTON_HEIGHT_MOBILE = 54;
+const BUTTON_WIDTH_DESKTOP = 68;
+const BUTTON_HEIGHT_DESKTOP = 64;
 const EDGE_MARGIN = 12;
 const DRAG_THRESHOLD = 6;
 
@@ -63,41 +64,67 @@ type FlyingItem = {
   translateY: number;
 };
 
+function getButtonSize() {
+  if (typeof window === "undefined") {
+    return { width: BUTTON_WIDTH_DESKTOP, height: BUTTON_HEIGHT_DESKTOP };
+  }
+
+  const isMobile = window.matchMedia("(max-width: 640px)").matches;
+  return isMobile
+    ? { width: BUTTON_WIDTH_MOBILE, height: BUTTON_HEIGHT_MOBILE }
+    : { width: BUTTON_WIDTH_DESKTOP, height: BUTTON_HEIGHT_DESKTOP };
+}
+
 function getDefaultPosition(): Position {
   if (typeof window === "undefined") {
     return { x: 0, y: 140 };
   }
 
+  const { width } = getButtonSize();
+
   return {
-    x: window.innerWidth - BUTTON_WIDTH - EDGE_MARGIN,
+    x: window.innerWidth - width - EDGE_MARGIN,
     y: Math.max(120, window.innerHeight - 240),
   };
 }
 
 function clampY(y: number) {
   if (typeof window === "undefined") return y;
-  const maxY = window.innerHeight - BUTTON_HEIGHT - EDGE_MARGIN;
+
+  const { height } = getButtonSize();
+  const maxY = window.innerHeight - height - EDGE_MARGIN;
   return Math.min(Math.max(EDGE_MARGIN, y), maxY);
+}
+
+function clampX(x: number) {
+  if (typeof window === "undefined") return x;
+
+  const { width } = getButtonSize();
+  const maxX = window.innerWidth - width - EDGE_MARGIN;
+  return Math.min(Math.max(EDGE_MARGIN, x), maxX);
 }
 
 function snapToEdge(x: number, y: number): Position {
   if (typeof window === "undefined") return { x, y };
 
+  const { width } = getButtonSize();
   const middle = window.innerWidth / 2;
   const snappedX =
-    x + BUTTON_WIDTH / 2 < middle
+    x + width / 2 < middle
       ? EDGE_MARGIN
-      : window.innerWidth - BUTTON_WIDTH - EDGE_MARGIN;
+      : window.innerWidth - width - EDGE_MARGIN;
 
   return {
-    x: snappedX,
+    x: clampX(snappedX),
     y: clampY(y),
   };
 }
 
 function getDrawerSide(x: number): "left" | "right" {
   if (typeof window === "undefined") return "right";
-  return x + BUTTON_WIDTH / 2 < window.innerWidth / 2 ? "left" : "right";
+
+  const { width } = getButtonSize();
+  return x + width / 2 < window.innerWidth / 2 ? "left" : "right";
 }
 
 export default function FloatingCartButton() {
@@ -294,7 +321,7 @@ export default function FloatingCartButton() {
 
       setDragging(true);
       setPosition({
-        x: nextX,
+        x: clampX(nextX),
         y: clampY(nextY),
       });
     };
@@ -489,6 +516,8 @@ export default function FloatingCartButton() {
           onPointerDown={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
 
+            event.preventDefault();
+
             dragRef.current = {
               pointerId: event.pointerId,
               offsetX: event.clientX - rect.left,
@@ -505,8 +534,9 @@ export default function FloatingCartButton() {
           style={{
             left: position.x,
             top: position.y,
+            touchAction: "none",
           }}
-          className={`fixed z-50 flex min-w-[68px] flex-col items-center rounded-xl border border-border bg-primary px-3 py-2 text-primary-foreground shadow-lg transition ${
+          className={`fixed z-50 flex min-w-[56px] flex-col items-center rounded-xl border border-border bg-primary px-2.5 py-2 text-primary-foreground shadow-lg transition sm:min-w-[68px] sm:px-3 ${
             dragging
               ? "cursor-grabbing scale-105 shadow-2xl"
               : "cursor-grab hover:shadow-xl"
@@ -514,15 +544,15 @@ export default function FloatingCartButton() {
           aria-label="Open cart drawer"
         >
           <div className="relative">
-            <ShoppingBag className="h-5 w-5" />
+            <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
             {displayCartCount > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+              <span className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground sm:h-5 sm:min-w-[20px] sm:text-[10px]">
                 {displayCartCount}
               </span>
             )}
           </div>
 
-          <span className="mt-1 text-[11px] font-medium">Cart</span>
+          <span className="mt-1 text-[10px] font-medium sm:text-[11px]">Cart</span>
         </button>
 
         <SheetContent
