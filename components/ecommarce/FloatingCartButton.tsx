@@ -31,7 +31,7 @@ const BUTTON_WIDTH_MOBILE = 56;
 const BUTTON_HEIGHT_MOBILE = 54;
 const BUTTON_WIDTH_DESKTOP = 68;
 const BUTTON_HEIGHT_DESKTOP = 64;
-const EDGE_MARGIN = 12;
+const EDGE_MARGIN = 0;
 const DRAG_THRESHOLD = 6;
 
 type Position = {

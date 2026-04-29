@@ -946,7 +946,7 @@ export default function CartPage() {
                   </div>
 
                   <div className="pt-2 flex flex-col sm:flex-row gap-3">
-                    <Link href="/" className="flex-1 w-full">
+                    <Link href="/ecommerce/products" className="flex-1 w-full">
                       <Button variant="outline" className="w-full rounded-xl">
                         <Plus className="mr-2 h-4 w-4" />
                         Add More

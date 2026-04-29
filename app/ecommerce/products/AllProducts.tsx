@@ -224,6 +224,9 @@ export default function ProductsPage() {
   });
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const filterScrollRef = useRef<HTMLDivElement | null>(null);
+  const [filterScrolling, setFilterScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -347,6 +350,26 @@ export default function ProductsPage() {
     };
 
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const el = filterScrollRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      setFilterScrolling(true);
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        setFilterScrolling(false);
+        scrollTimeoutRef.current = null;
+      }, 700);
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+    };
   }, []);
 
   const categories = useMemo(
@@ -667,7 +690,15 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Scrollable Filter Body */}
-                <div className="flex-1 overflow-y-auto py-2">
+                <div
+                  ref={filterScrollRef}
+                  className={`flex-1 overflow-y-auto py-2 ${
+                    filterScrolling ? "" : "scrollbar-hide"
+                  }`}
+                  onMouseEnter={() => setFilterScrolling(true)}
+                  onMouseLeave={() => setFilterScrolling(false)}
+                  onTouchStart={() => setFilterScrolling(true)}
+                >
                   
                   {/* Search */}
                   <div className="px-4 py-3">
