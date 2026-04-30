@@ -36,5 +36,5 @@ export type Variant = {
   colorImage?: string | null;
   gallery?: string[] | null;
   originalPrice?: number | string | null;
-  options?: Record<string, string>;
+  options?: Record<string, unknown>;
 };
