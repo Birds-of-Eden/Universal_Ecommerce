@@ -118,6 +118,7 @@ export async function GET(request: NextRequest) {
                 select: {
                   id: true,
                   sku: true,
+                  colorImage: true,
                   options: true,
                 },
               },

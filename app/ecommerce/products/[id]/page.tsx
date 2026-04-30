@@ -177,6 +177,7 @@ export default function ProductDetails() {
   const [activeThumb, setActiveThumb] = useState(0);
   const [tab, setTab] = useState<"desc" | "spec" | "reviews">("desc");
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [previewVariant, setPreviewVariant] = useState<Variant | null>(null);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isZooming, setIsZooming] = useState(false);
   const [lightbox, setLightbox] = useState(false);
@@ -218,6 +219,7 @@ export default function ProductDetails() {
         setProduct(found);
         const iv = getDefaultVariant(found);
         setSelectedVariant(iv);
+        setPreviewVariant(iv);
         setActiveImg(
           getVariantDisplayImage(iv) ||
             found.image ||
@@ -235,19 +237,23 @@ export default function ProductDetails() {
   useEffect(() => {
     if (!product) return;
     if (selectedVariant && product.variants?.some((v) => String(v.id) === String(selectedVariant.id))) return;
-    setSelectedVariant(getDefaultVariant(product));
+    const nextVariant = getDefaultVariant(product);
+    setSelectedVariant(nextVariant);
+    setPreviewVariant(nextVariant);
   }, [product]);
+
+  const mediaVariant = selectedVariant ?? previewVariant;
 
   useEffect(() => {
     const nextImages = normalizeImageList([
-      getVariantDisplayImage(selectedVariant),
-      ...getVariantGallery(selectedVariant),
+      getVariantDisplayImage(mediaVariant),
+      ...getVariantGallery(mediaVariant),
       product?.image,
       ...(product?.gallery ?? []),
     ]);
     setActiveImg(nextImages[0] ?? null);
     setActiveThumb(0);
-  }, [product, selectedVariant]);
+  }, [product, mediaVariant]);
 
   const related = useMemo(() => {
     if (!product) return [];
@@ -267,12 +273,12 @@ export default function ProductDetails() {
 
   const images = useMemo(() => {
     return normalizeImageList([
-      getVariantDisplayImage(selectedVariant),
-      ...getVariantGallery(selectedVariant),
+      getVariantDisplayImage(mediaVariant),
+      ...getVariantGallery(mediaVariant),
       product?.image,
       ...(product?.gallery ?? []),
     ]);
-  }, [product, selectedVariant]);
+  }, [product, mediaVariant]);
 
   useEffect(() => {
     if (images.length === 0) {
@@ -387,10 +393,19 @@ export default function ProductDetails() {
     </div>
   );
 
-  const displayPrice = selectedVariant ? toNumber(selectedVariant.price) : toNumber(product.basePrice);
+  const displayPrice = selectedVariant
+    ? toNumber(selectedVariant.price)
+    : toNumber(product.basePrice as any);
+
   const displayOriginalPrice = selectedVariant
-    ? (selectedVariant as any).originalPrice != null ? toNumber((selectedVariant as any).originalPrice) : null
-    : product.originalPrice != null ? toNumber(product.originalPrice) : null;
+    ? (selectedVariant as any).originalPrice != null
+      ? toNumber((selectedVariant as any).originalPrice)
+      : product.originalPrice != null
+        ? toNumber(product.originalPrice as any)
+        : null
+    : product.originalPrice != null
+      ? toNumber(product.originalPrice as any)
+      : null;
   const savings = saveText(displayPrice, displayOriginalPrice);
   const hasMultipleVariants = (product.variants?.length ?? 0) > 1;
   const selectionRequired = hasMultipleVariants && !selectedVariant;
@@ -497,6 +512,59 @@ export default function ProductDetails() {
           <span className="min-w-0 line-clamp-1 text-foreground font-medium">{product.name}</span>
         </nav>
 
+        <div className="mb-5 lg:hidden">
+          {product.category?.name && (
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
+              {product.category.name}
+            </p>
+          )}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                {product.name}
+              </h1>
+              {Number(product.ratingCount ?? 0) > 0 && (
+                <div className="mt-2">
+                  <StarRow avg={Number(product.ratingAvg ?? 0)} count={Number(product.ratingCount ?? 0)} />
+                </div>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => inWishlist ? await removeFromWishlist(product.id) : await addToWishlist(product.id)}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-full border transition",
+                  inWishlist
+                    ? "border-red-400 bg-red-50 text-red-500 dark:bg-red-950"
+                    : "border-border bg-background text-muted-foreground hover:border-foreground hover:text-foreground"
+                )}
+                aria-label="Wishlist"
+              >
+                <Heart className={cn("h-5 w-5", inWishlist && "fill-current")} />
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition hover:border-foreground hover:text-foreground"
+                aria-label="Share"
+              >
+                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-baseline gap-1">
+            <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
+              {moneyBDT(displayPrice)}
+            </span>
+            {displayOriginalPrice && displayOriginalPrice > displayPrice && (
+              <span className="text-xs text-muted-foreground/70 line-through">
+                {moneyBDT(displayOriginalPrice)}
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* ── Main grid ── */}
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-12 xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
 
@@ -518,7 +586,7 @@ export default function ProductDetails() {
               }}
             >
               {savings && (
-                <div className="absolute left-0 top-4 z-10 bg-red-500 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow">
+                <div className="absolute right-0 top-4 z-10 bg-red-500 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow">
                   {savings.pct}% OFF
                 </div>
               )}
@@ -556,11 +624,11 @@ export default function ProductDetails() {
 
               {activeImg ? (
                 <div
-                  className="h-full w-full bg-center bg-no-repeat transition-[background-size] duration-150"
+                  className="h-full w-full bg-cover bg-no-repeat transition-[background-size] duration-150"
                   style={{
                     backgroundImage: `url(${activeImg})`,
                     backgroundPosition: isZooming ? `${zoomPos.x}% ${zoomPos.y}%` : "center",
-                    backgroundSize: isZooming ? "230%" : "contain",
+                    backgroundSize: isZooming ? "230%" : "cover",
                   }}
                 />
               ) : (
@@ -594,14 +662,14 @@ export default function ProductDetails() {
           <div className="min-w-0 flex flex-col gap-5">
 
             {/* Title + wishlist */}
-            <div className="min-w-0">
+            <div className="hidden min-w-0 lg:block">
               {product.category?.name && (
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
                   {product.category.name}
                 </p>
               )}
               <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 sm:flex-nowrap">
-                <h1 className="min-w-0 flex-1 text-2xl font-bold leading-tight text-foreground sm:text-3xl">
+                <h1 className="min-w-0 flex-1 text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-4xl">
                   {product.name}
                 </h1>
                 <div className="flex shrink-0 items-center gap-2">
@@ -638,19 +706,14 @@ export default function ProductDetails() {
             </div>
 
             {/* Price block */}
-            <div className="border-y border-border py-4">
-              <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <div className="hidden border-y border-border/50 bg-gradient-to-r from-muted/30 to-transparent py-6 lg:block">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-[22px] font-bold tracking-tight text-primary sm:text-[28px]">
                   {moneyBDT(displayPrice)}
                 </span>
                 {displayOriginalPrice && displayOriginalPrice > displayPrice && (
-                  <span className="text-xl text-muted-foreground line-through">
+                  <span className="text-[13px] text-muted-foreground line-through sm:text-[14px]">
                     {moneyBDT(displayOriginalPrice)}
-                  </span>
-                )}
-                {savings && (
-                  <span className="rounded-sm bg-red-500 px-2 py-0.5 text-[12px] font-bold text-white">
-                    Save {savings.amount}
                   </span>
                 )}
               </div>
@@ -689,6 +752,45 @@ export default function ProductDetails() {
               </div>
             )}
 
+            {/* Variant selector */}
+            {(product.variants?.length ?? 0) > 1 && (
+              <div>
+                <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-foreground">
+                  Select Color / Variant
+                </p>
+                <VariantSelector
+                  variants={product.variants ?? []}
+                  value={selectedVariant}
+                  onPreviewVariant={(v) => setPreviewVariant(v as Variant | null)}
+                  onChange={(v) => {
+                    setSelectedVariant(v as Variant | null);
+                    if (v) setPreviewVariant(v as Variant);
+                  }}
+                />
+                {selectionRequired && (
+                  <p className="mt-2 text-[13px] font-medium text-amber-600">
+                    ⚠ Please select a variant to continue
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="lg:hidden">
+              {stock > 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400">
+                  <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                  In Stock {stock < 10 && `(Only ${stock} left)`}
+                </span>
+              ) : selectionRequired ? (
+                <span className="text-sm font-medium text-amber-600 dark:text-amber-400">Select a variant</span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-red-500">
+                  <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                  Out of Stock
+                </span>
+              )}
+            </div>
+
             {/* Short description */}
             {product.shortDesc && (
               <div
@@ -697,25 +799,6 @@ export default function ProductDetails() {
                   [&_p]:mb-2 [&_strong]:font-semibold [&_strong]:text-foreground"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.shortDesc) }}
               />
-            )}
-
-            {/* Variant selector */}
-            {(product.variants?.length ?? 0) > 1 && (
-              <div>
-                <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-foreground">
-                  Select Variant
-                </p>
-                <VariantSelector
-                  variants={product.variants ?? []}
-                  value={selectedVariant}
-                  onChange={(v) => setSelectedVariant(v as Variant | null)}
-                />
-                {selectionRequired && (
-                  <p className="mt-2 text-[13px] font-medium text-amber-600">
-                    ⚠ Please select a variant to continue
-                  </p>
-                )}
-              </div>
             )}
 
             {/* Quantity + CTA */}
@@ -762,7 +845,7 @@ export default function ProductDetails() {
                     }
                     router.push("/ecommerce/checkout");
                   }}
-                  className="h-11 rounded-none bg-foreground font-semibold uppercase tracking-widest text-background text-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-11 rounded-lg bg-foreground font-semibold uppercase tracking-widest text-background text-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Buy Now
                 </button>
@@ -925,28 +1008,6 @@ export default function ProductDetails() {
             />
           </div>
         )}
-      </div>
-
-      {/* ── Mobile sticky CTA bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-2 border-t border-border bg-background/95 shadow-lg backdrop-blur-sm sm:hidden">
-        <AddToCartButton
-          productId={product.id}
-          variantId={selectedVariant?.id ?? null}
-          disabled={purchaseDisabled}
-        />
-        <button
-          type="button"
-          disabled={purchaseDisabled}
-          onClick={() => {
-            if (getQuantityByProductId(product.id, selectedVariant?.id ?? null) <= 0) {
-              addToCart(product.id, 1, selectedVariant?.id ?? null);
-            }
-            router.push("/ecommerce/checkout");
-          }}
-          className="h-14 bg-foreground font-bold uppercase tracking-widest text-background text-sm transition hover:opacity-90 disabled:opacity-40"
-        >
-          Add to Cart
-        </button>
       </div>
       {/* spacer for mobile sticky bar */}
       <div className="h-14 sm:hidden" />
