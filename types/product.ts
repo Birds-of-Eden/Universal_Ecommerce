@@ -33,6 +33,8 @@ export type Variant = {
   price?: number | string | null;
   sku?: string | null;
   image?: string | null;
+  colorImage?: string | null;
+  gallery?: string[] | null;
   originalPrice?: number | string | null;
   options?: Record<string, string>;
 };
