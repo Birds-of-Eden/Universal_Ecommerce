@@ -8,6 +8,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  getVariantMediaMeta,
+  normalizeVariantMediaMeta,
+} from "@/lib/product-variants";
 import TinymceEditor from "../tinymceEditor";
 
 type ProductType = "PHYSICAL" | "DIGITAL" | "SERVICE";
@@ -66,6 +70,7 @@ interface VariantRowForm {
   optionSummary: string;
   options: Record<string, any>;
   colorImage?: string;
+  gallery: string[];
   sku: string;
   price: string;
   costPrice: string;
@@ -128,6 +133,15 @@ const stripVariantMeta = (options: Record<string, any>) =>
   Object.fromEntries(
     Object.entries(options ?? {}).filter(([key]) => key !== "__meta"),
   );
+const buildVariantOptionsPayload = (row: VariantRowForm) => {
+  const baseOptions = stripVariantMeta(row.options);
+  const mediaMeta = normalizeVariantMediaMeta({
+    image: row.colorImage,
+    gallery: row.gallery,
+  });
+
+  return mediaMeta ? { ...baseOptions, __meta: mediaMeta } : baseOptions;
+};
 
 function buildVariantKey(optionNames: string[], options: Record<string, string>) {
   return optionNames.map((name) => `${name}:${options[name] ?? ""}`).join("|");
@@ -288,12 +302,12 @@ export default function ProductAddModal({
         variant?.options && typeof variant.options === "object"
           ? (variant.options as Record<string, unknown>)
           : {};
-      const meta = (options as any)?.__meta;
+      const meta = getVariantMediaMeta(options);
       const image =
         typeof variant?.colorImage === "string" && variant.colorImage.trim()
           ? variant.colorImage.trim()
           : typeof meta?.image === "string"
-            ? meta.image.trim()
+            ? meta.image
             : "";
       if (!image) return;
       const colorKey = Object.keys(options).find((key) => isColorOptionName(key));
@@ -324,6 +338,7 @@ export default function ProductAddModal({
           variant?.options && typeof variant.options === "object"
             ? stripVariantMeta(variant.options)
             : {};
+        const meta = getVariantMediaMeta(variant?.options);
         return {
           id: variant?.id ? Number(variant.id) : undefined,
           key: isVariantProduct ? buildVariantKey(optionNameOrder, options) : `simple-${variant.id ?? index}`,
@@ -333,6 +348,7 @@ export default function ProductAddModal({
             typeof variant?.colorImage === "string" && variant.colorImage.trim()
               ? variant.colorImage.trim()
               : "",
+          gallery: meta?.gallery ?? [],
           sku: String(variant?.sku || ""),
           price: String(variant?.price ?? ""),
           costPrice: variant?.costPrice != null ? String(variant.costPrice) : "",
@@ -451,6 +467,7 @@ export default function ProductAddModal({
             colorVariantImages[clean(String(combination[colorOptionName]))]
               ? colorVariantImages[clean(String(combination[colorOptionName]))]
               : previous?.colorImage ?? "",
+          gallery: previous?.gallery ?? [],
           sku: previous?.sku ?? "",
           price: previous?.price ?? "",
           costPrice: previous?.costPrice ?? form.baseCostPrice ?? "",
@@ -517,6 +534,38 @@ export default function ProductAddModal({
 
   const removeGalleryImage = (index: number) => {
     setForm((prev) => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== index) }));
+  };
+
+  const handleVariantGalleryUpload = async (
+    index: number,
+    e: ChangeEvent<HTMLInputElement>,
+  ) => {
+    if (!e.target.files?.length) return;
+
+    try {
+      const urls = await Promise.all(
+        Array.from(e.target.files).map((file) =>
+          uploadFile(file, "products/variants/gallery"),
+        ),
+      );
+      updateVariantRow(index, {
+        gallery: Array.from(
+          new Set([...(variantRows[index]?.gallery ?? []), ...urls]),
+        ),
+      });
+    } catch (err: any) {
+      toast.error(err?.message || "Variant gallery upload failed");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const removeVariantGalleryImage = (rowIndex: number, imageIndex: number) => {
+    updateVariantRow(rowIndex, {
+      gallery: (variantRows[rowIndex]?.gallery ?? []).filter(
+        (_, currentIndex) => currentIndex !== imageIndex,
+      ),
+    });
   };
 
   const updateVariantOption = (index: number, patch: Partial<VariantOptionForm>) => {
@@ -599,7 +648,8 @@ export default function ProductAddModal({
         : Number(form.lowStockThreshold || "10"),
       active: row.active,
       colorImage: row.colorImage?.trim() || null,
-      options: stripVariantMeta(row.options),
+      gallery: row.gallery,
+      options: buildVariantOptionsPayload(row),
     }));
 
     const invalidVariant = normalizedVariants.find(
@@ -1000,6 +1050,44 @@ export default function ProductAddModal({
                               <td className="px-2 py-3">
                                 <div className="font-medium">{row.optionSummary}</div>
                                 <div className="text-xs text-muted-foreground">Warehouse stock target: default warehouse</div>
+                                <div className="mt-3 space-y-2">
+                                  <div className="flex flex-wrap gap-2">
+                                    {row.gallery.map((img, imageIndex) => (
+                                      <div key={`${row.key}-gallery-${imageIndex}`} className="relative h-16 w-16 overflow-hidden rounded border border-border bg-muted/20">
+                                        <Image
+                                          src={img}
+                                          alt={`${row.optionSummary} gallery ${imageIndex + 1}`}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                        <button
+                                          type="button"
+                                          className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-foreground shadow-sm transition hover:bg-destructive hover:text-destructive-foreground"
+                                          onClick={() => removeVariantGalleryImage(index, imageIndex)}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                    <label className="inline-flex h-16 cursor-pointer items-center justify-center rounded border border-dashed border-border px-3 text-xs font-medium text-muted-foreground transition hover:border-primary hover:text-foreground">
+                                      Upload Gallery
+                                      <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                          void handleVariantGalleryUpload(index, e);
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
+                                  {row.gallery.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      This variant can keep its own gallery for the product page.
+                                    </p>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-2 py-3">
                                 <Input value={row.sku} placeholder={`SKU-${index + 1}`} onChange={(e) => updateVariantRow(index, { sku: e.target.value.toUpperCase() })} />

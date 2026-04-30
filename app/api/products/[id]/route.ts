@@ -2,7 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
 import { syncVariantWarehouseStock } from "@/lib/inventory";
-import { normalizeVariantOptions, sortOptionObject } from "@/lib/product-variants";
+import {
+  getVariantMediaMeta,
+  normalizeVariantOptions,
+  sortOptionObject,
+} from "@/lib/product-variants";
 import { ensureVariantCodes } from "@/lib/product-codes";
 import { normalizeLowStockThreshold } from "@/lib/stock-status";
 import { getAccessContext } from "@/lib/rbac";
@@ -61,10 +65,15 @@ function attachVariantColorImages<T extends { variants?: any[] | null }>(
 
   return {
     ...product,
-    variants: product.variants.map((variant) => ({
-      ...variant,
-      colorImage: colorImageMap.get(Number(variant.id)) ?? null,
-    })),
+    variants: product.variants.map((variant) => {
+      const mediaMeta = getVariantMediaMeta(variant.options);
+      return {
+        ...variant,
+        colorImage:
+          colorImageMap.get(Number(variant.id)) ?? mediaMeta?.image ?? null,
+        gallery: mediaMeta?.gallery ?? [],
+      };
+    }),
   };
 }
 
@@ -105,6 +114,7 @@ function toProductLogSnapshot(product: any) {
           active: variant.active,
           isDefault: variant.isDefault,
           colorImage: variant.colorImage ?? null,
+          gallery: getVariantMediaMeta(variant.options)?.gallery ?? [],
           options: variant.options ?? {},
         }))
       : [],

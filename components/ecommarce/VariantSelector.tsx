@@ -10,7 +10,7 @@ type Variant = {
   sku?: string | null;
   image?: string | null;
   colorImage?: string | null;
-  options?: Record<string, string> | null;
+  options?: Record<string, unknown> | null;
 };
 
 type VariantSelectorProps = {
@@ -83,6 +83,26 @@ function variantInStock(variant: Variant) {
   return toStockNumber(variant.stock) > 0;
 }
 
+function normalizeOptions(
+  options: Record<string, unknown> | null | undefined,
+): Record<string, string> {
+  if (!options || typeof options !== "object") return {};
+
+  return Object.fromEntries(
+    Object.entries(options)
+      .filter(
+        ([optionKey, optionValue]) =>
+          optionKey !== "__meta" &&
+          typeof optionValue === "string" &&
+          optionValue.trim(),
+      )
+      .map(([optionKey, optionValue]) => [
+        normalizeKey(optionKey),
+        optionValue.trim(),
+      ]),
+  );
+}
+
 export default function VariantSelector({
   variants,
   value,
@@ -90,20 +110,7 @@ export default function VariantSelector({
 }: VariantSelectorProps) {
   const normalizedVariants = useMemo(() => {
     return variants.map((variant, index) => {
-      const options =
-        variant.options && typeof variant.options === "object"
-          ? Object.fromEntries(
-              Object.entries(variant.options)
-                .filter(
-                  ([, optionValue]) =>
-                    typeof optionValue === "string" && optionValue.trim(),
-                )
-                .map(([optionKey, optionValue]) => [
-                  normalizeKey(optionKey),
-                  optionValue.trim(),
-                ]),
-            )
-          : {};
+      const options = normalizeOptions(variant.options);
 
       return {
         ...variant,
@@ -165,7 +172,7 @@ export default function VariantSelector({
       setSelectedOptions({});
       return;
     }
-    setSelectedOptions(value.options ?? {});
+    setSelectedOptions(normalizeOptions(value.options));
   }, [value]);
 
   const pickBestVariant = (selection: Record<string, string>) => {
@@ -214,7 +221,7 @@ export default function VariantSelector({
                 key={String(variant.id)}
                 type="button"
                 onClick={() => {
-                  setSelectedOptions(variant.options ?? {});
+                  setSelectedOptions(normalizeOptions(variant.options));
                   onChange(variant);
                 }}
                 className={cn(
@@ -311,11 +318,6 @@ export default function VariantSelector({
                   },
                 )}
               </div>
-              {isColorOptionKey(optionKey) && selectedOptions[optionKey] && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Selected: {selectedOptions[optionKey]}
-                </p>
-              )}
             </div>
           ))}
         </div>

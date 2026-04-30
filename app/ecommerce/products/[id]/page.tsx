@@ -25,6 +25,7 @@ import RelatedProducts from "@/components/ecommarce/RelatedProducts";
 import VariantSelector from "@/components/ecommarce/VariantSelector";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
+import { getVariantMediaMeta } from "@/lib/product-variants";
 import { Product, Variant } from "@/types/product";
 import { cn } from "@/lib/utils";
 
@@ -57,12 +58,40 @@ function getDefaultVariant(product: Product | null): Variant | null {
   if (!product?.variants?.length) return null;
   return (
     (product.variants as Variant[]).find(
+      (v: any) => v?.active !== false && v?.isDefault && toNumber(v?.stock) > 0
+    ) ??
+    (product.variants as Variant[]).find(
+      (v: any) => v?.active !== false && v?.isDefault
+    ) ??
+    (product.variants as Variant[]).find(
       (v: any) => v?.active !== false && toNumber(v?.stock) > 0
     ) ??
     (product.variants as Variant[]).find((v: any) => v?.active !== false) ??
+    (product.variants as Variant[]).find((v: any) => v?.isDefault) ??
     (product.variants[0] as Variant) ??
     null
   );
+}
+
+function normalizeImageList(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) =>
+          typeof value === "string" && value.trim() ? value.trim() : "",
+        )
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getVariantGallery(variant: Variant | null | undefined) {
+  if (!variant) return [];
+  if (Array.isArray(variant.gallery) && variant.gallery.length > 0) {
+    return normalizeImageList(variant.gallery);
+  }
+
+  return getVariantMediaMeta(variant.options)?.gallery ?? [];
 }
 
 function getVariantDisplayImage(variant: Variant | null | undefined) {
@@ -72,6 +101,10 @@ function getVariantDisplayImage(variant: Variant | null | undefined) {
   }
   if (typeof variant.image === "string" && variant.image.trim()) {
     return variant.image.trim();
+  }
+  const [galleryImage] = getVariantGallery(variant);
+  if (galleryImage) {
+    return galleryImage;
   }
   return null;
 }
@@ -201,9 +234,14 @@ export default function ProductDetails() {
   }, [product]);
 
   useEffect(() => {
-    const variantImage = getVariantDisplayImage(selectedVariant);
-    if (variantImage) { setActiveImg(variantImage); return; }
-    setActiveImg(product?.image || product?.gallery?.[0] || null);
+    const nextImages = normalizeImageList([
+      getVariantDisplayImage(selectedVariant),
+      ...getVariantGallery(selectedVariant),
+      product?.image,
+      ...(product?.gallery ?? []),
+    ]);
+    setActiveImg(nextImages[0] ?? null);
+    setActiveThumb(0);
   }, [product, selectedVariant]);
 
   const related = useMemo(() => {
@@ -223,18 +261,29 @@ export default function ProductDetails() {
   }, [product, selectedVariant]);
 
   const images = useMemo(() => {
-    const list: string[] = [];
-    const selectedVariantImage = getVariantDisplayImage(selectedVariant);
-    if (selectedVariantImage) list.push(selectedVariantImage);
-    else if (product?.image) list.push(product.image);
-    (product?.variants ?? []).forEach((variant) => {
-      const variantImage = getVariantDisplayImage(variant);
-      if (variantImage && !list.includes(variantImage)) list.push(variantImage);
-    });
-    product?.gallery?.forEach((img) => { if (img && !list.includes(img)) list.push(img); });
-    if (product?.image && !list.includes(product.image)) list.unshift(product.image);
-    return list;
+    return normalizeImageList([
+      getVariantDisplayImage(selectedVariant),
+      ...getVariantGallery(selectedVariant),
+      product?.image,
+      ...(product?.gallery ?? []),
+    ]);
   }, [product, selectedVariant]);
+
+  useEffect(() => {
+    if (images.length === 0) {
+      setActiveThumb(0);
+      if (activeImg !== null) setActiveImg(null);
+      return;
+    }
+
+    if (!activeImg || !images.includes(activeImg)) {
+      setActiveImg(images[0]);
+      setActiveThumb(0);
+      return;
+    }
+
+    setActiveThumb(images.indexOf(activeImg));
+  }, [activeImg, images]);
 
   /* copy share link */
   const handleShare = () => {
