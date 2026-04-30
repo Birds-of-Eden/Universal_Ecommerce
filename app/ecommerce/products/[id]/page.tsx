@@ -180,8 +180,13 @@ export default function ProductDetails() {
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isZooming, setIsZooming] = useState(false);
   const [lightbox, setLightbox] = useState(false);
+  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [lightboxPan, setLightboxPan] = useState({ x: 0, y: 0 });
   const [copied, setCopied] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
+  const lightboxDragStartRef = useRef({ x: 0, y: 0 });
+  const lightboxPanStartRef = useRef({ x: 0, y: 0 });
+  const [isDraggingLightbox, setIsDraggingLightbox] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("tab") === "reviews") setTab("reviews");
@@ -293,6 +298,60 @@ export default function ProductDetails() {
     });
   };
 
+  const closeLightbox = () => {
+    setLightbox(false);
+    setLightboxZoom(1);
+    setLightboxPan({ x: 0, y: 0 });
+    setIsDraggingLightbox(false);
+  };
+
+  const zoomInLightbox = () => {
+    setLightboxZoom((prev) => Math.min(prev + 0.25, 3));
+  };
+
+  const zoomOutLightbox = () => {
+    setLightboxZoom((prev) => {
+      const next = Math.max(prev - 0.25, 1);
+      if (next === 1) {
+        setLightboxPan({ x: 0, y: 0 });
+      }
+      return next;
+    });
+  };
+
+  const clampLightboxPan = (x: number, y: number, zoom: number) => {
+    if (zoom <= 1) return { x: 0, y: 0 };
+    const maxOffset = ((zoom - 1) * 80) / 2;
+    return {
+      x: Math.max(-maxOffset, Math.min(maxOffset, x)),
+      y: Math.max(-maxOffset, Math.min(maxOffset, y)),
+    };
+  };
+
+  const startLightboxDrag = (clientX: number, clientY: number) => {
+    if (lightboxZoom <= 1) return;
+    lightboxDragStartRef.current = { x: clientX, y: clientY };
+    lightboxPanStartRef.current = lightboxPan;
+    setIsDraggingLightbox(true);
+  };
+
+  const moveLightboxDrag = (clientX: number, clientY: number) => {
+    if (!isDraggingLightbox || lightboxZoom <= 1) return;
+    const deltaX = ((clientX - lightboxDragStartRef.current.x) / window.innerWidth) * 100;
+    const deltaY = ((clientY - lightboxDragStartRef.current.y) / window.innerHeight) * 100;
+    setLightboxPan(
+      clampLightboxPan(
+        lightboxPanStartRef.current.x + deltaX,
+        lightboxPanStartRef.current.y + deltaY,
+        lightboxZoom,
+      ),
+    );
+  };
+
+  const stopLightboxDrag = () => {
+    setIsDraggingLightbox(false);
+  };
+
   /* ── loading skeleton ── */
   if (loading) return (
     <div className="min-h-screen bg-background">
@@ -340,27 +399,83 @@ export default function ProductDetails() {
   const inWishlist = isInWishlist(product.id);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
 
       {/* ── Lightbox ── */}
       {lightbox && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm"
-          onClick={() => setLightbox(false)}
+          onClick={closeLightbox}
         >
-          <button className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20" onClick={() => setLightbox(false)}>
-            <X className="h-5 w-5" />
-          </button>
+          <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={(e) => { e.stopPropagation(); zoomOutLightbox(); }}
+              disabled={lightboxZoom <= 1}
+              aria-label="Zoom out"
+            >
+              <Minus className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={(e) => { e.stopPropagation(); zoomInLightbox(); }}
+              disabled={lightboxZoom >= 3}
+              aria-label="Zoom in"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+            <button className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20" onClick={closeLightbox}>
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           <button className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-            onClick={(e) => { e.stopPropagation(); const prev = (activeThumb - 1 + images.length) % images.length; setActiveThumb(prev); setActiveImg(images[prev]); }}>
+            onClick={(e) => { e.stopPropagation(); const prev = (activeThumb - 1 + images.length) % images.length; setActiveThumb(prev); setActiveImg(images[prev]); setLightboxZoom(1); setLightboxPan({ x: 0, y: 0 }); }}>
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-            onClick={(e) => { e.stopPropagation(); const next = (activeThumb + 1) % images.length; setActiveThumb(next); setActiveImg(images[next]); }}>
+            onClick={(e) => { e.stopPropagation(); const next = (activeThumb + 1) % images.length; setActiveThumb(next); setActiveImg(images[next]); setLightboxZoom(1); setLightboxPan({ x: 0, y: 0 }); }}>
             <ChevronRight className="h-5 w-5" />
           </button>
-          <div className="relative h-[80vmin] w-[80vmin]" onClick={(e) => e.stopPropagation()}>
-            {activeImg && <Image src={activeImg} alt={product.name} fill className="object-contain" sizes="80vmin" />}
+          <div
+            className="relative flex h-[80vmin] w-[80vmin] items-center justify-center overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            onMouseMove={(e) => {
+              e.stopPropagation();
+              moveLightboxDrag(e.clientX, e.clientY);
+            }}
+            onMouseUp={stopLightboxDrag}
+            onMouseLeave={stopLightboxDrag}
+            onTouchMove={(e) => {
+              e.stopPropagation();
+              const touch = e.touches[0];
+              if (!touch) return;
+              moveLightboxDrag(touch.clientX, touch.clientY);
+            }}
+            onTouchEnd={stopLightboxDrag}
+          >
+            {activeImg && (
+              <div
+                className="relative h-full w-full transition-transform duration-200"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  startLightboxDrag(e.clientX, e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  const touch = e.touches[0];
+                  if (!touch) return;
+                  startLightboxDrag(touch.clientX, touch.clientY);
+                }}
+                style={{
+                  transform: `translate(${lightboxPan.x}%, ${lightboxPan.y}%) scale(${lightboxZoom})`,
+                  cursor: lightboxZoom > 1 ? (isDraggingLightbox ? "grabbing" : "grab") : "default",
+                }}
+              >
+                <Image src={activeImg} alt={product.name} fill className="object-contain" sizes="80vmin" />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -368,36 +483,39 @@ export default function ProductDetails() {
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
 
         {/* ── Breadcrumb ── */}
-        <nav className="mb-6 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <span className="cursor-pointer hover:text-foreground" onClick={() => router.push("/")}>Home</span>
           <ChevronRight className="h-3 w-3" />
           <span className="cursor-pointer hover:text-foreground" onClick={() => router.push("/ecommerce/products")}>Products</span>
           {product.category?.name && (
             <>
               <ChevronRight className="h-3 w-3" />
-              <span className="hover:text-foreground cursor-pointer">{product.category.name}</span>
+              <span className="cursor-pointer hover:text-foreground">{product.category.name}</span>
             </>
           )}
           <ChevronRight className="h-3 w-3" />
-          <span className="line-clamp-1 text-foreground font-medium">{product.name}</span>
+          <span className="min-w-0 line-clamp-1 text-foreground font-medium">{product.name}</span>
         </nav>
 
         {/* ── Main grid ── */}
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-12 xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-12 xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
 
           {/* ────── LEFT: Image Gallery ────── */}
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             {/* Main image */}
             <div
               ref={imgRef}
-              className="group relative aspect-square w-full cursor-zoom-in overflow-hidden bg-muted/30"
+              className="group relative aspect-square w-full max-w-full cursor-zoom-in overflow-hidden bg-muted/30"
               onMouseMove={(e) => {
                 const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
                 setZoomPos({ x: ((e.clientX - left) / width) * 100, y: ((e.clientY - top) / height) * 100 });
               }}
               onMouseEnter={() => setIsZooming(true)}
               onMouseLeave={() => setIsZooming(false)}
-              onClick={() => setLightbox(true)}
+              onClick={() => {
+                setLightboxZoom(1);
+                setLightbox(true);
+              }}
             >
               {savings && (
                 <div className="absolute left-0 top-4 z-10 bg-red-500 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow">
@@ -412,7 +530,7 @@ export default function ProductDetails() {
               <div className="absolute right-3 top-3 z-10 flex gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
+                  onClick={(e) => { e.stopPropagation(); setLightboxZoom(1); setLightbox(true); }}
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-background/90 backdrop-blur-sm shadow transition hover:scale-105"
                 >
                   <ZoomIn className="h-4 w-4" />
@@ -452,7 +570,7 @@ export default function ProductDetails() {
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <div className="flex w-full max-w-full gap-2 overflow-x-auto pb-1 scrollbar-none">
                 {images.map((src, i) => (
                   <button
                     key={src}
@@ -473,17 +591,17 @@ export default function ProductDetails() {
           </div>
 
           {/* ────── RIGHT: Product Info ────── */}
-          <div className="flex flex-col gap-5">
+          <div className="min-w-0 flex flex-col gap-5">
 
             {/* Title + wishlist */}
-            <div>
+            <div className="min-w-0">
               {product.category?.name && (
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
                   {product.category.name}
                 </p>
               )}
-              <div className="flex items-start justify-between gap-4">
-                <h1 className="text-2xl font-bold leading-tight text-foreground sm:text-3xl">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 sm:flex-nowrap">
+                <h1 className="min-w-0 flex-1 text-2xl font-bold leading-tight text-foreground sm:text-3xl">
                   {product.name}
                 </h1>
                 <div className="flex shrink-0 items-center gap-2">
@@ -582,7 +700,7 @@ export default function ProductDetails() {
             )}
 
             {/* Variant selector */}
-            {(product.variants?.length ?? 0) > 0 && (
+            {(product.variants?.length ?? 0) > 1 && (
               <div>
                 <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-foreground">
                   Select Variant
@@ -663,7 +781,7 @@ export default function ProductDetails() {
         {/* ── Tabs section ── */}
         <div className="mt-12">
           {/* Tab bar */}
-          <div className="flex border-b border-border overflow-x-auto scrollbar-none">
+          <div className="flex w-full max-w-full overflow-x-auto border-b border-border scrollbar-none">
             {(["desc", "spec", "reviews"] as const).map((t) => {
               const labels = { desc: "Description", spec: "Delivery & Policy", reviews: "Reviews" };
               return (
