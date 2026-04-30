@@ -861,10 +861,12 @@ body {
 .scrollbar-hide-on-idle {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
+  -ms-overflow-style: auto;
 }
 
 .scrollbar-hide-on-idle::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
   background: transparent;
 }
 
@@ -883,6 +885,10 @@ body {
 
 .scrollbar-hide-on-idle:hover::-webkit-scrollbar-track {
   background: hsl(var(--muted) / 0.1);
+}
+
+.scrollbar-hide-on-idle:hover {
+  scrollbar-color: hsl(var(--border)) hsl(var(--muted) / 0.1);
 }
 
 /* ========================

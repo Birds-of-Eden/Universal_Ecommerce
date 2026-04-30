@@ -638,7 +638,7 @@ export default function ProductDetails() {
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex w-full max-w-full gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <div className="scrollbar-hide-on-idle flex w-full max-w-full gap-2 overflow-x-auto pb-1">
                 {images.map((src, i) => (
                   <button
                     key={src}
@@ -864,7 +864,7 @@ export default function ProductDetails() {
         {/* ── Tabs section ── */}
         <div className="mt-12">
           {/* Tab bar */}
-          <div className="flex w-full max-w-full overflow-x-auto border-b border-border scrollbar-none">
+          <div className="scrollbar-hide-on-idle flex w-full max-w-full overflow-x-auto border-b border-border">
             {(["desc", "spec", "reviews"] as const).map((t) => {
               const labels = { desc: "Description", spec: "Delivery & Policy", reviews: "Reviews" };
               return (
