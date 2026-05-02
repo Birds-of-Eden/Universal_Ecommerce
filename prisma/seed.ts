@@ -57,6 +57,42 @@ const DEFAULT_SUPPLIER_CATEGORIES = [
   },
 ] as const;
 
+const DEFAULT_INVESTOR_PORTAL_USERS = [
+  {
+    code: "INV-PORTAL-001",
+    name: "Yousuf Shoes Capital",
+    email: "yousuf@z.shoes.com",
+    password: "yousuf123",
+    phone: "01710000001",
+    legalName: "Yousuf Shoes Capital",
+    bankName: "DBBL",
+    bankAccountName: "Yousuf Shoes Capital",
+    bankAccountNumber: "100000000001",
+  },
+  {
+    code: "INV-PORTAL-002",
+    name: "Mahin Shoes Capital",
+    email: "mahin@z.shoes.com",
+    password: "mahin123",
+    phone: "01710000002",
+    legalName: "Mahin Shoes Capital",
+    bankName: "Brac Bank",
+    bankAccountName: "Mahin Shoes Capital",
+    bankAccountNumber: "100000000002",
+  },
+  {
+    code: "INV-PORTAL-003",
+    name: "Salehin Shoes Capital",
+    email: "salehin@z.shoes.com",
+    password: "salehin123",
+    phone: "01710000003",
+    legalName: "Salehin Shoes Capital",
+    bankName: "City Bank",
+    bankAccountName: "Salehin Shoes Capital",
+    bankAccountNumber: "100000000003",
+  },
+] as const;
+
 async function ensurePermissionsAndRoles() {
   for (const permission of SYSTEM_PERMISSIONS) {
     await prisma.permission.upsert({
@@ -128,6 +164,130 @@ async function ensureDefaultSupplierCategories(createdById?: string | null) {
   }
 }
 
+async function ensureInvestorPortalUsers(createdById?: string | null) {
+  const investorPortalRole = await prisma.role.findUnique({
+    where: { name: "investor_portal" },
+    select: { id: true, name: true },
+  });
+
+  if (!investorPortalRole) {
+    throw new Error("Investor portal role not found during seed.");
+  }
+
+  for (const record of DEFAULT_INVESTOR_PORTAL_USERS) {
+    const passwordHash = await bcrypt.hash(record.password, 10);
+
+    const user = await prisma.user.upsert({
+      where: { email: record.email },
+      update: {
+        name: record.name,
+        role: "investor_portal",
+        phone: record.phone,
+        passwordHash,
+        emailVerified: new Date(),
+        banned: false,
+        banReason: null,
+        note: "Seeded investor portal user",
+      },
+      create: {
+        email: record.email,
+        name: record.name,
+        role: "investor_portal",
+        phone: record.phone,
+        passwordHash,
+        emailVerified: new Date(),
+        note: "Seeded investor portal user",
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
+    });
+
+    const existingAssignment = await prisma.userRole.findFirst({
+      where: {
+        userId: user.id,
+        roleId: investorPortalRole.id,
+        scopeType: "GLOBAL",
+      },
+      select: { id: true },
+    });
+
+    if (!existingAssignment) {
+      await prisma.userRole.create({
+        data: {
+          userId: user.id,
+          roleId: investorPortalRole.id,
+          scopeType: "GLOBAL",
+        },
+      });
+    }
+
+    const investor = await prisma.investor.upsert({
+      where: { code: record.code },
+      update: {
+        name: record.name,
+        legalName: record.legalName,
+        email: record.email,
+        phone: record.phone,
+        bankName: record.bankName,
+        bankAccountName: record.bankAccountName,
+        bankAccountNumber: record.bankAccountNumber,
+        status: "ACTIVE",
+        kycStatus: "VERIFIED",
+        kycVerifiedAt: new Date(),
+        beneficiaryVerifiedAt: new Date(),
+        beneficiaryVerifiedById: createdById ?? null,
+        beneficiaryVerificationNote: "Seeded verified beneficiary for investor portal access.",
+        createdById: createdById ?? undefined,
+        notes: "Seeded investor for investor portal access.",
+      },
+      create: {
+        code: record.code,
+        name: record.name,
+        legalName: record.legalName,
+        email: record.email,
+        phone: record.phone,
+        bankName: record.bankName,
+        bankAccountName: record.bankAccountName,
+        bankAccountNumber: record.bankAccountNumber,
+        status: "ACTIVE",
+        kycStatus: "VERIFIED",
+        kycVerifiedAt: new Date(),
+        beneficiaryVerifiedAt: new Date(),
+        beneficiaryVerifiedById: createdById ?? null,
+        beneficiaryVerificationNote: "Seeded verified beneficiary for investor portal access.",
+        createdById: createdById ?? null,
+        notes: "Seeded investor for investor portal access.",
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+      },
+    });
+
+    await prisma.investorPortalAccess.upsert({
+      where: { userId: user.id },
+      update: {
+        investorId: investor.id,
+        status: "ACTIVE",
+        note: "Seeded investor portal access",
+      },
+      create: {
+        userId: user.id,
+        investorId: investor.id,
+        status: "ACTIVE",
+        note: "Seeded investor portal access",
+        createdById: createdById ?? null,
+      },
+    });
+
+    console.log(`✅ Investor portal user ready: ${user.email} -> ${investor.code}`);
+  }
+}
+
 async function main() {
   const adminEmail = "admin@example.com";
   const adminPassword = "admin123"; // change in production
@@ -186,6 +346,8 @@ async function main() {
 
   await ensureDefaultSupplierCategories(admin?.id ?? null);
   console.log("✅ Default supplier categories ensured");
+  await ensureInvestorPortalUsers(admin?.id ?? null);
+  console.log("✅ Investor portal users ensured");
 }
 
 main()
