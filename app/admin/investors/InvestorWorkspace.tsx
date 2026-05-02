@@ -422,10 +422,11 @@ export default function InvestorWorkspace({
   const [processingPayout, setProcessingPayout] = useState(false);
   const [actingPayoutId, setActingPayoutId] = useState<number | null>(null);
   const [exportingStatement, setExportingStatement] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   useEffect(() => {
     const investorId = searchParams.get("investorId") || "";
-    const runId = searchParams.get("runId") || "";
+    const runIdParam = searchParams.get("runId");
     const status = searchParams.get("status") || "";
     const from = searchParams.get("from") || "";
     const to = searchParams.get("to") || "";
@@ -433,11 +434,19 @@ export default function InvestorWorkspace({
     if (investorId !== selectedInvestorId) {
       setSelectedInvestorId(investorId);
     }
-    if (runId !== selectedProfitRunId) {
-      setSelectedProfitRunId(runId);
+    if (
+      (section === "profit-runs" || section === "payouts") &&
+      runIdParam !== null &&
+      runIdParam !== selectedProfitRunId
+    ) {
+      setSelectedProfitRunId(runIdParam);
     }
-    if (section === "payouts" && runId !== payoutRunFilter) {
-      setPayoutRunFilter(runId);
+    if (
+      section === "payouts" &&
+      runIdParam !== null &&
+      runIdParam !== payoutRunFilter
+    ) {
+      setPayoutRunFilter(runIdParam);
     }
     if (section === "profit-runs" && status !== profitStatusFilter) {
       setProfitStatusFilter(status);
@@ -520,7 +529,9 @@ export default function InvestorWorkspace({
 
   const loadData = async () => {
     try {
-      setLoading(true);
+      if (!hasLoadedOnce) {
+        setLoading(true);
+      }
       const investorParam = selectedInvestorId
         ? `?investorId=${selectedInvestorId}`
         : "";
@@ -606,6 +617,7 @@ export default function InvestorWorkspace({
       toast.error(error?.message || "Failed to load investor workspace");
     } finally {
       setLoading(false);
+      setHasLoadedOnce(true);
     }
   };
 
@@ -1108,7 +1120,7 @@ export default function InvestorWorkspace({
             Active view: {sectionTitleMap[section]}.
           </span>
         </p>
-        {loading ? (
+        {loading && !hasLoadedOnce ? (
           <p className="text-xs text-muted-foreground">
             Refreshing investor data...
           </p>
