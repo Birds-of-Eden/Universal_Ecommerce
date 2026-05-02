@@ -29,6 +29,10 @@ function guessContentType(ext: string) {
       return "image/webp";
     case ".gif":
       return "image/gif";
+    case ".avif":
+      return "image/avif";
+    case ".svg":
+      return "image/svg+xml";
     case ".pdf":
       return "application/pdf";
     default:

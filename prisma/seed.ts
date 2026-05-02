@@ -1,6 +1,9 @@
 import { PrismaClient } from "../generated/prisma";
 import bcrypt from "bcrypt";
-import { SYSTEM_PERMISSIONS, SYSTEM_ROLE_DEFINITIONS } from "../lib/rbac-config";
+import {
+  SYSTEM_PERMISSIONS,
+  SYSTEM_ROLE_DEFINITIONS,
+} from "../lib/rbac-config";
 
 const prisma = new PrismaClient();
 
@@ -8,52 +11,62 @@ const DEFAULT_SUPPLIER_CATEGORIES = [
   {
     code: "APPAREL",
     name: "Apparel",
-    description: "Garments, uniforms, fabric items, and stitched textile supply.",
+    description:
+      "Garments, uniforms, fabric items, and stitched textile supply.",
   },
   {
     code: "PACKAGING",
     name: "Packaging",
-    description: "Cartons, polybags, labels, wraps, and related packaging materials.",
+    description:
+      "Cartons, polybags, labels, wraps, and related packaging materials.",
   },
   {
     code: "ELECTRICAL",
     name: "Electrical",
-    description: "Electrical goods, wiring items, fittings, and related maintenance supply.",
+    description:
+      "Electrical goods, wiring items, fittings, and related maintenance supply.",
   },
   {
     code: "IT_EQUIPMENT",
     name: "IT Equipment",
-    description: "Computers, networking devices, peripherals, and technology equipment.",
+    description:
+      "Computers, networking devices, peripherals, and technology equipment.",
   },
   {
     code: "OFFICE_SUPPLIES",
     name: "Office Supplies",
-    description: "Stationery, print consumables, filing, and day-to-day office materials.",
+    description:
+      "Stationery, print consumables, filing, and day-to-day office materials.",
   },
   {
     code: "FURNITURE",
     name: "Furniture",
-    description: "Office furniture, fixtures, storage, and workspace setup items.",
+    description:
+      "Office furniture, fixtures, storage, and workspace setup items.",
   },
   {
     code: "PRINTING",
     name: "Printing",
-    description: "Printed materials, branding collateral, forms, and publication services.",
+    description:
+      "Printed materials, branding collateral, forms, and publication services.",
   },
   {
     code: "LOGISTICS_SERVICES",
     name: "Logistics Services",
-    description: "Transport, courier, forwarding, and other delivery-related services.",
+    description:
+      "Transport, courier, forwarding, and other delivery-related services.",
   },
   {
     code: "FACILITY_MAINTENANCE",
     name: "Facility Maintenance",
-    description: "Repair, cleaning, maintenance, and facility support services.",
+    description:
+      "Repair, cleaning, maintenance, and facility support services.",
   },
   {
     code: "GENERAL_SERVICES",
     name: "General Services",
-    description: "Professional or operational services not covered by a specific supply category.",
+    description:
+      "Professional or operational services not covered by a specific supply category.",
   },
 ] as const;
 
@@ -239,7 +252,8 @@ async function ensureInvestorPortalUsers(createdById?: string | null) {
         kycVerifiedAt: new Date(),
         beneficiaryVerifiedAt: new Date(),
         beneficiaryVerifiedById: createdById ?? null,
-        beneficiaryVerificationNote: "Seeded verified beneficiary for investor portal access.",
+        beneficiaryVerificationNote:
+          "Seeded verified beneficiary for investor portal access.",
         createdById: createdById ?? undefined,
         notes: "Seeded investor for investor portal access.",
       },
@@ -257,7 +271,8 @@ async function ensureInvestorPortalUsers(createdById?: string | null) {
         kycVerifiedAt: new Date(),
         beneficiaryVerifiedAt: new Date(),
         beneficiaryVerifiedById: createdById ?? null,
-        beneficiaryVerificationNote: "Seeded verified beneficiary for investor portal access.",
+        beneficiaryVerificationNote:
+          "Seeded verified beneficiary for investor portal access.",
         createdById: createdById ?? null,
         notes: "Seeded investor for investor portal access.",
       },
@@ -284,46 +299,80 @@ async function ensureInvestorPortalUsers(createdById?: string | null) {
       },
     });
 
-    console.log(`✅ Investor portal user ready: ${user.email} -> ${investor.code}`);
+    console.log(
+      `✅ Investor portal user ready: ${user.email} -> ${investor.code}`,
+    );
   }
 }
 
 async function main() {
   const adminEmail = "admin@example.com";
-  const adminPassword = "admin123"; // change in production
+  const adminPassword = "admin123";
 
   await ensurePermissionsAndRoles();
 
-  const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
-  let admin = existingAdmin;
-
-  if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
-    admin = await prisma.user.create({
-      data: {
-        email: adminEmail,
-        name: "Super Admin",
-        role: "admin",
-        passwordHash: hashedPassword,
-        emailVerified: new Date(),
-      },
-    });
-    console.log("✅ Admin created successfully");
-    console.log({
-      email: admin.email,
-      password: adminPassword,
-    });
-  } else {
-    console.log("✅ Admin already exists");
-  }
-
-  const superAdminRole = await prisma.role.findUnique({
-    where: { name: "superadmin" },
-    select: { id: true },
+  // Create admin user
+  const hashedAdminPassword = await bcrypt.hash(adminPassword, 10);
+  const admin = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {
+      name: "Admin User",
+      role: "admin",
+      passwordHash: hashedAdminPassword,
+      emailVerified: new Date(),
+      banned: null,
+      banReason: null,
+      banExpires: null,
+      note: null,
+    },
+    create: {
+      email: adminEmail,
+      name: "Admin User",
+      role: "admin",
+      passwordHash: hashedAdminPassword,
+      emailVerified: new Date(),
+      banned: null,
+      banReason: null,
+      banExpires: null,
+      note: null,
+    },
   });
 
-  if (admin && superAdminRole) {
-    const existingAssignment = await prisma.userRole.findFirst({
+  console.log("✅ Admin user ensured:", {
+    id: admin.id,
+    email: admin.email,
+    password: adminPassword,
+    role: admin.role,
+  });
+
+  await ensureDefaultSupplierCategories(admin?.id ?? null);
+  console.log("✅ Default supplier categories ensured");
+
+  const investorPortalUsers = [
+    {
+      email: "yousuf@z.shoes.com",
+      name: "Yousuf",
+      phone: null,
+      password: "yousuf123",
+    },
+    {
+      email: "mahin@z.shoes.com",
+      name: "Mahin",
+      phone: null,
+      password: "mahin123",
+    },
+    {
+      email: "salehin@z.shoes.com",
+      name: "Salehin",
+      phone: null,
+      password: "salehin123",
+    },
+  ];
+
+  for (const investorUser of investorPortalUsers) {
+    const hashedPassword = await bcrypt.hash(investorUser.password, 10);
+
+    const user = await prisma.user.upsert({
       where: {
         userId: admin.id,
         roleId: superAdminRole.id,

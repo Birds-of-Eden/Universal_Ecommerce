@@ -636,7 +636,7 @@ export default function Header({
   return (
     <header className="sticky top-0 z-50">
       <div className="bg-primary text-primary-foreground border-b border-border">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-2 py-2 md:px-4 md:py-4">
           {/* ✅ Desktop: single line header */}
           <div className="hidden md:flex flex-wrap items-center gap-4">
             {/* Left */}
@@ -887,8 +887,8 @@ export default function Header({
 
           {/* ✅ Mobile header (same as before) */}
           <div className="flex md:hidden items-center justify-between gap-3">
-            <Link href="/" className="flex items-center gap-3 min-w-0">
-              <div className="relative h-12 w-12 rounded-2xl overflow-hidden border border-border bg-background/10 shrink-0">
+            <Link href="/" className="flex items-center gap-2 min-w-0">
+              <div className="relative h-10 w-10 rounded-2xl overflow-hidden border border-border bg-background/10 shrink-0">
                 <Image
                   src={siteSettings.logo || "/assets/examplelogo.jpg"}
                   alt="Logo"
@@ -896,7 +896,7 @@ export default function Header({
                   className="object-contain 2xl"
                 />
               </div>
-              <div className="text-md sm:text-3xl tracking-wider truncate">
+              <div className="text-sm sm:text-xl tracking-wider truncate">
                 {siteSettings.siteTitle || "BOED ECOMMERCE"}
               </div>
             </Link>
@@ -906,7 +906,7 @@ export default function Header({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="rounded-lg bg-muted hover:bg-accent text-foreground h-10 w-10 flex items-center justify-center border border-border"
+                      className="rounded-lg bg-muted hover:bg-accent text-foreground h-9 w-9 flex items-center justify-center border border-border"
                       title="Select theme"
                     >
                       {darkLikeActiveTheme ? (
@@ -935,7 +935,7 @@ export default function Header({
 
               <Link
                 href="/ecommerce/cart"
-                className="relative h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
+                className="relative h-9 w-9 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
               >
                 <ShoppingCart className="h-5 w-5" />
                 {hasMounted && cartCount > 0 && (
@@ -947,7 +947,7 @@ export default function Header({
 
               <Link
                 href="/ecommerce/wishlist"
-                className="relative h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
+                className="relative h-9 w-9 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
               >
                 <Heart className="h-5 w-5" />
                 {hasMounted && wishlistCount > 0 && (
@@ -960,7 +960,7 @@ export default function Header({
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(true)}
-                className="h-10 w-10 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
+                className="h-9 w-9 rounded-lg bg-muted text-foreground border border-border flex items-center justify-center transition-colors hover:bg-accent"
                 aria-label="Open menu"
               >
                 <span className="text-xl leading-none">☰</span>

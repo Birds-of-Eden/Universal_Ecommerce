@@ -1,0 +1,20 @@
+
+> e-commerce@0.1.0 dev
+> next dev --turbopack --hostname 127.0.0.1 --port 3000
+
+   ▲ Next.js 15.5.12 (Turbopack)
+   - Local:        http://127.0.0.1:3000
+   - Network:      http://127.0.0.1:3000
+   - Environments: .env
+
+ ✓ Starting...
+Creating turbopack project { dir: 'D:\\Office Projects\\Universal_Ecommerce', testMode: true }
+ ✓ Compiled middleware in 153ms
+ ✓ Ready in 2.2s
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 2.5s
+ GET /api/auth/session 200 in 4057ms
+ GET /api/auth/session 200 in 461ms
+ GET /api/auth/session 200 in 494ms
+ GET /api/auth/session 200 in 573ms
+ ✓ Compiled middleware in 6ms

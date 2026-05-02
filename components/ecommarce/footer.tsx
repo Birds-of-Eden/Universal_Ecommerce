@@ -347,65 +347,72 @@ export default function Footer({
           </div>
 
           {/* Links Columns */}
-          <div className="lg:col-span-6 grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className={`lg:col-span-6 grid gap-6 ${categories.length > 0 ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2'}`}>
             {/* Quick Links */}
-            <div>
-              <h3 className="text-sm font-semibold text-foreground mb-4">
+            <div className="relative">
+              <div className="absolute -left-3 top-0 w-1 h-6 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
+              <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                 Quick Links
               </h3>
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {quickLinks.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 group transition-all duration-300"
+                      className="text-sm text-muted-foreground hover:text-foreground hover:pl-2 flex items-center gap-2 group transition-all duration-300 relative"
                     >
-                      <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -ml-4 group-hover:ml-0 transition-all" />
-                      {link.label}
+                      <span className="absolute left-0 w-0 h-px bg-primary group-hover:w-4 transition-all duration-300" />
+                      <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                      <span className="group-hover:font-medium">{link.label}</span>
                     </Link>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* ✅ Categories (from /api/categories) */}
-            <div>
-              <h3 className="text-sm font-semibold text-foreground mb-4">
-                Categories
-              </h3>
-              <ul className="space-y-2">
-                {categories.length === 0 ? (
-                  <li className="text-sm text-muted-foreground">Loading...</li>
-                ) : (
-                  categories.slice(0, 10).map((link) => (
+            {/* ✅ Categories (from /api/categories) - Only show if categories exist */}
+            {categories.length > 0 && (
+              <div className="relative">
+                <div className="absolute -left-3 top-0 w-1 h-6 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
+                <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  Categories
+                </h3>
+                <ul className="space-y-1.5">
+                  {categories.slice(0, 10).map((link) => (
                     <li key={link.href}>
                       <Link
                         href={link.href}
-                        className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 group transition-all duration-300"
+                        className="text-sm text-muted-foreground hover:text-foreground hover:pl-2 flex items-center gap-2 group transition-all duration-300 relative"
                       >
-                        <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -ml-4 group-hover:ml-0 transition-all" />
-                        {link.label}
+                        <span className="absolute left-0 w-0 h-px bg-primary group-hover:w-4 transition-all duration-300" />
+                        <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                        <span className="group-hover:font-medium">{link.label}</span>
                       </Link>
                     </li>
-                  ))
-                )}
-              </ul>
-            </div>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Customer Service */}
-            <div>
-              <h3 className="text-sm font-semibold text-foreground mb-4">
+            <div className="relative">
+              <div className="absolute -left-3 top-0 w-1 h-6 bg-gradient-to-b from-primary to-primary/50 rounded-full" />
+              <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                 Customer Service
               </h3>
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {customerService.map((link) => (
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 group transition-all duration-300"
+                      className="text-sm text-muted-foreground hover:text-foreground hover:pl-2 flex items-center gap-2 group transition-all duration-300 relative"
                     >
-                      <link.icon className="h-3 w-3" />
-                      {link.label}
+                      <span className="absolute left-0 w-0 h-px bg-primary group-hover:w-4 transition-all duration-300" />
+                      <link.icon className="h-3.5 w-3.5 text-primary/70 group-hover:text-primary transition-colors duration-300" />
+                      <span className="group-hover:font-medium">{link.label}</span>
                     </Link>
                   </li>
                 ))}

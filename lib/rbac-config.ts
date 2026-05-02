@@ -89,6 +89,10 @@ export const SYSTEM_PERMISSIONS = [
     description: "Read admin activity logs based on allowed scope.",
   },
   {
+    key: "gallery.manage",
+    description: "Manage gallery images and media assets.",
+  },
+  {
     key: "chats.manage",
     description: "Read/respond/assign/close all support chats.",
   },
@@ -817,6 +821,7 @@ export const SYSTEM_ROLE_DEFINITIONS: Array<{
       "blogs.manage",
       "newsletter.manage",
       "settings.banner.manage",
+      "gallery.manage",
       "profile.manage",
     ],
   },

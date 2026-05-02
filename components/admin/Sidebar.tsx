@@ -726,6 +726,11 @@ const menuItems: MenuItem[] = [
         requiredPermissions: ["settings.manage"],
       },
       {
+        name: "Gallery Management",
+        href: "/admin/settings/gallery",
+        requiredPermissions: ["settings.manage", "gallery.manage"],
+      },
+      {
         name: "RBAC",
         href: "/admin/settings/rbac",
         requiredPermissions: ["roles.manage"],

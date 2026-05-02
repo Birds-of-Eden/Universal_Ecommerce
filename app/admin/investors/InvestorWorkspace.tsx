@@ -32,9 +32,9 @@ type Investor = {
   status: string;
   kycStatus: string;
   totals: {
-    credit: string;
-    debit: string;
-    balance: string;
+    credit: number;
+    debit: number;
+    balance: number;
   };
 };
 
@@ -597,7 +597,15 @@ export default function InvestorWorkspace({
         );
       }
 
-      setInvestors(investorData);
+      const processedInvestors = investorData.map(investor => ({
+        ...investor,
+        totals: {
+          credit: Number(investor.totals.credit),
+          debit: Number(investor.totals.debit),
+          balance: Number(investor.totals.balance),
+        },
+      }));
+      setInvestors(processedInvestors);
       setVariants(txData.variants || []);
       setTransactions(txData.transactions || []);
       setAllocations(allocationData || []);
