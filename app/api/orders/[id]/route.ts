@@ -47,6 +47,7 @@ export async function GET(
               select: {
                 id: true,
                 sku: true,
+                colorImage: true,
                 options: true,
               },
             },

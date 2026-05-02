@@ -8,6 +8,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  getVariantMediaMeta,
+  normalizeVariantMediaMeta,
+} from "@/lib/product-variants";
 import TinymceEditor from "../tinymceEditor";
 
 type ProductType = "PHYSICAL" | "DIGITAL" | "SERVICE";
@@ -66,6 +70,7 @@ interface VariantRowForm {
   optionSummary: string;
   options: Record<string, any>;
   colorImage?: string;
+  gallery: string[];
   sku: string;
   price: string;
   costPrice: string;
@@ -128,6 +133,27 @@ const stripVariantMeta = (options: Record<string, any>) =>
   Object.fromEntries(
     Object.entries(options ?? {}).filter(([key]) => key !== "__meta"),
   );
+const buildVariantOptionsPayload = (row: VariantRowForm) => {
+  const baseOptions = stripVariantMeta(row.options);
+  const mediaMeta = normalizeVariantMediaMeta({
+    image: row.colorImage,
+    gallery: row.gallery,
+  });
+
+  return mediaMeta ? { ...baseOptions, __meta: mediaMeta } : baseOptions;
+};
+
+const getColorValueFromOptions = (
+  options: Record<string, any>,
+  colorOptionName?: string | null,
+) => {
+  const colorKey =
+    colorOptionName && options?.[colorOptionName] !== undefined
+      ? colorOptionName
+      : Object.keys(options ?? {}).find((key) => isColorOptionName(key));
+  const value = colorKey ? options?.[colorKey] : "";
+  return typeof value === "string" ? clean(value) : "";
+};
 
 function buildVariantKey(optionNames: string[], options: Record<string, string>) {
   return optionNames.map((name) => `${name}:${options[name] ?? ""}`).join("|");
@@ -283,25 +309,30 @@ export default function ProductAddModal({
 
     const variants = Array.isArray(editing.variants) ? editing.variants : [];
     const seededColorImages: Record<string, string> = {};
+    const seededColorGalleries: Record<string, string[]> = {};
     variants.forEach((variant: any) => {
       const options =
         variant?.options && typeof variant.options === "object"
           ? (variant.options as Record<string, unknown>)
           : {};
-      const meta = (options as any)?.__meta;
+      const meta = getVariantMediaMeta(options);
       const image =
         typeof variant?.colorImage === "string" && variant.colorImage.trim()
           ? variant.colorImage.trim()
           : typeof meta?.image === "string"
-            ? meta.image.trim()
+            ? meta.image
             : "";
-      if (!image) return;
       const colorKey = Object.keys(options).find((key) => isColorOptionName(key));
       const colorValueRaw = colorKey ? options[colorKey] : null;
       const colorValue =
         typeof colorValueRaw === "string" ? colorValueRaw.trim() : "";
       if (!colorValue) return;
-      if (!seededColorImages[colorValue]) seededColorImages[colorValue] = image;
+      if (image && !seededColorImages[colorValue]) seededColorImages[colorValue] = image;
+      if (Array.isArray(meta?.gallery) && meta.gallery.length > 0) {
+        seededColorGalleries[colorValue] = Array.from(
+          new Set([...(seededColorGalleries[colorValue] ?? []), ...meta.gallery]),
+        );
+      }
     });
     setColorVariantImages(seededColorImages);
     const optionForms = inferOptionForms(editing, variants);
@@ -324,6 +355,8 @@ export default function ProductAddModal({
           variant?.options && typeof variant.options === "object"
             ? stripVariantMeta(variant.options)
             : {};
+        const meta = getVariantMediaMeta(variant?.options);
+        const colorValue = getColorValueFromOptions(options);
         return {
           id: variant?.id ? Number(variant.id) : undefined,
           key: isVariantProduct ? buildVariantKey(optionNameOrder, options) : `simple-${variant.id ?? index}`,
@@ -333,6 +366,10 @@ export default function ProductAddModal({
             typeof variant?.colorImage === "string" && variant.colorImage.trim()
               ? variant.colorImage.trim()
               : "",
+          gallery:
+            colorValue && seededColorGalleries[colorValue]
+              ? seededColorGalleries[colorValue]
+              : meta?.gallery ?? [],
           sku: String(variant?.sku || ""),
           price: String(variant?.price ?? ""),
           costPrice: variant?.costPrice != null ? String(variant.costPrice) : "",
@@ -437,9 +474,16 @@ export default function ProductAddModal({
 
     setVariantRows((prev) => {
       const previousByKey = new Map(prev.map((row) => [row.key, row]));
+      const previousGalleryByColor = new Map<string, string[]>();
+      prev.forEach((row) => {
+        const colorValue = getColorValueFromOptions(row.options, colorOptionName);
+        if (!colorValue || previousGalleryByColor.has(colorValue)) return;
+        if (row.gallery.length > 0) previousGalleryByColor.set(colorValue, row.gallery);
+      });
       return generatedCombinations.map((combination) => {
         const key = buildVariantKey(optionNames, combination);
         const previous = previousByKey.get(key);
+        const colorValue = getColorValueFromOptions(combination, colorOptionName);
         return {
           id: previous?.id,
           key,
@@ -451,8 +495,12 @@ export default function ProductAddModal({
             colorVariantImages[clean(String(combination[colorOptionName]))]
               ? colorVariantImages[clean(String(combination[colorOptionName]))]
               : previous?.colorImage ?? "",
-          sku: previous?.sku ?? "",
-          price: previous?.price ?? "",
+          gallery:
+            colorValue && previousGalleryByColor.has(colorValue)
+              ? previousGalleryByColor.get(colorValue) ?? []
+              : previous?.gallery ?? [],
+          sku: form.sku.trim().toUpperCase() || previous?.sku || "",
+          price: previous?.price ?? form.basePrice ?? "",
           costPrice: previous?.costPrice ?? form.baseCostPrice ?? "",
           stock: previous?.stock ?? "0",
           lowStockThreshold: previous?.lowStockThreshold ?? form.lowStockThreshold ?? "10",
@@ -465,6 +513,8 @@ export default function ProductAddModal({
     colorVariantImages,
     form.baseCostPrice,
     form.lowStockThreshold,
+    form.basePrice,
+    form.sku,
     generatedCombinations,
     hasVariants,
     optionNames,
@@ -519,6 +569,55 @@ export default function ProductAddModal({
     setForm((prev) => ({ ...prev, gallery: prev.gallery.filter((_, i) => i !== index) }));
   };
 
+  const syncVariantGalleryByColor = (rowIndex: number, gallery: string[]) => {
+    setVariantRows((prev) => {
+      const sourceRow = prev[rowIndex];
+      if (!sourceRow) return prev;
+      const colorValue = getColorValueFromOptions(sourceRow.options, colorOptionName);
+      if (!colorValue) {
+        return prev.map((row, currentIndex) =>
+          currentIndex === rowIndex ? { ...row, gallery } : row,
+        );
+      }
+
+      return prev.map((row) =>
+        getColorValueFromOptions(row.options, colorOptionName) === colorValue
+          ? { ...row, gallery }
+          : row,
+      );
+    });
+  };
+
+  const handleVariantGalleryUpload = async (
+    index: number,
+    e: ChangeEvent<HTMLInputElement>,
+  ) => {
+    if (!e.target.files?.length) return;
+
+    try {
+      const urls = await Promise.all(
+        Array.from(e.target.files).map((file) =>
+          uploadFile(file, "products/variants/gallery"),
+        ),
+      );
+      syncVariantGalleryByColor(
+        index,
+        Array.from(new Set([...(variantRows[index]?.gallery ?? []), ...urls])),
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Variant gallery upload failed");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const removeVariantGalleryImage = (rowIndex: number, imageIndex: number) => {
+    const nextGallery = (variantRows[rowIndex]?.gallery ?? []).filter(
+      (_, currentIndex) => currentIndex !== imageIndex,
+    );
+    syncVariantGalleryByColor(rowIndex, nextGallery);
+  };
+
   const updateVariantOption = (index: number, patch: Partial<VariantOptionForm>) => {
     setVariantOptions((prev) =>
       prev.map((option, optionIndex) => (optionIndex === index ? { ...option, ...patch } : option)),
@@ -563,6 +662,24 @@ export default function ProductAddModal({
     );
   };
 
+  const handleProductSkuChange = (value: string) => {
+    const sku = value.toUpperCase();
+    setForm((prev) => ({ ...prev, sku }));
+    setVariantRows((prev) => prev.map((row) => ({ ...row, sku })));
+  };
+
+  const handleBasePriceChange = (value: string) => {
+    const previousBasePrice = form.basePrice;
+    setForm((prev) => ({ ...prev, basePrice: value }));
+    setVariantRows((rows) =>
+      rows.map((row) =>
+        !row.price || row.price === previousBasePrice
+          ? { ...row, price: value }
+          : row,
+      ),
+    );
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -587,10 +704,16 @@ export default function ProductAddModal({
       toast.error("Base purchase price must be 0 or more");
       return;
     }
+    if (hasVariants && !form.sku.trim()) {
+      toast.error("Product SKU is required for variant combinations");
+      return;
+    }
 
     const normalizedVariants = variantRows.map((row) => ({
       id: row.id,
-      sku: row.sku.trim().toUpperCase(),
+      sku: hasVariants
+        ? form.sku.trim().toUpperCase()
+        : row.sku.trim().toUpperCase(),
       price: row.price.trim() ? Number(row.price) : basePrice,
       costPrice: row.costPrice.trim() ? Number(row.costPrice) : baseCostPrice,
       stock: row.stock.trim() ? Number(row.stock) : 0,
@@ -599,7 +722,8 @@ export default function ProductAddModal({
         : Number(form.lowStockThreshold || "10"),
       active: row.active,
       colorImage: row.colorImage?.trim() || null,
-      options: stripVariantMeta(row.options),
+      gallery: row.gallery,
+      options: buildVariantOptionsPayload(row),
     }));
 
     const invalidVariant = normalizedVariants.find(
@@ -760,13 +884,13 @@ export default function ProductAddModal({
               </div>
               <div>
                 <Label>Product SKU</Label>
-                <Input value={form.sku} onChange={(e) => setForm((prev) => ({ ...prev, sku: e.target.value.toUpperCase() }))} />
+                <Input value={form.sku} onChange={(e) => handleProductSkuChange(e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <Label>Base Sell Price *</Label>
-                <Input type="number" value={form.basePrice} onChange={(e) => setForm((prev) => ({ ...prev, basePrice: e.target.value }))} />
+                <Input type="number" value={form.basePrice} onChange={(e) => handleBasePriceChange(e.target.value)} />
               </div>
               <div>
                 <Label>Base Purchase Price</Label>
@@ -995,14 +1119,67 @@ export default function ProductAddModal({
                           </tr>
                         </thead>
                         <tbody>
-                          {variantRows.map((row, index) => (
+                          {variantRows.map((row, index) => {
+                            const rowColorValue = getColorValueFromOptions(row.options, colorOptionName);
+                            const isFirstGalleryRowForColor =
+                              !rowColorValue ||
+                              variantRows.findIndex(
+                                (candidate) =>
+                                  getColorValueFromOptions(candidate.options, colorOptionName) === rowColorValue,
+                              ) === index;
+
+                            return (
                             <tr key={row.key} className="border-b">
                               <td className="px-2 py-3">
                                 <div className="font-medium">{row.optionSummary}</div>
                                 <div className="text-xs text-muted-foreground">Warehouse stock target: default warehouse</div>
+                                <div className="mt-3 space-y-2">
+                                  {isFirstGalleryRowForColor ? (
+                                    <div className="flex flex-wrap gap-2">
+                                      {row.gallery.map((img, imageIndex) => (
+                                        <div key={`${row.key}-gallery-${imageIndex}`} className="relative h-16 w-16 overflow-hidden rounded border border-border bg-muted/20">
+                                          <Image
+                                            src={img}
+                                            alt={`${row.optionSummary} gallery ${imageIndex + 1}`}
+                                            fill
+                                            className="object-cover"
+                                          />
+                                          <button
+                                            type="button"
+                                            className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-foreground shadow-sm transition hover:bg-destructive hover:text-destructive-foreground"
+                                            onClick={() => removeVariantGalleryImage(index, imageIndex)}
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                      <label className="inline-flex h-16 cursor-pointer items-center justify-center rounded border border-dashed border-border px-3 text-xs font-medium text-muted-foreground transition hover:border-primary hover:text-foreground">
+                                        Upload Gallery
+                                        <input
+                                          type="file"
+                                          multiple
+                                          accept="image/*"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            void handleVariantGalleryUpload(index, e);
+                                          }}
+                                        />
+                                      </label>
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                      Uses the same gallery as Color: {rowColorValue}.
+                                    </p>
+                                  )}
+                                  {isFirstGalleryRowForColor && row.gallery.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      One gallery will be used for all sizes in this color.
+                                    </p>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-2 py-3">
-                                <Input value={row.sku} placeholder={`SKU-${index + 1}`} onChange={(e) => updateVariantRow(index, { sku: e.target.value.toUpperCase() })} />
+                                <Input value={row.sku} placeholder="Product SKU" disabled />
                               </td>
                               <td className="px-2 py-3">
                                 <Input type="number" value={row.price} placeholder={form.basePrice || "Base price"} onChange={(e) => updateVariantRow(index, { price: e.target.value })} />
@@ -1027,7 +1204,8 @@ export default function ProductAddModal({
                                 </label>
                               </td>
                             </tr>
-                          ))}
+                          );
+                          })}
                         </tbody>
                       </table>
                     </div>

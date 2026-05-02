@@ -370,7 +370,10 @@ function MobileCategoryTree({
         </div>
 
         {hasChildren && isOpen ? (
-          <div className="border-l border-border/60" style={{ marginLeft: padLeft + 18 }}>
+          <div
+            className="border-l border-border/60"
+            style={{ marginLeft: padLeft + 18 }}
+          >
             {node.children.map((child) => (
               <Row key={child.id} node={child} level={level + 1} />
             ))}
@@ -1077,6 +1080,18 @@ export default function Header({
                   </div>
                 )}
               </div>
+
+              <Link
+                href="/ecommerce/products"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background px-4 py-3 text-left shadow-sm hover:bg-accent transition"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="text-lg">⚡</span>
+                  <span className="text-sm font-bold">All Products</span>
+                </span>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </Link>
 
               {/* categories */}
               <div className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm">

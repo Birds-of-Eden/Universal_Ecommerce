@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { getVariantMediaMeta } from "@/lib/product-variants";
 
 type Variant = {
   id: number | string;
@@ -10,68 +12,23 @@ type Variant = {
   sku?: string | null;
   image?: string | null;
   colorImage?: string | null;
-  options?: Record<string, string> | null;
+  gallery?: string[] | null;
+  options?: Record<string, unknown> | null;
 };
 
 type VariantSelectorProps = {
   variants: Variant[];
   value?: Variant | null;
   onChange: (variant: Variant | null) => void;
+  onPreviewVariant?: (variant: Variant | null) => void;
 };
 
 function normalizeKey(key: string) {
   return key.trim().toLowerCase();
 }
 
-const HEX_COLOR_REGEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
-const CSS_COLOR_FUNCTION_REGEX = /^(?:rgb|rgba|hsl|hsla)\(/i;
-const COLOR_NAME_TO_HEX: Record<string, string> = {
-  black: "#262626",
-  white: "#f5f5f4",
-  gray: "#9ca3af",
-  grey: "#9ca3af",
-  silver: "#c0c0c0",
-  red: "#dc2626",
-  maroon: "#7f1d1d",
-  burgundy: "#6d1f2f",
-  blue: "#2563eb",
-  navy: "#1e3a8a",
-  sky: "#38bdf8",
-  green: "#16a34a",
-  olive: "#6b8e23",
-  mint: "#86efac",
-  yellow: "#eab308",
-  gold: "#b48a2c",
-  orange: "#f59e0b",
-  brown: "#8b5e3c",
-  coffee: "#6f4e37",
-  beige: "#d6c1a2",
-  cream: "#eee6d8",
-  tan: "#b08968",
-  pink: "#ec4899",
-  purple: "#7c3aed",
-};
-
 function isColorOptionKey(key: string) {
   return /colou?r/i.test(key);
-}
-
-function resolveSwatchColor(value: string) {
-  const normalizedValue = value.trim().toLowerCase();
-  if (!normalizedValue) return null;
-
-  if (
-    HEX_COLOR_REGEX.test(normalizedValue) ||
-    CSS_COLOR_FUNCTION_REGEX.test(normalizedValue)
-  ) {
-    return value.trim();
-  }
-
-  const matchedEntry = Object.entries(COLOR_NAME_TO_HEX).find(([token]) =>
-    normalizedValue.includes(token),
-  );
-
-  return matchedEntry?.[1] ?? "#9ca3af";
 }
 
 function toStockNumber(stock: number | null | undefined) {
@@ -83,27 +40,53 @@ function variantInStock(variant: Variant) {
   return toStockNumber(variant.stock) > 0;
 }
 
+function normalizeOptions(
+  options: Record<string, unknown> | null | undefined,
+): Record<string, string> {
+  if (!options || typeof options !== "object") return {};
+
+  return Object.fromEntries(
+    Object.entries(options)
+      .filter(
+        ([optionKey, optionValue]) =>
+          optionKey !== "__meta" &&
+          typeof optionValue === "string" &&
+          optionValue.trim(),
+      )
+      .map(([optionKey, optionValue]) => [
+        normalizeKey(optionKey),
+        optionValue.trim(),
+      ]),
+  );
+}
+
+function getVariantImage(variant: Variant | null | undefined) {
+  if (!variant) return "";
+  if (typeof variant.colorImage === "string" && variant.colorImage.trim()) {
+    return variant.colorImage.trim();
+  }
+  if (typeof variant.image === "string" && variant.image.trim()) {
+    return variant.image.trim();
+  }
+  if (Array.isArray(variant.gallery) && variant.gallery[0]) {
+    return variant.gallery[0];
+  }
+  const sourceOptions =
+    ((variant as any).originalOptions as Record<string, unknown> | undefined) ??
+    variant.options;
+  const media = getVariantMediaMeta(sourceOptions);
+  return media?.image ?? media?.gallery?.[0] ?? "";
+}
+
 export default function VariantSelector({
   variants,
   value,
   onChange,
+  onPreviewVariant,
 }: VariantSelectorProps) {
   const normalizedVariants = useMemo(() => {
     return variants.map((variant, index) => {
-      const options =
-        variant.options && typeof variant.options === "object"
-          ? Object.fromEntries(
-              Object.entries(variant.options)
-                .filter(
-                  ([, optionValue]) =>
-                    typeof optionValue === "string" && optionValue.trim(),
-                )
-                .map(([optionKey, optionValue]) => [
-                  normalizeKey(optionKey),
-                  optionValue.trim(),
-                ]),
-            )
-          : {};
+      const options = normalizeOptions(variant.options);
 
       return {
         ...variant,
@@ -145,7 +128,13 @@ export default function VariantSelector({
   }, [variants]);
 
   const optionKeys = useMemo(
-    () => Array.from(optionMeta.labelByKey.keys()),
+    () =>
+      Array.from(optionMeta.labelByKey.keys()).sort((a, b) => {
+        const aIsColor = isColorOptionKey(a);
+        const bIsColor = isColorOptionKey(b);
+        if (aIsColor === bIsColor) return 0;
+        return aIsColor ? -1 : 1;
+      }),
     [optionMeta.labelByKey],
   );
 
@@ -165,7 +154,7 @@ export default function VariantSelector({
       setSelectedOptions({});
       return;
     }
-    setSelectedOptions(value.options ?? {});
+    setSelectedOptions(normalizeOptions(value.options));
   }, [value]);
 
   const pickBestVariant = (selection: Record<string, string>) => {
@@ -184,6 +173,25 @@ export default function VariantSelector({
     return exactMatch ?? null;
   };
 
+  const findPreviewVariant = (selection: Record<string, string>) => {
+    return (
+      normalizedVariants.find((variant) =>
+        Object.entries(selection).every(
+          ([selectedKey, selectedValue]) =>
+            !selectedValue || variant.options?.[selectedKey] === selectedValue,
+        ),
+      ) ?? null
+    );
+  };
+
+  const getOptionValueImage = (optionKey: string, optionValue: string) => {
+    const imageVariant = normalizedVariants.find(
+      (variant) =>
+        variant.options?.[optionKey] === optionValue && getVariantImage(variant),
+    );
+    return getVariantImage(imageVariant);
+  };
+
   const handleChipSelect = (optionKey: string, optionValue: string) => {
     const nextSelection = {
       ...selectedOptions,
@@ -191,6 +199,7 @@ export default function VariantSelector({
     };
 
     setSelectedOptions(nextSelection);
+    onPreviewVariant?.(findPreviewVariant(nextSelection));
 
     const matchedVariant = pickBestVariant(nextSelection);
     onChange(matchedVariant);
@@ -198,6 +207,7 @@ export default function VariantSelector({
 
   const resetSelection = () => {
     setSelectedOptions({});
+    onPreviewVariant?.(null);
     onChange(null);
   };
 
@@ -214,7 +224,7 @@ export default function VariantSelector({
                 key={String(variant.id)}
                 type="button"
                 onClick={() => {
-                  setSelectedOptions(variant.options ?? {});
+                  setSelectedOptions(normalizeOptions(variant.options));
                   onChange(variant);
                 }}
                 className={cn(
@@ -254,7 +264,11 @@ export default function VariantSelector({
               <div className="flex flex-wrap gap-2">
                 {(optionMeta.valuesByKey.get(optionKey) ?? []).map(
                   (optionValue) => {
+                    const isColorOption = isColorOptionKey(optionKey);
                     const active = selectedOptions[optionKey] === optionValue;
+                    const optionImage = isColorOption
+                      ? getOptionValueImage(optionKey, optionValue)
+                      : "";
                     const matchesAny = normalizedVariants.some((variant) => {
                       if (!variantInStock(variant)) return false;
                       return Object.entries({
@@ -275,34 +289,47 @@ export default function VariantSelector({
                         disabled={!matchesAny}
                         onClick={() => handleChipSelect(optionKey, optionValue)}
                         className={cn(
-                          isColorOptionKey(optionKey)
-                            ? "inline-flex h-9 min-w-9 items-center justify-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                          isColorOption
+                            ? "group w-[92px] overflow-hidden rounded-md border bg-background text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                             : "rounded-md border px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                           active &&
-                            (isColorOptionKey(optionKey)
-                              ? "border-primary ring-2 ring-primary/30"
+                            (isColorOption
+                              ? "border-foreground ring-1 ring-foreground"
                               : "border-primary bg-primary text-primary-foreground"),
                           !active &&
                             matchesAny &&
-                            (isColorOptionKey(optionKey)
+                            (isColorOption
                               ? "border-border bg-background hover:border-primary/60"
                               : "border-border bg-background text-foreground hover:border-primary/60"),
                           !matchesAny &&
-                            (isColorOptionKey(optionKey)
+                            (isColorOption
                               ? "cursor-not-allowed border-border/40 bg-muted/30 opacity-50"
                               : "cursor-not-allowed border-border/40 bg-muted/30 text-muted-foreground opacity-50"),
                         )}
                         title={optionValue}
                         aria-label={`${optionMeta.labelByKey.get(optionKey) ?? optionKey}: ${optionValue}`}
                       >
-                        {isColorOptionKey(optionKey) ? (
-                          <span
-                            className="h-5 w-5 rounded-full border border-black/10"
-                            style={{
-                              backgroundColor:
-                                resolveSwatchColor(optionValue) ?? "#9ca3af",
-                            }}
-                          />
+                        {isColorOption ? (
+                          <>
+                            <span className="relative block aspect-square w-full bg-muted/30">
+                              {optionImage ? (
+                                <Image
+                                  src={optionImage}
+                                  alt={optionValue}
+                                  fill
+                                  className="object-cover transition group-hover:scale-105"
+                                  sizes="92px"
+                                />
+                              ) : (
+                                <span className="flex h-full items-center justify-center px-2 text-center text-[11px] font-medium text-muted-foreground">
+                                  {optionValue}
+                                </span>
+                              )}
+                            </span>
+                            <span className="block truncate px-2 py-1.5 text-[11px] font-medium text-foreground">
+                              {optionValue}
+                            </span>
+                          </>
                         ) : (
                           optionValue
                         )}
@@ -311,11 +338,6 @@ export default function VariantSelector({
                   },
                 )}
               </div>
-              {isColorOptionKey(optionKey) && selectedOptions[optionKey] && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Selected: {selectedOptions[optionKey]}
-                </p>
-              )}
             </div>
           ))}
         </div>

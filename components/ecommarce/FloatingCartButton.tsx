@@ -31,7 +31,7 @@ const BUTTON_WIDTH_MOBILE = 56;
 const BUTTON_HEIGHT_MOBILE = 54;
 const BUTTON_WIDTH_DESKTOP = 68;
 const BUTTON_HEIGHT_DESKTOP = 64;
-const EDGE_MARGIN = 12;
+const EDGE_MARGIN = 0;
 const DRAG_THRESHOLD = 6;
 
 type Position = {
@@ -476,10 +476,26 @@ export default function FloatingCartButton() {
   };
 
   // Helper function to get variant label
+  const sanitizeVariantLabel = (label: string | null | undefined) =>
+    String(label || "")
+      .split(",")
+      .map((part) => part.trim())
+      .filter(
+        (part) =>
+          part.length > 0 && !/^__meta\s*:/i.test(part) && part !== "[object Object]",
+      )
+      .join(", ");
+
   const getVariantLabel = (variant: any) => {
     if (!variant.options) return variant.sku || "";
     return Object.entries(variant.options)
-      .map(([key, value]) => `${value}`)
+      .filter(
+        ([key, value]) =>
+          key !== "__meta" &&
+          (typeof value === "string" || typeof value === "number") &&
+          String(value).trim(),
+      )
+      .map(([, value]) => `${value}`)
       .join(", ");
   };
 
@@ -605,12 +621,12 @@ export default function FloatingCartButton() {
                     >
                       <div className="grid grid-cols-[1fr_92px] gap-3 border-b p-3">
                         <div className="min-w-0">
-                          <div className="line-clamp-2 text-sm font-medium text-foreground">
+                          <div className="line-clamp-2 text-base font-medium text-foreground">
                             {item.name}
                           </div>
                           {item.variantLabel ? (
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {item.variantLabel}
+                            <div className="mt-1 text-sm text-muted-foreground">
+                              {sanitizeVariantLabel(item.variantLabel)}
                             </div>
                           ) : null}
                         </div>

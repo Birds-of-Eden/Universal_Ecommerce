@@ -50,7 +50,7 @@ export default function AddToCartButton({
       disabled={isDisabled}
       className={
         className ||
-        "h-11 px-6 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        "h-11 px-6 rounded-lg bg-transparent border border-primary hover:bg-primary text-primary hover:text-primary-foreground font-semibold hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
       }
     >
       {loading ? "Adding..." : isDisabled && disabled ? disabledText : children}

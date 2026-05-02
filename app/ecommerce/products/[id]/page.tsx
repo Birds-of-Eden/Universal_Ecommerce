@@ -25,6 +25,7 @@ import RelatedProducts from "@/components/ecommarce/RelatedProducts";
 import VariantSelector from "@/components/ecommarce/VariantSelector";
 import { useCart } from "@/components/ecommarce/CartContext";
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
+import { getVariantMediaMeta } from "@/lib/product-variants";
 import { Product, Variant } from "@/types/product";
 import { cn } from "@/lib/utils";
 
@@ -57,12 +58,40 @@ function getDefaultVariant(product: Product | null): Variant | null {
   if (!product?.variants?.length) return null;
   return (
     (product.variants as Variant[]).find(
+      (v: any) => v?.active !== false && v?.isDefault && toNumber(v?.stock) > 0
+    ) ??
+    (product.variants as Variant[]).find(
+      (v: any) => v?.active !== false && v?.isDefault
+    ) ??
+    (product.variants as Variant[]).find(
       (v: any) => v?.active !== false && toNumber(v?.stock) > 0
     ) ??
     (product.variants as Variant[]).find((v: any) => v?.active !== false) ??
+    (product.variants as Variant[]).find((v: any) => v?.isDefault) ??
     (product.variants[0] as Variant) ??
     null
   );
+}
+
+function normalizeImageList(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) =>
+          typeof value === "string" && value.trim() ? value.trim() : "",
+        )
+        .filter(Boolean),
+    ),
+  );
+}
+
+function getVariantGallery(variant: Variant | null | undefined) {
+  if (!variant) return [];
+  if (Array.isArray(variant.gallery) && variant.gallery.length > 0) {
+    return normalizeImageList(variant.gallery);
+  }
+
+  return getVariantMediaMeta(variant.options)?.gallery ?? [];
 }
 
 function getVariantDisplayImage(variant: Variant | null | undefined) {
@@ -72,6 +101,10 @@ function getVariantDisplayImage(variant: Variant | null | undefined) {
   }
   if (typeof variant.image === "string" && variant.image.trim()) {
     return variant.image.trim();
+  }
+  const [galleryImage] = getVariantGallery(variant);
+  if (galleryImage) {
+    return galleryImage;
   }
   return null;
 }
@@ -144,11 +177,17 @@ export default function ProductDetails() {
   const [activeThumb, setActiveThumb] = useState(0);
   const [tab, setTab] = useState<"desc" | "spec" | "reviews">("desc");
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [previewVariant, setPreviewVariant] = useState<Variant | null>(null);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const [isZooming, setIsZooming] = useState(false);
   const [lightbox, setLightbox] = useState(false);
+  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [lightboxPan, setLightboxPan] = useState({ x: 0, y: 0 });
   const [copied, setCopied] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
+  const lightboxDragStartRef = useRef({ x: 0, y: 0 });
+  const lightboxPanStartRef = useRef({ x: 0, y: 0 });
+  const [isDraggingLightbox, setIsDraggingLightbox] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("tab") === "reviews") setTab("reviews");
@@ -180,6 +219,7 @@ export default function ProductDetails() {
         setProduct(found);
         const iv = getDefaultVariant(found);
         setSelectedVariant(iv);
+        setPreviewVariant(iv);
         setActiveImg(
           getVariantDisplayImage(iv) ||
             found.image ||
@@ -197,14 +237,23 @@ export default function ProductDetails() {
   useEffect(() => {
     if (!product) return;
     if (selectedVariant && product.variants?.some((v) => String(v.id) === String(selectedVariant.id))) return;
-    setSelectedVariant(getDefaultVariant(product));
+    const nextVariant = getDefaultVariant(product);
+    setSelectedVariant(nextVariant);
+    setPreviewVariant(nextVariant);
   }, [product]);
 
+  const mediaVariant = selectedVariant ?? previewVariant;
+
   useEffect(() => {
-    const variantImage = getVariantDisplayImage(selectedVariant);
-    if (variantImage) { setActiveImg(variantImage); return; }
-    setActiveImg(product?.image || product?.gallery?.[0] || null);
-  }, [product, selectedVariant]);
+    const nextImages = normalizeImageList([
+      getVariantDisplayImage(mediaVariant),
+      ...getVariantGallery(mediaVariant),
+      product?.image,
+      ...(product?.gallery ?? []),
+    ]);
+    setActiveImg(nextImages[0] ?? null);
+    setActiveThumb(0);
+  }, [product, mediaVariant]);
 
   const related = useMemo(() => {
     if (!product) return [];
@@ -223,18 +272,29 @@ export default function ProductDetails() {
   }, [product, selectedVariant]);
 
   const images = useMemo(() => {
-    const list: string[] = [];
-    const selectedVariantImage = getVariantDisplayImage(selectedVariant);
-    if (selectedVariantImage) list.push(selectedVariantImage);
-    else if (product?.image) list.push(product.image);
-    (product?.variants ?? []).forEach((variant) => {
-      const variantImage = getVariantDisplayImage(variant);
-      if (variantImage && !list.includes(variantImage)) list.push(variantImage);
-    });
-    product?.gallery?.forEach((img) => { if (img && !list.includes(img)) list.push(img); });
-    if (product?.image && !list.includes(product.image)) list.unshift(product.image);
-    return list;
-  }, [product, selectedVariant]);
+    return normalizeImageList([
+      getVariantDisplayImage(mediaVariant),
+      ...getVariantGallery(mediaVariant),
+      product?.image,
+      ...(product?.gallery ?? []),
+    ]);
+  }, [product, mediaVariant]);
+
+  useEffect(() => {
+    if (images.length === 0) {
+      setActiveThumb(0);
+      if (activeImg !== null) setActiveImg(null);
+      return;
+    }
+
+    if (!activeImg || !images.includes(activeImg)) {
+      setActiveImg(images[0]);
+      setActiveThumb(0);
+      return;
+    }
+
+    setActiveThumb(images.indexOf(activeImg));
+  }, [activeImg, images]);
 
   /* copy share link */
   const handleShare = () => {
@@ -242,6 +302,60 @@ export default function ProductDetails() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const closeLightbox = () => {
+    setLightbox(false);
+    setLightboxZoom(1);
+    setLightboxPan({ x: 0, y: 0 });
+    setIsDraggingLightbox(false);
+  };
+
+  const zoomInLightbox = () => {
+    setLightboxZoom((prev) => Math.min(prev + 0.25, 3));
+  };
+
+  const zoomOutLightbox = () => {
+    setLightboxZoom((prev) => {
+      const next = Math.max(prev - 0.25, 1);
+      if (next === 1) {
+        setLightboxPan({ x: 0, y: 0 });
+      }
+      return next;
+    });
+  };
+
+  const clampLightboxPan = (x: number, y: number, zoom: number) => {
+    if (zoom <= 1) return { x: 0, y: 0 };
+    const maxOffset = ((zoom - 1) * 80) / 2;
+    return {
+      x: Math.max(-maxOffset, Math.min(maxOffset, x)),
+      y: Math.max(-maxOffset, Math.min(maxOffset, y)),
+    };
+  };
+
+  const startLightboxDrag = (clientX: number, clientY: number) => {
+    if (lightboxZoom <= 1) return;
+    lightboxDragStartRef.current = { x: clientX, y: clientY };
+    lightboxPanStartRef.current = lightboxPan;
+    setIsDraggingLightbox(true);
+  };
+
+  const moveLightboxDrag = (clientX: number, clientY: number) => {
+    if (!isDraggingLightbox || lightboxZoom <= 1) return;
+    const deltaX = ((clientX - lightboxDragStartRef.current.x) / window.innerWidth) * 100;
+    const deltaY = ((clientY - lightboxDragStartRef.current.y) / window.innerHeight) * 100;
+    setLightboxPan(
+      clampLightboxPan(
+        lightboxPanStartRef.current.x + deltaX,
+        lightboxPanStartRef.current.y + deltaY,
+        lightboxZoom,
+      ),
+    );
+  };
+
+  const stopLightboxDrag = () => {
+    setIsDraggingLightbox(false);
   };
 
   /* ── loading skeleton ── */
@@ -279,10 +393,19 @@ export default function ProductDetails() {
     </div>
   );
 
-  const displayPrice = selectedVariant ? toNumber(selectedVariant.price) : toNumber(product.basePrice);
+  const displayPrice = selectedVariant
+    ? toNumber(selectedVariant.price)
+    : toNumber(product.basePrice as any);
+
   const displayOriginalPrice = selectedVariant
-    ? (selectedVariant as any).originalPrice != null ? toNumber((selectedVariant as any).originalPrice) : null
-    : product.originalPrice != null ? toNumber(product.originalPrice) : null;
+    ? (selectedVariant as any).originalPrice != null
+      ? toNumber((selectedVariant as any).originalPrice)
+      : product.originalPrice != null
+        ? toNumber(product.originalPrice as any)
+        : null
+    : product.originalPrice != null
+      ? toNumber(product.originalPrice as any)
+      : null;
   const savings = saveText(displayPrice, displayOriginalPrice);
   const hasMultipleVariants = (product.variants?.length ?? 0) > 1;
   const selectionRequired = hasMultipleVariants && !selectedVariant;
@@ -291,27 +414,83 @@ export default function ProductDetails() {
   const inWishlist = isInWishlist(product.id);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
 
       {/* ── Lightbox ── */}
       {lightbox && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm"
-          onClick={() => setLightbox(false)}
+          onClick={closeLightbox}
         >
-          <button className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20" onClick={() => setLightbox(false)}>
-            <X className="h-5 w-5" />
-          </button>
+          <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={(e) => { e.stopPropagation(); zoomOutLightbox(); }}
+              disabled={lightboxZoom <= 1}
+              aria-label="Zoom out"
+            >
+              <Minus className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={(e) => { e.stopPropagation(); zoomInLightbox(); }}
+              disabled={lightboxZoom >= 3}
+              aria-label="Zoom in"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+            <button className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20" onClick={closeLightbox}>
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           <button className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-            onClick={(e) => { e.stopPropagation(); const prev = (activeThumb - 1 + images.length) % images.length; setActiveThumb(prev); setActiveImg(images[prev]); }}>
+            onClick={(e) => { e.stopPropagation(); const prev = (activeThumb - 1 + images.length) % images.length; setActiveThumb(prev); setActiveImg(images[prev]); setLightboxZoom(1); setLightboxPan({ x: 0, y: 0 }); }}>
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-            onClick={(e) => { e.stopPropagation(); const next = (activeThumb + 1) % images.length; setActiveThumb(next); setActiveImg(images[next]); }}>
+            onClick={(e) => { e.stopPropagation(); const next = (activeThumb + 1) % images.length; setActiveThumb(next); setActiveImg(images[next]); setLightboxZoom(1); setLightboxPan({ x: 0, y: 0 }); }}>
             <ChevronRight className="h-5 w-5" />
           </button>
-          <div className="relative h-[80vmin] w-[80vmin]" onClick={(e) => e.stopPropagation()}>
-            {activeImg && <Image src={activeImg} alt={product.name} fill className="object-contain" sizes="80vmin" />}
+          <div
+            className="relative flex h-[80vmin] w-[80vmin] items-center justify-center overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            onMouseMove={(e) => {
+              e.stopPropagation();
+              moveLightboxDrag(e.clientX, e.clientY);
+            }}
+            onMouseUp={stopLightboxDrag}
+            onMouseLeave={stopLightboxDrag}
+            onTouchMove={(e) => {
+              e.stopPropagation();
+              const touch = e.touches[0];
+              if (!touch) return;
+              moveLightboxDrag(touch.clientX, touch.clientY);
+            }}
+            onTouchEnd={stopLightboxDrag}
+          >
+            {activeImg && (
+              <div
+                className="relative h-full w-full transition-transform duration-200"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  startLightboxDrag(e.clientX, e.clientY);
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  const touch = e.touches[0];
+                  if (!touch) return;
+                  startLightboxDrag(touch.clientX, touch.clientY);
+                }}
+                style={{
+                  transform: `translate(${lightboxPan.x}%, ${lightboxPan.y}%) scale(${lightboxZoom})`,
+                  cursor: lightboxZoom > 1 ? (isDraggingLightbox ? "grabbing" : "grab") : "default",
+                }}
+              >
+                <Image src={activeImg} alt={product.name} fill className="object-contain" sizes="80vmin" />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -319,39 +498,95 @@ export default function ProductDetails() {
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
 
         {/* ── Breadcrumb ── */}
-        <nav className="mb-6 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
           <span className="cursor-pointer hover:text-foreground" onClick={() => router.push("/")}>Home</span>
           <ChevronRight className="h-3 w-3" />
           <span className="cursor-pointer hover:text-foreground" onClick={() => router.push("/ecommerce/products")}>Products</span>
           {product.category?.name && (
             <>
               <ChevronRight className="h-3 w-3" />
-              <span className="hover:text-foreground cursor-pointer">{product.category.name}</span>
+              <span className="cursor-pointer hover:text-foreground">{product.category.name}</span>
             </>
           )}
           <ChevronRight className="h-3 w-3" />
-          <span className="line-clamp-1 text-foreground font-medium">{product.name}</span>
+          <span className="min-w-0 line-clamp-1 text-foreground font-medium">{product.name}</span>
         </nav>
 
+        <div className="mb-5 lg:hidden">
+          {product.category?.name && (
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
+              {product.category.name}
+            </p>
+          )}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                {product.name}
+              </h1>
+              {Number(product.ratingCount ?? 0) > 0 && (
+                <div className="mt-2">
+                  <StarRow avg={Number(product.ratingAvg ?? 0)} count={Number(product.ratingCount ?? 0)} />
+                </div>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={async () => inWishlist ? await removeFromWishlist(product.id) : await addToWishlist(product.id)}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-full border transition",
+                  inWishlist
+                    ? "border-red-400 bg-red-50 text-red-500 dark:bg-red-950"
+                    : "border-border bg-background text-muted-foreground hover:border-foreground hover:text-foreground"
+                )}
+                aria-label="Wishlist"
+              >
+                <Heart className={cn("h-5 w-5", inWishlist && "fill-current")} />
+              </button>
+              <button
+                type="button"
+                onClick={handleShare}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition hover:border-foreground hover:text-foreground"
+                aria-label="Share"
+              >
+                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-baseline gap-1">
+            <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
+              {moneyBDT(displayPrice)}
+            </span>
+            {displayOriginalPrice && displayOriginalPrice > displayPrice && (
+              <span className="text-xs text-muted-foreground/70 line-through">
+                {moneyBDT(displayOriginalPrice)}
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* ── Main grid ── */}
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-12 xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-12 xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
 
           {/* ────── LEFT: Image Gallery ────── */}
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             {/* Main image */}
             <div
               ref={imgRef}
-              className="group relative aspect-square w-full cursor-zoom-in overflow-hidden bg-muted/30"
+              className="group relative aspect-square w-full max-w-full cursor-zoom-in overflow-hidden bg-muted/30"
               onMouseMove={(e) => {
                 const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
                 setZoomPos({ x: ((e.clientX - left) / width) * 100, y: ((e.clientY - top) / height) * 100 });
               }}
               onMouseEnter={() => setIsZooming(true)}
               onMouseLeave={() => setIsZooming(false)}
-              onClick={() => setLightbox(true)}
+              onClick={() => {
+                setLightboxZoom(1);
+                setLightbox(true);
+              }}
             >
               {savings && (
-                <div className="absolute left-0 top-4 z-10 bg-red-500 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow">
+                <div className="absolute right-0 top-4 z-10 bg-red-500 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow">
                   {savings.pct}% OFF
                 </div>
               )}
@@ -363,7 +598,7 @@ export default function ProductDetails() {
               <div className="absolute right-3 top-3 z-10 flex gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
+                  onClick={(e) => { e.stopPropagation(); setLightboxZoom(1); setLightbox(true); }}
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-background/90 backdrop-blur-sm shadow transition hover:scale-105"
                 >
                   <ZoomIn className="h-4 w-4" />
@@ -389,11 +624,11 @@ export default function ProductDetails() {
 
               {activeImg ? (
                 <div
-                  className="h-full w-full bg-center bg-no-repeat transition-[background-size] duration-150"
+                  className="h-full w-full bg-cover bg-no-repeat transition-[background-size] duration-150"
                   style={{
                     backgroundImage: `url(${activeImg})`,
                     backgroundPosition: isZooming ? `${zoomPos.x}% ${zoomPos.y}%` : "center",
-                    backgroundSize: isZooming ? "230%" : "contain",
+                    backgroundSize: isZooming ? "230%" : "cover",
                   }}
                 />
               ) : (
@@ -403,7 +638,7 @@ export default function ProductDetails() {
 
             {/* Thumbnails */}
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <div className="scrollbar-hide-on-idle flex w-full max-w-full gap-2 overflow-x-auto pb-1">
                 {images.map((src, i) => (
                   <button
                     key={src}
@@ -424,17 +659,17 @@ export default function ProductDetails() {
           </div>
 
           {/* ────── RIGHT: Product Info ────── */}
-          <div className="flex flex-col gap-5">
+          <div className="min-w-0 flex flex-col gap-5">
 
             {/* Title + wishlist */}
-            <div>
+            <div className="hidden min-w-0 lg:block">
               {product.category?.name && (
                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
                   {product.category.name}
                 </p>
               )}
-              <div className="flex items-start justify-between gap-4">
-                <h1 className="text-2xl font-bold leading-tight text-foreground sm:text-3xl">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-4 sm:flex-nowrap">
+                <h1 className="min-w-0 flex-1 text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-4xl">
                   {product.name}
                 </h1>
                 <div className="flex shrink-0 items-center gap-2">
@@ -471,19 +706,14 @@ export default function ProductDetails() {
             </div>
 
             {/* Price block */}
-            <div className="border-y border-border py-4">
-              <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            <div className="hidden border-y border-border/50 bg-gradient-to-r from-muted/30 to-transparent py-6 lg:block">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-[22px] font-bold tracking-tight text-primary sm:text-[28px]">
                   {moneyBDT(displayPrice)}
                 </span>
                 {displayOriginalPrice && displayOriginalPrice > displayPrice && (
-                  <span className="text-xl text-muted-foreground line-through">
+                  <span className="text-[13px] text-muted-foreground line-through sm:text-[14px]">
                     {moneyBDT(displayOriginalPrice)}
-                  </span>
-                )}
-                {savings && (
-                  <span className="rounded-sm bg-red-500 px-2 py-0.5 text-[12px] font-bold text-white">
-                    Save {savings.amount}
                   </span>
                 )}
               </div>
@@ -522,6 +752,45 @@ export default function ProductDetails() {
               </div>
             )}
 
+            {/* Variant selector */}
+            {(product.variants?.length ?? 0) > 1 && (
+              <div>
+                <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-foreground">
+                  Select Color / Variant
+                </p>
+                <VariantSelector
+                  variants={product.variants ?? []}
+                  value={selectedVariant}
+                  onPreviewVariant={(v) => setPreviewVariant(v as Variant | null)}
+                  onChange={(v) => {
+                    setSelectedVariant(v as Variant | null);
+                    if (v) setPreviewVariant(v as Variant);
+                  }}
+                />
+                {selectionRequired && (
+                  <p className="mt-2 text-[13px] font-medium text-amber-600">
+                    ⚠ Please select a variant to continue
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="lg:hidden">
+              {stock > 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400">
+                  <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                  In Stock {stock < 10 && `(Only ${stock} left)`}
+                </span>
+              ) : selectionRequired ? (
+                <span className="text-sm font-medium text-amber-600 dark:text-amber-400">Select a variant</span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-red-500">
+                  <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                  Out of Stock
+                </span>
+              )}
+            </div>
+
             {/* Short description */}
             {product.shortDesc && (
               <div
@@ -530,25 +799,6 @@ export default function ProductDetails() {
                   [&_p]:mb-2 [&_strong]:font-semibold [&_strong]:text-foreground"
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.shortDesc) }}
               />
-            )}
-
-            {/* Variant selector */}
-            {(product.variants?.length ?? 0) > 0 && (
-              <div>
-                <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-foreground">
-                  Select Variant
-                </p>
-                <VariantSelector
-                  variants={product.variants ?? []}
-                  value={selectedVariant}
-                  onChange={(v) => setSelectedVariant(v as Variant | null)}
-                />
-                {selectionRequired && (
-                  <p className="mt-2 text-[13px] font-medium text-amber-600">
-                    ⚠ Please select a variant to continue
-                  </p>
-                )}
-              </div>
             )}
 
             {/* Quantity + CTA */}
@@ -595,7 +845,7 @@ export default function ProductDetails() {
                     }
                     router.push("/ecommerce/checkout");
                   }}
-                  className="h-11 rounded-none bg-foreground font-semibold uppercase tracking-widest text-background text-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-11 rounded-lg bg-foreground font-semibold uppercase tracking-widest text-background text-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Buy Now
                 </button>
@@ -614,7 +864,7 @@ export default function ProductDetails() {
         {/* ── Tabs section ── */}
         <div className="mt-12">
           {/* Tab bar */}
-          <div className="flex border-b border-border overflow-x-auto scrollbar-none">
+          <div className="scrollbar-hide-on-idle flex w-full max-w-full overflow-x-auto border-b border-border">
             {(["desc", "spec", "reviews"] as const).map((t) => {
               const labels = { desc: "Description", spec: "Delivery & Policy", reviews: "Reviews" };
               return (
@@ -758,28 +1008,6 @@ export default function ProductDetails() {
             />
           </div>
         )}
-      </div>
-
-      {/* ── Mobile sticky CTA bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-2 border-t border-border bg-background/95 shadow-lg backdrop-blur-sm sm:hidden">
-        <AddToCartButton
-          productId={product.id}
-          variantId={selectedVariant?.id ?? null}
-          disabled={purchaseDisabled}
-        />
-        <button
-          type="button"
-          disabled={purchaseDisabled}
-          onClick={() => {
-            if (getQuantityByProductId(product.id, selectedVariant?.id ?? null) <= 0) {
-              addToCart(product.id, 1, selectedVariant?.id ?? null);
-            }
-            router.push("/ecommerce/checkout");
-          }}
-          className="h-14 bg-foreground font-bold uppercase tracking-widest text-background text-sm transition hover:opacity-90 disabled:opacity-40"
-        >
-          Add to Cart
-        </button>
       </div>
       {/* spacer for mobile sticky bar */}
       <div className="h-14 sm:hidden" />

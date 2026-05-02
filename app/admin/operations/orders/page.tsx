@@ -3,6 +3,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import Image from "next/image";
 import {
   AssignDeliveryManModal,
   type DeliveryManAssignmentOption,
@@ -12,6 +13,7 @@ import {
   AssignmentStatusBadge,
   ASSIGNMENT_STATUS_LABELS,
 } from "@/components/delivery/AssignmentStatusBadge";
+import { getVariantMediaMeta } from "@/lib/product-variants";
 
 type OrderStatusType =
   | "PENDING"
@@ -55,11 +57,14 @@ interface OrderItem {
   product?: {
     id: number;
     name: string;
+    image?: string | null;
+    gallery?: string[] | null;
   };
   variant?: {
     id: number;
     sku?: string | null;
-    options?: Record<string, string> | null;
+    colorImage?: string | null;
+    options?: Record<string, unknown> | null;
   } | null;
 }
 
@@ -473,6 +478,7 @@ const OrderManagement = () => {
             .filter(
               ([key, value]) =>
                 key &&
+                key !== "__meta" &&
                 value !== null &&
                 value !== undefined &&
                 String(value).trim(),
@@ -485,6 +491,31 @@ const OrderManagement = () => {
     }
 
     return item.variant.sku || "";
+  }, []);
+
+  const getOrderItemImage = useCallback((item?: OrderItem | null) => {
+    if (!item) return "";
+
+    const variantImage =
+      typeof item.variant?.colorImage === "string" &&
+      item.variant.colorImage.trim()
+        ? item.variant.colorImage.trim()
+        : "";
+    if (variantImage) return variantImage;
+
+    const variantMedia = getVariantMediaMeta(item.variant?.options);
+    if (variantMedia?.image) return variantMedia.image;
+    if (variantMedia?.gallery?.[0]) return variantMedia.gallery[0];
+
+    const productImage =
+      typeof item.product?.image === "string" && item.product.image.trim()
+        ? item.product.image.trim()
+        : "";
+    if (productImage) return productImage;
+
+    return item.product?.gallery?.find(
+      (image) => typeof image === "string" && image.trim(),
+    ) ?? "";
   }, []);
 
   const applyShipmentState = useCallback((nextShipment: Shipment | null) => {
@@ -1131,7 +1162,17 @@ const OrderManagement = () => {
               </div>
             ) : (
               <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredOrders.map((order) => (
+                {filteredOrders.map((order) => {
+                  const firstItem = order.orderItems?.[0];
+                  const firstItemImage = getOrderItemImage(firstItem);
+                  const firstItemVariantLabel = formatVariantLabel(firstItem);
+                  const firstItemTitle = firstItem?.product?.name
+                    ? firstItemVariantLabel
+                      ? `${firstItem.product.name} - ${firstItemVariantLabel}`
+                      : firstItem.product.name
+                    : "No product details";
+
+                  return (
                   <div
                     key={order.id}
                     className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
@@ -1182,18 +1223,34 @@ const OrderManagement = () => {
                     </div>
 
                     <div className="px-4 pb-3">
-                      <p className="truncate text-xs text-muted-foreground">
-                        {(() => {
-                          const firstItem = order.orderItems?.[0];
-                          if (!firstItem?.product?.name)
-                            return "No product details";
-
-                          const variantLabel = formatVariantLabel(firstItem);
-                          return variantLabel
-                            ? `${firstItem.product.name} - ${variantLabel}`
-                            : firstItem.product.name;
-                        })()}
-                      </p>
+                      <div className="flex items-center gap-3 rounded-xl border border-border bg-background/60 p-2">
+                        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                          {firstItemImage ? (
+                            <Image
+                              src={firstItemImage}
+                              alt={firstItemTitle}
+                              fill
+                              className="object-cover"
+                              sizes="56px"
+                            />
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">
+                              No Image
+                            </span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-foreground">
+                            {firstItemTitle}
+                          </p>
+                          {(order.orderItems?.length ?? 0) > 1 && (
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              +{(order.orderItems?.length ?? 1) - 1} more item
+                              {(order.orderItems?.length ?? 0) > 2 ? "s" : ""}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between border-t border-border px-4 py-3">
@@ -1228,7 +1285,8 @@ const OrderManagement = () => {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -1574,37 +1632,59 @@ const OrderManagement = () => {
                       Order Books
                     </h3>
                     <div className="space-y-2">
-                      {orderDetail.orderItems?.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center justify-between rounded-xl bg-card px-3 py-2 text-xs"
-                        >
-                          <div>
-                            <p className="font-semibold text-foreground">
-                              {item.product?.name ||
-                                "Product Name Not Available"}
-                            </p>
-                            {formatVariantLabel(item) && (
-                              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                Variant: {formatVariantLabel(item)}
-                              </p>
-                            )}
-                            <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              Qty: {item.quantity} x{" "}
+                      {orderDetail.orderItems?.map((item) => {
+                        const itemImage = getOrderItemImage(item);
+                        const variantLabel = formatVariantLabel(item);
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-3 rounded-xl bg-card px-3 py-2 text-xs"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                                {itemImage ? (
+                                  <Image
+                                    src={itemImage}
+                                    alt={item.product?.name || "Order item"}
+                                    fill
+                                    className="object-cover"
+                                    sizes="48px"
+                                  />
+                                ) : (
+                                  <span className="text-[9px] text-muted-foreground">
+                                    No Image
+                                  </span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate font-semibold text-foreground">
+                                  {item.product?.name ||
+                                    "Product Name Not Available"}
+                                </p>
+                                {variantLabel && (
+                                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                    Variant: {variantLabel}
+                                  </p>
+                                )}
+                                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                  Qty: {item.quantity} x{" "}
+                                  {formatMoney(
+                                    Number(item.price),
+                                    orderDetail.currency || "BDT",
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="shrink-0 text-right text-[11px] font-semibold text-foreground">
                               {formatMoney(
-                                Number(item.price),
+                                Number(item.quantity * item.price),
                                 orderDetail.currency || "BDT",
                               )}
                             </p>
                           </div>
-                          <p className="text-[11px] font-semibold text-foreground">
-                            {formatMoney(
-                              Number(item.quantity * item.price),
-                              orderDetail.currency || "BDT",
-                            )}
-                          </p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <div className="mt-3 border-t border-border pt-2 text-xs text-foreground">
                       <div className="flex justify-between">
