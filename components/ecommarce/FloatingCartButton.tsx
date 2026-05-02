@@ -27,8 +27,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "floating-cart-position";
-const BUTTON_WIDTH_MOBILE = 56;
-const BUTTON_HEIGHT_MOBILE = 54;
+const BUTTON_WIDTH_MOBILE = 48;
+const BUTTON_HEIGHT_MOBILE = 48;
 const BUTTON_WIDTH_DESKTOP = 68;
 const BUTTON_HEIGHT_DESKTOP = 64;
 const EDGE_MARGIN = 0;
@@ -552,7 +552,7 @@ export default function FloatingCartButton() {
             top: position.y,
             touchAction: "none",
           }}
-          className={`fixed z-50 flex min-w-[56px] flex-col items-center rounded-xl border border-border bg-primary px-2.5 py-2 text-primary-foreground shadow-lg transition sm:min-w-[68px] sm:px-3 ${
+          className={`fixed z-50 flex min-w-[48px] flex-col items-center rounded-xl border border-border bg-primary py-1 md:py-2 text-primary-foreground shadow-lg transition sm:min-w-[68px] sm:px-3 ${
             dragging
               ? "cursor-grabbing scale-105 shadow-2xl"
               : "cursor-grab hover:shadow-xl"
