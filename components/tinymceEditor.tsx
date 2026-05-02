@@ -16,7 +16,7 @@ const TinymceEditor: React.FC<TinymceEditorProps> = ({
 }) => {
   return (
     <Editor
-      apiKey="didaagwh80y1vdeim49h9hsorsljm8n5mmr713t1r6n5m4zr"
+      apiKey="ojfr13shvq71zrs8u3y10vyx0ddwz1od1vozyjtcfcl17ylt"
       init={{
         height: height,
         menubar: true,
