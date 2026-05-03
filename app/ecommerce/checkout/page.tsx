@@ -16,7 +16,6 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
 import { useSession } from "@/lib/auth-client";
 import {
@@ -673,7 +672,9 @@ export default function CheckoutPage() {
     }
 
     const computedPaymentStatus = isCOD || isSSLCOMMERZ ? "UNPAID" : "PAID";
-    const localInvoiceId = uuidv4();
+    const localInvoiceId =
+      globalThis.crypto?.randomUUID?.() ??
+      `inv-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const uiOrderData = {
       invoiceId: localInvoiceId,
