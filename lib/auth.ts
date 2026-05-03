@@ -120,12 +120,6 @@ export const authOptions: NextAuthOptions = {
         session.user.warehouseIds = access.warehouseIds;
         session.user.primaryWarehouseId = access.primaryWarehouseId;
         session.user.defaultAdminRoute = access.defaultAdminRoute;
-        token.permissions = access.permissions;
-        token.roleNames = access.roleNames;
-        token.globalPermissions = access.globalPermissions;
-        token.warehouseIds = access.warehouseIds;
-        token.primaryWarehouseId = access.primaryWarehouseId;
-        token.defaultAdminRoute = access.defaultAdminRoute;
       }
       return session;
     },
