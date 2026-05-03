@@ -356,7 +356,7 @@ export default function NewArrivals({
   }, []);
 
   const handleCategoryWheel = useCallback(
-    (event: WheelEvent<HTMLDivElement>) => {
+    (event: globalThis.WheelEvent) => {
       const el = categoryScrollerRef.current;
       if (!el) return;
 
@@ -377,8 +377,19 @@ export default function NewArrivals({
         behavior: "smooth",
       });
     },
-    [revealCategoryScrollbar],
+    [revealCategoryScrollbar]
   );
+
+  useEffect(() => {
+    const el = categoryScrollerRef.current;
+    if (!el) return;
+
+    el.addEventListener('wheel', handleCategoryWheel, { passive: false });
+
+    return () => {
+      el.removeEventListener('wheel', handleCategoryWheel);
+    };
+  }, [handleCategoryWheel]);
 
   const scrollByCards = (dir: "left" | "right") => {
     const el = scrollerRef.current;
@@ -477,7 +488,6 @@ export default function NewArrivals({
             <div className="relative min-w-0 flex-1 xl:max-w-[720px] 2xl:max-w-[860px]">
               <div
                 ref={categoryScrollerRef}
-                onWheel={handleCategoryWheel}
                 onMouseEnter={revealCategoryScrollbar}
                 className={`flex items-center gap-1.5 overflow-x-auto scroll-smooth pb-2 pr-6 snap-x snap-proximity [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:transition-colors [&::-webkit-scrollbar-thumb]:duration-200 ${
                   showCategoryScrollbar

@@ -311,7 +311,6 @@ async function main() {
 
   await ensurePermissionsAndRoles();
 
-  // Create admin user
   const hashedAdminPassword = await bcrypt.hash(adminPassword, 10);
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
@@ -345,34 +344,13 @@ async function main() {
     role: admin.role,
   });
 
-  await ensureDefaultSupplierCategories(admin?.id ?? null);
-  console.log("✅ Default supplier categories ensured");
+  const superAdminRole = await prisma.role.findUnique({
+    where: { name: "superadmin" },
+    select: { id: true },
+  });
 
-  const investorPortalUsers = [
-    {
-      email: "yousuf@z.shoes.com",
-      name: "Yousuf",
-      phone: null,
-      password: "yousuf123",
-    },
-    {
-      email: "mahin@z.shoes.com",
-      name: "Mahin",
-      phone: null,
-      password: "mahin123",
-    },
-    {
-      email: "salehin@z.shoes.com",
-      name: "Salehin",
-      phone: null,
-      password: "salehin123",
-    },
-  ];
-
-  for (const investorUser of investorPortalUsers) {
-    const hashedPassword = await bcrypt.hash(investorUser.password, 10);
-
-    const user = await prisma.user.upsert({
+  if (superAdminRole) {
+    const existingAssignment = await prisma.userRole.findFirst({
       where: {
         userId: admin.id,
         roleId: superAdminRole.id,
@@ -390,6 +368,7 @@ async function main() {
         },
       });
     }
+
     console.log("✅ Superadmin role assigned to seed admin");
   }
 
