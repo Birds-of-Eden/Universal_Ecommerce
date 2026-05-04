@@ -40,10 +40,7 @@ const CATEGORIES_API = "/api/categories";
 const THEME_OPTIONS = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
-  { value: "navy", label: "Navy" },
-  { value: "plum", label: "Plum" },
-  { value: "olive", label: "Olive" },
-  { value: "rose", label: "Rose" },
+  { value: "green", label: "Green" }
 ] as const;
 
 /* =========================

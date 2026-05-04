@@ -9,266 +9,343 @@ body {
 @layer base {
   :root {
     /* ========================
-     ECOMMERCE COLOR PALETTE - LIGHT MODE
-     Palette: #25671E (deep green), #48A111 (vivid green), #F2B50B (golden amber), #F7F0F0 (warm white)
+   ECOMMERCE COLOR PALETTE - LIGHT MODE
+   Palette: Blue Scale
+   50  #eff6ff
+   100 #dbeafe
+   200 #bfdbfe
+   300 #93c5fd
+   400 #60a5fa
+   500 #3b82f6
+   600 #2563eb
+   700 #1d4ed8
+   800 #1e40af
+   900 #1e3a8a
+   950 #172554
   ======================== */
 
     /* Core Colors */
-    --background: 0 0% 97%; /* #F7F0F0 warm white */
-    --foreground: 120 48% 13%; /* #25671E-based dark */
+    --background: 214 100% 97%; /* #eff6ff */
+    --foreground: 226 71% 14%; /* #172554 */
 
     --card: 0 0% 100%;
-    --card-foreground: 120 48% 13%;
+    --card-foreground: 226 71% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 120 48% 13%;
+    --popover-foreground: 226 71% 14%;
 
-    /* Primary — Vivid Green #48A111 */
-    --primary: 100 80% 35%; /* #48A111 */
+    /* Primary — Blue #2563eb */
+    --primary: 221 83% 53%; /* #2563eb */
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary — Deep Forest Green #25671E */
-    --secondary: 116 51% 26%; /* #25671E */
+    /* Secondary — Deep Blue #1e40af */
+    --secondary: 224 64% 33%; /* #1e40af */
     --secondary-foreground: 0 0% 100%;
 
     /* Muted Colors */
-    --muted: 0 18% 95%; /* warm tint of #F7F0F0 */
-    --muted-foreground: 116 20% 30%;
+    --muted: 214 100% 97%; /* #eff6ff */
+    --muted-foreground: 217 33% 35%;
 
-    /* Accent — Golden Amber #F2B50B */
-    --accent: 44 93% 49%; /* #F2B50B */
-    --accent-foreground: 120 48% 10%;
+    /* Accent — Bright Blue #3b82f6 */
+    --accent: 217 91% 60%; /* #3b82f6 */
+    --accent-foreground: 226 71% 14%;
 
     /* Destructive */
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
     /* UI Elements */
-    --border: 100 20% 80%;
-    --input: 100 20% 80%;
-    --ring: 100 80% 35%;
+    --border: 213 97% 87%; /* #bfdbfe */
+    --input: 213 97% 87%; /* #bfdbfe */
+    --ring: 221 83% 53%; /* #2563eb */
 
     --radius: 0.5rem;
 
     /* Charts */
-    --chart-1: 100 80% 35%;   /* vivid green */
-    --chart-2: 44 93% 49%;    /* golden amber */
-    --chart-3: 116 51% 26%;   /* deep green */
-    --chart-4: 44 70% 60%;    /* light amber */
-    --chart-5: 100 55% 50%;   /* mid green */
+    --chart-1: 221 83% 53%; /* #2563eb */
+    --chart-2: 217 91% 60%; /* #3b82f6 */
+    --chart-3: 224 64% 33%; /* #1e40af */
+    --chart-4: 213 94% 68%; /* #60a5fa */
+    --chart-5: 212 96% 78%; /* #93c5fd */
 
     /* Scrollbar */
-    --scrollbar-thumb: 100 80% 35%;
-    --scrollbar-track: 0 18% 93%;
-    --scrollbar-thumb-hover: 116 51% 26%;
+    --scrollbar-thumb: 221 83% 53%; /* #2563eb */
+    --scrollbar-track: 214 100% 97%; /* #eff6ff */
+    --scrollbar-thumb-hover: 224 64% 33%; /* #1e40af */
 
     /* Analytics */
-    --analytics-primary: 100 80% 35%;
-    --analytics-secondary: 0 18% 95%;
-    --analytics-accent: 44 93% 49%;
-    --analytics-chart-1: 100 80% 35%;
-    --analytics-chart-2: 44 93% 49%;
-    --analytics-chart-3: 116 51% 26%;
-    --analytics-chart-4: 44 70% 60%;
-    --analytics-chart-5: 100 55% 50%;
+    --analytics-primary: 221 83% 53%; /* #2563eb */
+    --analytics-secondary: 214 100% 97%; /* #eff6ff */
+    --analytics-accent: 217 91% 60%; /* #3b82f6 */
+    --analytics-chart-1: 221 83% 53%; /* #2563eb */
+    --analytics-chart-2: 217 91% 60%; /* #3b82f6 */
+    --analytics-chart-3: 224 64% 33%; /* #1e40af */
+    --analytics-chart-4: 213 94% 68%; /* #60a5fa */
+    --analytics-chart-5: 212 96% 78%; /* #93c5fd */
 
     /* Best Seller & Sold Badge */
-    --best-seller-bg: 100 80% 35%;
+    --best-seller-bg: 221 83% 53%; /* #2563eb */
     --best-seller-text: 0 0% 100%;
-    --sold-count-bg: 44 93% 49%;
-    --sold-count-text: 120 48% 10%;
-    --badge-shadow: 0 4px 6px -1px rgb(72 161 17 / 0.25);
+    --sold-count-bg: 217 91% 60%; /* #3b82f6 */
+    --sold-count-text: 226 71% 14%;
+    --badge-shadow: 0 4px 6px -1px rgb(37 99 235 / 0.25);
 
     /* Delivery Proof */
-    --delivery-proof-bg: 100 80% 35%;
+    --delivery-proof-bg: 221 83% 53%; /* #2563eb */
     --delivery-proof-text: 0 0% 100%;
-    --delivery-pin-bg: 0 18% 93%;
-    --delivery-pin-text: 120 48% 13%;
-    --delivery-pin-value: 120 48% 13%;
-    --delivery-link-bg: 0 18% 93%;
-    --delivery-link-text: 116 51% 26%;
+    --delivery-pin-bg: 214 100% 97%; /* #eff6ff */
+    --delivery-pin-text: 226 71% 14%;
+    --delivery-pin-value: 226 71% 14%;
+    --delivery-link-bg: 214 100% 97%; /* #eff6ff */
+    --delivery-link-text: 224 64% 33%; /* #1e40af */
     --delivery-status-bg: 0 0% 100%;
-    --delivery-status-text: 120 20% 25%;
+    --delivery-status-text: 217 33% 25%;
 
     /* Custom Gradients */
-    --gradient-primary: linear-gradient(135deg, #25671E, #48A111);
-    --gradient-soft: linear-gradient(135deg, #f0f7ee, #fffbe6);
-    --gradient-premium: linear-gradient(135deg, #2d7a22, #5cc418);
-    --gradient-amber: linear-gradient(135deg, #e6a800, #F2B50B);
+    --gradient-primary: linear-gradient(135deg, #1e40af, #2563eb);
+    --gradient-soft: linear-gradient(135deg, #eff6ff, #dbeafe);
+    --gradient-premium: linear-gradient(135deg, #1d4ed8, #3b82f6);
+    --gradient-amber: linear-gradient(135deg, #60a5fa, #2563eb);
 
     /* Delivery Summary Card Colors */
-    --delivery-card-assigned: 208 100% 96%;
-    --delivery-card-accepted: 100 68% 93%;
-    --delivery-card-rejected: 0 100% 95%;
-    --delivery-card-picked: 44 93% 92%;
-    --delivery-card-in-transit: 266 100% 96%;
-    --delivery-card-delivered: 116 76% 92%;
+    --delivery-card-assigned: 214 100% 97%; /* #eff6ff */
+    --delivery-card-accepted: 214 95% 93%; /* #dbeafe */
+    --delivery-card-rejected: 213 97% 87%; /* #bfdbfe */
+    --delivery-card-picked: 212 96% 78%; /* #93c5fd */
+    --delivery-card-in-transit: 213 94% 68%; /* #60a5fa */
+    --delivery-card-delivered: 217 91% 60%; /* #3b82f6 */
 
     /* Stock Management Card Colors */
-    --stock-card-physical-products: 210 38% 96%;
-    --stock-card-variants: 100 68% 93%;
-    --stock-card-total-stock: 116 76% 92%;
-    --stock-card-low-stock: 44 93% 92%;
-    --stock-card-out-of-stock: 0 100% 95%;
+    --stock-card-physical-products: 214 100% 97%; /* #eff6ff */
+    --stock-card-variants: 214 95% 93%; /* #dbeafe */
+    --stock-card-total-stock: 213 97% 87%; /* #bfdbfe */
+    --stock-card-low-stock: 212 96% 78%; /* #93c5fd */
+    --stock-card-out-of-stock: 213 94% 68%; /* #60a5fa */
   }
-
   /* ========================
      DARK MODE
   ======================== */
 
   .dark {
-    --background: 120 15% 8%;
-    --foreground: 0 18% 96%;
+    /* ========================
+     ECOMMERCE COLOR PALETTE - DARK MODE (Matte Finish)
+     Palette: Blue Scale
+     50  #eff6ff
+     100 #dbeafe
+     200 #bfdbfe
+     300 #93c5fd
+     400 #60a5fa
+     500 #3b82f6
+     600 #2563eb
+     700 #1d4ed8
+     800 #1e40af
+     900 #1e3a8a
+     950 #172554
+  ======================== */
 
-    --card: 120 12% 11%;
-    --card-foreground: 0 0% 100%;
+    /* Core Colors - Matte Dark */
+    --background: 222 47% 8%; /* matte dark background */
+    --foreground: 214 100% 97%; /* #eff6ff */
 
-    --popover: 120 12% 11%;
-    --popover-foreground: 0 0% 100%;
+    --card: 222 47% 10%; /* matte card background */
+    --card-foreground: 214 100% 97%;
 
-    --primary: 100 80% 45%;
-    --primary-foreground: 120 48% 8%;
+    --popover: 222 47% 10%;
+    --popover-foreground: 214 100% 97%;
 
-    --secondary: 120 10% 18%;
-    --secondary-foreground: 0 0% 100%;
+    /* Primary — Vibrant Blue for dark mode */
+    --primary: 213 94% 68%; /* #60a5fa */
+    --primary-foreground: 222 47% 8%; /* matte dark background */
 
-    --muted: 120 8% 16%;
-    --muted-foreground: 0 0% 70%;
+    /* Secondary — Muted Blue */
+    --secondary: 222 35% 16%; /* desaturated for matte feel */
+    --secondary-foreground: 214 100% 97%;
 
-    --accent: 44 93% 49%;
-    --accent-foreground: 120 48% 8%;
+    /* Muted Colors */
+    --muted: 222 30% 18%;
+    --muted-foreground: 213 97% 87%; /* #bfdbfe */
 
+    /* Accent — Strong Blue */
+    --accent: 217 91% 60%; /* #3b82f6 */
+    --accent-foreground: 214 100% 97%;
+
+    /* Destructive */
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 120 10% 22%;
-    --input: 120 10% 22%;
-    --ring: 100 80% 45%;
+    /* UI Elements - Matte Borders */
+    --border: 222 30% 20%;
+    --input: 222 30% 20%;
+    --ring: 213 94% 68%; /* #60a5fa */
 
-    --chart-1: 100 80% 55%;
-    --chart-2: 44 93% 55%;
-    --chart-3: 116 51% 45%;
-    --chart-4: 44 70% 65%;
-    --chart-5: 100 55% 60%;
+    --radius: 0.5rem;
 
-    /* Scrollbar Colors */
-    --scrollbar-thumb: 100 60% 40%;
-    --scrollbar-track: 120 12% 12%;
-    --scrollbar-thumb-hover: 100 80% 50%;
+    /* Charts */
+    --chart-1: 213 94% 68%; /* #60a5fa */
+    --chart-2: 217 91% 60%; /* #3b82f6 */
+    --chart-3: 212 96% 78%; /* #93c5fd */
+    --chart-4: 221 83% 53%; /* #2563eb */
+    --chart-5: 213 97% 87%; /* #bfdbfe */
 
-    /* Analytics Theme Colors */
-    --analytics-primary: 100 80% 45%;
-    --analytics-secondary: 120 10% 18%;
-    --analytics-accent: 44 93% 55%;
-    --analytics-chart-1: 100 80% 55%;
-    --analytics-chart-2: 44 93% 55%;
-    --analytics-chart-3: 116 51% 45%;
-    --analytics-chart-4: 44 70% 65%;
-    --analytics-chart-5: 100 55% 60%;
+    /* Scrollbar */
+    --scrollbar-thumb: 217 91% 60%; /* #3b82f6 */
+    --scrollbar-track: 222 47% 10%;
+    --scrollbar-thumb-hover: 213 94% 68%; /* #60a5fa */
 
-    /* Best Seller & Sold Badge Theme - Dark Mode */
-    --best-seller-bg: 100 80% 45%;
-    --best-seller-text: 120 48% 8%;
-    --sold-count-bg: 44 93% 49%;
-    --sold-count-text: 120 48% 8%;
-    --badge-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+    /* Analytics */
+    --analytics-primary: 213 94% 68%; /* #60a5fa */
+    --analytics-secondary: 222 35% 16%;
+    --analytics-accent: 217 91% 60%; /* #3b82f6 */
+    --analytics-chart-1: 213 94% 68%; /* #60a5fa */
+    --analytics-chart-2: 217 91% 60%; /* #3b82f6 */
+    --analytics-chart-3: 212 96% 78%; /* #93c5fd */
+    --analytics-chart-4: 221 83% 53%; /* #2563eb */
+    --analytics-chart-5: 213 97% 87%; /* #bfdbfe */
 
-    /* Delivery Proof Theme - Dark Mode */
-    --delivery-proof-bg: 100 80% 45%;
-    --delivery-proof-text: 120 48% 8%;
-    --delivery-pin-bg: 120 8% 16%;
-    --delivery-pin-text: 0 18% 96%;
-    --delivery-link-bg: 120 8% 16%;
-    --delivery-link-text: 100 80% 55%;
-    --delivery-status-bg: 120 12% 11%;
-    --delivery-status-text: 0 0% 70%;
+    /* Best Seller & Sold Badge */
+    --best-seller-bg: 213 94% 68%; /* #60a5fa */
+    --best-seller-text: 222 47% 8%;
+    --sold-count-bg: 217 91% 60%; /* #3b82f6 */
+    --sold-count-text: 214 100% 97%;
+    --badge-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.35);
 
-    /* Delivery Summary Card Colors - Dark Mode */
-    --delivery-card-assigned: 210 38% 22%;
-    --delivery-card-accepted: 100 68% 22%;
-    --delivery-card-rejected: 0 70% 22%;
-    --delivery-card-picked: 44 93% 20%;
-    --delivery-card-in-transit: 266 100% 22%;
-    --delivery-card-delivered: 116 76% 20%;
+    /* Delivery Proof */
+    --delivery-proof-bg: 213 94% 68%; /* #60a5fa */
+    --delivery-proof-text: 222 47% 8%;
 
-    /* Stock Management Card Colors - Dark Mode */
-    --stock-card-physical-products: 210 38% 18%;
-    --stock-card-variants: 100 68% 18%;
-    --stock-card-total-stock: 116 76% 18%;
-    --stock-card-low-stock: 44 93% 18%;
-    --stock-card-out-of-stock: 0 70% 18%;
+    --delivery-pin-bg: 222 35% 16%;
+    --delivery-pin-text: 214 100% 97%;
+    --delivery-pin-value: 214 100% 97%;
+
+    --delivery-link-bg: 222 35% 16%;
+    --delivery-link-text: 213 94% 68%; /* #60a5fa */
+
+    --delivery-status-bg: 222 47% 10%;
+    --delivery-status-text: 213 97% 87%; /* #bfdbfe */
+
+    /* Custom Gradients - Muted for matte finish */
+    --gradient-primary: linear-gradient(135deg, #1e3a8a, #3b82f6);
+    --gradient-soft: linear-gradient(135deg, #0f172a, #1e293b);
+    --gradient-premium: linear-gradient(135deg, #1e40af, #2563eb);
+    --gradient-amber: linear-gradient(135deg, #2563eb, #60a5fa);
+
+    /* Delivery Summary Card Colors - Matte variants */
+    --delivery-card-assigned: 222 35% 16%;
+    --delivery-card-accepted: 221 45% 16%;
+    --delivery-card-rejected: 0 60% 16%;
+    --delivery-card-picked: 217 45% 16%;
+    --delivery-card-in-transit: 222 35% 18%;
+    --delivery-card-delivered: 213 50% 18%;
+
+    /* Stock Management Card Colors - Matte variants */
+    --stock-card-physical-products: 222 35% 16%;
+    --stock-card-variants: 221 45% 16%;
+    --stock-card-total-stock: 213 50% 18%;
+    --stock-card-low-stock: 217 45% 16%;
+    --stock-card-out-of-stock: 0 60% 16%;
   }
 
   /* ========================
-   NAVY MIRAGE THEME
+   green MIRAGE THEME
 ======================== */
 
-  .navy,
-  .theme-navy {
-    --background: 214 44% 14%;
-    --foreground: 0 0% 98%;
+  .green,
+  .theme-green {
+    /* ========================
+     DEEP GREEN THEME
+     Base: #16a34a
+     Background: #f6f9f8
+     Card: #ffffff
+  ======================== */
 
-    --card: 213 40% 18%;
-    --card-foreground: 0 0% 98%;
+    --background: 160 13% 97%; /* #f6f9f8 */
+    --foreground: 144 68% 10%; /* deep green text */
 
-    --popover: 213 40% 18%;
-    --popover-foreground: 0 0% 98%;
+    --card: 0 0% 100%; /* #ffffff */
+    --card-foreground: 144 68% 10%;
 
-    --primary: 100 80% 35%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 144 68% 10%;
+
+    /* Primary — Green 600 #16a34a */
+    --primary: 142 72% 29%; /* #16a34a */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 214 30% 22%;
-    --secondary-foreground: 0 0% 98%;
+    /* Secondary — Deep Green */
+    --secondary: 144 61% 20%; /* #14532d */
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 214 25% 25%;
-    --muted-foreground: 0 0% 80%;
+    /* Muted Colors */
+    --muted: 150 16% 92%;
+    --muted-foreground: 144 35% 24%;
 
-    --accent: 44 93% 49%;
-    --accent-foreground: 120 48% 10%;
+    /* Accent — Dark Premium Green */
+    --accent: 143 64% 24%; /* #166534 */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 25% 30%;
-    --input: 214 25% 30%;
-    --ring: 100 80% 35%;
+    --border: 144 28% 78%;
+    --input: 144 28% 78%;
+    --ring: 142 72% 29%;
 
     /* Scrollbar Colors */
-    --scrollbar-thumb: 100 80% 40%;
-    --scrollbar-track: 214 44% 10%;
-    --scrollbar-thumb-hover: 100 80% 50%;
+    --scrollbar-thumb: 142 72% 29%; /* #16a34a */
+    --scrollbar-track: 150 16% 90%;
+    --scrollbar-thumb-hover: 144 61% 20%; /* #14532d */
 
     /* Analytics Theme Colors */
-    --analytics-primary: 100 80% 35%;
-    --analytics-secondary: 214 30% 22%;
-    --analytics-accent: 44 93% 49%;
-    --analytics-chart-1: 100 80% 50%;
-    --analytics-chart-2: 44 93% 55%;
-    --analytics-chart-3: 116 51% 40%;
-    --analytics-chart-4: 44 70% 60%;
-    --analytics-chart-5: 100 55% 55%;
+    --analytics-primary: 142 72% 29%; /* #16a34a */
+    --analytics-secondary: 144 28% 88%;
+    --analytics-accent: 143 64% 24%; /* #166534 */
+    --analytics-chart-1: 142 72% 29%; /* #16a34a */
+    --analytics-chart-2: 143 64% 24%; /* #166534 */
+    --analytics-chart-3: 144 61% 20%; /* #14532d */
+    --analytics-chart-4: 142 69% 45%; /* #22c55e */
+    --analytics-chart-5: 145 80% 18%; /* darker green */
 
-    /* Best Seller & Sold Badge Theme - Navy */
-    --best-seller-bg: 100 80% 35%;
+    /* Best Seller & Sold Badge Theme */
+    --best-seller-bg: 142 72% 29%; /* #16a34a */
     --best-seller-text: 0 0% 100%;
-    --sold-count-bg: 44 93% 49%;
-    --sold-count-text: 120 48% 10%;
-    --badge-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+    --sold-count-bg: 143 64% 24%; /* #166534 */
+    --sold-count-text: 0 0% 100%;
+    --badge-shadow: 0 4px 6px -1px rgb(20 83 45 / 0.28);
 
-    /* Delivery Summary Card Colors - Navy */
-    --delivery-card-assigned: 210 38% 28%;
-    --delivery-card-accepted: 100 68% 28%;
-    --delivery-card-rejected: 0 70% 28%;
-    --delivery-card-picked: 44 93% 26%;
-    --delivery-card-in-transit: 266 100% 28%;
-    --delivery-card-delivered: 116 76% 26%;
+    /* Delivery Proof Theme */
+    --delivery-proof-bg: 142 72% 29%; /* #16a34a */
+    --delivery-proof-text: 0 0% 100%;
 
-    /* Stock Management Card Colors - Navy */
-    --stock-card-physical-products: 210 38% 22%;
-    --stock-card-variants: 100 68% 22%;
-    --stock-card-total-stock: 116 76% 22%;
-    --stock-card-low-stock: 44 93% 20%;
-    --stock-card-out-of-stock: 0 70% 22%;
+    --delivery-pin-bg: 150 16% 92%;
+    --delivery-pin-text: 144 68% 10%;
+    --delivery-pin-value: 143 64% 24%;
+
+    --delivery-link-bg: 150 16% 92%;
+    --delivery-link-text: 143 64% 24%;
+
+    --delivery-status-bg: 0 0% 100%;
+    --delivery-status-text: 144 35% 24%;
+
+    /* Custom Gradients */
+    --gradient-primary: linear-gradient(135deg, #14532d, #16a34a);
+    --gradient-soft: linear-gradient(135deg, #f6f9f8, #d9efe3);
+    --gradient-premium: linear-gradient(135deg, #052e16, #166534);
+    --gradient-amber: linear-gradient(135deg, #14532d, #22c55e);
+
+    /* Delivery Summary Card Colors */
+    --delivery-card-assigned: 150 18% 93%;
+    --delivery-card-accepted: 142 50% 88%;
+    --delivery-card-rejected: 0 70% 92%;
+    --delivery-card-picked: 45 70% 88%;
+    --delivery-card-in-transit: 160 35% 88%;
+    --delivery-card-delivered: 143 45% 84%;
+
+    /* Stock Management Card Colors */
+    --stock-card-physical-products: 150 18% 93%;
+    --stock-card-variants: 142 50% 88%;
+    --stock-card-total-stock: 143 45% 84%;
+    --stock-card-low-stock: 45 70% 88%;
+    --stock-card-out-of-stock: 0 70% 92%;
   }
 
   /* ========================
@@ -486,7 +563,7 @@ body {
 
   .btn-secondary {
     @apply text-white transition-all duration-200 ease-in-out;
-    background-color: #F2B50B;
+    background-color: #f2b50b;
   }
 
   .btn-secondary:hover {
@@ -496,7 +573,7 @@ body {
 
   .btn-accent {
     @apply text-white transition-all duration-200 ease-in-out;
-    background-color: #25671E;
+    background-color: #25671e;
   }
 
   .btn-outline {
@@ -914,7 +991,7 @@ body {
 }
 
 .animate-bounce-in {
-  animation: bounce-in 1.0s ease-in-out;
+  animation: bounce-in 1s ease-in-out;
 }
 
 /* ========================
@@ -922,7 +999,8 @@ body {
 ======================== */
 
 @keyframes flap-left {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotateY(0deg);
   }
   50% {
@@ -931,7 +1009,8 @@ body {
 }
 
 @keyframes flap-right {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotateY(0deg);
   }
   50% {
@@ -947,9 +1026,9 @@ body {
   animation: flap-right 1.25s ease-in-out infinite;
 }
 
-
 @keyframes pulse-glow {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
     box-shadow: 0 0 0px rgba(251, 191, 36, 0.6);
   }

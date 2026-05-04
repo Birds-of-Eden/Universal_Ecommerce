@@ -620,7 +620,7 @@ export default function ProductsPage() {
 
         <div className="mt-6">
           {loading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {[...Array(12)].map((_, index) => (
                 <div key={index} className="animate-pulse">
                   <div className="aspect-square rounded-xl bg-muted/60" />
@@ -1094,7 +1094,7 @@ export default function ProductsPage() {
                       - Large desktop (xl): 4 cards
                       - Extra large (2xl): 5 cards  
                     */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
                       {visibleProducts.map((product) => (
                         <ProductCard
                           key={product.id}

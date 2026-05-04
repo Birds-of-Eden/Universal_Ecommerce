@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 
-type ThemeMode = "light" | "dark" | "navy" | "plum";
+type ThemeMode = "light" | "dark" | "green" | "plum";
 
 export function ThemeSwitcher() {
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -24,14 +24,14 @@ export function ThemeSwitcher() {
   return (
     <div className="flex gap-2 p-2 bg-card rounded-xl border">
       <button
-        onClick={() => changeTheme("navy")}
+        onClick={() => changeTheme("green")}
         className={`px-3 py-1 rounded-md border transition ${
-          activeTheme === "navy"
+          activeTheme === "green"
             ? "bg-primary text-primary-foreground border-primary"
             : "bg-background text-foreground border-border hover:bg-accent"
         }`}
       >
-        Navy
+        Green
       </button>
 
       <button

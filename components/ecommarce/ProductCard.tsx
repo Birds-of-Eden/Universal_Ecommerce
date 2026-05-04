@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Flame, Heart, Loader2, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/components/ecommarce/CartContext";
+import { useMobile } from "@/hooks/use-mobile";
 
 type ProductVariant = {
   id?: number | string;
@@ -79,7 +80,7 @@ const COLOR_NAME_TO_HEX: Record<string, string> = {
   maroon: "#7f1d1d",
   burgundy: "#6d1f2f",
   blue: "#2563eb",
-  navy: "#1e3a8a",
+  green: "#1e3a8a",
   sky: "#38bdf8",
   green: "#16a34a",
   olive: "#6b8e23",
@@ -214,6 +215,8 @@ export default function ProductCardCompact({
   const [activeVariantImage, setActiveVariantImage] = useState<string | null>(
     null,
   );
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
+  const isMobile = useMobile();
   const { addToCart } = useCart();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const imageFrameRef = useRef<HTMLDivElement>(null);
@@ -234,7 +237,11 @@ export default function ProductCardCompact({
     colorSwatches.length - visibleColorSwatches.length,
   );
 
-  const primaryImageSrc = activeVariantImage || product.image || "/placeholder.svg";
+  const primaryImageSrc = isMobile
+    ? colorSwatches[selectedVariantIndex]?.image ||
+      product.image ||
+      "/placeholder.svg"
+    : activeVariantImage || product.image || "/placeholder.svg";
 
   const showOriginal =
     (product.originalPrice ?? 0) > (product.price ?? 0) && !isOutOfStock;
@@ -322,7 +329,7 @@ export default function ProductCardCompact({
   return (
     <div
       className={cn(
-        "group relative w-full overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm transition-all duration-300 hover:shadow-xl",
+        "group relative flex h-full w-full overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-muted/40 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all duration-300 hover:shadow-xl",
         "hover:-translate-y-1.5",
         className,
       )}
@@ -332,7 +339,7 @@ export default function ProductCardCompact({
         setActiveVariantImage(null);
       }}
     >
-      <Link href={product.href} className="block h-full">
+      <Link href={product.href} className="flex h-full w-full flex-col">
         <div className="flex h-full flex-col">
           {/* Image Section */}
           <div
@@ -383,12 +390,12 @@ export default function ProductCardCompact({
             {/* Discount Sticker */}
             {showSavingsSticker && (
               <div className="absolute right-3 top-3 z-20">
-                <div className="relative flex h-[52px] w-[52px] items-center justify-center">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg ring-2 ring-white/90 [clip-path:polygon(50%_0%,61%_10%,75%_5%,82%_18%,95%_25%,90%_40%,100%_50%,90%_60%,95%_75%,82%_82%,75%_95%,61%_90%,50%_100%,39%_90%,25%_95%,18%_82%,5%_75%,10%_60%,0%_50%,10%_40%,5%_25%,18%_18%,25%_5%,39%_10%)]" />
-                  <span className="relative text-[14px] font-extrabold leading-none text-white drop-shadow-sm">
+                <div className="relative flex h-[35px] w-[35px] items-center justify-center sm:h-[52px] sm:w-[52px]">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary to-secondary shadow-lg ring-2 ring-white/90 [clip-path:polygon(50%_0%,61%_10%,75%_5%,82%_18%,95%_25%,90%_40%,100%_50%,90%_60%,95%_75%,82%_82%,75%_95%,61%_90%,50%_100%,39%_90%,25%_95%,18%_82%,5%_75%,10%_60%,0%_50%,10%_40%,5%_25%,18%_18%,25%_5%,39%_10%)]" />
+                  <span className="relative text-[10px] font-extrabold leading-none text-white drop-shadow-sm sm:text-[14px]">
                     {savingsPercent}%
                   </span>
-                  <span className="absolute -bottom-4 text-[9px] font-medium text-emerald-600">
+                  <span className="absolute -bottom-3 text-[8px] font-medium text-primary sm:-bottom-4 sm:text-[9px]">
                     OFF
                   </span>
                 </div>
@@ -433,61 +440,110 @@ export default function ProductCardCompact({
           </div>
 
           {/* Content Section */}
-          <div className="flex flex-1 flex-col px-3 pb-3.5 pt-2.5 sm:px-4 sm:pt-3">
+          <div className="flex flex-1 flex-col px-3 pb-3 pt-2.5 sm:px-4 sm:pb-3.5 sm:pt-3">
+            {isMobile && (
+              <div className="mb-2 min-h-[44px]">
+                {colorSwatches.length > 0 ? (
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {colorSwatches.map((swatch, index) => (
+                      <button
+                        key={swatch.label}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedVariantIndex(index);
+                        }}
+                        className={cn(
+                          "relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border-2 bg-background shadow-sm transition-colors",
+                          selectedVariantIndex === index
+                            ? "border-primary"
+                            : "border-border/60",
+                        )}
+                        aria-label={`${swatch.label} color variant`}
+                      >
+                        {swatch.image ? (
+                          <Image
+                            src={swatch.image}
+                            alt={swatch.label}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                          />
+                        ) : (
+                          <div
+                            className="h-full w-full"
+                            style={{ backgroundColor: swatch.color }}
+                          />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex h-10 items-center text-[11px] text-muted-foreground">
+                    <span>1 variant available</span>
+                  </div>
+                )}
+              </div>
+            )}
             {/* Product Title */}
-            <div className="min-h-[44px] sm:min-h-[48px]">
+            <div className="min-h-[42px] sm:min-h-[48px]">
               <h3 className="line-clamp-2 text-[16px] font-semibold leading-tight text-foreground transition-colors group-hover:text-primary sm:text-[18px]">
                 {product.name}
               </h3>
             </div>
 
-           <div className="flex items-center justify-between">
-            {/* Rating */}
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <Stars value={ratingAvg} />
-              {ratingCount > 0 && (
-                <span className="text-[12px] text-muted-foreground sm:text-[14px]">
-                  ({ratingCount})
-                </span>
-              )}
-              {product.totalSold && product.totalSold > 0 && (
-                <span className="text-[11px] text-muted-foreground sm:text-[12px]">
-                  • {product.totalSold.toLocaleString()} sold
-                </span>
-              )}
-            </div>
-             {colorSwatches.length > 0 && (
-              <div className="mt-1 flex items-center gap-1.5">
-                {visibleColorSwatches.map((swatch) => (
-                  <span
-                    key={swatch.label}
-                    className={cn(
-                      "h-3.5 w-3.5 rounded-full border border-black/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.35)] sm:h-4 sm:w-4",
-                      swatch.image ? "cursor-pointer" : "",
-                    )}
-                    style={{ backgroundColor: swatch.color }}
-                    title={swatch.label}
-                    aria-label={`${swatch.label} color variant`}
-                    tabIndex={swatch.image ? 0 : -1}
-                    onMouseEnter={() => {
-                      if (swatch.image) setActiveVariantImage(swatch.image);
-                    }}
-                    onFocus={() => {
-                      if (swatch.image) setActiveVariantImage(swatch.image);
-                    }}
-                    onBlur={() => setActiveVariantImage(null)}
-                  />
-                ))}
-                {hiddenColorCount > 0 && (
-                  <span className="text-[12px] font-medium text-muted-foreground sm:text-[13px]">
-                    +{hiddenColorCount}
+            <div className="flex items-center justify-between">
+              {/* Rating */}
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <Stars value={ratingAvg} />
+                {ratingCount > 0 && (
+                  <span className="text-[12px] text-muted-foreground sm:text-[14px]">
+                    ({ratingCount})
+                  </span>
+                )}
+                {product.totalSold && product.totalSold > 0 && (
+                  <span className="text-[11px] text-muted-foreground sm:text-[12px]">
+                    • {product.totalSold.toLocaleString()} sold
                   </span>
                 )}
               </div>
-            )}
-
-            
-           </div>
+              {colorSwatches.length > 0 && (
+                <div className="mt-1 flex items-center gap-1.5">
+                  {!isMobile && (
+                    <>
+                      {visibleColorSwatches.map((swatch) => (
+                        <span
+                          key={swatch.label}
+                          className={cn(
+                            "h-3.5 w-3.5 rounded-full border border-black/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.35)] sm:h-4 sm:w-4",
+                            swatch.image ? "cursor-pointer" : "",
+                          )}
+                          style={{ backgroundColor: swatch.color }}
+                          title={swatch.label}
+                          aria-label={`${swatch.label} color variant`}
+                          tabIndex={swatch.image ? 0 : -1}
+                          onMouseEnter={() => {
+                            if (swatch.image)
+                              setActiveVariantImage(swatch.image);
+                          }}
+                          onFocus={() => {
+                            if (swatch.image)
+                              setActiveVariantImage(swatch.image);
+                          }}
+                          onBlur={() => setActiveVariantImage(null)}
+                        />
+                      ))}
+                      {hiddenColorCount > 0 && (
+                        <span className="text-[12px] font-medium text-muted-foreground sm:text-[13px]">
+                          +{hiddenColorCount}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Bundle Info */}
             {product.type === "BUNDLE" && (
@@ -523,7 +579,7 @@ export default function ProductCardCompact({
             </div>
 
             {/* Add to Cart Button */}
-            <div className="mt-2.5 sm:mt-3">
+            <div className="mt-auto pt-2.5 sm:pt-3">
               <button
                 ref={buttonRef}
                 type="button"

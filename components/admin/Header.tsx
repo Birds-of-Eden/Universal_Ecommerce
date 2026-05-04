@@ -28,7 +28,7 @@ import Image from "next/image";
 const THEME_OPTIONS = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
-  { value: "navy", label: "Navy" },
+  { value: "green", label: "green" },
   { value: "plum", label: "Plum" },
   { value: "olive", label: "Olive" },
   { value: "rose", label: "Rose" },

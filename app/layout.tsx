@@ -108,7 +108,7 @@ export default async function RootLayout({
         />
         <ThemeProvider
           attribute="class"
-          themes={["light", "dark", "navy", "plum", "olive", "rose"]}
+          themes={["light", "dark", "green", "plum", "olive", "rose"]}
           defaultTheme="light"
         >
           <Providers>

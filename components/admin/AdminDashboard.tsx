@@ -275,8 +275,8 @@ type Tone = "default" | "good" | "warn" | "danger";
 
 const toneClasses: Record<Tone, string> = {
   default: "border-border/70 bg-background/70 text-foreground",
-  good: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 [&:where(.theme-navy)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-chart-2))]",
-  warn: "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 [&:where(.theme-navy)]:text-[hsl(var(--analytics-chart-3))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-chart-3))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-accent))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-chart-4))]",
+  good: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 [&:where(.theme-green)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-chart-2))]",
+  warn: "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 [&:where(.theme-green)]:text-[hsl(var(--analytics-chart-3))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-chart-3))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-accent))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-chart-4))]",
   danger: "border-destructive/20 bg-destructive/10 text-destructive",
 };
 
@@ -346,7 +346,7 @@ function MiniTrend({
       <span
         className={
           positive
-            ? "text-emerald-500 dark:text-emerald-400 [&:where(.theme-navy)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-chart-2))]"
+            ? "text-emerald-500 dark:text-emerald-400 [&:where(.theme-green)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-chart-2))]"
             : "text-destructive"
         }
       >
@@ -456,14 +456,14 @@ function DataBars({
               fill="url(#dashboard-area)"
               stroke="none"
               points={area}
-              className="text-primary [&:where(.theme-navy)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-primary))]"
+              className="text-primary [&:where(.theme-green)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-primary))]"
             />
             <polyline
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
               points={points}
-              className="text-primary [&:where(.theme-navy)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-primary))]"
+              className="text-primary [&:where(.theme-green)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-primary))]"
             />
           </svg>
         </div>
@@ -498,7 +498,7 @@ function DataBars({
             >
               <div className="flex h-full w-full items-end rounded-[18px] border border-border/50 bg-muted/25 p-1.5">
                 <div
-                  className="w-full rounded-[14px] bg-gradient-to-t from-primary to-primary/55 transition-all duration-300 [&:where(.theme-navy)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-navy)]:to-[hsl(var(--analytics-primary))/0.55] [&:where(.theme-plum)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-plum)]:to-[hsl(var(--analytics-primary))/0.55] [&:where(.theme-olive)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-olive)]:to-[hsl(var(--analytics-primary))/0.55] [&:where(.theme-rose)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-rose)]:to-[hsl(var(--analytics-primary))/0.55]"
+                  className="w-full rounded-[14px] bg-gradient-to-t from-primary to-primary/55 transition-all duration-300 [&:where(.theme-green)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-green)]:to-[hsl(var(--analytics-primary))/0.55] [&:where(.theme-plum)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-plum)]:to-[hsl(var(--analytics-primary))/0.55] [&:where(.theme-olive)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-olive)]:to-[hsl(var(--analytics-primary))/0.55] [&:where(.theme-rose)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-rose)]:to-[hsl(var(--analytics-primary))/0.55]"
                   style={{ height: `${height}%` }}
                 />
               </div>
@@ -534,9 +534,9 @@ function BreakdownList({
           total > 0 ? Math.round((item.value / total) * 100) : 0;
         const barClass =
           item.tone === "good"
-            ? "bg-emerald-500 [&:where(.theme-navy)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]"
+            ? "bg-emerald-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]"
             : item.tone === "warn"
-              ? "bg-amber-500 [&:where(.theme-navy)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-accent))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-4))]"
+              ? "bg-amber-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-accent))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-4))]"
               : item.tone === "danger"
                 ? "bg-destructive"
                 : "bg-primary";
@@ -1006,7 +1006,7 @@ function AdminDashboard({
               </div>
               <div className="h-2.5 rounded-full bg-muted">
                 <div
-                  className="h-2.5 rounded-full bg-emerald-500 [&:where(.theme-navy)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]"
+                  className="h-2.5 rounded-full bg-emerald-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]"
                   style={{ width: `${clamp(stats.successRate)}%` }}
                 />
               </div>
@@ -1022,7 +1022,7 @@ function AdminDashboard({
               </div>
               <div className="h-2.5 rounded-full bg-muted">
                 <div
-                  className={`h-2.5 rounded-full ${dashboard.inventoryHealthScore >= 80 ? "bg-emerald-500 [&:where(.theme-navy)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]" : dashboard.inventoryHealthScore >= 60 ? "bg-amber-500 [&:where(.theme-navy)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-accent))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-4))]" : "bg-destructive"}`}
+                  className={`h-2.5 rounded-full ${dashboard.inventoryHealthScore >= 80 ? "bg-emerald-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]" : dashboard.inventoryHealthScore >= 60 ? "bg-amber-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-accent))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-4))]" : "bg-destructive"}`}
                   style={{ width: `${clamp(dashboard.inventoryHealthScore)}%` }}
                 />
               </div>
