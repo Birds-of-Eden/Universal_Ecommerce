@@ -6,7 +6,7 @@ import fs from "fs/promises";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const uploadsRoot = path.join(process.cwd(), "public", "upload");
+const uploadsRoot = path.join(process.cwd(), "public", "upload", "general");
 
 function guessContentType(ext: string) {
   switch (ext) {
@@ -70,13 +70,15 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(bytes);
     await fs.writeFile(filePath, buffer);
 
-    // Return the API URL of the uploaded file for consistent serving
-    const fileUrl = `/upload/${filename}`;
+    // Return an API URL so files are served dynamically after build/deploy.
+    // Note: this does not rely on the build output including the uploaded file.
+    const fileUrl = `/api/upload/general/${filename}`;
     
     return NextResponse.json({
       success: true,
       fileUrl,
-      message: "File uploaded successfully"
+      url: fileUrl,
+      message: "File uploaded successfully",
     });
 
   } catch (error) {

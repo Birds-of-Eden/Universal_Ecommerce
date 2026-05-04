@@ -77,17 +77,24 @@ export default function BrandManager({
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/upload", {
+    const res = await fetch("/api/upload/brands", {
       method: "POST",
       body: formData,
     });
 
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data?.fileUrl) {
-      throw new Error(data?.error || "Image upload failed");
+    const fileUrl =
+      typeof data?.url === "string"
+        ? data.url
+        : typeof data?.fileUrl === "string"
+          ? data.fileUrl
+          : null;
+
+    if (!res.ok || !data?.success || !fileUrl) {
+      throw new Error(data?.error || data?.message || "Image upload failed");
     }
 
-    return data.fileUrl as string;
+    return fileUrl;
   };
 
   /* =========================
