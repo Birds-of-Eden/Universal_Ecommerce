@@ -245,7 +245,6 @@ body {
     --stock-card-out-of-stock: 0 60% 16%;
   }
 
-  
   /* ========================
    green MIRAGE THEME
 ======================== */
@@ -347,6 +346,123 @@ body {
     --stock-card-total-stock: 143 45% 84%;
     --stock-card-low-stock: 45 70% 88%;
     --stock-card-out-of-stock: 0 70% 92%;
+  }
+
+  /* ========================
+   STEEL BLUE THEME - #426695
+   Professional muted blue with sophisticated finish
+   Light mode only (stays in its own theme, doesn't switch to dark)
+======================= */
+
+  .steel,
+  .theme-steel {
+    /* ========================
+   STEEL BLUE THEME
+   Primary Color: #4A6FA5
+   A sophisticated, calming blue-gray for ecommerce
+   Light Mode Only - No Dark Variant
+  ======================== */
+
+    /* Core Colors */
+    --background: 215 25% 98%; /* #f7f9fc - clean fresh background */
+    --foreground: 218 30% 20%; /* #1e2e42 - deep slate for text */
+
+    --card: 0 0% 100%; /* pure white */
+    --card-foreground: 218 30% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 218 30% 20%;
+
+    /* Primary — #4A6FA5 */
+    --primary: 213 94% 68%; /* #60a5fa */
+    --primary-foreground: 0 0% 100%; /* white */
+
+    /* Secondary — Darker Steel */
+    --secondary: 218 32% 28%; /* #2a3b52 */
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted Colors */
+    --muted: 215 22% 92%; /* #eef2f6 */
+    --muted-foreground: 218 25% 45%; /* #5a6e85 */
+
+    /* Accent — Lighter Steel Blue */
+    --accent: 216 37% 55%; /* #6b8bb8 */
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 72% 51%; /* #ef4444 */
+    --destructive-foreground: 0 0% 100%;
+
+    /* UI Elements */
+    --border: 215 22% 88%; /* #e2e8f0 */
+    --input: 215 22% 88%;
+    --ring: 216 38% 47%; /* #4A6FA5 */
+
+    --radius: 0.5rem;
+
+    /* Charts Color Scale */
+    --chart-1: 216 38% 47%; /* #4A6FA5 - Primary */
+    --chart-2: 216 37% 55%; /* #6b8bb8 - Lighter */
+    --chart-3: 218 32% 28%; /* #2a3b52 - Darker */
+    --chart-4: 216 35% 63%; /* #8aa8c9 - Light Steel */
+    --chart-5: 215 30% 75%; /* #aec0d4 - Very Light Steel */
+
+    /* Scrollbar */
+    --scrollbar-thumb: 216 38% 47%; /* #4A6FA5 */
+    --scrollbar-track: 215 22% 92%;
+    --scrollbar-thumb-hover: 218 32% 28%; /* #2a3b52 */
+
+    /* Analytics Dashboard */
+    --analytics-primary: 216 38% 47%; /* #4A6FA5 */
+    --analytics-secondary: 215 22% 92%;
+    --analytics-accent: 216 37% 55%; /* #6b8bb8 */
+    --analytics-chart-1: 216 38% 47%;
+    --analytics-chart-2: 216 37% 55%;
+    --analytics-chart-3: 218 32% 28%;
+    --analytics-chart-4: 216 35% 63%;
+    --analytics-chart-5: 215 30% 75%;
+
+    /* Badges & Tags */
+    --best-seller-bg: 216 38% 47%; /* #4A6FA5 */
+    --best-seller-text: 0 0% 100%;
+    --sold-count-bg: 216 37% 55%; /* #6b8bb8 */
+    --sold-count-text: 0 0% 100%;
+    --badge-shadow: 0 2px 8px rgba(74, 111, 165, 0.12);
+
+    /* Delivery Section */
+    --delivery-proof-bg: 216 38% 47%; /* #4A6FA5 */
+    --delivery-proof-text: 0 0% 100%;
+
+    --delivery-pin-bg: 215 22% 92%;
+    --delivery-pin-text: 218 30% 20%;
+    --delivery-pin-value: 216 38% 47%;
+
+    --delivery-link-bg: 215 22% 92%;
+    --delivery-link-text: 216 38% 47%;
+
+    --delivery-status-bg: 0 0% 100%;
+    --delivery-status-text: 218 25% 45%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, #2a3b52, #4a6fa5);
+    --gradient-soft: linear-gradient(135deg, #f7f9fc, #eef2f6);
+    --gradient-premium: linear-gradient(135deg, #1e2e42, #6b8bb8);
+    --gradient-amber: linear-gradient(135deg, #4a6fa5, #8aa8c9);
+
+    /* Delivery Cards */
+    --delivery-card-assigned: 215 22% 96%;
+    --delivery-card-accepted: 215 22% 94%;
+    --delivery-card-rejected: 0 85% 97%;
+    --delivery-card-picked: 216 25% 93%;
+    --delivery-card-in-transit: 216 28% 90%;
+    --delivery-card-delivered: 216 30% 87%;
+
+    /* Stock Management Cards */
+    --stock-card-physical-products: 215 22% 96%;
+    --stock-card-variants: 215 22% 94%;
+    --stock-card-total-stock: 216 30% 87%;
+    --stock-card-low-stock: 45 90% 95%;
+    --stock-card-out-of-stock: 0 85% 97%;
   }
 
   /* ========================

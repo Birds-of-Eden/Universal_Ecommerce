@@ -377,17 +377,17 @@ export default function NewArrivals({
         behavior: "smooth",
       });
     },
-    [revealCategoryScrollbar]
+    [revealCategoryScrollbar],
   );
 
   useEffect(() => {
     const el = categoryScrollerRef.current;
     if (!el) return;
 
-    el.addEventListener('wheel', handleCategoryWheel, { passive: false });
+    el.addEventListener("wheel", handleCategoryWheel, { passive: false });
 
     return () => {
-      el.removeEventListener('wheel', handleCategoryWheel);
+      el.removeEventListener("wheel", handleCategoryWheel);
     };
   }, [handleCategoryWheel]);
 
@@ -462,7 +462,7 @@ export default function NewArrivals({
   return (
     <section className="w-full bg-background">
       <div className="w-full px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <h2 className="text-xl font-bold text-foreground sm:text-2xl">
               {title}
@@ -471,34 +471,24 @@ export default function NewArrivals({
               {subtitle}
             </p>
           </div>
-
-          <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center xl:w-auto xl:max-w-[min(62vw,920px)] xl:self-end">
+          <div className="flex w-full min-w-0 items-center gap-2 xl:w-auto xl:max-w-[min(62vw,920px)]">
             <button
               type="button"
               onClick={() => setActive("ALL")}
-              className={`mb-4 flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs uppercase tracking-wide transition-colors sm:px-3.5 sm:text-sm ${
+              className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs uppercase tracking-wide transition-colors sm:px-3.5 sm:text-sm ${
                 active === "ALL"
                   ? "border-primary bg-primary/10 font-semibold text-primary"
                   : "border-border bg-card text-muted-foreground hover:bg-muted"
               }`}
             >
-              ALL
+              All
             </button>
 
-            <div className="relative min-w-0 flex-1 xl:max-w-[720px] 2xl:max-w-[860px]">
+            <div className="relative flex-1 min-w-0">
               <div
                 ref={categoryScrollerRef}
                 onMouseEnter={revealCategoryScrollbar}
-                className={`flex items-center gap-1.5 overflow-x-auto scroll-smooth pb-2 pr-6 snap-x snap-proximity [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:transition-colors [&::-webkit-scrollbar-thumb]:duration-200 ${
-                  showCategoryScrollbar
-                    ? "[&::-webkit-scrollbar-thumb]:bg-border/70"
-                    : "[&::-webkit-scrollbar-thumb]:bg-transparent"
-                }`}
-                style={{
-                  scrollbarColor: showCategoryScrollbar
-                    ? "hsl(var(--border)) transparent"
-                    : "transparent transparent",
-                }}
+                className={`flex items-center gap-1.5 overflow-x-auto scroll-smooth snap-x snap-proximity pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
               >
                 {allTabs.map((c) => (
                   <button
@@ -516,36 +506,27 @@ export default function NewArrivals({
                   </button>
                 ))}
               </div>
-
-              <div
-                className={`pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background via-background/90 to-transparent transition-opacity duration-200 ${
-                  canScrollCategoriesLeft ? "opacity-100" : "opacity-0"
-                }`}
-              />
-              <div
-                className={`pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background via-background/90 to-transparent transition-opacity duration-200 ${
-                  canScrollCategoriesRight ? "opacity-100" : "opacity-0"
-                }`}
-              />
             </div>
 
-            <div className="mb-4 flex-shrink-0 rounded-full">
-              <button
-                onClick={() => {
-                  console.log("Ask AI clicked");
-                }}
-                className="group relative flex w-full items-center gap-2 rounded-full bg-primary px-4 py-2 text-foreground transition-all duration-200 hover:bg-secondary/90"
-              >
-                <div className="relative">
-                  <FaRobot className="h-4 w-4 text-primary-foreground transition-transform group-hover:scale-110" />
-                  <div className="absolute -right-1 -top-1 h-2 w-2 animate-pulse rounded-full border border-background bg-primary" />
-                </div>
+            <button
+              type="button"
+              onClick={() => {
+                console.log("Ask AI clicked");
+              }}
+              className="group relative flex flex-shrink-0 items-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-full bg-primary transition-all duration-200 hover:bg-secondary/90 active:scale-95 sm:hover:scale-100
+    /* Mobile: smaller padding and hide text */
+    px-2 py-2 sm:px-3 sm:py-2 lg:px-4 lg:py-2"
+            >
+              <div className="relative">
+                <FaRobot className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5 lg:h-4 lg:w-4 text-primary-foreground transition-transform duration-200 group-hover:scale-110" />
+                <div className="absolute -right-1 -top-1 h-1.5 w-1.5 sm:h-2 sm:w-2 animate-pulse rounded-full border border-background bg-primary" />
+              </div>
 
-                <span className="text-sm font-medium text-primary-foreground hover:text-primary-foreground">
-                  Ask AI
-                </span>
-              </button>
-            </div>
+              {/* Mobile: hidden, Tablet/Desktop: visible */}
+              <span className="hidden sm:inline text-xs sm:text-sm font-medium text-primary-foreground">
+                Ask AI
+              </span>
+            </button>
           </div>
         </div>
 
