@@ -192,7 +192,7 @@ export default function InvestorWithdrawalsPage() {
                 <Label>Request Note</Label>
                 <Textarea value={requestNote} onChange={(e) => setRequestNote(e.target.value)} placeholder="Explain why the withdrawal is needed or any settlement instruction." />
               </div>
-              <Button onClick={() => void submit()} disabled={saving}>
+              <Button onClick={() => void submit()} disabled={saving || !amount.trim() || Number(amount) <= 0}>
                 {saving ? "Submitting..." : "Submit Withdrawal Request"}
               </Button>
             </CardContent>
