@@ -78,7 +78,7 @@ export default function PromotionBanner({ banners }: PromotionBannerProps) {
   // 4 banners
   const [featured, second, third, fourth] = promotionBanners;
   return (
-    <section className="container px-6 py-8">
+    <section className="container px-4 py-4">
       <SectionHeader />
       <div className="grid grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">
         {/* Left — featured tall */}
