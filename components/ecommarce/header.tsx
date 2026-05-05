@@ -3,7 +3,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { isDarkLikeTheme } from "@/lib/theme";
@@ -32,6 +38,7 @@ import {
   Boxes,
   Sun,
   Moon,
+  ChevronLeft,
   Check,
   X,
   Menu,
@@ -106,7 +113,11 @@ function buildCategoryTree(list: CategoryDTO[]): CategoryNode[] {
   const roots: CategoryNode[] = [];
 
   map.forEach((node) => {
-    if (node.parentId !== null && node.parentId !== undefined && map.has(node.parentId)) {
+    if (
+      node.parentId !== null &&
+      node.parentId !== undefined &&
+      map.has(node.parentId)
+    ) {
       map.get(node.parentId)!.children.push(node);
       return;
     }
@@ -213,7 +224,9 @@ function DesktopCategoryDropdown({
           })}
         </div>
 
-        <div className={`${ddColShell} border-r border-border ${activeParentId ? "block" : "hidden"}`}>
+        <div
+          className={`${ddColShell} border-r border-border ${activeParentId ? "block" : "hidden"}`}
+        >
           {subList.length === 0 ? (
             <div className="px-4 py-3 text-sm text-muted-foreground">
               No subcategories.
@@ -297,7 +310,9 @@ function MobileCategoryTree({
   }
 
   if (!categories.length) {
-    return <div className="text-sm text-muted-foreground">No categories found.</div>;
+    return (
+      <div className="text-sm text-muted-foreground">No categories found.</div>
+    );
   }
 
   const Row = ({ node, level }: { node: CategoryNode; level: number }) => {
@@ -346,7 +361,10 @@ function MobileCategoryTree({
         </div>
 
         {hasChildren && isOpen && (
-          <div className="border-l border-border" style={{ marginLeft: padLeft + 18 }}>
+          <div
+            className="border-l border-border"
+            style={{ marginLeft: padLeft + 18 }}
+          >
             {node.children.map((child) => (
               <Row key={child.id} node={child} level={level + 1} />
             ))}
@@ -404,8 +422,27 @@ export default function Header({
   const [catOpen, setCatOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
+  const [navHoverCatId, setNavHoverCatId] = useState<number | null>(null);
+  const [navHoverSubId, setNavHoverSubId] = useState<number | null>(null);
+  const [navMenuPos, setNavMenuPos] = useState<{ left: number; top: number }>({
+    left: 0,
+    top: 0,
+  });
+
   const catWrapRef = useRef<HTMLDivElement | null>(null);
   const profileRef = useRef<HTMLDivElement | null>(null);
+  const navCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollDesktopNav = (direction: "left" | "right") => {
+    const el = navScrollRef.current;
+    if (!el) return;
+
+    el.scrollBy({
+      left: direction === "left" ? -260 : 260,
+      behavior: "smooth",
+    });
+  };
 
   useEffect(() => setHasMounted(true), []);
 
@@ -477,7 +514,9 @@ export default function Header({
     const loadCategories = async () => {
       try {
         if (categoriesData) {
-          setCategoryTree(buildCategoryTree(normalizeCategoryList(categoriesData)));
+          setCategoryTree(
+            buildCategoryTree(normalizeCategoryList(categoriesData)),
+          );
           setCategoryLoading(false);
           return;
         }
@@ -495,7 +534,9 @@ export default function Header({
               slug: String(c.slug),
               image: c.image ?? null,
               parentId:
-                c.parentId === null || c.parentId === undefined || c.parentId === ""
+                c.parentId === null ||
+                c.parentId === undefined ||
+                c.parentId === ""
                   ? null
                   : Number(c.parentId),
             }))
@@ -617,6 +658,31 @@ export default function Header({
   const headerIconClass =
     "relative flex flex-col items-center justify-center gap-1 text-xs font-medium text-foreground transition hover:text-primary";
 
+  const hoveredNavCat = useMemo(() => {
+    if (navHoverCatId === null) return null;
+    return categoryTree.find((c) => c.id === navHoverCatId) ?? null;
+  }, [categoryTree, navHoverCatId]);
+
+  const hoveredNavSub = useMemo(() => {
+    if (!hoveredNavCat || navHoverSubId === null) return null;
+    return hoveredNavCat.children.find((c) => c.id === navHoverSubId) ?? null;
+  }, [hoveredNavCat, navHoverSubId]);
+
+  const clearNavCloseTimer = useCallback(() => {
+    if (navCloseTimerRef.current) {
+      clearTimeout(navCloseTimerRef.current);
+      navCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleNavClose = useCallback(() => {
+    clearNavCloseTimer();
+    navCloseTimerRef.current = setTimeout(() => {
+      setNavHoverCatId(null);
+      setNavHoverSubId(null);
+    }, 120);
+  }, [clearNavCloseTimer]);
+
   return (
     <header className="sticky top-0 z-50 bg-background text-foreground">
       <div className="border-b border-border bg-background">
@@ -657,7 +723,8 @@ export default function Header({
             <button
               type="button"
               onClick={() => {
-                if (searchResults.length > 0) handleSelectProduct(searchResults[0]);
+                if (searchResults.length > 0)
+                  handleSelectProduct(searchResults[0]);
               }}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground"
               aria-label="Search"
@@ -755,7 +822,10 @@ export default function Header({
               )}
             </div>
 
-            <Link href="/ecommerce/wishlist" className={`${headerIconClass} hidden sm:flex`}>
+            <Link
+              href="/ecommerce/wishlist"
+              className={`${headerIconClass} hidden sm:flex`}
+            >
               <Heart className="h-6 w-6" />
               {hasMounted && wishlistCount > 0 && (
                 <span className="absolute -right-2 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">
@@ -778,7 +848,10 @@ export default function Header({
             {hasMounted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className={`${headerIconClass} hidden xl:flex`} title="Select theme">
+                  <button
+                    className={`${headerIconClass} hidden xl:flex`}
+                    title="Select theme"
+                  >
                     {darkLikeActiveTheme ? (
                       <Sun className="h-6 w-6" />
                     ) : (
@@ -848,65 +921,134 @@ export default function Header({
         </div>
       </div>
 
-      <nav className="hidden bg-secondary text-secondary-foreground md:block">
-        <div className="container mx-auto flex h-14 items-center gap-8 overflow-x-auto overflow-y-visible px-4 no-scrollbar">
-          {categoryTree.slice(0, 12).map((cat) => (
-            <div key={cat.id} className="group relative shrink-0">
-              <button
-                type="button"
-                onClick={() => goCategoryFromDesktop(cat.slug)}
-                className="flex h-14 items-center gap-1 whitespace-nowrap text-sm font-semibold transition hover:text-primary"
+      <nav className="relative z-[60] hidden bg-secondary text-secondary-foreground md:block">
+        <div className="container relative mx-auto px-4 overflow-visible group">
+          {/* Left Arrow - Primary Color */}
+          <button
+            type="button"
+            onClick={() => scrollDesktopNav("left")}
+            className="absolute left-1 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg backdrop-blur transition-all duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-primary/80 hover:scale-110 active:scale-95"
+            aria-label="Scroll categories left"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          {/* Right Arrow - Primary Color */}
+          <button
+            type="button"
+            onClick={() => scrollDesktopNav("right")}
+            className="absolute right-1 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg backdrop-blur transition-all duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-primary/80 hover:scale-110 active:scale-95"
+            aria-label="Scroll categories right"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+
+          <div
+            ref={navScrollRef}
+            className="mx-10 flex h-14 items-center gap-8 overflow-hidden"
+            onMouseLeave={scheduleNavClose}
+            onMouseEnter={clearNavCloseTimer}
+          >
+            {categoryTree.slice(0, 12).map((cat) => (
+              <div
+                key={cat.id}
+                className="relative shrink-0 group"
+                onMouseEnter={(e) => {
+                  clearNavCloseTimer();
+                  setNavHoverCatId(cat.children.length > 0 ? cat.id : null);
+                  setNavHoverSubId(null);
+
+                  const rect = (
+                    e.currentTarget as HTMLDivElement
+                  ).getBoundingClientRect();
+
+                  setNavMenuPos({ left: rect.left, top: rect.bottom });
+                }}
               >
-                {cat.name}
-                {cat.children.length > 0 && <ChevronDown className="h-4 w-4" />}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (cat.children.length === 0) {
+                      goCategoryFromDesktop(cat.slug);
+                    }
+                  }}
+                  className="flex h-14 items-center gap-1 whitespace-nowrap text-sm font-semibold transition-all duration-300 text-secondary-foreground hover:text-primary group-hover:text-primary"
+                >
+                  {cat.name}
+                  {cat.children.length > 0 && (
+                    <ChevronDown className="h-4 w-4 transition-transform duration-300 group-hover:rotate-180" />
+                  )}
+                </button>
 
-              {cat.children.length > 0 && (
-                <div className="invisible absolute left-0 top-full z-[9999] min-w-60 rounded-b-xl border border-border bg-popover py-2 text-popover-foreground opacity-0 shadow-2xl transition group-hover:visible group-hover:opacity-100">
-                  {cat.children.map((sub) => (
-                    <div key={sub.id} className="group relative">
-                      <button
-                        type="button"
-                        onClick={() => goCategoryFromDesktop(sub.slug)}
-                        className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm hover:bg-muted"
-                      >
-                        <span className="truncate">{sub.name}</span>
-                        {sub.children.length > 0 ? (
-                          <ChevronRight className="h-4 w-4 shrink-0" />
-                        ) : (
-                          <span className="h-4 w-4" />
-                        )}
-                      </button>
+                {/* Hover underline effect */}
+                <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
+              </div>
+            ))}
 
-                      {sub.children.length > 0 && (
-                        <div className="invisible absolute left-full top-0 z-[10000] ml-0 min-w-60 rounded-xl border border-border bg-popover py-2 text-popover-foreground opacity-0 shadow-2xl transition group-hover:visible group-hover:opacity-100">
-                          {sub.children.map((child) => (
-                            <button
-                              key={child.id}
-                              type="button"
-                              onClick={() => goCategoryFromDesktop(child.slug)}
-                              className="block w-full px-4 py-2.5 text-left text-sm hover:bg-muted"
-                            >
-                              <span className="truncate">{child.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+            <Link
+              href="/ecommerce/blogs"
+              className="relative shrink-0 whitespace-nowrap text-sm font-semibold transition-all duration-300 text-secondary-foreground hover:text-primary group"
+            >
+              Blog
+              <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
+            </Link>
 
-          <Link href="/ecommerce/blogs" className="shrink-0 whitespace-nowrap text-sm font-semibold hover:text-primary">
-            Blog
-          </Link>
-
-          <Link href="/ecommerce/products" className="shrink-0 whitespace-nowrap text-sm font-semibold hover:text-primary">
-            All Products
-          </Link>
+            <Link
+              href="/ecommerce/products"
+              className="relative shrink-0 whitespace-nowrap text-sm font-semibold transition-all duration-300 text-secondary-foreground hover:text-primary group"
+            >
+              All Products
+              <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
+            </Link>
+          </div>
         </div>
+
+        {hoveredNavCat && hoveredNavCat.children.length > 0 && (
+          <div
+            className="fixed z-[10000]"
+            style={{ left: navMenuPos.left, top: navMenuPos.top }}
+            onMouseEnter={clearNavCloseTimer}
+            onMouseLeave={scheduleNavClose}
+          >
+            <div className="min-w-60 rounded-b-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl animate-in slide-in-from-top-2 duration-200">
+              {hoveredNavCat.children.map((sub) => (
+                <div
+                  key={sub.id}
+                  className="relative"
+                  onMouseEnter={() => setNavHoverSubId(sub.id)}
+                >
+                  <button
+                    type="button"
+                    onClick={() => goCategoryFromDesktop(sub.slug)}
+                    className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <span className="truncate">{sub.name}</span>
+                    {sub.children.length > 0 ? (
+                      <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
+                    ) : (
+                      <span className="h-4 w-4" />
+                    )}
+                  </button>
+
+                  {sub.children.length > 0 && hoveredNavSub?.id === sub.id && (
+                    <div className="absolute left-full top-0 z-[10001] ml-0 min-w-60 rounded-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl animate-in slide-in-from-left-2 duration-200">
+                      {sub.children.map((child) => (
+                        <button
+                          key={child.id}
+                          type="button"
+                          onClick={() => goCategoryFromDesktop(child.slug)}
+                          className="block w-full px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
+                        >
+                          <span className="truncate">{child.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </nav>
 
       {mobileMenuOpen && (
@@ -955,67 +1097,72 @@ export default function Header({
             </div>
 
             <div className="space-y-5 p-4">
-              <div className="overflow-hidden rounded-2xl border border-border bg-card">
-                {hasMounted && session ? (
-                  <>
-                    <div className="border-b border-border bg-primary/10 px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                          {userName?.charAt(0)?.toUpperCase() || "U"}
-                        </div>
+              {/* User Profile Card - simplified */}
+              {hasMounted && session && (
+                <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                  <div className="border-b border-border bg-primary/10 px-4 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                        {userName?.charAt(0)?.toUpperCase() || "U"}
+                      </div>
 
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-bold">
-                            {userName}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {displayRole}
-                          </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold">
+                          {userName}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {displayRole}
                         </div>
                       </div>
                     </div>
-
-                    <div className="p-2">
-                      <Link
-                        href={dashboardHref}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium hover:bg-muted"
-                      >
-                        <LayoutDashboard className="h-4 w-4" />
-                        Dashboard
-                      </Link>
-
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={async () => {
-                          setMobileMenuOpen(false);
-                          await handleSignOut();
-                        }}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-destructive hover:bg-muted disabled:opacity-60"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Logout
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="p-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        router.push("/signin");
-                      }}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"
-                    >
-                      <LogIn className="h-4 w-4" />
-                      Login
-                    </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
+              {/* Dashboard */}
+              {hasMounted && session && (
+                <Link
+                  href={dashboardHref}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm font-bold"
+                >
+                  <LayoutDashboard className="h-5 w-5" />
+                  Dashboard
+                </Link>
+              )}
+
+              {/* Login (only when not logged in) */}
+              {!session && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    router.push("/signin");
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"
+                >
+                  <LogIn className="h-5 w-5" />
+                  Login
+                </button>
+              )}
+
+              {/* Logout (only when logged in) */}
+              {hasMounted && session && (
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={async () => {
+                    setMobileMenuOpen(false);
+                    await handleSignOut();
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm font-bold text-destructive hover:bg-muted disabled:opacity-60"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Logout
+                </button>
+              )}
+
+              {/* Navigation Items */}
               <div className="grid grid-cols-2 gap-3">
                 <Link
                   href="/ecommerce/products"
@@ -1054,6 +1201,7 @@ export default function Header({
                 </Link>
               </div>
 
+              {/* Theme Switcher */}
               {hasMounted && (
                 <div className="rounded-2xl border border-border bg-card p-4">
                   <div className="mb-3 text-sm font-bold">Theme</div>
@@ -1076,6 +1224,7 @@ export default function Header({
                 </div>
               )}
 
+              {/* Categories */}
               <div className="rounded-2xl border border-border bg-card p-4">
                 <div className="mb-3">
                   <div className="text-sm font-bold">All Categories</div>
@@ -1089,20 +1238,6 @@ export default function Header({
                   loading={categoryLoading}
                   onGo={goCategoryFromMobile}
                 />
-              </div>
-
-              <div ref={catWrapRef} className="relative hidden">
-                <button type="button" onClick={() => setCatOpen((p) => !p)}>
-                  All Category
-                </button>
-
-                {catOpen && (
-                  <DesktopCategoryDropdown
-                    categories={categoryTree}
-                    loading={categoryLoading}
-                    onClose={() => setCatOpen(false)}
-                  />
-                )}
               </div>
             </div>
           </div>

@@ -145,24 +145,22 @@ export default function FeaturedCategories({
   return (
     <section className="w-full bg-background">
       <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <span className="mb-2 inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-primary">
+          Categories
+        </span>
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <span className="mb-2 inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-primary">
-              Categories
-            </span>
-            <div className="flex justify-between">
-              <h2 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl lg:text-4xl">
-                {title}
-              </h2>
+          <div className="flex items-center justify-between w-full gap-4 flex-shrink-0">
+            <h2 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+              {title}
+            </h2>
 
-              <Link
-                href="/ecommerce/categories"
-                className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
-              >
-                See All
-                <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </div>
+            <Link
+              href="/ecommerce/categories"
+              className="inline-flex flex-shrink-0 items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-bold text-primary transition-all duration-300 hover:bg-primary hover:text-primary-foreground"
+            >
+              See All
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
 
