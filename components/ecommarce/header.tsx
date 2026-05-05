@@ -304,10 +304,7 @@ function MobileCategoryTree({
     return (
       <div className="space-y-2">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-14 rounded-2xl bg-muted/70 animate-pulse"
-          />
+          <div key={i} className="h-14 rounded-2xl bg-muted/70 animate-pulse" />
         ))}
       </div>
     );
@@ -809,62 +806,37 @@ export default function Header({
               <span>All Products</span>
             </Link>
 
-            <div ref={profileRef} className="relative hidden sm:block">
-              {hasMounted && session ? (
-                <>
+            {hasMounted && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
-                    type="button"
-                    onClick={() => setProfileOpen((p) => !p)}
-                    className={headerIconClass}
-                    aria-label="Profile"
+                    className={`${headerIconClass} hidden xl:flex`}
+                    title="Select theme"
                   >
-                    <UserIcon className="h-6 w-6" />
-                    <span>Sign Out</span>
+                    {darkLikeActiveTheme ? (
+                      <Sun className="h-6 w-6" />
+                    ) : (
+                      <Moon className="h-6 w-6" />
+                    )}
+                    <span>Theme</span>
                   </button>
-
-                  {profileOpen && (
-                    <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl z-[10001]">
-                      <div className="border-b border-border px-4 py-3">
-                        <div className="text-sm font-semibold">{userName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {displayRole}
-                        </div>
-                      </div>
-
-                      <Link
-                        href={dashboardHref}
-                        onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted"
-                      >
-                        <LayoutDashboard className="h-4 w-4" />
-                        Dashboard
-                      </Link>
-
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={async () => {
-                          setProfileOpen(false);
-                          await handleSignOut();
-                        }}
-                        className="flex w-full items-center gap-2 px-4 py-3 text-sm hover:bg-muted disabled:opacity-60"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Logout
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Link
-                  href="/signin"
-                  className={headerIconClass}
-                >
-                  <UserIcon className="h-6 w-6" />
-                  <span>Sign In</span>
-                </Link>
-              )}
-            </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {THEME_OPTIONS.map((option) => (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onClick={() => setTheme(option.value)}
+                      className="flex items-center justify-between"
+                    >
+                      <span>{option.label}</span>
+                      {activeTheme === option.value ? (
+                        <Check className="h-4 w-4" />
+                      ) : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <Link
               href="/ecommerce/wishlist"
@@ -927,16 +899,6 @@ export default function Header({
               )}
             </div>
 
-            <Link href="/ecommerce/cart" className={headerIconClass}>
-              <ShoppingCart className="h-7 w-7" />
-              {hasMounted && cartCount > 0 && (
-                <span className="absolute -right-2 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">
-                  {cartCount}
-                </span>
-              )}
-              <span className="hidden sm:inline">Cart</span>
-            </Link>
-
             {hasMounted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -981,38 +943,69 @@ export default function Header({
               </DropdownMenu>
             )}
 
-            {hasMounted && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={`${headerIconClass} hidden xl:flex`}
-                    title="Select theme"
-                  >
-                    {darkLikeActiveTheme ? (
-                      <Sun className="h-6 w-6" />
-                    ) : (
-                      <Moon className="h-6 w-6" />
-                    )}
-                    <span>Theme</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {THEME_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.value}
-                      onClick={() => setTheme(option.value)}
-                      className="flex items-center justify-between"
-                    >
-                      <span>{option.label}</span>
-                      {activeTheme === option.value ? (
-                        <Check className="h-4 w-4" />
-                      ) : null}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <Link href="/ecommerce/cart" className={headerIconClass}>
+              <ShoppingCart className="h-7 w-7" />
+              {hasMounted && cartCount > 0 && (
+                <span className="absolute -right-2 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">
+                  {cartCount}
+                </span>
+              )}
+              <span className="hidden sm:inline">Cart</span>
+            </Link>
 
+            <div ref={profileRef} className="relative hidden sm:block">
+              {hasMounted && session ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setProfileOpen((p) => !p)}
+                    className={headerIconClass}
+                    aria-label="Profile"
+                  >
+                    <UserIcon className="h-6 w-6" />
+                    <span>Sign Out</span>
+                  </button>
+
+                  {profileOpen && (
+                    <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl z-[10001]">
+                      <div className="border-b border-border px-4 py-3">
+                        <div className="text-sm font-semibold">{userName}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {displayRole}
+                        </div>
+                      </div>
+
+                      <Link
+                        href={dashboardHref}
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
+                      </Link>
+
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={async () => {
+                          setProfileOpen(false);
+                          await handleSignOut();
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-sm hover:bg-muted disabled:opacity-60"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link href="/signin" className={headerIconClass}>
+                  <UserIcon className="h-6 w-6" />
+                  <span>Sign In</span>
+                </Link>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
@@ -1090,7 +1083,6 @@ export default function Header({
                   <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
                 </div>
               ))}
-
             </div>
           </div>
         </div>
@@ -1271,7 +1263,11 @@ export default function Header({
                           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" side="top" className="w-48">
+                      <DropdownMenuContent
+                        align="start"
+                        side="top"
+                        className="w-48"
+                      >
                         <DropdownMenuItem asChild>
                           <Link
                             href={dashboardHref}
