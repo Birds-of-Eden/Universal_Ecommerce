@@ -712,7 +712,7 @@ export default function Header({
   return (
     <header className="sticky top-0 z-50 bg-background text-foreground">
       <div className="border-b border-border bg-primary text-primary-foreground md:bg-background md:text-foreground">
-        <div className="container mx-auto flex h-[72px] items-center justify-between gap-3 px-4 md:h-[86px] md:gap-4">
+        <div className="container mx-auto flex h-[50px] items-center justify-between gap-3 px-4 md:h-[86px] md:gap-4">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2">
             <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-white md:h-12 md:w-12 md:border-border md:bg-card">
               <Image

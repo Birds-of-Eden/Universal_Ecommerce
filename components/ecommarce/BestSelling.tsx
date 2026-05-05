@@ -279,7 +279,7 @@ export default function BestSelling({
   return (
     <section className="w-full bg-background">
       <div className="w-full px-5 py-5 sm:px-5 sm:py-5 lg:px-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-3 justify-between">
           <div>
             <h2 className="text-xl font-bold text-foreground sm:text-2xl">
               {title}
