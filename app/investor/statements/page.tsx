@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { exportInvestorStatementPdf } from "@/lib/export-investor-statement-pdf";
+import { Badge } from "@/components/ui/badge";
+import { SkeletonTable } from "@/components/investor/InvestorSkeleton";
+import { statusBadge, shortDateTime } from "@/lib/investor-status";
 
 type StatementPayload = {
   investor: {
@@ -155,7 +158,7 @@ export default function InvestorStatementsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Investor Statements</h1>
+        <h1 className="text-xl font-semibold md:text-2xl">Investor Statements</h1>
         <p className="text-sm text-muted-foreground">
           Generate account statements by date range and export CSV.
         </p>
@@ -166,7 +169,7 @@ export default function InvestorStatementsPage() {
           <CardTitle className="text-base">Statement Filters</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             <div className="space-y-1">
               <Label>From</Label>
               <input
@@ -185,7 +188,7 @@ export default function InvestorStatementsPage() {
                 className="h-10 w-full rounded-md border bg-background px-3 text-sm"
               />
             </div>
-            <div className="flex items-end gap-2">
+            <div className="flex flex-wrap items-end gap-2 sm:col-span-2 md:col-span-1">
               <Button onClick={() => void load(from, to)}>Apply</Button>
               <Button variant="outline" onClick={() => void downloadCsv()} disabled={exportingCsv}>
                 {exportingCsv ? "Exporting..." : "Export CSV"}
@@ -218,9 +221,8 @@ export default function InvestorStatementsPage() {
           <CardTitle className="text-base">Transactions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {loading ? <p className="text-sm text-muted-foreground">Loading...</p> : null}
-          {!loading && error ? <p className="text-sm text-destructive">{error}</p> : null}
-          {!loading && !error ? (
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {loading ? <SkeletonTable rows={5} cols={5} /> : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -233,17 +235,20 @@ export default function InvestorStatementsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(data?.transactions || []).map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.transactionNumber}</TableCell>
-                      <TableCell>{fmtDate(item.transactionDate)}</TableCell>
-                      <TableCell>{item.type}</TableCell>
-                      <TableCell>{item.direction}</TableCell>
-                      <TableCell>
-                        {fmtAmount(item.amount)} {item.currency}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {(data?.transactions || []).map((item) => {
+                    const badge = statusBadge(item.direction);
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="whitespace-nowrap font-medium">{item.transactionNumber}</TableCell>
+                        <TableCell className="whitespace-nowrap text-sm">{shortDateTime(item.transactionDate)}</TableCell>
+                        <TableCell className="text-sm">{item.type}</TableCell>
+                        <TableCell><Badge variant={badge.variant}>{badge.label}</Badge></TableCell>
+                        <TableCell className="whitespace-nowrap font-medium">
+                          {fmtAmount(item.amount)} {item.currency}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                   {data?.transactions?.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
@@ -254,7 +259,7 @@ export default function InvestorStatementsPage() {
                 </TableBody>
               </Table>
             </div>
-          ) : null}
+          )}
         </CardContent>
       </Card>
 
@@ -263,39 +268,44 @@ export default function InvestorStatementsPage() {
           <CardTitle className="text-base">Payouts</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Payout</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Paid</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(data?.payouts || []).map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.payoutNumber}</TableCell>
-                    <TableCell>{item.status}</TableCell>
-                    <TableCell>
-                      {fmtAmount(item.payoutAmount)} {item.currency}
-                    </TableCell>
-                    <TableCell>{fmtDate(item.createdAt)}</TableCell>
-                    <TableCell>{fmtDate(item.paidAt)}</TableCell>
-                  </TableRow>
-                ))}
-                {data?.payouts?.length === 0 ? (
+          {loading ? <SkeletonTable rows={3} cols={5} /> : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
-                      No payouts in selected range.
-                    </TableCell>
+                    <TableHead>Payout</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Paid</TableHead>
                   </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {(data?.payouts || []).map((item) => {
+                    const badge = statusBadge(item.status);
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="whitespace-nowrap font-medium">{item.payoutNumber}</TableCell>
+                        <TableCell><Badge variant={badge.variant}>{badge.label}</Badge></TableCell>
+                        <TableCell className="whitespace-nowrap font-medium">
+                          {fmtAmount(item.payoutAmount)} {item.currency}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-sm">{shortDateTime(item.createdAt)}</TableCell>
+                        <TableCell className="whitespace-nowrap text-sm">{shortDateTime(item.paidAt)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {data?.payouts?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                        No payouts in selected range.
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

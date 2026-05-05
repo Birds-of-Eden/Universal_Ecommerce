@@ -3,13 +3,11 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SkeletonCards, SkeletonCard } from "@/components/investor/InvestorSkeleton";
+import { statusBadge, shortDateTime } from "@/lib/investor-status";
 
 type OverviewPayload = {
-  investor: {
-    id: number;
-    code: string;
-    name: string;
-  };
+  investor: { id: number; code: string; name: string };
   summary: {
     totalCredit: string;
     totalDebit: string;
@@ -56,13 +54,6 @@ function fmtAmount(value: string) {
   return amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function fmtDate(value?: string | null) {
-  if (!value) return "N/A";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "N/A";
-  return date.toLocaleString();
-}
-
 export default function InvestorDashboardPage() {
   const [data, setData] = useState<OverviewPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,44 +67,49 @@ export default function InvestorDashboardPage() {
         setError(null);
         const response = await fetch("/api/investor/overview", { cache: "no-store" });
         const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          throw new Error(payload?.error || "Failed to load investor overview.");
-        }
-        if (active) {
-          setData(payload as OverviewPayload);
-        }
+        if (!response.ok) throw new Error(payload?.error || "Failed to load investor overview.");
+        if (active) setData(payload as OverviewPayload);
       } catch (err: any) {
-        if (active) {
-          setError(err?.message || "Failed to load investor overview.");
-        }
+        if (active) setError(err?.message || "Failed to load investor overview.");
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     }
-
     void load();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <div className="h-7 w-48 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-72 animate-pulse rounded bg-muted" />
+        </div>
+        <SkeletonCards count={3} />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <SkeletonCard lines={3} />
+          <SkeletonCard lines={3} />
+          <SkeletonCard lines={3} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Investor Dashboard</h1>
+        <h1 className="text-xl font-semibold md:text-2xl">Investor Dashboard</h1>
         <p className="text-sm text-muted-foreground">
           Monitor your portfolio snapshots, ledger balance, and payout timeline.
         </p>
       </div>
 
-      {loading ? <p className="text-sm text-muted-foreground">Loading overview...</p> : null}
-      {!loading && error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      {!loading && !error && data ? (
+      {data ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Credit</CardTitle>
@@ -144,21 +140,17 @@ export default function InvestorDashboardPage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Unread Notifications</CardTitle>
               </CardHeader>
-              <CardContent className="text-2xl font-semibold">
-                {data.summary.unreadNotificationCount}
-              </CardContent>
+              <CardContent className="text-2xl font-semibold">{data.summary.unreadNotificationCount}</CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Pending Profile Requests</CardTitle>
               </CardHeader>
-              <CardContent className="text-2xl font-semibold">
-                {data.summary.pendingProfileRequestCount}
-              </CardContent>
+              <CardContent className="text-2xl font-semibold">{data.summary.pendingProfileRequestCount}</CardContent>
             </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Recent Transactions</CardTitle>
@@ -167,18 +159,21 @@ export default function InvestorDashboardPage() {
                 {data.recentTransactions.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No transactions found.</p>
                 ) : (
-                  data.recentTransactions.map((item) => (
-                    <div key={item.id} className="rounded-md border p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-medium">{item.transactionNumber}</p>
-                        <Badge variant="outline">{item.direction}</Badge>
+                  data.recentTransactions.map((item) => {
+                    const badge = statusBadge(item.direction);
+                    return (
+                      <div key={item.id} className="rounded-md border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">{item.transactionNumber}</p>
+                          <Badge variant={badge.variant}>{badge.label}</Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {item.type} • {fmtAmount(item.amount)} {item.currency}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{shortDateTime(item.transactionDate)}</p>
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {item.type} • {fmtAmount(item.amount)} {item.currency}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{fmtDate(item.transactionDate)}</p>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
@@ -191,20 +186,23 @@ export default function InvestorDashboardPage() {
                 {data.recentPayouts.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No payouts found.</p>
                 ) : (
-                  data.recentPayouts.map((item) => (
-                    <div key={item.id} className="rounded-md border p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-medium">{item.payoutNumber}</p>
-                        <Badge variant="outline">{item.status}</Badge>
+                  data.recentPayouts.map((item) => {
+                    const badge = statusBadge(item.status);
+                    return (
+                      <div key={item.id} className="rounded-md border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">{item.payoutNumber}</p>
+                          <Badge variant={badge.variant}>{badge.label}</Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {fmtAmount(item.payoutAmount)} {item.currency}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.run.runNumber} • {shortDateTime(item.paidAt || item.createdAt)}
+                        </p>
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {fmtAmount(item.payoutAmount)} {item.currency}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.run.runNumber} • {fmtDate(item.paidAt || item.createdAt)}
-                      </p>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
@@ -217,20 +215,23 @@ export default function InvestorDashboardPage() {
                 {data.recentRuns.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No profit runs found.</p>
                 ) : (
-                  data.recentRuns.map((item) => (
-                    <div key={item.id} className="rounded-md border p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-medium">{item.runNumber}</p>
-                        <Badge variant="outline">{item.status}</Badge>
+                  data.recentRuns.map((item) => {
+                    const badge = statusBadge(item.status);
+                    return (
+                      <div key={item.id} className="rounded-md border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium">{item.runNumber}</p>
+                          <Badge variant={badge.variant}>{badge.label}</Badge>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Net Profit: {fmtAmount(item.totalNetProfit)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {shortDateTime(item.fromDate)} – {shortDateTime(item.toDate)}
+                        </p>
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Net Profit: {fmtAmount(item.totalNetProfit)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {fmtDate(item.fromDate)} to {fmtDate(item.toDate)}
-                      </p>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </CardContent>
             </Card>

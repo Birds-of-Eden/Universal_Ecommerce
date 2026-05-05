@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { getDashboardRoute } from "@/lib/dashboard-route";
 import { resolveInvestorPortalContext } from "@/lib/investor-portal";
-import InvestorNav from "@/components/investor/InvestorNav";
+import InvestorLayoutClient from "@/components/investor/InvestorLayoutClient";
 
 export default async function InvestorLayout({
   children,
@@ -38,13 +38,12 @@ export default async function InvestorLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto flex min-h-screen w-full">
-        <InvestorNav
-          investorName={resolved.context.investorName}
-          investorCode={resolved.context.investorCode}
-        />
-        <main className="flex-1 p-6">{children}</main>
-      </div>
+      <InvestorLayoutClient
+        investorName={resolved.context.investorName}
+        investorCode={resolved.context.investorCode}
+      >
+        {children}
+      </InvestorLayoutClient>
     </div>
   );
 }

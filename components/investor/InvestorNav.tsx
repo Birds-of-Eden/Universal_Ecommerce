@@ -23,6 +23,7 @@ import {
 type InvestorNavProps = {
   investorName: string;
   investorCode: string;
+  onNavClick?: () => void;
 };
 
 const navItems = [
@@ -38,7 +39,7 @@ const navItems = [
   { href: "/investor/notifications", label: "Notifications", icon: Bell },
 ];
 
-export default function InvestorNav({ investorName, investorCode }: InvestorNavProps) {
+export default function InvestorNav({ investorName, investorCode, onNavClick }: InvestorNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -75,7 +76,7 @@ export default function InvestorNav({ investorName, investorCode }: InvestorNavP
   }, []);
 
   return (
-    <aside className="w-72 border-r border-border bg-card/70 backdrop-blur">
+    <aside className="flex h-full w-72 flex-col border-r border-border bg-card/70 backdrop-blur">
       <div className="flex h-full flex-col">
         <div className="border-b border-border p-5">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Investor Portal</p>
@@ -90,6 +91,7 @@ export default function InvestorNav({ investorName, investorCode }: InvestorNavP
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onNavClick}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                   isActive

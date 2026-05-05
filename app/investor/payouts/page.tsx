@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SkeletonCards, SkeletonTable } from "@/components/investor/InvestorSkeleton";
+import { statusBadge, shortDate } from "@/lib/investor-status";
 
 type PayoutPayload = {
   summary: {
@@ -27,12 +28,7 @@ type PayoutPayload = {
     createdAt: string;
     approvedAt: string | null;
     paidAt: string | null;
-    run: {
-      id: number;
-      runNumber: string;
-      fromDate: string;
-      toDate: string;
-    };
+    run: { id: number; runNumber: string; fromDate: string; toDate: string };
   }>;
 };
 
@@ -40,13 +36,6 @@ function fmtAmount(value: string) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return value;
   return amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function fmtDate(value?: string | null) {
-  if (!value) return "N/A";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "N/A";
-  return parsed.toLocaleString();
 }
 
 export default function InvestorPayoutsPage() {
@@ -71,21 +60,37 @@ export default function InvestorPayoutsPage() {
       }
     }
     void load();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <div className="h-7 w-40 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+        </div>
+        <SkeletonCards count={4} />
+        <Card>
+          <CardHeader><div className="h-4 w-32 animate-pulse rounded bg-muted" /></CardHeader>
+          <CardContent><SkeletonTable rows={5} cols={6} /></CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Investor Payouts</h1>
+        <h1 className="text-xl font-semibold md:text-2xl">Investor Payouts</h1>
         <p className="text-sm text-muted-foreground">
           Track payout lifecycle from run creation to final settlement.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Payout Count</CardTitle>
@@ -116,55 +121,61 @@ export default function InvestorPayoutsPage() {
         <CardHeader>
           <CardTitle className="text-base">Payout Register</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? <p className="text-sm text-muted-foreground">Loading...</p> : null}
-          {!loading && error ? <p className="text-sm text-destructive">{error}</p> : null}
-          {!loading && !error ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Payout</TableHead>
-                    <TableHead>Run</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Approved</TableHead>
-                    <TableHead>Paid</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(data?.payouts || []).map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.payoutNumber}</TableCell>
-                      <TableCell>{item.run.runNumber}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{item.status}</Badge>
-                      </TableCell>
-                      <TableCell>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground">Payout</th>
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground">Run</th>
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground">Status</th>
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground">Amount</th>
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground hidden md:table-cell">Method</th>
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground hidden lg:table-cell">Created</th>
+                  <th className="pb-2 pr-4 font-medium text-muted-foreground hidden lg:table-cell">Approved</th>
+                  <th className="pb-2 font-medium text-muted-foreground">Paid</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.payouts || []).map((item) => {
+                  const badge = statusBadge(item.status);
+                  return (
+                    <tr key={item.id} className="border-b last:border-0">
+                      <td className="py-3 pr-4 font-medium whitespace-nowrap">{item.payoutNumber}</td>
+                      <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">{item.run.runNumber}</td>
+                      <td className="py-3 pr-4">
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </td>
+                      <td className="py-3 pr-4 whitespace-nowrap font-medium">
                         {fmtAmount(item.payoutAmount)} {item.currency}
-                      </TableCell>
-                      <TableCell>{item.paymentMethod || "-"}</TableCell>
-                      <TableCell>{fmtDate(item.createdAt)}</TableCell>
-                      <TableCell>{fmtDate(item.approvedAt)}</TableCell>
-                      <TableCell>{fmtDate(item.paidAt)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {data?.payouts?.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
-                        No payouts found.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
-            </div>
-          ) : null}
+                      </td>
+                      <td className="py-3 pr-4 text-muted-foreground hidden md:table-cell">
+                        {item.paymentMethod || "-"}
+                      </td>
+                      <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground hidden lg:table-cell">
+                        {shortDate(item.createdAt)}
+                      </td>
+                      <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground hidden lg:table-cell">
+                        {shortDate(item.approvedAt)}
+                      </td>
+                      <td className="py-3 whitespace-nowrap text-muted-foreground">
+                        {shortDate(item.paidAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {data?.payouts?.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-6 text-center text-sm text-muted-foreground">
+                      No payouts found.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-

@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { SkeletonCards, SkeletonTable } from "@/components/investor/InvestorSkeleton";
+import { statusBadge, shortDateTime } from "@/lib/investor-status";
 
 type LedgerPayload = {
-  totals: {
-    credit: string;
-    debit: string;
-    balance: string;
-  };
+  totals: { credit: string; debit: string; balance: string };
   transactions: Array<{
     id: number;
     transactionNumber: string;
@@ -59,89 +58,108 @@ export default function InvestorLedgerPage() {
       }
     }
     void load();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [typeFilter]);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Investor Ledger</h1>
+        <h1 className="text-xl font-semibold md:text-2xl">Investor Ledger</h1>
         <p className="text-sm text-muted-foreground">Review your posted capital ledger entries.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Ledger Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Credit</p>
-            <p className="text-xl font-semibold">{fmtAmount(data?.totals.credit || "0")}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Debit</p>
-            <p className="text-xl font-semibold">{fmtAmount(data?.totals.debit || "0")}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Balance</p>
-            <p className="text-xl font-semibold">{fmtAmount(data?.totals.balance || "0")}</p>
-          </div>
-        </CardContent>
-      </Card>
+      {loading ? (
+        <>
+          <SkeletonCards count={3} />
+          <Card>
+            <CardHeader><div className="h-4 w-32 animate-pulse rounded bg-muted" /></CardHeader>
+            <CardContent><SkeletonTable rows={6} cols={7} /></CardContent>
+          </Card>
+        </>
+      ) : (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Ledger Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Credit</p>
+                <p className="text-xl font-semibold">{fmtAmount(data?.totals.credit || "0")}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Debit</p>
+                <p className="text-xl font-semibold">{fmtAmount(data?.totals.debit || "0")}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Balance</p>
+                <p className="text-xl font-semibold">{fmtAmount(data?.totals.balance || "0")}</p>
+              </div>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Transactions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input
-            placeholder="Filter by type (e.g. DISTRIBUTION)"
-            value={typeFilter}
-            onChange={(event) => setTypeFilter(event.target.value)}
-            className="max-w-sm"
-          />
-
-          {loading ? <p className="text-sm text-muted-foreground">Loading...</p> : null}
-          {!loading && error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-          {!loading && !error ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>No</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Direction</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Note</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(data?.transactions || []).map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.transactionNumber}</TableCell>
-                      <TableCell>{new Date(item.transactionDate).toLocaleString()}</TableCell>
-                      <TableCell>{item.type}</TableCell>
-                      <TableCell>{item.direction}</TableCell>
-                      <TableCell>{fmtAmount(item.amount)} {item.currency}</TableCell>
-                      <TableCell>
-                        {item.productVariant
-                          ? `${item.productVariant.product.name} (${item.productVariant.sku})`
-                          : "-"}
-                      </TableCell>
-                      <TableCell>{item.note || "-"}</TableCell>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Transactions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input
+                placeholder="Filter by type (e.g. DISTRIBUTION)"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="max-w-sm"
+              />
+              {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>No</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Direction</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Note</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {(data?.transactions || []).map((item) => {
+                      const badge = statusBadge(item.direction);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="whitespace-nowrap font-medium">{item.transactionNumber}</TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">{shortDateTime(item.transactionDate)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">{item.type}</TableCell>
+                          <TableCell>
+                            <Badge variant={badge.variant}>{badge.label}</Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap font-medium">
+                            {fmtAmount(item.amount)} {item.currency}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {item.productVariant
+                              ? `${item.productVariant.product.name} (${item.productVariant.sku})`
+                              : "-"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{item.note || "-"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {data?.transactions?.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+                          No transactions found.
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

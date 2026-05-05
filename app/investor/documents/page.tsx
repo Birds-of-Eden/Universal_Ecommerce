@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { uploadFile } from "@/lib/upload-file";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { SkeletonCards, SkeletonForm } from "@/components/investor/InvestorSkeleton";
+import { statusBadge, shortDateTime } from "@/lib/investor-status";
 
 type InvestorDocument = {
   id: number;
@@ -38,20 +41,6 @@ type Payload = {
   missingDocumentTypes: string[];
 };
 
-function fmtDate(value?: string | null) {
-  if (!value) return "N/A";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "N/A";
-  return parsed.toLocaleString();
-}
-
-function toInputDate(value?: string | null) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toISOString().slice(0, 10);
-}
-
 export default function InvestorDocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,9 +57,7 @@ export default function InvestorDocumentsPage() {
       setLoading(true);
       const response = await fetch("/api/investor/documents", { cache: "no-store" });
       const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(payload?.error || "Failed to load investor documents.");
-      }
+      if (!response.ok) throw new Error(payload?.error || "Failed to load investor documents.");
       setData(payload as Payload);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load investor documents.");
@@ -79,25 +66,19 @@ export default function InvestorDocumentsPage() {
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
   const currentByType = useMemo(
-    () => new Map((data?.documents || []).map((document) => [document.type, document])),
+    () => new Map((data?.documents || []).map((d) => [d.type, d])),
     [data?.documents],
   );
   const docsUnderReview = useMemo(
-    () => (data?.documents || []).filter((document) => document.status === "UNDER_REVIEW"),
+    () => (data?.documents || []).filter((d) => d.status === "UNDER_REVIEW"),
     [data?.documents],
   );
 
   const submitDocument = async () => {
-    if (!selectedType || !file) {
-      toast.error("Document type and file are required.");
-      return;
-    }
-
+    if (!selectedType || !file) { toast.error("Document type and file are required."); return; }
     try {
       setSaving(true);
       const fileUrl = await uploadFile(file, "/api/upload/investor-kyc");
@@ -105,28 +86,17 @@ export default function InvestorDocumentsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: selectedType,
-          fileUrl,
-          fileName: file.name,
-          mimeType: file.type || null,
-          fileSize: file.size,
-          documentNumber,
-          issuedAt: issuedAt || null,
-          expiresAt: expiresAt || null,
-          reviewNote: note || null,
+          type: selectedType, fileUrl, fileName: file.name,
+          mimeType: file.type || null, fileSize: file.size,
+          documentNumber, issuedAt: issuedAt || null,
+          expiresAt: expiresAt || null, reviewNote: note || null,
         }),
       });
       const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(payload?.error || "Failed to upload investor document.");
-      }
+      if (!response.ok) throw new Error(payload?.error || "Failed to upload investor document.");
       toast.success("Document submitted for review.");
-      setSelectedType("");
-      setFile(null);
-      setDocumentNumber("");
-      setIssuedAt("");
-      setExpiresAt("");
-      setNote("");
+      setSelectedType(""); setFile(null); setDocumentNumber("");
+      setIssuedAt(""); setExpiresAt(""); setNote("");
       await load();
     } catch (error: any) {
       toast.error(error?.message || "Failed to upload investor document.");
@@ -135,29 +105,59 @@ export default function InvestorDocumentsPage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <div className="h-7 w-40 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-80 animate-pulse rounded bg-muted" />
+        </div>
+        <SkeletonCards count={3} />
+        <Card>
+          <CardHeader><div className="h-4 w-48 animate-pulse rounded bg-muted" /></CardHeader>
+          <CardContent><SkeletonForm fields={5} /></CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Document Center</h1>
+        <h1 className="text-xl font-semibold md:text-2xl">Document Center</h1>
         <p className="text-sm text-muted-foreground">
           Upload required KYC documents, track review notes, and re-submit rejected files.
         </p>
       </div>
 
-      {loading ? <p className="text-sm text-muted-foreground">Loading document center...</p> : null}
-
-      {!loading && data ? (
+      {data ? (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">KYC Status</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{data.investor?.kycStatus || "N/A"}</CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Documents Uploaded</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{data.documents.length}</CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Missing Required</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{data.missingDocumentTypes.length}</CardContent></Card>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { label: "KYC Status", value: data.investor?.kycStatus || "N/A", isBadge: true },
+              { label: "Documents Uploaded", value: String(data.documents.length), isBadge: false },
+              { label: "Missing Required", value: String(data.missingDocumentTypes.length), isBadge: false },
+            ].map(({ label, value, isBadge }) => (
+              <Card key={label}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isBadge ? (
+                    <Badge variant={statusBadge(value).variant} className="text-sm px-3 py-1">
+                      {statusBadge(value).label}
+                    </Badge>
+                  ) : (
+                    <p className="text-2xl font-semibold">{value}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           {data.investor?.kycStatus === "UNDER_REVIEW" && docsUnderReview.length > 0 ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              KYC is under review because approved profile changes require document re-verification.
-              Re-check these document(s): {docsUnderReview.map((item) => item.type).join(", ")}.
+            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-700 dark:text-yellow-400">
+              KYC is under review. Re-check these document(s): {docsUnderReview.map((d) => d.type).join(", ")}.
             </div>
           ) : null}
 
@@ -166,13 +166,13 @@ export default function InvestorDocumentsPage() {
               <CardTitle className="text-base">Upload or Re-submit Document</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                 <div className="space-y-1">
                   <Label>Document Type</Label>
                   <select
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={selectedType}
-                    onChange={(event) => setSelectedType(event.target.value)}
+                    onChange={(e) => setSelectedType(e.target.value)}
                   >
                     <option value="">Select document type</option>
                     {data.requiredDocumentTypes.map((type) => (
@@ -182,24 +182,24 @@ export default function InvestorDocumentsPage() {
                 </div>
                 <div className="space-y-1">
                   <Label>File</Label>
-                  <Input type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+                  <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
                 </div>
                 <div className="space-y-1">
                   <Label>Document Number</Label>
-                  <Input value={documentNumber} onChange={(event) => setDocumentNumber(event.target.value)} />
+                  <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <Label>Issued At</Label>
-                  <Input type="date" value={issuedAt} onChange={(event) => setIssuedAt(event.target.value)} />
+                  <Input type="date" value={issuedAt} onChange={(e) => setIssuedAt(e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <Label>Expires At</Label>
-                  <Input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
+                  <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-1">
                 <Label>Submission Note</Label>
-                <Textarea value={note} onChange={(event) => setNote(event.target.value)} />
+                <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
               </div>
               <Button onClick={() => void submitDocument()} disabled={saving}>
                 {saving ? "Submitting..." : "Submit Document"}
@@ -211,34 +211,37 @@ export default function InvestorDocumentsPage() {
             <CardHeader>
               <CardTitle className="text-base">Required Documents</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2">
+            <CardContent className="grid gap-3 sm:grid-cols-2">
               {data.requiredDocumentTypes.map((type) => {
-                const document = currentByType.get(type);
+                const doc = currentByType.get(type);
+                const docBadge = doc ? statusBadge(doc.status) : null;
                 return (
                   <div key={type} className="rounded-lg border p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="space-y-1">
                         <p className="font-medium">{type}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {document ? `Status: ${document.status}` : "Not uploaded yet"}
-                        </p>
+                        {docBadge ? (
+                          <Badge variant={docBadge.variant}>{docBadge.label}</Badge>
+                        ) : (
+                          <Badge variant="outline">Not Uploaded</Badge>
+                        )}
                       </div>
-                      {document?.fileUrl ? (
-                        <a href={document.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-primary underline">
-                          View
-                        </a>
+                      {doc?.fileUrl ? (
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={doc.fileUrl} target="_blank" rel="noreferrer">View</a>
+                        </Button>
                       ) : null}
                     </div>
-                    <div className="mt-2 text-sm text-muted-foreground">
-                      <div>Uploaded: {fmtDate(document?.createdAt)}</div>
-                      <div>Reviewed: {fmtDate(document?.reviewedAt)}</div>
-                      <div>Expires: {fmtDate(document?.expiresAt)}</div>
-                      {document?.reviewNote ? <div>Note: {document.reviewNote}</div> : null}
+                    <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                      <div>Uploaded: {shortDateTime(doc?.createdAt)}</div>
+                      <div>Reviewed: {shortDateTime(doc?.reviewedAt)}</div>
+                      <div>Expires: {shortDateTime(doc?.expiresAt)}</div>
+                      {doc?.reviewNote ? <div className="text-foreground">Note: {doc.reviewNote}</div> : null}
                     </div>
-                    {document ? (
-                      <div className="mt-3 rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">
-                        Re-upload the same document type if the file was rejected, expired, or needs replacement.
-                      </div>
+                    {doc ? (
+                      <p className="mt-3 rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                        Re-upload if the file was rejected, expired, or needs replacement.
+                      </p>
                     ) : null}
                   </div>
                 );
