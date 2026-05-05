@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, Sun, Moon, Leaf } from "lucide-react";
+import { useTheme } from "next-themes";
 import InvestorNav from "./InvestorNav";
 
 type Props = {
@@ -13,8 +14,11 @@ type Props = {
 export default function InvestorLayoutClient({ investorName, investorCode, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme, resolvedTheme } = useTheme();
 
   useEffect(() => {
+    setMounted(true);
     const onScroll = () => setScrolled(window.scrollY > 4);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -66,6 +70,25 @@ export default function InvestorLayoutClient({ investorName, investorCode, child
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Investor Portal</p>
             <p className="truncate text-sm font-semibold">{investorName}</p>
           </div>
+          {mounted && (
+            <button
+              onClick={() => {
+                const active = theme === "system" ? resolvedTheme : theme;
+                if (active === "light") setTheme("dark");
+                else if (active === "dark") setTheme("green");
+                else setTheme("light");
+              }}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label="Toggle theme"
+            >
+              {(() => {
+                const active = theme === "system" ? resolvedTheme : theme;
+                if (active === "dark") return <Moon className="h-5 w-5" />;
+                if (active === "green") return <Leaf className="h-5 w-5" />;
+                return <Sun className="h-5 w-5" />;
+              })()}
+            </button>
+          )}
         </header>
 
         <main className="flex-1 p-4 md:p-6">{children}</main>
