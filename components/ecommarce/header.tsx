@@ -38,6 +38,7 @@ import {
   Boxes,
   Sun,
   Moon,
+  Leaf,
   ChevronLeft,
   Check,
   X,
@@ -303,7 +304,10 @@ function MobileCategoryTree({
     return (
       <div className="space-y-2">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />
+          <div
+            key={i}
+            className="h-14 rounded-2xl bg-muted/70 animate-pulse"
+          />
         ))}
       </div>
     );
@@ -318,36 +322,52 @@ function MobileCategoryTree({
   const Row = ({ node, level }: { node: CategoryNode; level: number }) => {
     const hasChildren = node.children.length > 0;
     const isOpen = openIds.has(node.id);
-    const padLeft = 14 + level * 14;
+    const padLeft = 12 + level * 18;
+    const markerLeft = padLeft - 9;
 
     return (
-      <div>
+      <div className="relative border-b border-border/50 last:border-b-0">
+        {level > 0 && (
+          <>
+            <span
+              className="absolute bottom-0 top-0 w-px bg-border/70"
+              style={{ left: markerLeft }}
+            />
+            <span
+              className="absolute h-px w-3 bg-border/70"
+              style={{ left: markerLeft, top: 28 }}
+            />
+          </>
+        )}
+
         <div
-          className="flex items-center justify-between gap-3 py-3 hover:bg-muted"
-          style={{ paddingLeft: padLeft, paddingRight: 12 }}
+          className="flex items-center justify-between gap-3 py-1 transition-colors hover:bg-muted/30"
+          style={{ paddingLeft: padLeft, paddingRight: 10 }}
         >
           <button
             type="button"
             onClick={() => onGo(node.slug)}
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
           >
-            <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
+            <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/40">
               <Image
                 src={node.image || "/placeholder.svg"}
                 alt={node.name}
                 fill
                 className="object-cover"
-                sizes="36px"
+                sizes="40px"
               />
             </span>
-            <span className="truncate text-sm font-semibold">{node.name}</span>
+            <span className="truncate text-[15px] font-medium text-foreground">
+              {node.name}
+            </span>
           </button>
 
           {hasChildren ? (
             <button
               type="button"
               onClick={() => toggle(node.id)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted"
             >
               <ChevronRight
                 className={`h-5 w-5 transition-transform ${
@@ -355,16 +375,11 @@ function MobileCategoryTree({
                 }`}
               />
             </button>
-          ) : (
-            <span className="h-9 w-9" />
-          )}
+          ) : null}
         </div>
 
         {hasChildren && isOpen && (
-          <div
-            className="border-l border-border"
-            style={{ marginLeft: padLeft + 18 }}
-          >
+          <div>
             {node.children.map((child) => (
               <Row key={child.id} node={child} level={level + 1} />
             ))}
@@ -375,7 +390,7 @@ function MobileCategoryTree({
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-background">
+    <div className="overflow-hidden rounded-2xl bg-card">
       {categories.map((c) => (
         <Row key={c.id} node={c} level={0} />
       ))}
@@ -407,6 +422,7 @@ export default function Header({
   );
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -433,6 +449,7 @@ export default function Header({
   const profileRef = useRef<HTMLDivElement | null>(null);
   const navCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navScrollRef = useRef<HTMLDivElement | null>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const scrollDesktopNav = (direction: "left" | "right") => {
     const el = navScrollRef.current;
@@ -467,6 +484,9 @@ export default function Header({
   }, [siteSettingsData]);
 
   const activeTheme = (theme === "system" ? resolvedTheme : theme) ?? "light";
+  const activeThemeOption =
+    THEME_OPTIONS.find((option) => option.value === activeTheme) ??
+    THEME_OPTIONS[0];
   const darkLikeActiveTheme = isDarkLikeTheme(activeTheme);
 
   useEffect(() => {
@@ -585,6 +605,7 @@ export default function Header({
       const el = e.target as HTMLElement;
       if (!el.closest?.(".header-search-wrapper")) {
         setShowSearchDropdown(false);
+        setMobileSearchOpen(false);
       }
     };
 
@@ -594,6 +615,8 @@ export default function Header({
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
+
+    setMobileSearchOpen(false);
 
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -606,6 +629,7 @@ export default function Header({
   const handleSelectProduct = (p: ProductSummary) => {
     setSearchTerm("");
     setShowSearchDropdown(false);
+    setMobileSearchOpen(false);
     router.push(`/ecommerce/products/${p.id}`);
   };
 
@@ -656,7 +680,7 @@ export default function Header({
   };
 
   const headerIconClass =
-    "relative flex flex-col items-center justify-center gap-1 text-xs font-medium text-foreground transition hover:text-primary";
+    "relative flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground transition hover:bg-white/10 hover:text-primary-foreground md:h-auto md:w-auto md:flex-col md:gap-1 md:rounded-none md:text-xs md:font-medium md:text-foreground md:hover:bg-transparent md:hover:text-primary";
 
   const hoveredNavCat = useMemo(() => {
     if (navHoverCatId === null) return null;
@@ -683,18 +707,23 @@ export default function Header({
     }, 120);
   }, [clearNavCloseTimer]);
 
+  useEffect(() => {
+    if (!mobileSearchOpen) return;
+    mobileSearchInputRef.current?.focus();
+  }, [mobileSearchOpen]);
+
   return (
     <header className="sticky top-0 z-50 bg-background text-foreground">
-      <div className="border-b border-border bg-background">
-        <div className="container mx-auto flex h-[86px] items-center justify-between gap-4 px-4">
+      <div className="border-b border-border bg-primary text-primary-foreground md:bg-background md:text-foreground">
+        <div className="container mx-auto flex h-[72px] items-center justify-between gap-3 px-4 md:h-[86px] md:gap-4">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2">
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border bg-card">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-white md:h-12 md:w-12 md:border-border md:bg-card">
               <Image
                 src={siteSettings.logo || "/assets/examplelogo.jpg"}
                 alt="Logo"
                 fill
                 className="object-contain"
-                sizes="48px"
+                sizes="(max-width: 767px) 40px, 48px"
               />
             </div>
 
@@ -758,27 +787,43 @@ export default function Header({
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-3 sm:gap-5">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-5">
             {/* <Link href="/ecommerce/track-order" className={`${headerIconClass} hidden lg:flex`}>
               <MapPin className="h-6 w-6" />
               <span>Track Order</span>
             </Link> */}
 
-            <div ref={profileRef} className="relative hidden sm:block">
-              <button
-                type="button"
-                onClick={() => setProfileOpen((p) => !p)}
-                className={headerIconClass}
-                aria-label="Profile"
-              >
-                <UserIcon className="h-6 w-6" />
-                <span>{hasMounted && session ? "Sign Out" : "Sign In"}</span>
-              </button>
+            <Link
+              href="/ecommerce/blogs"
+              className={`${headerIconClass} hidden lg:flex`}
+            >
+              <Newspaper className="h-6 w-6" />
+              <span>Blog</span>
+            </Link>
 
-              {profileOpen && (
-                <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl">
-                  {hasMounted && session ? (
-                    <>
+            <Link
+              href="/ecommerce/products"
+              className={`${headerIconClass} hidden lg:flex`}
+            >
+              <Boxes className="h-6 w-6" />
+              <span>All Products</span>
+            </Link>
+
+            <div ref={profileRef} className="relative hidden sm:block">
+              {hasMounted && session ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setProfileOpen((p) => !p)}
+                    className={headerIconClass}
+                    aria-label="Profile"
+                  >
+                    <UserIcon className="h-6 w-6" />
+                    <span>Sign Out</span>
+                  </button>
+
+                  {profileOpen && (
+                    <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl z-[10001]">
                       <div className="border-b border-border px-4 py-3">
                         <div className="text-sm font-semibold">{userName}</div>
                         <div className="text-xs text-muted-foreground">
@@ -807,18 +852,17 @@ export default function Header({
                         <LogOut className="h-4 w-4" />
                         Logout
                       </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => router.push("/signin")}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-sm hover:bg-muted"
-                    >
-                      <LogIn className="h-4 w-4" />
-                      Login
-                    </button>
+                    </div>
                   )}
-                </div>
+                </>
+              ) : (
+                <Link
+                  href="/signin"
+                  className={headerIconClass}
+                >
+                  <UserIcon className="h-6 w-6" />
+                  <span>Sign In</span>
+                </Link>
               )}
             </div>
 
@@ -835,6 +879,54 @@ export default function Header({
               <span>Wishlist</span>
             </Link>
 
+            <div
+              className={`header-search-wrapper relative overflow-visible transition-all duration-300 md:hidden ${
+                mobileSearchOpen ? "w-[42vw] max-w-[170px]" : "w-10"
+              }`}
+            >
+              <div className="flex h-10 items-center overflow-hidden rounded-full border border-white/20 bg-white/10 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onClick={() => setMobileSearchOpen((prev) => !prev)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center text-primary-foreground"
+                  aria-label={mobileSearchOpen ? "Close search" : "Open search"}
+                >
+                  <Search className="h-5 w-5" />
+                </button>
+
+                <input
+                  ref={mobileSearchInputRef}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  onFocus={() =>
+                    searchResults.length > 0 && setShowSearchDropdown(true)
+                  }
+                  placeholder="Search..."
+                  className={`h-10 min-w-0 flex-1 bg-transparent pr-3 text-sm text-primary-foreground outline-none placeholder:text-primary-foreground/70 transition-all duration-300 ${
+                    mobileSearchOpen
+                      ? "opacity-100"
+                      : "pointer-events-none w-0 opacity-0"
+                  }`}
+                />
+              </div>
+
+              {mobileSearchOpen && showSearchDropdown && (
+                <div className="absolute right-0 top-full z-[9999] mt-2 max-h-72 w-[220px] max-w-[calc(100vw-2rem)] overflow-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl">
+                  {searchResults.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleSelectProduct(p)}
+                      className="w-full px-4 py-3 text-left text-sm hover:bg-muted"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <Link href="/ecommerce/cart" className={headerIconClass}>
               <ShoppingCart className="h-7 w-7" />
               {hasMounted && cartCount > 0 && (
@@ -844,6 +936,50 @@ export default function Header({
               )}
               <span className="hidden sm:inline">Cart</span>
             </Link>
+
+            {hasMounted && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={`${headerIconClass} md:hidden`}
+                    title="Select theme"
+                    aria-label="Select theme"
+                  >
+                    {activeThemeOption.value === "light" ? (
+                      <Sun className="h-6 w-6" />
+                    ) : activeThemeOption.value === "dark" ? (
+                      <Moon className="h-6 w-6" />
+                    ) : (
+                      <Leaf className="h-6 w-6" />
+                    )}
+                    <span className="hidden">Theme</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {THEME_OPTIONS.map((option) => (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onClick={() => setTheme(option.value)}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span className="flex items-center gap-2">
+                        {option.value === "light" ? (
+                          <Sun className="h-4 w-4" />
+                        ) : option.value === "dark" ? (
+                          <Moon className="h-4 w-4" />
+                        ) : (
+                          <Leaf className="h-4 w-4" />
+                        )}
+                        {option.label}
+                      </span>
+                      {activeTheme === option.value ? (
+                        <Check className="h-4 w-4" />
+                      ) : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             {hasMounted && (
               <DropdownMenu>
@@ -888,118 +1024,74 @@ export default function Header({
             </button>
           </div>
         </div>
-
-        <div className="container mx-auto px-4 pb-4 md:hidden">
-          <div className="header-search-wrapper relative">
-            <input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              onFocus={() =>
-                searchResults.length > 0 && setShowSearchDropdown(true)
-              }
-              placeholder="Search in..."
-              className="h-11 w-full rounded-lg border border-border bg-muted px-4 pr-11 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
-            <Search className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2" />
-
-            {showSearchDropdown && (
-              <div className="absolute top-full z-[9999] mt-2 max-h-72 w-full overflow-auto rounded-xl border border-border bg-popover shadow-2xl">
-                {searchResults.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleSelectProduct(p)}
-                    className="w-full px-4 py-3 text-left text-sm hover:bg-muted"
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       <nav className="relative z-[60] hidden bg-secondary text-secondary-foreground md:block">
-        <div className="container relative mx-auto px-4 overflow-visible group">
-          {/* Left Arrow - Primary Color */}
-          <button
-            type="button"
-            onClick={() => scrollDesktopNav("left")}
-            className="absolute left-1 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg backdrop-blur transition-all duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-primary/80 hover:scale-110 active:scale-95"
-            aria-label="Scroll categories left"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
+        <div className="container relative mx-auto overflow-visible px-4">
+          <div className="group/nav relative">
+            {/* Left Arrow - Primary Color */}
+            <button
+              type="button"
+              onClick={() => scrollDesktopNav("left")}
+              className="absolute left-1 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-secondary text-primary-foreground shadow-lg backdrop-blur transition-all duration-300 opacity-0 pointer-events-none group-hover/nav:opacity-100 group-hover/nav:pointer-events-auto hover:bg-secondary hover:scale-110 active:scale-95"
+              aria-label="Scroll categories left"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
 
-          {/* Right Arrow - Primary Color */}
-          <button
-            type="button"
-            onClick={() => scrollDesktopNav("right")}
-            className="absolute right-1 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg backdrop-blur transition-all duration-300 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto hover:bg-primary/80 hover:scale-110 active:scale-95"
-            aria-label="Scroll categories right"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
+            {/* Right Arrow - Primary Color */}
+            <button
+              type="button"
+              onClick={() => scrollDesktopNav("right")}
+              className="absolute right-1 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-secondary text-primary-foreground shadow-lg backdrop-blur transition-all duration-300 opacity-0 pointer-events-none group-hover/nav:opacity-100 group-hover/nav:pointer-events-auto hover:bg-secondary hover:scale-110 active:scale-95"
+              aria-label="Scroll categories right"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
 
-          <div
-            ref={navScrollRef}
-            className="mx-10 flex h-14 items-center gap-8 overflow-hidden"
-            onMouseLeave={scheduleNavClose}
-            onMouseEnter={clearNavCloseTimer}
-          >
-            {categoryTree.slice(0, 12).map((cat) => (
-              <div
-                key={cat.id}
-                className="relative shrink-0 group"
-                onMouseEnter={(e) => {
-                  clearNavCloseTimer();
-                  setNavHoverCatId(cat.children.length > 0 ? cat.id : null);
-                  setNavHoverSubId(null);
+            <div
+              ref={navScrollRef}
+              className="mx-10 flex h-14 items-center gap-8 overflow-hidden"
+              onMouseLeave={scheduleNavClose}
+              onMouseEnter={clearNavCloseTimer}
+            >
+              {categoryTree.slice(0, 12).map((cat) => (
+                <div
+                  key={cat.id}
+                  className="relative shrink-0 group"
+                  onMouseEnter={(e) => {
+                    clearNavCloseTimer();
+                    setNavHoverCatId(cat.children.length > 0 ? cat.id : null);
+                    setNavHoverSubId(null);
 
-                  const rect = (
-                    e.currentTarget as HTMLDivElement
-                  ).getBoundingClientRect();
+                    const rect = (
+                      e.currentTarget as HTMLDivElement
+                    ).getBoundingClientRect();
 
-                  setNavMenuPos({ left: rect.left, top: rect.bottom });
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (cat.children.length === 0) {
-                      goCategoryFromDesktop(cat.slug);
-                    }
+                    setNavMenuPos({ left: rect.left, top: rect.bottom });
                   }}
-                  className="flex h-14 items-center gap-1 whitespace-nowrap text-sm font-semibold transition-all duration-300 text-secondary-foreground hover:text-primary group-hover:text-primary"
                 >
-                  {cat.name}
-                  {cat.children.length > 0 && (
-                    <ChevronDown className="h-4 w-4 transition-transform duration-300 group-hover:rotate-180" />
-                  )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (cat.children.length === 0) {
+                        goCategoryFromDesktop(cat.slug);
+                      }
+                    }}
+                    className="flex h-14 items-center gap-1 whitespace-nowrap text-sm font-semibold transition-all duration-300 text-secondary-foreground hover:text-secondary-foreground/70 "
+                  >
+                    {cat.name}
+                    {cat.children.length > 0 && (
+                      <ChevronDown className="h-4 w-4 transition-transform duration-300 group-hover:rotate-180" />
+                    )}
+                  </button>
 
-                {/* Hover underline effect */}
-                <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
-              </div>
-            ))}
+                  {/* Hover underline effect */}
+                  <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
+                </div>
+              ))}
 
-            <Link
-              href="/ecommerce/blogs"
-              className="relative shrink-0 whitespace-nowrap text-sm font-semibold transition-all duration-300 text-secondary-foreground hover:text-primary group"
-            >
-              Blog
-              <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
-            </Link>
-
-            <Link
-              href="/ecommerce/products"
-              className="relative shrink-0 whitespace-nowrap text-sm font-semibold transition-all duration-300 text-secondary-foreground hover:text-primary group"
-            >
-              All Products
-              <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
-            </Link>
+            </div>
           </div>
         </div>
 
@@ -1060,7 +1152,7 @@ export default function Header({
             onClick={() => setMobileMenuOpen(false)}
           />
 
-          <div className="absolute right-0 top-0 h-full w-[78%] max-w-[340px] overflow-y-auto border-l border-border bg-background text-foreground shadow-2xl">
+          <div className="absolute right-0 top-0 flex h-full w-[78%] max-w-[340px] flex-col overflow-hidden border-l border-border bg-background text-foreground shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-4">
               <Link
                 href="/"
@@ -1096,141 +1188,54 @@ export default function Header({
               </button>
             </div>
 
-            <div className="space-y-5 p-4">
-              {/* User Profile Card - simplified */}
-              {hasMounted && session && (
-                <div className="overflow-hidden rounded-2xl border border-border bg-card">
-                  <div className="border-b border-border bg-primary/10 px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                        {userName?.charAt(0)?.toUpperCase() || "U"}
-                      </div>
-
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-bold">
-                          {userName}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {displayRole}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Dashboard */}
-              {hasMounted && session && (
-                <Link
-                  href={dashboardHref}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm font-bold"
-                >
-                  <LayoutDashboard className="h-5 w-5" />
-                  Dashboard
-                </Link>
-              )}
-
-              {/* Login (only when not logged in) */}
-              {!session && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    router.push("/signin");
-                  }}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"
-                >
-                  <LogIn className="h-5 w-5" />
-                  Login
-                </button>
-              )}
-
-              {/* Logout (only when logged in) */}
-              {hasMounted && session && (
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={async () => {
-                    setMobileMenuOpen(false);
-                    await handleSignOut();
-                  }}
-                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm font-bold text-destructive hover:bg-muted disabled:opacity-60"
-                >
-                  <LogOut className="h-5 w-5" />
-                  Logout
-                </button>
-              )}
-
+            <div className="flex-1 space-y-5 overflow-y-auto p-2">
               {/* Navigation Items */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-4 gap-2">
                 <Link
                   href="/ecommerce/products"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-xl border border-border bg-card px-4 py-3 text-sm font-bold"
+                  className="flex h-11 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground transition hover:border-primary/40 hover:text-primary"
+                  aria-label="All Products"
+                  title="All Products"
                 >
-                  <Boxes className="mb-2 h-5 w-5" />
-                  All Products
+                  <Boxes className="h-[18px] w-[18px]" />
                 </Link>
 
                 <Link
                   href="/ecommerce/blogs"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-xl border border-border bg-card px-4 py-3 text-sm font-bold"
+                  className="flex h-11 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground transition hover:border-primary/40 hover:text-primary"
+                  aria-label="Blog"
+                  title="Blog"
                 >
-                  <Newspaper className="mb-2 h-5 w-5" />
-                  Blog
+                  <Newspaper className="h-[18px] w-[18px]" />
                 </Link>
 
                 <Link
                   href="/ecommerce/wishlist"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-xl border border-border bg-card px-4 py-3 text-sm font-bold"
+                  className="flex h-11 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground transition hover:border-primary/40 hover:text-primary"
+                  aria-label="Wishlist"
+                  title="Wishlist"
                 >
-                  <Heart className="mb-2 h-5 w-5" />
-                  Wishlist
+                  <Heart className="h-[18px] w-[18px]" />
                 </Link>
 
                 <Link
                   href="/ecommerce/cart"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="rounded-xl border border-border bg-card px-4 py-3 text-sm font-bold"
+                  className="flex h-11 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground transition hover:border-primary/40 hover:text-primary"
+                  aria-label="Cart"
+                  title="Cart"
                 >
-                  <ShoppingCart className="mb-2 h-5 w-5" />
-                  Cart
+                  <ShoppingCart className="h-[18px] w-[18px]" />
                 </Link>
               </div>
 
-              {/* Theme Switcher */}
-              {hasMounted && (
-                <div className="rounded-2xl border border-border bg-card p-4">
-                  <div className="mb-3 text-sm font-bold">Theme</div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {THEME_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setTheme(option.value)}
-                        className={`rounded-lg border px-3 py-2 text-sm ${
-                          activeTheme === option.value
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-background"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Categories */}
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <div className="mb-3">
+              <div className="px-1">
+                <div className="mb-2 px-2">
                   <div className="text-sm font-bold">All Categories</div>
-                  <div className="text-xs text-muted-foreground">
-                    Browse products by category
-                  </div>
                 </div>
 
                 <MobileCategoryTree
@@ -1240,6 +1245,84 @@ export default function Header({
                 />
               </div>
             </div>
+
+            {hasMounted && (
+              <div className="sticky bottom-0 bg-background/95 px-3 pb-3 pt-2 backdrop-blur">
+                {session ? (
+                  <div className="flex items-center gap-3 rounded-xl bg-card/90 px-3 py-2.5 shadow-sm">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                      {userName?.charAt(0)?.toUpperCase() || "U"}
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold">
+                              {userName}
+                            </span>
+                            <span className="block truncate text-[11px] text-muted-foreground">
+                              {displayRole}
+                            </span>
+                          </span>
+                          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" side="top" className="w-48">
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href={dashboardHref}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-2"
+                          >
+                            <LayoutDashboard className="h-4 w-4" />
+                            Dashboard
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/ecommerce/user/profile"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-2"
+                          >
+                            <UserIcon className="h-4 w-4" />
+                            Profile
+                          </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={async () => {
+                        setMobileMenuOpen(false);
+                        await handleSignOut();
+                      }}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:opacity-60"
+                      aria-label="Sign out"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      router.push("/signin");
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"
+                  >
+                    <LogIn className="h-5 w-5" />
+                    Login
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
