@@ -44,6 +44,7 @@ type Payload = {
 export default function InvestorDocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [data, setData] = useState<Payload | null>(null);
   const [selectedType, setSelectedType] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -81,7 +82,11 @@ export default function InvestorDocumentsPage() {
     if (!selectedType || !file) { toast.error("Document type and file are required."); return; }
     try {
       setSaving(true);
-      const fileUrl = await uploadFile(file, "/api/upload/investor-kyc");
+      setUploadProgress(0);
+      const fileUrl = await uploadFile(file, "/api/upload/investor-kyc", (pct) => {
+        setUploadProgress(pct);
+      });
+      setUploadProgress(100);
       const response = await fetch("/api/investor/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -97,9 +102,11 @@ export default function InvestorDocumentsPage() {
       toast.success("Document submitted for review.");
       setSelectedType(""); setFile(null); setDocumentNumber("");
       setIssuedAt(""); setExpiresAt(""); setNote("");
+      setUploadProgress(null);
       await load();
     } catch (error: any) {
       toast.error(error?.message || "Failed to upload investor document.");
+      setUploadProgress(null);
     } finally {
       setSaving(false);
     }
@@ -201,8 +208,25 @@ export default function InvestorDocumentsPage() {
                 <Label>Submission Note</Label>
                 <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
               </div>
-              <Button onClick={() => void submitDocument()} disabled={saving}>
-                {saving ? "Submitting..." : "Submit Document"}
+              {uploadProgress !== null && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{uploadProgress < 100 ? "Uploading file..." : "Processing..."}</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <Button
+                onClick={() => void submitDocument()}
+                disabled={saving || !selectedType || !file}
+              >
+                {saving ? (uploadProgress !== null && uploadProgress < 100 ? "Uploading..." : "Submitting...") : "Submit Document"}
               </Button>
             </CardContent>
           </Card>

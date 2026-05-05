@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SkeletonCards, SkeletonTable } from "@/components/investor/InvestorSkeleton";
 import { statusBadge, shortDate } from "@/lib/investor-status";
 
@@ -123,56 +124,56 @@ export default function InvestorPayoutsPage() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="pb-2 pr-4 font-medium text-muted-foreground">Payout</th>
-                  <th className="pb-2 pr-4 font-medium text-muted-foreground">Run</th>
-                  <th className="pb-2 pr-4 font-medium text-muted-foreground">Status</th>
-                  <th className="pb-2 pr-4 font-medium text-muted-foreground">Amount</th>
-                  <th className="pb-2 pr-4 font-medium text-muted-foreground hidden md:table-cell">Method</th>
-                  <th className="pb-2 pr-4 font-medium text-muted-foreground hidden lg:table-cell">Created</th>
-                  <th className="pb-2 pr-4 font-medium text-muted-foreground hidden lg:table-cell">Approved</th>
-                  <th className="pb-2 font-medium text-muted-foreground">Paid</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Payout</TableHead>
+                  <TableHead>Run</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead className="hidden md:table-cell">Method</TableHead>
+                  <TableHead className="hidden lg:table-cell">Created</TableHead>
+                  <TableHead className="hidden lg:table-cell">Approved</TableHead>
+                  <TableHead>Paid</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {(data?.payouts || []).map((item) => {
                   const badge = statusBadge(item.status);
                   return (
-                    <tr key={item.id} className="border-b last:border-0">
-                      <td className="py-3 pr-4 font-medium whitespace-nowrap">{item.payoutNumber}</td>
-                      <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground">{item.run.runNumber}</td>
-                      <td className="py-3 pr-4">
+                    <TableRow key={item.id}>
+                      <TableCell className="whitespace-nowrap font-medium">{item.payoutNumber}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">{item.run.runNumber}</TableCell>
+                      <TableCell>
                         <Badge variant={badge.variant}>{badge.label}</Badge>
-                      </td>
-                      <td className="py-3 pr-4 whitespace-nowrap font-medium">
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap font-medium">
                         {fmtAmount(item.payoutAmount)} {item.currency}
-                      </td>
-                      <td className="py-3 pr-4 text-muted-foreground hidden md:table-cell">
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground">
                         {item.paymentMethod || "-"}
-                      </td>
-                      <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground hidden lg:table-cell">
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell whitespace-nowrap text-muted-foreground">
                         {shortDate(item.createdAt)}
-                      </td>
-                      <td className="py-3 pr-4 whitespace-nowrap text-muted-foreground hidden lg:table-cell">
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell whitespace-nowrap text-muted-foreground">
                         {shortDate(item.approvedAt)}
-                      </td>
-                      <td className="py-3 whitespace-nowrap text-muted-foreground">
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
                         {shortDate(item.paidAt)}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
                 {data?.payouts?.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-6 text-center text-sm text-muted-foreground">
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-6 text-center text-sm text-muted-foreground">
                       No payouts found.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : null}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>

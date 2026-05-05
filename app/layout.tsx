@@ -92,6 +92,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} ${rubik.variable} antialiased min-h-screen flex flex-col`}
       >
         <script

@@ -107,7 +107,7 @@ export default function InvestorProfitRunsPage() {
             <Label>Profit Run</Label>
             <select
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              value={runId ?? ""}
+              value={String(runId ?? "")}
               onChange={(e) => setRunId(Number(e.target.value) || null)}
             >
               <option value="">Select run</option>

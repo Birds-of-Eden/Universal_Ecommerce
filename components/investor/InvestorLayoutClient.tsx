@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
 import InvestorNav from "./InvestorNav";
 
 type Props = {
@@ -12,6 +12,13 @@ type Props = {
 
 export default function InvestorLayoutClient({ investorName, investorCode, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <div className="flex min-h-screen w-full">
@@ -40,8 +47,14 @@ export default function InvestorLayoutClient({ investorName, investorCode, child
 
       {/* Main content area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile top bar */}
-        <header className="flex items-center gap-3 border-b border-border bg-card/70 px-4 py-3 md:hidden">
+        {/* Mobile top bar — sticky */}
+        <header
+          className={[
+            "sticky top-0 z-30 flex items-center gap-3 border-b border-border px-4 py-3 md:hidden",
+            "bg-card/80 backdrop-blur-md transition-shadow duration-200",
+            scrolled ? "shadow-md" : "shadow-none",
+          ].join(" ")}
+        >
           <button
             onClick={() => setSidebarOpen(true)}
             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"

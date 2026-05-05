@@ -54,12 +54,6 @@ function toInputDate(value: Date) {
   return value.toISOString().slice(0, 10);
 }
 
-function fmtDate(value?: string | null) {
-  if (!value) return "N/A";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "N/A";
-  return parsed.toLocaleString();
-}
 
 export default function InvestorStatementsPage() {
   const defaultFrom = useMemo(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,15 +59,25 @@ const FORM_FIELDS: [string, string][] = [
   ["bankAccountNumber", "Account Number"],
 ];
 
+type FormState = {
+  name: string; legalName: string; email: string; phone: string;
+  taxNumber: string; nationalIdNumber: string; passportNumber: string;
+  bankName: string; bankAccountName: string; bankAccountNumber: string;
+  notes: string; requestNote: string;
+};
+
+const EMPTY_FORM: FormState = {
+  name: "", legalName: "", email: "", phone: "", taxNumber: "",
+  nationalIdNumber: "", passportNumber: "", bankName: "",
+  bankAccountName: "", bankAccountNumber: "", notes: "", requestNote: "",
+};
+
 export default function InvestorProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [data, setData] = useState<Payload | null>(null);
-  const [form, setForm] = useState({
-    name: "", legalName: "", email: "", phone: "", taxNumber: "",
-    nationalIdNumber: "", passportNumber: "", bankName: "",
-    bankAccountName: "", bankAccountNumber: "", notes: "", requestNote: "",
-  });
+  const [original, setOriginal] = useState<FormState>(EMPTY_FORM);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   const load = async () => {
     try {
@@ -77,7 +87,7 @@ export default function InvestorProfilePage() {
       if (!response.ok) throw new Error(payload?.error || "Failed to load investor profile.");
       const next = payload as Payload;
       setData(next);
-      setForm({
+      const loaded: FormState = {
         name: next.investor.name ?? "",
         legalName: next.investor.legalName ?? "",
         email: next.investor.email ?? "",
@@ -90,7 +100,9 @@ export default function InvestorProfilePage() {
         bankAccountNumber: next.investor.bankAccountNumber ?? "",
         notes: next.investor.notes ?? "",
         requestNote: "",
-      });
+      };
+      setOriginal(loaded);
+      setForm(loaded);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load investor profile.");
     } finally {
@@ -119,6 +131,15 @@ export default function InvestorProfilePage() {
     }
   };
 
+  const dirtyFields = useMemo(
+    () => new Set(
+      (Object.keys(form) as (keyof FormState)[]).filter(
+        (k) => k !== "requestNote" && form[k] !== original[k],
+      ),
+    ),
+    [form, original],
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -134,6 +155,7 @@ export default function InvestorProfilePage() {
       </div>
     );
   }
+  const hasDirtyFields = dirtyFields.size > 0;
 
   const statusBadgeInvestor = data ? statusBadge(data.investor.status) : null;
   const kycBadge = data ? statusBadge(data.investor.kycStatus) : null;
@@ -188,31 +210,74 @@ export default function InvestorProfilePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Submit Profile Update Request</CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-base">Submit Profile Update Request</CardTitle>
+                {hasDirtyFields && (
+                  <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                    {dirtyFields.size} field{dirtyFields.size > 1 ? "s" : ""} changed
+                  </span>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {hasDirtyFields && (
+                <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary">
+                  Fields highlighted in blue have been modified from their saved values.
+                </div>
+              )}
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-                {FORM_FIELDS.map(([key, label]) => (
-                  <div key={key} className="space-y-1">
-                    <Label>{label}</Label>
-                    <Input
-                      value={form[key as keyof typeof form] as string}
-                      onChange={(e) => setForm((c) => ({ ...c, [key]: e.target.value }))}
+                {FORM_FIELDS.map(([key, label]) => {
+                  const isDirty = dirtyFields.has(key as keyof FormState);
+                  return (
+                    <div key={key} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label className={isDirty ? "text-primary" : ""}>{label}</Label>
+                        {isDirty && (
+                          <span className="text-xs text-primary">modified</span>
+                        )}
+                      </div>
+                      <Input
+                        value={form[key as keyof FormState]}
+                        onChange={(e) => setForm((c) => ({ ...c, [key]: e.target.value }))}
+                        className={isDirty ? "border-primary/60 ring-1 ring-primary/20 focus-visible:ring-primary" : ""}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="space-y-1">
+                {(() => { const isDirty = dirtyFields.has("notes"); return (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <Label className={isDirty ? "text-primary" : ""}>Notes</Label>
+                      {isDirty && <span className="text-xs text-primary">modified</span>}
+                    </div>
+                    <Textarea
+                      value={form.notes}
+                      onChange={(e) => setForm((c) => ({ ...c, notes: e.target.value }))}
+                      className={isDirty ? "border-primary/60 ring-1 ring-primary/20 focus-visible:ring-primary" : ""}
                     />
-                  </div>
-                ))}
+                  </>
+                );})()}
               </div>
               <div className="space-y-1">
-                <Label>Notes</Label>
-                <Textarea value={form.notes} onChange={(e) => setForm((c) => ({ ...c, notes: e.target.value }))} />
+                <Label>Request Note <span className="text-xs text-muted-foreground">(explain why you&apos;re requesting this change)</span></Label>
+                <Textarea
+                  value={form.requestNote}
+                  onChange={(e) => setForm((c) => ({ ...c, requestNote: e.target.value }))}
+                  placeholder="e.g. Updating bank account due to account change."
+                />
               </div>
-              <div className="space-y-1">
-                <Label>Request Note</Label>
-                <Textarea value={form.requestNote} onChange={(e) => setForm((c) => ({ ...c, requestNote: e.target.value }))} />
+              <div className="flex flex-wrap items-center gap-3">
+                <Button onClick={() => void submit()} disabled={saving || !hasDirtyFields}>
+                  {saving ? "Submitting..." : "Submit Update Request"}
+                </Button>
+                {hasDirtyFields && (
+                  <Button variant="ghost" size="sm" onClick={() => setForm(original)}>
+                    Reset changes
+                  </Button>
+                )}
               </div>
-              <Button onClick={() => void submit()} disabled={saving}>
-                {saving ? "Submitting..." : "Submit Update Request"}
-              </Button>
             </CardContent>
           </Card>
 

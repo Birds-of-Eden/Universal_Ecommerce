@@ -413,6 +413,13 @@ export default function Header({
 
   const [hasMounted, setHasMounted] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(
     siteSettingsData ?? {},
@@ -710,7 +717,12 @@ export default function Header({
   }, [mobileSearchOpen]);
 
   return (
-    <header className="sticky top-0 z-50 bg-background text-foreground">
+    <header
+      className={[
+        "sticky top-0 z-50 bg-background/95 backdrop-blur-md text-foreground transition-shadow duration-200",
+        scrolled ? "shadow-md" : "shadow-none",
+      ].join(" ")}
+    >
       <div className="border-b border-border bg-primary text-primary-foreground md:bg-background md:text-foreground">
         <div className="container mx-auto flex h-[50px] items-center justify-between gap-3 px-4 md:h-[86px] md:gap-4">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2">
