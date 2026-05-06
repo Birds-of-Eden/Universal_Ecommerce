@@ -10,6 +10,105 @@ import AdminDashboard, {
 const dashboardCache = new Map<TimeRange, DashboardStats>();
 let lastSelectedRange: TimeRange = "today";
 
+interface AnalyticsSummaryRow {
+  name: string;
+  count: number;
+}
+
+interface AnalyticsSummaryTopPage {
+  path: string;
+  views: number;
+  avgActiveTimeSec: number;
+}
+
+interface AnalyticsSummaryResponse {
+  kpis?: {
+    visitors?: number;
+    pageViews?: number;
+  };
+  series?: Array<{
+    t: string;
+    visitors: number;
+    pageViews: number;
+  }>;
+  topPages?: AnalyticsSummaryTopPage[];
+  sources?: AnalyticsSummaryRow[];
+}
+
+function getAnalyticsWindow(timeRange: TimeRange) {
+  const now = new Date();
+  const to = now;
+  const from = new Date(now);
+
+  if (timeRange === "today") {
+    from.setHours(0, 0, 0, 0);
+    return { from, to, bucket: "hour" as const };
+  }
+
+  if (timeRange === "week") {
+    from.setDate(now.getDate() - 7);
+    return { from, to, bucket: "day" as const };
+  }
+
+  if (timeRange === "month") {
+    from.setMonth(now.getMonth() - 1);
+    return { from, to, bucket: "day" as const };
+  }
+
+  from.setFullYear(now.getFullYear() - 1);
+  return { from, to, bucket: "day" as const };
+}
+
+function mergeAnalyticsSummary(
+  stats: DashboardStats,
+  summary: AnalyticsSummaryResponse | null
+): DashboardStats {
+  if (!summary) return stats;
+
+  const visitors = summary.kpis?.visitors ?? 0;
+  const pageViews = summary.kpis?.pageViews ?? 0;
+
+  return {
+    ...stats,
+    analytics: {
+      ...stats.analytics,
+      sessions: visitors,
+      pageViews,
+      visitorSeries: (summary.series ?? []).map((item) => ({
+        label:
+          item.t?.includes("T") && item.t.length >= 13
+            ? item.t.slice(11, 13)
+            : item.t?.slice(5, 10) || "",
+        value: item.visitors || 0,
+        secondaryValue: item.pageViews || 0,
+      })),
+    },
+    marketing: {
+      ...stats.marketing,
+      sessions: visitors,
+      pageViews,
+      trafficSources: (summary.sources ?? []).map((item, index) => ({
+        label: item.name || `Source ${index + 1}`,
+        value: item.count || 0,
+        tone:
+          index === 0
+            ? ("good" as const)
+            : index === 1
+              ? ("default" as const)
+              : index === 2
+                ? ("warn" as const)
+                : ("default" as const),
+      })),
+      topPages: (summary.topPages ?? []).map((page, index) => ({
+        id: `analytics-page-${index}`,
+        title: page.path || "/",
+        subtitle: `${page.avgActiveTimeSec || 0}s average engagement`,
+        value: new Intl.NumberFormat("en-US").format(page.views || 0),
+      })),
+    },
+  };
+}
+
 function getRangeLabels(timeRange: TimeRange) {
   if (timeRange === "today") return ["00", "04", "08", "12", "16", "20"];
   if (timeRange === "week") return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -67,12 +166,20 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
   const newsletterSubscribers = stats.marketing?.newsletterSubscribers ?? stats.newsletterSubscribers ?? 0;
   const sessions = stats.analytics?.sessions ?? stats.marketing?.sessions ?? Math.max(stats.totalUsers * 7, stats.totalOrders * 18);
   const pageViews = stats.analytics?.pageViews ?? stats.marketing?.pageViews ?? Math.max(sessions * 3, 1);
-  const formatCurrency = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "BDT", maximumFractionDigits: 0 }).format(amount || 0);
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "BDT",
+      currencyDisplay: "code",
+      maximumFractionDigits: 0,
+    }).format(amount || 0);
   const formatNumber = (amount: number) => new Intl.NumberFormat("en-US").format(amount || 0);
   const labels = getRangeLabels(timeRange);
   const revenueSeries = stats.analytics?.revenueSeries ?? buildSeries(stats.totalRevenue, labels.length, labels);
   const ordersSeries = stats.analytics?.ordersSeries ?? buildSeries(stats.totalOrders, labels.length, labels);
   const refundSeries = stats.analytics?.refundSeries ?? buildSeries(refundRequests, labels.length, labels);
+  const visitorSeries =
+    stats.analytics?.visitorSeries ?? buildSeries(sessions, labels.length, labels);
   const paymentBreakdown = stats.analytics?.paymentBreakdown ?? [
     { label: "Paid", value: paidOrders, tone: "good" as const },
     { label: "Unpaid", value: unpaidOrders, tone: "warn" as const },
@@ -133,18 +240,8 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
     subtitle: "Most wishlisted in current merchandising mix",
     value: `${Math.max(8, Math.round(product.soldCount * 1.4))} saves`,
   }));
-  const topPages = stats.marketing?.topPages ?? [
-    { id: "page-home", title: "/", subtitle: "Homepage traffic", value: formatNumber(Math.round(pageViews * 0.29)) },
-    { id: "page-category", title: "/ecommerce/categories", subtitle: "Category discovery", value: formatNumber(Math.round(pageViews * 0.24)) },
-    { id: "page-products", title: "/ecommerce/products", subtitle: "Product discovery", value: formatNumber(Math.round(pageViews * 0.19)) },
-    { id: "page-cart", title: "/ecommerce/cart", subtitle: "Checkout intent", value: formatNumber(Math.round(pageViews * 0.08)) },
-  ];
-  const trafficSources = stats.marketing?.trafficSources ?? [
-    { label: "Organic", value: Math.round(sessions * 0.42), tone: "good" as const },
-    { label: "Direct", value: Math.round(sessions * 0.27) },
-    { label: "Paid", value: Math.round(sessions * 0.18), tone: "warn" as const },
-    { label: "Referral", value: Math.round(sessions * 0.13) },
-  ];
+  const topPages = stats.marketing?.topPages ?? [];
+  const trafficSources = stats.marketing?.trafficSources ?? [];
   const recentConversations = stats.support?.recentConversations ?? Array.from({ length: Math.max(2, Math.min(openChats, 4)) }, (_, index) => ({
     id: `chat-${index}`,
     title: `Conversation ${index + 1}`,
@@ -196,6 +293,7 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
     revenueSeries,
     ordersSeries,
     refundSeries,
+    visitorSeries,
     paymentBreakdown,
     orderStatusBreakdown,
     warehouseDistribution,
@@ -245,18 +343,41 @@ const AdminPage = memo(function AdminPage() {
         const controller = new AbortController();
         timeoutId = setTimeout(() => controller.abort(), 10000);
 
-        const response = await fetch(`/api/admindashboard?range=${range}`, {
-          signal: controller.signal,
-          cache: "no-store",
+        const { from, to, bucket } = getAnalyticsWindow(range);
+        const analyticsParams = new URLSearchParams({
+          from: from.toISOString(),
+          to: to.toISOString(),
+          bucket,
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const [dashboardResponse, analyticsResponse] = await Promise.all([
+          fetch(`/api/admindashboard?range=${range}`, {
+            signal: controller.signal,
+            cache: "no-store",
+          }),
+          fetch(`/api/analytics/summary?${analyticsParams.toString()}`, {
+            signal: controller.signal,
+            cache: "no-store",
+          }).catch(() => null),
+        ]);
+
+        if (!dashboardResponse.ok) {
+          throw new Error(
+            `HTTP ${dashboardResponse.status}: ${dashboardResponse.statusText}`
+          );
         }
 
-        const data: DashboardStats = await response.json();
-        dashboardCache.set(range, data);
-        setStats(data);
+        const data: DashboardStats = await dashboardResponse.json();
+        let analyticsSummary: AnalyticsSummaryResponse | null = null;
+
+        if (analyticsResponse && analyticsResponse.ok) {
+          analyticsSummary =
+            (await analyticsResponse.json()) as AnalyticsSummaryResponse;
+        }
+
+        const merged = mergeAnalyticsSummary(data, analyticsSummary);
+        dashboardCache.set(range, merged);
+        setStats(merged);
       } catch (error: any) {
         if (error.name !== "AbortError") {
           console.error("Error fetching dashboard data:", error);

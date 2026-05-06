@@ -38,7 +38,30 @@ import {
   UserRound,
   Users,
   WalletCards,
+  TrendingUp,
+  TrendingDown,
+  MoreHorizontal,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  RadialBarChart,
+  RadialBar,
+  ComposedChart,
+} from "recharts";
 import { StatCard } from "@/components/StatCard";
 
 export type TimeRange = "today" | "week" | "month" | "year";
@@ -127,6 +150,7 @@ interface DashboardStats {
     revenueSeries?: DashboardSeriesPoint[];
     ordersSeries?: DashboardSeriesPoint[];
     refundSeries?: DashboardSeriesPoint[];
+    visitorSeries?: DashboardSeriesPoint[];
     paymentBreakdown?: MetricValue[];
     orderStatusBreakdown?: MetricValue[];
     topVariants?: DashboardListItem[];
@@ -220,6 +244,7 @@ interface AdminDashboardViewModel {
   revenueSeries: DashboardSeriesPoint[];
   ordersSeries: DashboardSeriesPoint[];
   refundSeries: DashboardSeriesPoint[];
+  visitorSeries: DashboardSeriesPoint[];
   paymentBreakdown: MetricValue[];
   orderStatusBreakdown: MetricValue[];
   warehouseDistribution: MetricValue[];
@@ -258,122 +283,47 @@ const rangeOptions = [
 ] as const;
 
 const rangeTitleMap: Record<TimeRange, string> = {
-  today: "Today Overview",
+  today: "Today's Performance",
   week: "Weekly Performance",
   month: "Monthly Performance",
   year: "Annual Performance",
 };
 
-const compareLabelMap: Record<TimeRange, string> = {
-  today: "vs yesterday",
-  week: "vs last week",
-  month: "vs last month",
-  year: "vs last year",
-};
-
 type Tone = "default" | "good" | "warn" | "danger";
 
-const toneClasses: Record<Tone, string> = {
-  default: "border-border/70 bg-background/70 text-foreground",
-  good: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 [&:where(.theme-green)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-chart-2))]",
-  warn: "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400 [&:where(.theme-green)]:text-[hsl(var(--analytics-chart-3))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-chart-3))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-accent))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-chart-4))]",
-  danger: "border-destructive/20 bg-destructive/10 text-destructive",
+const CHART_COLORS = {
+  primary: "#3b82f6",
+  success: "#10b981",
+  warning: "#f59e0b",
+  danger: "#ef4444",
+  purple: "#8b5cf6",
+  pink: "#ec4899",
+  cyan: "#06b6d4",
+  orange: "#f97316",
+  indigo: "#6366f1",
+  teal: "#14b8a6",
 };
 
-function clamp(value: number, min = 0, max = 100) {
-  return Math.min(max, Math.max(min, value));
+const PIE_COLORS = [CHART_COLORS.primary, CHART_COLORS.success, CHART_COLORS.warning, CHART_COLORS.danger, CHART_COLORS.purple];
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-BD", {
+    style: "currency",
+    currency: "BDT",
+    currencyDisplay: "code",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount || 0);
 }
 
-function formatStatusLabel(value?: string | null) {
-  if (!value) return "Unknown";
-  return value
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+function formatNumber(amount: number): string {
+  return new Intl.NumberFormat("en-US").format(amount || 0);
 }
 
-function buildSeries(total: number, points: number, labels: string[]) {
-  const safeTotal = Math.max(0, total || 0);
-  const base = safeTotal / Math.max(points, 1);
-  return labels.map((label, index) => {
-    const wave =
-      1 + Math.sin(index * 0.9) * 0.18 + Math.cos(index * 0.35) * 0.08;
-    return {
-      label,
-      value: Math.max(0, Math.round(base * wave)),
-    };
-  });
-}
-
-function getRangeLabels(timeRange: TimeRange) {
-  if (timeRange === "today") return ["00", "04", "08", "12", "16", "20"];
-  if (timeRange === "week")
-    return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  if (timeRange === "month") return ["W1", "W2", "W3", "W4"];
-  return [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-}
-
-function MiniTrend({
-  value,
-  compareLabel,
-}: {
-  value?: number;
-  compareLabel: string;
-}) {
-  if (typeof value !== "number") {
-    return (
-      <span className="text-xs text-muted-foreground">{compareLabel}</span>
-    );
-  }
-
-  const positive = value >= 0;
-  return (
-    <div className="inline-flex items-center gap-1.5 text-xs">
-      <span
-        className={
-          positive
-            ? "text-emerald-500 dark:text-emerald-400 [&:where(.theme-green)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-chart-2))]"
-            : "text-destructive"
-        }
-      >
-        {positive ? "+" : "-"}
-      </span>
-      <span className="font-medium text-foreground">
-        {Math.abs(value).toFixed(1)}%
-      </span>
-      <span className="text-muted-foreground">{compareLabel}</span>
-    </div>
-  );
-}
-
-function StatusPill({
-  label,
-  tone = "default",
-}: {
-  label: string;
-  tone?: Tone;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ${toneClasses[tone]}`}
-    >
-      {label}
-    </span>
-  );
+function formatCompactNumber(amount: number): string {
+  if (amount >= 1000000) return (amount / 1000000).toFixed(1) + "M";
+  if (amount >= 1000) return (amount / 1000).toFixed(1) + "K";
+  return amount.toString();
 }
 
 function SectionShell({
@@ -391,232 +341,58 @@ function SectionShell({
 }) {
   return (
     <section
-      className={`rounded-[28px] border border-border/70 bg-gradient-to-br from-card via-card to-muted/50 shadow-[0_10px_40px_rgba(0,0,0,0.06)] backdrop-blur-sm ${className}`}
+      className={`rounded-2xl border border-border bg-card text-card-foreground shadow-sm ${className}`}
     >
-      <div className="flex items-start justify-between gap-4 border-b border-border/60 px-5 py-4 md:px-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-border px-5 py-4 md:px-6">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-foreground md:text-lg">
+          <h2 className="text-base font-semibold tracking-tight md:text-lg">
             {title}
           </h2>
-          {subtitle ? (
+          {subtitle && (
             <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-          ) : null}
+          )}
         </div>
-        {action}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       <div className="p-5 md:p-6">{children}</div>
     </section>
   );
 }
 
-function DataBars({
-  series,
-  mode = "bar",
-  formatter,
-}: {
-  series: DashboardSeriesPoint[];
-  mode?: "bar" | "area";
-  formatter?: (value: number) => string;
-}) {
-  const maxValue = Math.max(...series.map((item) => item.value), 1);
-
-  if (mode === "area") {
-    const width = 100;
-    const height = 120;
-    const points = series
-      .map((item, index) => {
-        const x =
-          series.length === 1
-            ? width / 2
-            : (index / (series.length - 1)) * width;
-        const y = height - (item.value / maxValue) * (height - 16) - 8;
-        return `${x},${y}`;
-      })
-      .join(" ");
-    const area = `0,${height} ${points} ${width},${height}`;
-
-    return (
-      <div className="space-y-4">
-        <div className="h-36 rounded-[22px] border border-border/60 bg-gradient-to-b from-primary/8 via-primary/5 to-transparent p-4">
-          <svg
-            viewBox={`0 0 ${width} ${height}`}
-            className="h-full w-full overflow-visible"
-          >
-            <defs>
-              <linearGradient id="dashboard-area" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="currentColor" stopOpacity="0.35" />
-                <stop
-                  offset="100%"
-                  stopColor="currentColor"
-                  stopOpacity="0.02"
-                />
-              </linearGradient>
-            </defs>
-            <polyline
-              fill="url(#dashboard-area)"
-              stroke="none"
-              points={area}
-              className="text-primary [&:where(.theme-green)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-primary))]"
-            />
-            <polyline
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              points={points}
-              className="text-primary [&:where(.theme-green)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-plum)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-olive)]:text-[hsl(var(--analytics-primary))] [&:where(.theme-rose)]:text-[hsl(var(--analytics-primary))]"
-            />
-          </svg>
-        </div>
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {series.map((item) => (
-            <div
-              key={item.label}
-              className="rounded-2xl border border-border/50 bg-muted/25 p-3"
-            >
-              <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                {item.label}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-foreground">
-                {formatter ? formatter(item.value) : item.value}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+function StatusPill({ label, tone = "default" }: { label: string; tone?: Tone }) {
+  const toneStyles = {
+    default: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+    good: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    warn: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    danger: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  };
   return (
-    <div className="space-y-4">
-      <div className="flex h-44 items-end gap-2">
-        {series.map((item) => {
-          const height = Math.max(10, (item.value / maxValue) * 100);
-          return (
-            <div
-              key={item.label}
-              className="flex flex-1 flex-col items-center gap-2"
-            >
-              <div className="flex h-full w-full items-end rounded-[18px] border border-border/50 bg-muted/25 p-1.5">
-                <div
-                  className="w-full rounded-[14px] bg-gradient-to-t from-primary to-primary/55 transition-all duration-300 [&:where(.theme-green)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-green)]:to-[hsl(var(--analytics-primary))/0.55] [&:where(.theme-plum)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-plum)]:to-[hsl(var(--analytics-primary))/0.55] [&:where(.theme-olive)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-olive)]:to-[hsl(var(--analytics-primary))/0.55] [&:where(.theme-rose)]:from-[hsl(var(--analytics-primary))] [&:where(.theme-rose)]:to-[hsl(var(--analytics-primary))/0.55]"
-                  style={{ height: `${height}%` }}
-                />
-              </div>
-              <div className="text-center">
-                <p className="text-[11px] text-muted-foreground">
-                  {item.label}
-                </p>
-                <p className="text-xs font-medium text-foreground">
-                  {formatter ? formatter(item.value) : item.value}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${toneStyles[tone]}`}>
+      {label}
+    </span>
   );
 }
 
-function BreakdownList({
-  items,
-  formatter,
-}: {
-  items: MetricValue[];
-  formatter?: (value: number) => string;
-}) {
-  const total = items.reduce((sum, item) => sum + item.value, 0);
-
-  return (
-    <div className="space-y-3">
-      {items.map((item) => {
-        const percentage =
-          total > 0 ? Math.round((item.value / total) * 100) : 0;
-        const barClass =
-          item.tone === "good"
-            ? "bg-emerald-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]"
-            : item.tone === "warn"
-              ? "bg-amber-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-accent))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-4))]"
-              : item.tone === "danger"
-                ? "bg-destructive"
-                : "bg-primary";
-
-        return (
-          <div
-            key={item.label}
-            className="rounded-2xl border border-border/50 bg-muted/20 p-3"
-          >
-            <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-              <span className="text-foreground">{item.label}</span>
-              <span className="font-medium text-foreground">
-                {formatter ? formatter(item.value) : item.value}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="h-2 flex-1 rounded-full bg-muted">
-                <div
-                  className={`h-2 rounded-full ${barClass}`}
-                  style={{ width: `${clamp(percentage)}%` }}
-                />
-              </div>
-              <span className="w-10 text-right text-xs text-muted-foreground">
-                {percentage}%
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function InsightList({
-  items,
-  emptyLabel,
-}: {
-  items: DashboardListItem[];
-  emptyLabel: string;
-}) {
+function InsightList({ items, emptyLabel }: { items: DashboardListItem[]; emptyLabel: string }) {
   if (!items.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/70 bg-muted/15 p-5 text-sm text-muted-foreground">
+      <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-center text-sm text-muted-foreground">
         {emptyLabel}
       </div>
     );
   }
-
   return (
     <div className="space-y-3">
       {items.map((item) => (
-        <div
-          key={item.id}
-          className="flex items-center justify-between gap-4 rounded-2xl border border-border/50 bg-muted/20 px-4 py-3"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">
-              {item.title}
-            </p>
-            {item.subtitle ? (
-              <p className="truncate text-xs text-muted-foreground">
-                {item.subtitle}
-              </p>
-            ) : null}
+        <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
+            {item.subtitle && <p className="truncate text-xs text-muted-foreground">{item.subtitle}</p>}
           </div>
-          <div className="flex items-center gap-3">
-            {item.status ? (
-              <StatusPill
-                label={formatStatusLabel(item.status)}
-                tone={item.tone}
-              />
-            ) : null}
-            {item.meta ? (
-              <span className="text-xs text-muted-foreground">{item.meta}</span>
-            ) : null}
-            {item.value ? (
-              <span className="text-sm font-semibold text-foreground">
-                {item.value}
-              </span>
-            ) : null}
+          <div className="flex items-center gap-3 shrink-0">
+            {item.status && <StatusPill label={item.status} tone={item.tone} />}
+            {item.meta && <span className="text-xs text-muted-foreground">{item.meta}</span>}
+            {item.value && <span className="text-sm font-semibold text-foreground">{item.value}</span>}
           </div>
         </div>
       ))}
@@ -624,58 +400,35 @@ function InsightList({
   );
 }
 
-function QuickAction({
-  href,
-  label,
-  description,
-  icon: Icon,
-}: {
-  href: string;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group rounded-[22px] border border-border/70 bg-card/90 p-4 shadow-[0_8px_25px_rgba(0,0,0,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[0_14px_35px_rgba(0,0,0,0.08)]"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="rounded-2xl border border-border/60 bg-muted/25 p-3">
-          <Icon className="h-5 w-5 text-foreground" />
-        </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+// Custom Tooltip for Charts
+const CustomTooltip = ({ active, payload, label, valuePrefix = "", valueSuffix = "" }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-lg border border-border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {payload.map((p: any, idx: number) => (
+          <p key={idx} className="text-sm" style={{ color: p.color }}>
+            {p.name}: {valuePrefix}{p.value}{valueSuffix}
+          </p>
+        ))}
       </div>
-      <p className="mt-4 text-sm font-semibold text-foreground">{label}</p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-        {description}
-      </p>
-    </Link>
-  );
-}
+    );
+  }
+  return null;
+};
+
 function LoadingDashboard() {
   return (
     <div className="space-y-6 p-4 md:p-6">
-      <div className="h-36 rounded-[28px] border border-border/70 bg-card/80 animate-pulse" />
-      <section className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-        {Array.from({ length: 6 }, (_, index) => (
-          <div
-            key={index}
-            className="h-40 rounded-[24px] border border-border/70 bg-card/80 animate-pulse"
-          />
+      <div className="h-36 rounded-2xl border border-border bg-card/80 animate-pulse" />
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-40 rounded-xl border border-border bg-card/80 animate-pulse" />
         ))}
-      </section>
-      <div className="grid gap-6 xl:grid-cols-[1.55fr_0.95fr]">
-        <div className="h-[440px] rounded-[28px] border border-border/70 bg-card/80 animate-pulse" />
-        <div className="h-[440px] rounded-[28px] border border-border/70 bg-card/80 animate-pulse" />
       </div>
-      <div className="grid gap-6 xl:grid-cols-3">
-        {Array.from({ length: 3 }, (_, index) => (
-          <div
-            key={index}
-            className="h-[340px] rounded-[28px] border border-border/70 bg-card/80 animate-pulse"
-          />
-        ))}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="h-[400px] rounded-2xl border border-border bg-card/80 animate-pulse" />
+        <div className="h-[400px] rounded-2xl border border-border bg-card/80 animate-pulse" />
       </div>
     </div>
   );
@@ -684,27 +437,36 @@ function LoadingDashboard() {
 function EmptyDashboard({ onRefresh }: { onRefresh: () => void }) {
   return (
     <div className="flex min-h-[70vh] items-center justify-center p-6">
-      <div className="w-full max-w-lg rounded-[28px] border border-border/70 bg-card/95 p-8 text-center shadow-[0_16px_50px_rgba(0,0,0,0.08)]">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-muted/30">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-8 text-center shadow-lg">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-muted/30">
           <ShieldAlert className="h-6 w-6 text-destructive" />
         </div>
-        <h2 className="mt-5 text-xl font-semibold text-foreground">
-          Dashboard data is unavailable
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          The admin overview could not be loaded. Refresh and verify that the
-          dashboard API is returning operational metrics for your commerce
-          workspace.
-        </p>
+        <h2 className="mt-5 text-xl font-semibold">Dashboard Unavailable</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Unable to load metrics. Please try again.</p>
         <button
           onClick={onRefresh}
-          className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"
+          className="mt-6 inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium transition hover:bg-muted"
         >
           <RefreshCw className="h-4 w-4" />
-          Reload dashboard
+          Retry
         </button>
       </div>
     </div>
+  );
+}
+
+function QuickAction({ href, label, description, icon: Icon }: { href: string; label: string; description: string; icon: LucideIcon }) {
+  return (
+    <Link href={href} className="group flex items-start gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:shadow-md hover:border-primary/30">
+      <div className="rounded-lg border border-border bg-muted/30 p-2.5">
+        <Icon className="h-5 w-5 text-foreground" />
+      </div>
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-foreground">{label}</p>
+        <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{description}</p>
+      </div>
+      <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 shrink-0" />
+    </Link>
   );
 }
 
@@ -716,856 +478,640 @@ function AdminDashboard({
   onTimeRangeChange,
   onRefresh,
 }: AdminDashboardProps) {
-  const [primaryChart, setPrimaryChart] = useState<
-    "revenue" | "orders" | "refunds"
-  >("revenue");
-
-  const formatCurrency = useCallback((amount: number) => {
-    return new Intl.NumberFormat("en-BD", {
-      style: "currency",
-      currency: "BDT",
-      maximumFractionDigits: 0,
-    }).format(amount || 0);
-  }, []);
-
-  const formatNumber = useCallback((amount: number) => {
-    return new Intl.NumberFormat("en-US").format(amount || 0);
-  }, []);
+  const [primaryChart, setPrimaryChart] = useState<"revenue" | "orders" | "refunds">("revenue");
 
   if (loading && !stats) return <LoadingDashboard />;
   if (!stats || !dashboard) return <EmptyDashboard onRefresh={onRefresh} />;
 
-  const primarySeries =
-    primaryChart === "revenue"
-      ? dashboard.revenueSeries
-      : primaryChart === "orders"
-        ? dashboard.ordersSeries
-        : dashboard.refundSeries;
+  // Prepare chart data
+  const revenueData = dashboard.revenueSeries.map((item) => ({
+    name: item.label,
+    Revenue: item.value,
+  }));
+  
+  const ordersData = dashboard.ordersSeries.map((item) => ({
+    name: item.label,
+    Orders: item.value,
+  }));
 
-  const alertItems = [
-    {
-      label: `${dashboard.lowStockVariants} low-stock variants`,
-      tone:
-        dashboard.lowStockVariants > 0 ? ("warn" as Tone) : ("good" as Tone),
-      detail: "Requires replenishment attention",
-    },
-    {
-      label: `${stats.pendingOrders} orders awaiting action`,
-      tone: stats.pendingOrders > 0 ? ("warn" as Tone) : ("good" as Tone),
-      detail: "Fulfillment queue health",
-    },
-    {
-      label: `${dashboard.refundRequests} refund requests`,
-      tone:
-        dashboard.refundRequests > 0 ? ("danger" as Tone) : ("good" as Tone),
-      detail: "Payment recovery and exception handling",
-    },
+  const refundData = dashboard.refundSeries.map((item) => ({
+    name: item.label,
+    Refunds: item.value,
+  }));
+
+  const combinedChartData = revenueData.map((item, idx) => ({
+    name: item.name,
+    Revenue: item.Revenue,
+    Orders: ordersData[idx]?.Orders || 0,
+    Refunds: refundData[idx]?.Refunds || 0,
+  }));
+
+  const paymentPieData = dashboard.paymentBreakdown.map((item) => ({
+    name: item.label,
+    value: item.value,
+    color: item.tone === "good" ? CHART_COLORS.success : item.tone === "warn" ? CHART_COLORS.warning : CHART_COLORS.primary,
+  }));
+
+  const inventoryPieData = [
+    { name: "In Stock", value: dashboard.inStockVariants, color: CHART_COLORS.success },
+    { name: "Low Stock", value: dashboard.lowStockVariants, color: CHART_COLORS.warning },
+    { name: "Out of Stock", value: dashboard.outOfStockVariants, color: CHART_COLORS.danger },
   ];
 
-  const quickActions = [
-    {
-      href: "/admin/operations/products",
-      label: "Add product",
-      description:
-        "Create products, variants, pricing, and stock-ready listings.",
-      icon: Package,
-    },
-    {
-      href: "/admin/operations/orders",
-      label: "View pending orders",
-      description:
-        "Jump into fulfillment, payment exceptions, and shipping blockers.",
-      icon: ShoppingCart,
-    },
-    {
-      href: "/admin/warehouse/stock",
-      label: "Check low stock",
-      description:
-        "Review variant inventory, reservations, and warehouse coverage.",
-      icon: PackageSearch,
-    },
-    {
-      href: "/admin/management/coupons",
-      label: "Create coupon",
-      description: "Launch targeted discounts and monitor redemption quality.",
-      icon: Percent,
-    },
-    {
-      href: "/admin/banners",
-      label: "Add banner",
-      description:
-        "Update storefront campaigns, hero promos, and merchandising slots.",
-      icon: Sparkles,
-    },
-    {
-      href: "/admin/chat",
-      label: "Open chat inbox",
-      description:
-        "Work the support queue, priority conversations, and escalations.",
-      icon: MessageSquareMore,
-    },
-    {
-      href: "/admin/refunds",
-      label: "Review refunds",
-      description: "Resolve refund requests and reconcile payment outcomes.",
-      icon: WalletCards,
-    },
-    {
-      href: "/admin/operations/users",
-      label: "Manage users",
-      description:
-        "Inspect customers, staff roles, permissions, and account health.",
-      icon: Users,
-    },
-  ];
+  const warehouseData = dashboard.warehouseDistribution.map((item) => ({
+    name: item.label,
+    value: item.value,
+  }));
+
+  const topProductsData = stats.topProducts.slice(0, 5).map((product) => ({
+    name: product.name.length > 15 ? product.name.slice(0, 12) + "..." : product.name,
+    sales: product.soldCount,
+    revenue: product.price * product.soldCount,
+  }));
+
+  const visitorTrendData = dashboard.visitorSeries.map((item) => ({
+    name: item.label,
+    Visitors: item.value,
+  }));
+
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
-          {rangeTitleMap[timeRange]}
-        </h1>
-        <div className="inline-flex rounded-2xl border border-border/70 bg-background/75 p-1 shadow-sm">
-          {rangeOptions.map((range) => (
-            <button
-              key={range.value}
-              onClick={() => onTimeRangeChange(range.value)}
-              className={`rounded-xl px-3 py-2 text-sm transition hover:bg-primary/50 hover:text-primary-foreground ${timeRange === range.value ? "bg-primary/80 text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {range.label}
-            </button>
-          ))}
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-2xl border border-border/70 bg-background/75 hover:bg-primary/80 hover:text-primary-foreground px-4 py-2 text-sm font-medium text-foreground shadow-sm transition disabled:opacity-60"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      <section className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
-        <StatCard
-          label="Net Revenue"
-          value={formatCurrency(stats.totalRevenue)}
-          icon={CircleDollarSign}
-          trend={stats.revenueGrowth}
-          compareLabel={dashboard.compareLabel}
-          tone="good"
-        />
-        <StatCard
-          label="Total Orders"
-          value={formatNumber(stats.totalOrders)}
-          icon={ShoppingCart}
-          trend={stats.orderGrowth}
-          compareLabel={dashboard.compareLabel}
-        />
-        <StatCard
-          label="Pending Orders"
-          value={formatNumber(stats.pendingOrders)}
-          icon={ReceiptText}
-          compareLabel={dashboard.compareLabel}
-          hint="Operational queue"
-          tone={stats.pendingOrders > 0 ? "warn" : "good"}
-        />
-        <StatCard
-          label="Paid Orders"
-          value={formatNumber(dashboard.paidOrders)}
-          icon={CreditCard}
-          compareLabel={dashboard.compareLabel}
-          hint="Payment-cleared volume"
-          tone="good"
-        />
-        <StatCard
-          label="Active Products"
-          value={formatNumber(dashboard.activeProducts)}
-          icon={Store}
-          compareLabel={dashboard.compareLabel}
-          hint={`${dashboard.totalVariants} sellable variants`}
-        />
-        <StatCard
-          label="Support Load"
-          value={formatNumber(dashboard.openChats)}
-          icon={MessageSquareMore}
-          compareLabel={dashboard.compareLabel}
-          hint={`${dashboard.refundRequests} refund requests`}
-          tone={dashboard.openChats > 0 ? "warn" : "default"}
-        />
-      </section>
-
-      <div className="grid gap-6 xl:grid-cols-[1.55fr_0.95fr]">
-        <SectionShell
-          title="Business Overview"
-          subtitle="Track your revenue, orders, and performance trends"
-          action={
-            <div className="inline-flex rounded-2xl border border-border/70 bg-primary/10 p-1">
-              {[
-                { key: "revenue", label: "Revenue" },
-                { key: "orders", label: "Orders" },
-                { key: "refunds", label: "Refunds" },
-              ].map((item) => (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 px-2 py-3 md:px-3 md:py-4 xl:px-4">
+      <div className="w-full space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              {rangeTitleMap[timeRange]}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">Complete overview of your e-commerce performance</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-lg border border-border bg-background p-1 shadow-sm">
+              {rangeOptions.map((range) => (
                 <button
-                  key={item.key}
-                  onClick={() =>
-                    setPrimaryChart(
-                      item.key as "revenue" | "orders" | "refunds",
-                    )
-                  }
-                  className={`rounded-xl px-3 py-1.5 text-sm transition ${primaryChart === item.key ? "bg-primary/80 text-primary-foreground foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  key={range.value}
+                  onClick={() => onTimeRangeChange(range.value)}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    timeRange === range.value
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
                 >
-                  {item.label}
+                  {range.label}
                 </button>
               ))}
             </div>
-          }
-        >
-          <div className="grid gap-6 lg:grid-cols-1 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="space-y-5">
-              <DataBars
-                series={primarySeries}
-                mode="area"
-                formatter={(value) =>
-                  primaryChart === "revenue"
-                    ? formatCurrency(value)
-                    : formatNumber(value)
-                }
-              />
-              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <BadgeDollarSign className="h-4 w-4" />
-                    Net revenue
-                  </div>
-                  <p className="mt-2 text-xl font-semibold text-foreground">
-                    {formatCurrency(stats.totalRevenue)}
-                  </p>
-                </div>
-                <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Target className="h-4 w-4" />
-                    Conversion
-                  </div>
-                  <p className="mt-2 text-xl font-semibold text-foreground">
-                    {stats.conversionRate.toFixed(1)}%
-                  </p>
-                </div>
-                <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <PackageCheck className="h-4 w-4" />
-                    Delivered
-                  </div>
-                  <p className="mt-2 text-xl font-semibold text-foreground">
-                    {formatNumber(dashboard.deliveredOrders)}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-5">
-              <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Payment Status Mix
-                  </h3>
-                </div>
-                <BreakdownList
-                  items={dashboard.paymentBreakdown}
-                  formatter={formatNumber}
-                />
-              </div>
-              {/* <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Order Status Mix
-                  </h3>
-                </div>
-                <BreakdownList
-                  items={dashboard.orderStatusBreakdown}
-                  formatter={formatNumber}
-                />
-              </div> */}
-            </div>
-          </div>
-        </SectionShell>
-
-        <SectionShell
-          title="Operations Health"
-          subtitle="Monitor orders, inventory, and urgent actions needed"
-        >
-          <div className="space-y-4">
-            <div className="rounded-[24px] border border-border/60 bg-muted/20 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Fulfillment success
-                </span>
-                <span className="text-sm font-semibold text-foreground">
-                  {stats.successRate.toFixed(1)}%
-                </span>
-              </div>
-              <div className="h-2.5 rounded-full bg-muted">
-                <div
-                  className="h-2.5 rounded-full bg-emerald-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]"
-                  style={{ width: `${clamp(stats.successRate)}%` }}
-                />
-              </div>
-            </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/20 p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Inventory health
-                </span>
-                <span className="text-sm font-semibold text-foreground">
-                  {dashboard.inventoryHealthScore.toFixed(0)}/100
-                </span>
-              </div>
-              <div className="h-2.5 rounded-full bg-muted">
-                <div
-                  className={`h-2.5 rounded-full ${dashboard.inventoryHealthScore >= 80 ? "bg-emerald-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]" : dashboard.inventoryHealthScore >= 60 ? "bg-amber-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-3))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-accent))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-4))]" : "bg-destructive"}`}
-                  style={{ width: `${clamp(dashboard.inventoryHealthScore)}%` }}
-                />
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                {
-                  label: "Low-stock variants",
-                  value: dashboard.lowStockVariants,
-                  icon: AlertTriangle,
-                  tone: "warn" as Tone,
-                },
-                {
-                  label: "Reserved units",
-                  value: dashboard.reservedUnits,
-                  icon: Boxes,
-                },
-                {
-                  label: "Open chats",
-                  value: dashboard.openChats,
-                  icon: MessageSquareMore,
-                  tone:
-                    dashboard.openChats > 0
-                      ? ("warn" as Tone)
-                      : ("default" as Tone),
-                },
-                {
-                  label: "Refund queue",
-                  value: dashboard.refundRequests,
-                  icon: WalletCards,
-                  tone:
-                    dashboard.refundRequests > 0
-                      ? ("danger" as Tone)
-                      : ("good" as Tone),
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-[22px] border border-border/60 bg-background/80 p-4"
-                >
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <p className="text-xl font-semibold text-foreground">
-                      {formatNumber(item.value)}
-                    </p>
-                    {item.tone ? (
-                      <StatusPill label="Live" tone={item.tone} />
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Todays operational alerts
-                </h3>
-                <BellRing className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <InsightList
-                items={dashboard.abnormalSignals}
-                emptyLabel="No abnormal signals detected in the selected time range."
-              />
-            </div>
-          </div>
-        </SectionShell>
-      </div>
-      <div className="grid gap-6 xl:grid-cols-3">
-        <SectionShell
-          title="Order Management"
-          subtitle="Order pipeline, payments, shipping, and refunds"
-          action={
-            <Link
-              href="/admin/operations/orders"
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
             >
-              Open orders
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          }
-        >
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                {
-                  label: "Pending",
-                  value: stats.pendingOrders,
-                  tone: "warn" as Tone,
-                },
-                { label: "Processing", value: dashboard.processingOrders },
-                { label: "Shipped", value: dashboard.shippedOrders },
-                {
-                  label: "Delivered",
-                  value: dashboard.deliveredOrders,
-                  tone: "good" as Tone,
-                },
-                {
-                  label: "Cancelled",
-                  value: dashboard.cancelledOrders,
-                  tone: "danger" as Tone,
-                },
-                {
-                  label: "Unpaid",
-                  value: dashboard.unpaidOrders,
-                  tone: "warn" as Tone,
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-[22px] border border-border/60 bg-muted/20 p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {item.label}
-                    </span>
-                    {item.tone ? (
-                      <StatusPill label="Live" tone={item.tone} />
-                    ) : null}
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-foreground">
-                    {formatNumber(item.value)}
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          <StatCard
+            label="Net Revenue"
+            value={formatCurrency(stats.totalRevenue)}
+            icon={CircleDollarSign}
+            trend={stats.revenueGrowth}
+            compareLabel={dashboard.compareLabel}
+            tone="good"
+          />
+          <StatCard
+            label="Total Orders"
+            value={formatNumber(stats.totalOrders)}
+            icon={ShoppingCart}
+            trend={stats.orderGrowth}
+            compareLabel={dashboard.compareLabel}
+          />
+          <StatCard
+            label="Pending Orders"
+            value={formatNumber(stats.pendingOrders)}
+            icon={ReceiptText}
+            compareLabel={dashboard.compareLabel}
+            hint="Operational queue"
+            tone={stats.pendingOrders > 0 ? "warn" : "good"}
+          />
+          <StatCard
+            label="Paid Orders"
+            value={formatNumber(dashboard.paidOrders)}
+            icon={CreditCard}
+            compareLabel={dashboard.compareLabel}
+            hint="Cleared payments"
+            tone="good"
+          />
+          <StatCard
+            label="Active Products"
+            value={formatNumber(dashboard.activeProducts)}
+            icon={Store}
+            compareLabel={dashboard.compareLabel}
+            hint={`${dashboard.totalVariants} variants`}
+          />
+          <StatCard
+            label="Conversion Rate"
+            value={`${stats.conversionRate.toFixed(1)}%`}
+            icon={Target}
+            compareLabel={dashboard.compareLabel}
+            hint="Visitors to orders"
+          />
+        </div>
+
+        {/* Main Charts Row */}
+        <div className="grid gap-4 xl:grid-cols-2">
+          {/* Revenue/Orders Trend Chart */}
+          <SectionShell
+            title="Performance Trends"
+            subtitle="Revenue, orders, and refunds over time"
+            action={
+              <div className="inline-flex flex-wrap rounded-lg border border-border bg-background p-0.5">
+                {["revenue", "orders", "refunds"].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setPrimaryChart(type as any)}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                      primaryChart === type
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            }
+          >
+            <div className="h-[220px] w-full sm:h-[260px] lg:h-[320px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={primaryChart === "revenue" ? revenueData : primaryChart === "orders" ? ordersData : refundData}>
+                  <defs>
+                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => primaryChart === "revenue" ? formatCompactNumber(v) : v} />
+                  <Tooltip
+                    content={
+                      <CustomTooltip
+                        valuePrefix={primaryChart === "revenue" ? "BDT " : ""}
+                      />
+                    }
+                  />
+                  <Area type="monotone" dataKey={primaryChart === "revenue" ? "Revenue" : primaryChart === "orders" ? "Orders" : "Refunds"} stroke={CHART_COLORS.primary} fill="url(#colorValue)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Total Revenue</p>
+                <p className="text-lg font-bold text-foreground">{formatCurrency(stats.totalRevenue)}</p>
+              </div>
+              <div className="rounded-xl bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Avg Order Value</p>
+                <p className="text-lg font-bold text-foreground">{formatCurrency(stats.averageOrderValue)}</p>
+              </div>
+              <div className="rounded-xl bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Success Rate</p>
+                <p className="text-lg font-bold text-foreground">{stats.successRate.toFixed(1)}%</p>
+              </div>
+            </div>
+          </SectionShell>
+
+          {/* Payment & Inventory Distribution */}
+          <SectionShell
+            title="Distribution Analysis"
+            subtitle="Payment methods and inventory breakdown with clear segment totals"
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-border/60 bg-muted/15 p-4">
+                <div className="mb-3">
+                  <h3 className="text-base font-semibold text-foreground">Payment Methods</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Order payment split in the selected range
                   </p>
                 </div>
-              ))}
-            </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <ReceiptText className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Latest orders
-                </h3>
+                <div className="h-[180px] sm:h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={paymentPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={52}
+                        outerRadius={82}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={false}
+                        labelLine={false}
+                      >
+                        {paymentPieData.map((entry, idx) => (
+                          <Cell key={`cell-${idx}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v) => formatNumber(v as number)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {paymentPieData.map((item) => {
+                    const total = paymentPieData.reduce((sum, entry) => sum + entry.value, 0);
+                    const percent = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                    return (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between rounded-xl border border-border/60 bg-background/80 px-3 py-2.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-sm font-medium text-foreground">
+                            {item.name}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-foreground">
+                            {formatNumber(item.value)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {percent}%
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <InsightList
-                items={stats.recentOrders.map((order) => ({
+              <div className="rounded-2xl border border-border/60 bg-muted/15 p-4">
+                <div className="mb-3">
+                  <h3 className="text-base font-semibold text-foreground">Inventory Status</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Current stock health across all tracked variants
+                  </p>
+                </div>
+                <div className="h-[180px] sm:h-[220px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={inventoryPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={52}
+                        outerRadius={82}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={false}
+                        labelLine={false}
+                      >
+                        {inventoryPieData.map((entry, idx) => (
+                          <Cell key={`cell-${idx}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v) => formatNumber(v as number)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-4 space-y-2">
+                  {inventoryPieData.map((item) => {
+                    const total = inventoryPieData.reduce((sum, entry) => sum + entry.value, 0);
+                    const percent = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                    return (
+                      <div
+                        key={item.name}
+                        className="flex items-center justify-between rounded-xl border border-border/60 bg-background/80 px-3 py-2.5"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-sm font-medium text-foreground">
+                            {item.name}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-foreground">
+                            {formatNumber(item.value)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {percent}%
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </SectionShell>
+        </div>
+
+        {/* Weekly Comparison Bar Chart */}
+        <div className="grid gap-4 xl:grid-cols-2">
+          <SectionShell title="Weekly Performance" subtitle="Revenue vs orders in the selected range">
+            <div className="h-[220px] sm:h-[260px] lg:h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={combinedChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis yAxisId="left" stroke={CHART_COLORS.primary} tickFormatter={(v) => formatCompactNumber(v)} />
+                  <YAxis yAxisId="right" orientation="right" stroke={CHART_COLORS.success} />
+                  <Tooltip
+                    formatter={(value: number | string, name: string) => [
+                      name === "Revenue"
+                        ? formatCurrency(Number(value || 0))
+                        : formatNumber(Number(value || 0)),
+                      name,
+                    ]}
+                  />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="Revenue" fill={CHART_COLORS.primary} name="Revenue (BDT)" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="Orders" stroke={CHART_COLORS.success} name="Orders" strokeWidth={2} dot={{ r: 4 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </SectionShell>
+
+          {/* Top Products Horizontal Bar */}
+          <SectionShell title="Top Products" subtitle="Best selling items by revenue">
+            <div className="h-[240px] sm:h-[280px] lg:h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topProductsData}
+                  layout="vertical"
+                  margin={{ left: 24, right: 8, top: 4, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                  <XAxis type="number" tickFormatter={(v) => formatCompactNumber(v)} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" width={72} fontSize={11} />
+                  <Tooltip formatter={(v) => formatCurrency(v as number)} />
+                  <Bar dataKey="revenue" fill={CHART_COLORS.purple} name="Revenue" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </SectionShell>
+        </div>
+
+        {/* Order Pipeline & Quick Actions */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SectionShell title="Order Pipeline" subtitle="Real-time order status breakdown">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  { label: "Pending", value: stats.pendingOrders, tone: "warn" as Tone },
+                  { label: "Processing", value: dashboard.processingOrders },
+                  { label: "Shipped", value: dashboard.shippedOrders },
+                  { label: "Delivered", value: dashboard.deliveredOrders, tone: "good" as Tone },
+                  { label: "Cancelled", value: dashboard.cancelledOrders, tone: "danger" as Tone },
+                  { label: "Unpaid", value: dashboard.unpaidOrders, tone: "warn" as Tone },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl border border-border bg-muted/30 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">{item.label}</span>
+                      {item.tone && <StatusPill label="Live" tone={item.tone} />}
+                    </div>
+                    <p className="mt-1 text-xl font-semibold">{formatNumber(item.value)}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-xl border border-border bg-muted/20 p-4">
+                <h3 className="mb-2 text-sm font-semibold">Recent Orders</h3>
+                <InsightList items={stats.recentOrders.slice(0, 4).map((order) => ({
                   id: order.id,
-                  title: `Order #${order.id}`,
-                  subtitle: order.user?.name || "Guest customer",
+                  title: `#${order.id}`,
+                  subtitle: order.user?.name || "Guest",
                   status: order.status,
-                  tone:
-                    order.status === "DELIVERED"
-                      ? "good"
-                      : order.status === "PENDING"
-                        ? "warn"
-                        : order.status === "CANCELLED"
-                          ? "danger"
-                          : "default",
+                  tone: order.status === "DELIVERED" ? "good" : order.status === "PENDING" ? "warn" : "default",
                   value: formatCurrency(order.grandTotal),
-                }))}
-                emptyLabel="No recent orders available."
-              />
-            </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <WalletCards className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Refund request alerts
-                </h3>
+                }))} emptyLabel="No recent orders" />
               </div>
-              <InsightList
-                items={dashboard.refundAlerts}
-                emptyLabel="Refund queue is clear."
-              />
             </div>
-          </div>
-        </SectionShell>
+          </SectionShell>
 
-        <SectionShell
-          title="Inventory Status"
-          subtitle="Stock levels, warehouse distribution, and low-stock alerts"
-        >
-          <div className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Catalog
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatNumber(stats.totalProducts)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatNumber(dashboard.totalVariants)} tracked variants
-                </p>
+          <SectionShell title="Warehouse Distribution" subtitle="Stock by location">
+            <div className="h-[220px] sm:h-[260px] lg:h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={warehouseData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" width={68} fontSize={11} />
+                  <Tooltip formatter={(v) => formatNumber(v as number)} />
+                  <Bar dataKey="value" fill={CHART_COLORS.cyan} name="Units" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Total Variants</p>
+                <p className="text-lg font-bold">{formatNumber(dashboard.totalVariants)}</p>
               </div>
-              <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Reservations
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatNumber(dashboard.reservedUnits)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Units held by pending orders and reservations
-                </p>
+              <div className="rounded-xl bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Reserved Units</p>
+                <p className="text-lg font-bold">{formatNumber(dashboard.reservedUnits)}</p>
               </div>
             </div>
-            <BreakdownList
-              items={[
-                {
-                  label: "In stock",
-                  value: dashboard.inStockVariants,
-                  tone: "good",
-                },
-                {
-                  label: "Low stock",
-                  value: dashboard.lowStockVariants,
-                  tone: "warn",
-                },
-                {
-                  label: "Out of stock",
-                  value: dashboard.outOfStockVariants,
-                  tone: "danger",
-                },
-              ]}
-              formatter={formatNumber}
-            />
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Truck className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Warehouse stock distribution
-                </h3>
-              </div>
-              <BreakdownList
-                items={dashboard.warehouseDistribution}
-                formatter={formatNumber}
-              />
-            </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Gauge className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Low-stock spotlight
-                </h3>
-              </div>
-              <InsightList
-                items={dashboard.lowStockAlerts}
-                emptyLabel="No low-stock variants require intervention."
-              />
-            </div>
-          </div>
-        </SectionShell>
+          </SectionShell>
 
-        <SectionShell
-          title="Quick Actions"
-          subtitle="High-frequency control paths for catalog, operations, marketing, support, and access control."
-        >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-1">
-            {quickActions.map((action) => (
-              <QuickAction key={action.label} {...action} />
-            ))}
-          </div>
-        </SectionShell>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-1 xl:grid-cols-[1.05fr_1.05fr_0.9fr]">
-        <SectionShell
-          title="Customer Insights"
-          subtitle="User growth, buying behavior, and satisfaction metrics"
-        >
-          <div className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2">
+          <SectionShell title="Quick Actions" subtitle="Common administrative tasks">
+            <div className="space-y-3">
               {[
-                { label: "Total users", value: stats.totalUsers, icon: Users },
-                {
-                  label: "Active buyers",
-                  value: dashboard.activeBuyers,
-                  icon: UserRound,
-                },
-                {
-                  label: "Repeat customers",
-                  value: dashboard.repeatCustomers,
-                  icon: CheckCircle2,
-                },
-                {
-                  label: "Open carts",
-                  value: dashboard.openCarts,
-                  icon: ShoppingCart,
-                },
+                { href: "/admin/operations/products", label: "Add Product", description: "Create new products and variants", icon: Package },
+                { href: "/admin/operations/orders", label: "View Orders", description: "Manage fulfillment and shipping", icon: ShoppingCart },
+                { href: "/admin/warehouse/stock", label: "Check Stock", description: "Monitor inventory levels", icon: PackageSearch },
+                { href: "/admin/management/coupons", label: "Create Coupon", description: "Launch promotions", icon: Percent },
+                { href: "/admin/chat", label: "Support Inbox", description: "Handle customer queries", icon: MessageSquareMore },
+              ].map((action) => (
+                <QuickAction key={action.label} {...action} />
+              ))}
+            </div>
+          </SectionShell>
+        </div>
+
+        {/* Customer & Marketing Insights */}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SectionShell title="Customer Intelligence" subtitle="Audience behavior and loyalty metrics">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { label: "Total Users", value: stats.totalUsers, icon: Users },
+                { label: "Active Buyers", value: dashboard.activeBuyers, icon: UserRound },
+                { label: "Repeat Rate", value: `${((dashboard.repeatCustomers / stats.totalUsers) * 100).toFixed(1)}%`, icon: CheckCircle2 },
+                { label: "Avg Rating", value: dashboard.reviewAverage.toFixed(1), icon: Star, suffix: "★" },
               ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-[22px] border border-border/60 bg-muted/20 p-4"
-                >
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </div>
-                  <p className="mt-2 text-2xl font-semibold text-foreground">
-                    {formatNumber(item.value)}
-                  </p>
+                <div key={item.label} className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+                  <item.icon className="mx-auto h-5 w-5 text-muted-foreground" />
+                  <p className="mt-2 text-xs text-muted-foreground">{item.label}</p>
+                  <p className="text-xl font-bold">{item.value}{item.suffix || ""}</p>
                 </div>
               ))}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-                <p className="text-sm text-muted-foreground">Review average</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {dashboard.reviewAverage.toFixed(1)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatNumber(dashboard.reviewCount)} review signals
-                </p>
-              </div>
-              <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-                <p className="text-sm text-muted-foreground">
-                  Customer conversion
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {stats.conversionRate.toFixed(1)}%
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Orders relative to user growth in range
-                </p>
-              </div>
+            <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+              <h3 className="mb-2 text-sm font-semibold">Top Customers</h3>
+              <InsightList items={dashboard.topCustomers.slice(0, 5)} emptyLabel="No data" />
             </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Top customers by spend
-                </h3>
-              </div>
-              <InsightList
-                items={dashboard.topCustomers}
-                emptyLabel="No top customer data yet."
-              />
-            </div>
-          </div>
-        </SectionShell>
+          </SectionShell>
 
-        <SectionShell
-          title="Marketing Performance"
-          subtitle="Campaigns, content, traffic, and storefront engagement"
-        >
-          <div className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                <p className="text-sm text-muted-foreground">Active banners</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatNumber(dashboard.activeBanners)}
-                </p>
+          <SectionShell title="Marketing Performance" subtitle="Traffic sources and campaign metrics">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-border bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Banners</p>
+                <p className="text-xl font-bold">{formatNumber(dashboard.activeBanners)}</p>
               </div>
-              <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                <p className="text-sm text-muted-foreground">
-                  Newsletter subscribers
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatNumber(dashboard.newsletterSubscribers)}
-                </p>
+              <div className="rounded-xl border border-border bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Subscribers</p>
+                <p className="text-xl font-bold">{formatNumber(dashboard.newsletterSubscribers)}</p>
               </div>
-              <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                <p className="text-sm text-muted-foreground">Blogs published</p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatNumber(dashboard.totalBlogs)}
-                </p>
-              </div>
-              <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                <p className="text-sm text-muted-foreground">
-                  Page views / sessions
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatNumber(dashboard.pageViews)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {formatNumber(dashboard.sessions)} sessions
-                </p>
+              <div className="rounded-xl border border-border bg-muted/30 p-3 text-center">
+                <p className="text-xs text-muted-foreground">Pageviews</p>
+                <p className="text-xl font-bold">{formatNumber(dashboard.pageViews)}</p>
               </div>
             </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Send className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Traffic source summary
-                </h3>
-              </div>
-              <BreakdownList
-                items={dashboard.trafficSources}
-                formatter={formatNumber}
-              />
-            </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Top traffic pages
-                </h3>
-              </div>
-              <InsightList
-                items={dashboard.topPages}
-                emptyLabel="No traffic pages captured yet."
-              />
-            </div>
-          </div>
-        </SectionShell>
-
-        <SectionShell
-          title="Support & Activity"
-          subtitle="Customer service workload and system monitoring"
-        >
-          <div className="space-y-5">
-            <div className="grid gap-3">
-              <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <LifeBuoy className="h-4 w-4" />
-                  Open chats
-                </div>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatNumber(dashboard.openChats)}
-                </p>
-              </div>
-              <div className="rounded-[22px] border border-border/60 bg-muted/20 p-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Activity className="h-4 w-4" />
-                  Latest system activity
-                </div>
-                <p className="mt-2 text-2xl font-semibold text-foreground">
-                  {formatNumber(
-                    stats.activityCount ?? dashboard.latestActivity.length,
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquareMore className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Recently active conversations
-                </h3>
-              </div>
-              <InsightList
-                items={dashboard.recentConversations}
-                emptyLabel="No active support conversations."
-              />
-            </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Activity className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  System activity timeline
-                </h3>
-              </div>
-              <InsightList
-                items={dashboard.latestActivity}
-                emptyLabel="No recent activity captured."
-              />
-            </div>
-          </div>
-        </SectionShell>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-1 xl:grid-cols-[1.15fr_1fr]">
-        <SectionShell
-          title="Top Products"
-          subtitle="Best-selling items and variant performance"
-          action={
-            <Link
-              href="/admin/operations/products"
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
-            >
-              Manage catalog
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          }
-        >
-          <div className="space-y-5">
-            <div className="grid gap-4 lg:grid-cols-1 xl:grid-cols-2">
-              <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <Star className="h-4 w-4 text-amber-500" />
+            <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
                   <h3 className="text-sm font-semibold text-foreground">
-                    Top products
+                    Traffic Visitors
                   </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Visitor Trend
+                  </p>
                 </div>
-                <InsightList
-                  items={stats.topProducts.map((product) => ({
-                    id: product.id,
-                    title: product.name,
-                    subtitle: `${formatNumber(product.soldCount)} sold ${product.ratingAvg.toFixed(1)} rating`,
-                    value: formatCurrency(product.price),
-                  }))}
-                  emptyLabel="No product performance data yet."
-                />
-              </div>
-              <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <Boxes className="h-4 w-4 text-muted-foreground" />
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Variant leaders
-                  </h3>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Total Visitors</p>
+                  <p className="text-lg font-bold text-foreground">
+                    {formatNumber(dashboard.sessions)}
+                  </p>
                 </div>
-                <InsightList
-                  items={dashboard.topVariantLeaders}
-                  emptyLabel="No variant sales momentum available."
-                />
               </div>
+              {visitorTrendData.length ? (
+                <div className="space-y-4">
+                  <div className="h-[170px] sm:h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={visitorTrendData}>
+                        <defs>
+                          <linearGradient
+                            id="visitorTrendFill"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor={CHART_COLORS.teal}
+                              stopOpacity={0.35}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor={CHART_COLORS.teal}
+                              stopOpacity={0.04}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="hsl(var(--border))"
+                        />
+                        <XAxis
+                          dataKey="name"
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={12}
+                        />
+                        <YAxis
+                          stroke="hsl(var(--muted-foreground))"
+                          fontSize={12}
+                          tickFormatter={(v) => formatCompactNumber(v)}
+                        />
+                        <Tooltip
+                          formatter={(value: number | string) => [
+                            formatNumber(Number(value || 0)),
+                            "Visitors",
+                          ]}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="Visitors"
+                          stroke={CHART_COLORS.teal}
+                          fill="url(#visitorTrendFill)"
+                          strokeWidth={2.5}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-border bg-background/70 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Page Views
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-foreground">
+                        {formatNumber(dashboard.pageViews)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-background/70 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Average Slice
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-foreground">
+                        {formatNumber(
+                          Math.round(
+                            dashboard.sessions /
+                              Math.max(visitorTrendData.length, 1),
+                          ),
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
+                  No visitor analytics data available for the selected period.
+                </div>
+              )}
             </div>
-            <DataBars
-              series={dashboard.ordersSeries}
-              formatter={(value) => formatNumber(value)}
-            />
-          </div>
-        </SectionShell>
+          </SectionShell>
+        </div>
 
-        <SectionShell
-          title="Inventory Trends"
-          subtitle="Stock movements and customer demand signals"
-        >
-          <div className="space-y-5">
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <PackageSearch className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Recent inventory changes
-                </h3>
+        {/* Support & Activity */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SectionShell title="Support Queue" subtitle="Customer service metrics">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+                <LifeBuoy className="mx-auto h-5 w-5 text-muted-foreground" />
+                <p className="mt-2 text-2xl font-bold">{formatNumber(dashboard.openChats)}</p>
+                <p className="text-xs text-muted-foreground">Open Chats</p>
               </div>
-              <InsightList
-                items={dashboard.recentInventoryChanges}
-                emptyLabel="No inventory movement captured."
-              />
-            </div>
-            <div className="rounded-[24px] border border-border/60 bg-muted/15 p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Most wishlisted products
-                </h3>
+              <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+                <WalletCards className="mx-auto h-5 w-5 text-muted-foreground" />
+                <p className="mt-2 text-2xl font-bold">{formatNumber(dashboard.refundRequests)}</p>
+                <p className="text-xs text-muted-foreground">Refund Requests</p>
               </div>
-              <InsightList
-                items={dashboard.wishlistLeaders}
-                emptyLabel="No wishlist demand signals available."
-              />
             </div>
-          </div>
-        </SectionShell>
+            <div className="mt-4">
+              <InsightList items={dashboard.recentConversations.slice(0, 4)} emptyLabel="No active conversations" />
+            </div>
+          </SectionShell>
+
+          <SectionShell title="Inventory Alerts" subtitle="Items requiring attention">
+            <InsightList items={dashboard.lowStockAlerts.slice(0, 6)} emptyLabel="All stock levels healthy" />
+          </SectionShell>
+
+          <SectionShell title="System Activity" subtitle="Recent platform events">
+            <InsightList items={dashboard.latestActivity.slice(0, 6)} emptyLabel="No recent activity" />
+          </SectionShell>
+        </div>
       </div>
     </div>
   );
 }
 
 const MemoizedAdminDashboard = memo(AdminDashboard);
-
 export default MemoizedAdminDashboard;
 export type {
   DashboardStats,
