@@ -371,7 +371,7 @@ function MobileCategoryTree({
     return (
       <div className="space-y-2">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-14 rounded-2xl bg-muted/70 animate-pulse" />
+          <div key={i} className="h-14 bg-muted/70 animate-pulse" />
         ))}
       </div>
     );
@@ -459,7 +459,7 @@ function MobileCategoryTree({
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-card">
+    <div className="overflow-hidden bg-card">
       {categories.map((c) => (
         <Row key={c.id} node={c} level={0} />
       ))}
@@ -543,6 +543,10 @@ export default function Header({
 
     top: 0,
   });
+
+  const [navChildMenuSide, setNavChildMenuSide] = useState<"left" | "right">(
+    "right",
+  );
 
   const catWrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -821,6 +825,35 @@ export default function Header({
     router.push(`/ecommerce/categories?slug=${encodeURIComponent(slug)}`);
   };
 
+  const getDesktopNavMenuPosition = (rect: DOMRect) => {
+    if (typeof window === "undefined") {
+      return { left: rect.left, childMenuSide: "right" as const };
+    }
+
+    const viewportPadding = 12;
+    const menuWidth = 240;
+    const childMenuWidth = 240;
+    const moveLeftOffset = 200;
+
+    const maxLeft = Math.max(
+      viewportPadding,
+      window.innerWidth - menuWidth - viewportPadding,
+    );
+
+    const desiredLeft = rect.left - moveLeftOffset;
+
+    const left = Math.min(Math.max(desiredLeft, viewportPadding), maxLeft);
+
+    const spaceLeft = left - viewportPadding;
+    const spaceRight = window.innerWidth - (left + menuWidth) - viewportPadding;
+
+    const childMenuSide =
+      spaceRight < childMenuWidth && spaceLeft >= childMenuWidth
+        ? ("left" as const)
+        : ("right" as const);
+
+    return { left, childMenuSide };
+  };
   const headerIconClass =
     "relative flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground transition hover:bg-white/10 hover:text-primary-foreground md:h-auto md:w-auto md:flex-col md:gap-0.5 md:rounded-none md:text-xs md:font-medium md:text-foreground md:hover:bg-transparent md:hover:text-primary";
 
@@ -1247,7 +1280,12 @@ export default function Header({
                       e.currentTarget as HTMLDivElement
                     ).getBoundingClientRect();
 
-                    setNavMenuPos({ left: rect.left, top: rect.bottom });
+                    const { left, childMenuSide } =
+                      getDesktopNavMenuPosition(rect);
+
+                    setNavChildMenuSide(childMenuSide);
+
+                    setNavMenuPos({ left, top: rect.bottom });
                   }}
                 >
                   <button
@@ -1282,7 +1320,7 @@ export default function Header({
             onMouseEnter={clearNavCloseTimer}
             onMouseLeave={scheduleNavClose}
           >
-            <div className="min-w-60 rounded-b-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl animate-in slide-in-from-top-2 duration-200">
+            <div className="w-60 rounded-b-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl animate-in slide-in-from-top-2 duration-200">
               {hoveredNavCat.children.map((sub) => (
                 <div
                   key={sub.id}
@@ -1297,14 +1335,24 @@ export default function Header({
                     <span className="truncate">{sub.name}</span>
 
                     {sub.children.length > 0 ? (
-                      <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
+                      navChildMenuSide === "left" ? (
+                        <ChevronLeft className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0" />
+                      )
                     ) : (
                       <span className="h-4 w-4" />
                     )}
                   </button>
 
                   {sub.children.length > 0 && hoveredNavSub?.id === sub.id && (
-                    <div className="absolute left-full top-0 z-[10001] ml-0 min-w-60 rounded-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl animate-in slide-in-from-left-2 duration-200">
+                    <div
+                      className={`absolute top-0 z-[10001] w-60 rounded-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl duration-200 animate-in ${
+                        navChildMenuSide === "left"
+                          ? "right-full slide-in-from-right-2"
+                          : "left-full slide-in-from-left-2"
+                      }`}
+                    >
                       {sub.children.map((child) => (
                         <button
                           key={child.id}
@@ -1375,21 +1423,11 @@ export default function Header({
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-2 pb-4 pt-2">
               {/* Navigation Items */}
 
-              <div className="grid grid-cols-4 gap-2">
-                <Link
-                  href="/ecommerce/products"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex h-11 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground transition hover:border-primary/40 hover:text-primary"
-                  aria-label="All Products"
-                  title="All Products"
-                >
-                  <Boxes className="h-[18px] w-[18px]" />
-                </Link>
-
+              <div className="grid grid-cols-3 gap-2">
                 <Link
                   href="/ecommerce/blogs"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex h-11 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground transition hover:border-primary/40 hover:text-primary"
+                  className="flex h-11 items-center justify-center rounded-lg border border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 transition-all duration-200 hover:scale-105 hover:border-blue-400 hover:bg-gradient-to-br hover:from-blue-100 hover:to-blue-200 hover:text-blue-700 shadow-sm"
                   aria-label="Blog"
                   title="Blog"
                 >
@@ -1399,7 +1437,7 @@ export default function Header({
                 <Link
                   href="/ecommerce/wishlist"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex h-11 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground transition hover:border-primary/40 hover:text-primary"
+                  className="flex h-11 items-center justify-center rounded-lg border border-pink-200 bg-gradient-to-br from-pink-50 to-pink-100 text-pink-500 transition-all duration-200 hover:scale-105 hover:border-pink-400 hover:bg-gradient-to-br hover:from-pink-100 hover:to-pink-200 hover:text-pink-600 shadow-sm"
                   aria-label="Wishlist"
                   title="Wishlist"
                 >
@@ -1409,7 +1447,7 @@ export default function Header({
                 <Link
                   href="/ecommerce/cart"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex h-11 items-center justify-center rounded-lg border border-border/70 bg-card text-foreground transition hover:border-primary/40 hover:text-primary"
+                  className="flex h-11 items-center justify-center rounded-lg border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 transition-all duration-200 hover:scale-105 hover:border-emerald-400 hover:bg-gradient-to-br hover:from-emerald-100 hover:to-emerald-200 hover:text-emerald-700 shadow-sm"
                   aria-label="Cart"
                   title="Cart"
                 >
@@ -1419,11 +1457,27 @@ export default function Header({
 
               {/* Categories */}
 
-              <div className="px-1">
-                <div className="mb-2 px-2">
-                  <div className="text-sm font-bold">All Categories</div>
-                </div>
+              <div>
+                {/* Flash Sale Header */}
+                <Link href="/ecommerce/products">
+                  <div className="flex items-center justify-between rounded-md bg-[#f5f5f5] px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-500 text-lg">⚡</span>
 
+                      <div className="flex items-center gap-1 text-sm font-extrabold uppercase italic">
+                        <span className="text-black">Fl</span>
+                        <span className="text-red-500">ash</span>
+
+                        <span className="text-black">Sa</span>
+                        <span className="text-red-500">le</span>
+                      </div>
+                    </div>
+
+                    <button className="text-gray-500 transition hover:text-black">
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
+                </Link>
                 <MobileCategoryTree
                   categories={categoryTree}
                   loading={categoryLoading}
