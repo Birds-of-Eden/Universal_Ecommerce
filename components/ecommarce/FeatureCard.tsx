@@ -42,7 +42,7 @@ const FEATURES = [
 export default function FeatureStrip() {
   return (
     <section className="w-full bg-background">
-      <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 sm:py-8">
         {/* 2x2 Grid for mobile, 4x1 for desktop */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {FEATURES.map(({ title, subtitle, Icon, tint, iconTint, darkIconTint, darkTint }) => (

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
-import SliderNavButton from "./SliderNavButton";
+import { ChevronLeft, ChevronRight, Shirt, Sparkles } from "lucide-react";
 
 type Brand = {
   id: number;
@@ -67,103 +67,126 @@ export default function BrandSlider({
     if (!el) return;
 
     const card = el.querySelector<HTMLElement>("[data-brand-card='1']");
-    const cardW = card ? card.offsetWidth : 200;
+    const cardW = card ? card.offsetWidth : 140;
 
     el.scrollBy({
-      left: dir === "left" ? -cardW * 1.2 : cardW * 1.2,
+      left: dir === "left" ? -cardW * 1.5 : cardW * 1.5,
       behavior: "smooth",
     });
   };
 
+  // Get gradient color based on brand name (for placeholder)
+  const getBrandColor = (name: string) => {
+    const colors = [
+      "from-blue-500 to-blue-600",
+      "from-purple-500 to-purple-600",
+      "from-pink-500 to-pink-600",
+      "from-emerald-500 to-emerald-600",
+      "from-orange-500 to-orange-600",
+      "from-indigo-500 to-indigo-600",
+      "from-rose-500 to-rose-600",
+      "from-teal-500 to-teal-600",
+    ];
+    const index = name.length % colors.length;
+    return colors[index];
+  };
+
   return (
     <section className="w-full bg-background">
-      <div className="w-full px-5 py-5 sm:px-5 sm:py-5 lg:px-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-foreground sm:text-2xl">
-              {title}
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              {subtitle}
-            </p>
-          </div>
+      <div className="w-full px-3 py-3 sm:px-5 sm:py-6">
+        {/* Header */}
+        <div className="mb-3 sm:mb-5">
+          <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+            {title}
+          </h2>
+
+          <p className="mt-1 text-xs text-muted-foreground sm:mt-3 sm:text-xl">
+            {subtitle}
+          </p>
         </div>
 
         {error ? (
-          <div className="mt-5 rounded-xl border border-border bg-background p-4 text-sm text-destructive">
+          <div className="mb-3 rounded-lg border border-destructive/20 bg-destructive/10 p-2 text-xs text-destructive sm:p-3 sm:text-sm">
             {error}
           </div>
         ) : null}
 
-        <div className="group/slider relative mt-5 overflow-visible sm:mt-6">
-          {visible.length >= 6 && (
-            <SliderNavButton
-              direction="left"
-              onClick={() => scrollByCards("left")}
-            />
+        <div className="relative">
+          {visible.length >= 4 && (
+            <>
+              <button
+                onClick={() => scrollByCards("left")}
+                className="absolute -left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card text-muted-foreground shadow-md sm:-left-4 sm:h-11 sm:w-11"
+                aria-label="Previous brands"
+              >
+                <ChevronLeft className="h-5 w-5 sm:h-7 sm:w-7" />
+              </button>
+
+              <button
+                onClick={() => scrollByCards("right")}
+                className="absolute -right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card text-muted-foreground shadow-md sm:-right-4 sm:h-11 sm:w-11"
+                aria-label="Next brands"
+              >
+                <ChevronRight className="h-5 w-5 sm:h-7 sm:w-7" />
+              </button>
+            </>
           )}
 
           <div
             ref={scrollerRef}
-            className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-4 sm:gap-6"
-            style={{ scrollbarWidth: "none" }}
+            className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth sm:gap-5 sm:pb-3"
           >
             {loading
-              ? Array.from({ length: 8 }).map((_, i) => (
+              ? Array.from({ length: 4 }).map((_, i) => (
                   <div
                     key={i}
-                    className="snap-start min-w-[160px] max-w-[160px] overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:min-w-[180px] sm:max-w-[180px]"
+                    className="min-w-[96px] max-w-[96px] flex-shrink-0 snap-start sm:min-w-[190px] sm:max-w-[190px]"
                   >
-                    <div className="flex h-[100px] w-full items-center justify-center bg-white p-4 sm:h-[110px]">
-                      <div className="h-10 w-20 animate-pulse rounded bg-muted sm:h-12 sm:w-24" />
-                    </div>
+                    <div className="h-[130px] animate-pulse rounded-2xl border border-border bg-card shadow-sm sm:h-[235px] sm:rounded-[22px]" />
                   </div>
                 ))
               : visible.map((brand) => (
                   <div
                     key={brand.id}
-                    className="snap-start"
                     data-brand-card="1"
+                    className="min-w-[96px] max-w-[96px] flex-shrink-0 snap-start sm:min-w-[190px] sm:max-w-[190px]"
                   >
                     <Link
                       href={`/ecommerce/brands/${brand.slug}`}
-                      className="group block min-w-[160px] max-w-[160px] overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg sm:min-w-[180px] sm:max-w-[180px]"
+                      className="block h-[130px] rounded-2xl border border-border bg-card px-2 py-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-xl sm:h-[235px] sm:rounded-[22px] sm:border-2 sm:px-4 sm:py-6"
                     >
-                      <div className="flex h-[100px] w-full items-center justify-center bg-white px-6 py-4 sm:h-[110px]">
-                        {brand.logo ? (
-                          <Image
-                            src={brand.logo}
-                            alt={brand.name}
-                            width={140}
-                            height={80}
-                            className="h-auto max-h-12 w-auto object-contain transition-transform duration-300 ease-out group-hover:scale-105 sm:max-h-14"
-                          />
-                        ) : (
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted text-sm font-medium text-muted-foreground sm:h-14 sm:w-14">
-                            {brand.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                      <div className="mx-auto flex h-[58px] w-[58px] items-center justify-center rounded-full border-[3px] border-primary bg-background p-1 sm:h-[118px] sm:w-[118px] sm:border-[5px] sm:p-2">
+                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full bg-secondary sm:h-[96px] sm:w-[96px]">
+                          {brand.logo ? (
+                            <Image
+                              src={brand.logo}
+                              alt={brand.name}
+                              width={96}
+                              height={96}
+                              className="h-full w-full rounded-full object-contain"
+                            />
+                          ) : (
+                            <span className="text-base font-bold text-secondary-foreground sm:text-3xl">
+                              {brand.name.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
                       </div>
+
+                      <h3 className="mt-2 truncate text-sm font-medium text-card-foreground sm:mt-5 sm:text-2xl">
+                        {brand.name}
+                      </h3>
+
+                      {brand.productCount > 0 && (
+                        <p className="mt-0.5 text-[10px] text-muted-foreground sm:mt-2 sm:text-lg">
+                          {brand.productCount} products
+                        </p>
+                      )}
                     </Link>
                   </div>
                 ))}
           </div>
-
-          {visible.length >= 6 && (
-            <SliderNavButton
-              direction="right"
-              onClick={() => scrollByCards("right")}
-            />
-          )}
         </div>
-
-        <div className="mt-4 h-px w-full bg-border" />
-
-        {!loading && visible.length === 0 ? (
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            No brands found.
-          </div>
-        ) : null}
       </div>
     </section>
   );

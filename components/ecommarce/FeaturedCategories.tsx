@@ -144,8 +144,8 @@ export default function FeaturedCategories({
 
   return (
     <section className="w-full bg-background">
-      <div className="px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-        <span className="mb-2 inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-primary">
+      <div className="px-4 py-4 sm:px-6 sm:py-10 lg:px-8">
+        <span className="mb-2 inline-flex rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
           Categories
         </span>
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

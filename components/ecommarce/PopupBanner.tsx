@@ -42,38 +42,40 @@ export default function PopupBanner({ banners }: PopupBannerProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="relative card-theme bg-secondary  rounded-2xl shadow-xl md:w-[35vw] w-[90vh] p-6 border border-border">
-        {/* Close Button */}
-        <button
-          onClick={() => setShowPopup(false)}
-          className="absolute top-3 right-3 text-muted-foreground hover:text-foreground text-xl transition"
-        >
-          ✕
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <GradientBorder>
+        <div className="relative card-theme bg-secondary rounded-2xl shadow-xl md:w-[35vw] w-[90vw] max-w-[500px] p-6">
+          {/* Close Button */}
+          <button
+            onClick={() => setShowPopup(false)}
+            className="absolute top-3 right-3 bg-destructive hover:bg-destructive/80 px-[6px] rounded-full hover:text-white text-white text-xl transition"
+          >
+            ✕
+          </button>
 
-        {/* Image */}
-        <div className="relative w-full h-80">
-          <Image
-            src={popupBanner.image}
-            alt={popupBanner.title}
-            fill
-            className="object-contain rounded"
-          />
-        </div>
-
-        {/* Button */}
-        {popupBanner.buttonText && popupBanner.buttonLink && (
-          <div className="mt-5 text-center">
-            <a
-              href={popupBanner.buttonLink}
-              className="btn-primary px-6 py-2 rounded-md inline-block transition"
-            >
-              {popupBanner.buttonText}
-            </a>
+          {/* Image */}
+          <div className="relative w-full h-80">
+            <Image
+              src={popupBanner.image}
+              alt={popupBanner.title}
+              fill
+              className="object-contain rounded"
+            />
           </div>
-        )}
-      </div>
+
+          {/* Button */}
+          {popupBanner.buttonText && popupBanner.buttonLink && (
+            <div className="mt-5 text-center">
+              <a
+                href={popupBanner.buttonLink}
+                className="btn-primary px-6 py-2 rounded-md inline-block transition"
+              >
+                {popupBanner.buttonText}
+              </a>
+            </div>
+          )}
+        </div>
+      </GradientBorder>
     </div>
   );
 }
