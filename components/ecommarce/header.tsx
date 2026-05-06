@@ -1,8 +1,11 @@
 // components/ecommarce/header.tsx
+
 "use client";
 
 import Link from "next/link";
+
 import Image from "next/image";
+
 import React, {
   useCallback,
   useEffect,
@@ -10,20 +13,30 @@ import React, {
   useRef,
   useState,
 } from "react";
+
 import { useRouter } from "next/navigation";
+
 import { useTheme } from "next-themes";
+
 import { isDarkLikeTheme } from "@/lib/theme";
+
 import { useSession, signOut } from "@/lib/auth-client";
+
 import { getDashboardRoute } from "@/lib/dashboard-route";
+
 import { cachedFetchJson } from "@/lib/client-cache-fetch";
+
 import { useCart } from "@/components/ecommarce/CartContext";
+
 import { useWishlist } from "@/components/ecommarce/WishlistContext";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import {
   Search,
   ShoppingCart,
@@ -50,21 +63,29 @@ const CATEGORIES_API = "/api/categories";
 
 const THEME_OPTIONS = [
   { value: "light", label: "Light" },
+
   { value: "dark", label: "Dark" },
+
   { value: "green", label: "Green" },
 ] as const;
 
 interface ProductSummary {
   id: number | string;
+
   name: string;
+
   image?: string | null;
 }
 
 interface CategoryDTO {
   id: number;
+
   name: string;
+
   slug: string;
+
   image?: string | null;
+
   parentId: number | null;
 }
 
@@ -76,17 +97,23 @@ function normalizeCategoryList(list: CategoryDTO[]): CategoryDTO[] {
   return Array.isArray(list)
     ? list.map((c: any) => ({
         id: Number(c.id),
+
         name: String(c.name),
+
         slug: String(c.slug),
+
         image: c.image ?? null,
+
         parentId: (() => {
           const rawParentId = c.parentId ?? c.parent_id;
+
           const parentId =
             rawParentId === null ||
             rawParentId === undefined ||
             rawParentId === ""
               ? null
               : Number(rawParentId);
+
           return Number.isFinite(parentId) ? parentId : null;
         })(),
       }))
@@ -95,20 +122,31 @@ function normalizeCategoryList(list: CategoryDTO[]): CategoryDTO[] {
 
 type SiteSettings = {
   logo?: string | null;
+
   siteTitle?: string | null;
+
   footerDescription?: string | null;
+
   contactNumber?: string | null;
+
   contactEmail?: string | null;
+
   address?: string | null;
+
   facebookLink?: string | null;
+
   instagramLink?: string | null;
+
   twitterLink?: string | null;
+
   tiktokLink?: string | null;
+
   youtubeLink?: string | null;
 };
 
 function buildCategoryTree(list: CategoryDTO[]): CategoryNode[] {
   const map = new Map<number, CategoryNode>();
+
   list.forEach((c) => map.set(c.id, { ...c, children: [] }));
 
   const roots: CategoryNode[] = [];
@@ -120,44 +158,59 @@ function buildCategoryTree(list: CategoryDTO[]): CategoryNode[] {
       map.has(node.parentId)
     ) {
       map.get(node.parentId)!.children.push(node);
+
       return;
     }
+
     roots.push(node);
   });
 
   const sortRec = (arr: CategoryNode[]) => {
     arr.sort((a, b) => a.name.localeCompare(b.name, "bn"));
+
     arr.forEach((x) => sortRec(x.children));
   };
 
   sortRec(roots);
+
   return roots;
 }
 
 const ddItemBase =
   "w-full flex items-center justify-between px-4 py-2.5 text-sm transition select-none";
+
 const ddItemInactive = "text-popover-foreground hover:bg-muted";
+
 const ddItemActive = "bg-primary text-primary-foreground";
+
 const ddColShell =
   "w-[250px] max-h-[420px] overflow-y-auto overflow-x-hidden bg-popover";
+
 const ddWrapperShell =
   "bg-popover text-popover-foreground border border-border shadow-2xl rounded-xl overflow-hidden";
 
 function DesktopCategoryDropdown({
   categories,
+
   loading,
+
   onClose,
 }: {
   categories: CategoryNode[];
+
   loading: boolean;
+
   onClose: () => void;
 }) {
   const router = useRouter();
+
   const [activeParentId, setActiveParentId] = useState<number | null>(null);
+
   const [activeSubId, setActiveSubId] = useState<number | null>(null);
 
   const activeParent = useMemo(
     () => categories.find((c) => c.id === activeParentId) ?? null,
+
     [categories, activeParentId],
   );
 
@@ -165,6 +218,7 @@ function DesktopCategoryDropdown({
 
   const activeSub = useMemo(
     () => subList.find((s) => s.id === activeSubId) ?? null,
+
     [subList, activeSubId],
   );
 
@@ -172,11 +226,13 @@ function DesktopCategoryDropdown({
 
   useEffect(() => {
     setActiveParentId(null);
+
     setActiveSubId(null);
   }, [categories.length]);
 
   const go = (slug: string) => {
     router.push(`/ecommerce/categories?slug=${encodeURIComponent(slug)}`);
+
     onClose();
   };
 
@@ -202,6 +258,7 @@ function DesktopCategoryDropdown({
         <div className={`${ddColShell} border-r border-border`}>
           {categories.map((p) => {
             const isActive = p.id === activeParentId;
+
             const hasSub = p.children.length > 0;
 
             return (
@@ -210,6 +267,7 @@ function DesktopCategoryDropdown({
                 type="button"
                 onMouseEnter={() => {
                   setActiveParentId(p.id);
+
                   setActiveSubId(null);
                 }}
                 onClick={() => go(p.slug)}
@@ -219,6 +277,7 @@ function DesktopCategoryDropdown({
                 title={p.name}
               >
                 <span className="truncate font-medium">{p.name}</span>
+
                 {hasSub ? <ChevronRight className="h-4 w-4" /> : <span />}
               </button>
             );
@@ -235,6 +294,7 @@ function DesktopCategoryDropdown({
           ) : (
             subList.map((s) => {
               const isActive = s.id === activeSubId;
+
               const hasChild = s.children.length > 0;
 
               return (
@@ -249,6 +309,7 @@ function DesktopCategoryDropdown({
                   title={s.name}
                 >
                   <span className="truncate">{s.name}</span>
+
                   {hasChild ? <ChevronRight className="h-4 w-4" /> : <span />}
                 </button>
               );
@@ -282,11 +343,15 @@ function DesktopCategoryDropdown({
 
 function MobileCategoryTree({
   categories,
+
   loading,
+
   onGo,
 }: {
   categories: CategoryNode[];
+
   loading: boolean;
+
   onGo: (slug: string) => void;
 }) {
   const [openIds, setOpenIds] = useState<Set<number>>(() => new Set());
@@ -294,8 +359,10 @@ function MobileCategoryTree({
   const toggle = (id: number) => {
     setOpenIds((prev) => {
       const next = new Set(prev);
+
       if (next.has(id)) next.delete(id);
       else next.add(id);
+
       return next;
     });
   };
@@ -318,8 +385,11 @@ function MobileCategoryTree({
 
   const Row = ({ node, level }: { node: CategoryNode; level: number }) => {
     const hasChildren = node.children.length > 0;
+
     const isOpen = openIds.has(node.id);
+
     const padLeft = 12 + level * 18;
+
     const markerLeft = padLeft - 9;
 
     return (
@@ -330,6 +400,7 @@ function MobileCategoryTree({
               className="absolute bottom-0 top-0 w-px bg-border/70"
               style={{ left: markerLeft }}
             />
+
             <span
               className="absolute h-px w-3 bg-border/70"
               style={{ left: markerLeft, top: 28 }}
@@ -355,6 +426,7 @@ function MobileCategoryTree({
                 sizes="40px"
               />
             </span>
+
             <span className="truncate text-[15px] font-medium text-foreground">
               {node.name}
             </span>
@@ -397,27 +469,38 @@ function MobileCategoryTree({
 
 export default function Header({
   siteSettingsData,
+
   productsData,
+
   categoriesData,
 }: {
   siteSettingsData?: SiteSettings;
+
   productsData?: ProductSummary[];
+
   categoriesData?: CategoryDTO[];
 }) {
   const router = useRouter();
+
   const { data: session } = useSession();
+
   const { theme, resolvedTheme, setTheme } = useTheme();
 
   const { cartItems } = useCart();
+
   const { wishlistCount } = useWishlist();
 
   const [hasMounted, setHasMounted] = useState(false);
+
   const [isPending, setIsPending] = useState(false);
+
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
+
     window.addEventListener("scroll", onScroll, { passive: true });
+
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
@@ -426,41 +509,59 @@ export default function Header({
   );
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
   const [cartCount, setCartCount] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState("");
+
   const [allProducts, setAllProducts] = useState<ProductSummary[]>([]);
+
   const [searchResults, setSearchResults] = useState<ProductSummary[]>([]);
+
   const [searchLoading, setSearchLoading] = useState(false);
+
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
   const [hasLoadedProducts, setHasLoadedProducts] = useState(false);
 
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
+
   const [categoryLoading, setCategoryLoading] = useState(false);
 
   const [catOpen, setCatOpen] = useState(false);
+
   const [profileOpen, setProfileOpen] = useState(false);
 
   const [navHoverCatId, setNavHoverCatId] = useState<number | null>(null);
+
   const [navHoverSubId, setNavHoverSubId] = useState<number | null>(null);
+
   const [navMenuPos, setNavMenuPos] = useState<{ left: number; top: number }>({
     left: 0,
+
     top: 0,
   });
 
   const catWrapRef = useRef<HTMLDivElement | null>(null);
+
   const profileRef = useRef<HTMLDivElement | null>(null);
+
   const navCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const navScrollRef = useRef<HTMLDivElement | null>(null);
+
   const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const scrollDesktopNav = (direction: "left" | "right") => {
     const el = navScrollRef.current;
+
     if (!el) return;
 
     el.scrollBy({
       left: direction === "left" ? -260 : 260,
+
       behavior: "smooth",
     });
   };
@@ -472,12 +573,14 @@ export default function Header({
       try {
         if (siteSettingsData) {
           setSiteSettings(siteSettingsData);
+
           return;
         }
 
         const data = await cachedFetchJson<any>("/api/site", {
           ttlMs: 5 * 60 * 1000,
         });
+
         setSiteSettings(data);
       } catch (error) {
         console.error("Failed to load site settings:", error);
@@ -488,14 +591,17 @@ export default function Header({
   }, [siteSettingsData]);
 
   const activeTheme = (theme === "system" ? resolvedTheme : theme) ?? "light";
+
   const activeThemeOption =
     THEME_OPTIONS.find((option) => option.value === activeTheme) ??
     THEME_OPTIONS[0];
+
   const darkLikeActiveTheme = isDarkLikeTheme(activeTheme);
 
   useEffect(() => {
     const total =
       cartItems?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+
     setCartCount(total);
   }, [cartItems]);
 
@@ -504,7 +610,9 @@ export default function Header({
       try {
         if (productsData) {
           setAllProducts(productsData);
+
           setHasLoadedProducts(true);
+
           return;
         }
 
@@ -517,12 +625,15 @@ export default function Header({
         const mapped: ProductSummary[] = Array.isArray(data)
           ? data.map((p: any) => ({
               id: p.id,
+
               name: p.name,
+
               image: p.image ?? null,
             }))
           : [];
 
         setAllProducts(mapped);
+
         setHasLoadedProducts(true);
       } catch (err) {
         console.error(err);
@@ -541,7 +652,9 @@ export default function Header({
           setCategoryTree(
             buildCategoryTree(normalizeCategoryList(categoriesData)),
           );
+
           setCategoryLoading(false);
+
           return;
         }
 
@@ -554,9 +667,13 @@ export default function Header({
         const mapped: CategoryDTO[] = Array.isArray(data)
           ? data.map((c) => ({
               id: Number(c.id),
+
               name: String(c.name),
+
               slug: String(c.slug),
+
               image: c.image ?? null,
+
               parentId:
                 c.parentId === null ||
                 c.parentId === undefined ||
@@ -580,17 +697,22 @@ export default function Header({
   useEffect(() => {
     if (!searchTerm || searchTerm.trim().length < 2 || !hasLoadedProducts) {
       setSearchResults([]);
+
       setShowSearchDropdown(false);
+
       return;
     }
 
     const term = searchTerm.toLowerCase();
 
     const filtered = allProducts
+
       .filter((p) => p.name.toLowerCase().includes(term))
+
       .slice(0, 8);
 
     setSearchResults(filtered);
+
     setShowSearchDropdown(filtered.length > 0);
   }, [searchTerm, allProducts, hasLoadedProducts]);
 
@@ -607,13 +729,16 @@ export default function Header({
       }
 
       const el = e.target as HTMLElement;
+
       if (!el.closest?.(".header-search-wrapper")) {
         setShowSearchDropdown(false);
+
         setMobileSearchOpen(false);
       }
     };
 
     document.addEventListener("mousedown", handler);
+
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
@@ -623,6 +748,7 @@ export default function Header({
     setMobileSearchOpen(false);
 
     const prev = document.body.style.overflow;
+
     document.body.style.overflow = "hidden";
 
     return () => {
@@ -632,8 +758,11 @@ export default function Header({
 
   const handleSelectProduct = (p: ProductSummary) => {
     setSearchTerm("");
+
     setShowSearchDropdown(false);
+
     setMobileSearchOpen(false);
+
     router.push(`/ecommerce/products/${p.id}`);
   };
 
@@ -648,7 +777,9 @@ export default function Header({
 
     try {
       await signOut();
+
       router.push("/");
+
       router.refresh();
     } catch (e) {
       console.error(e);
@@ -659,14 +790,20 @@ export default function Header({
 
   const sessionUser = (session?.user ?? null) as {
     name?: string | null;
+
     role?: string;
+
     roleNames?: string[];
+
     permissions?: string[];
+
     defaultAdminRoute?: "/admin" | "/admin/warehouse";
   } | null;
 
   const userName = sessionUser?.name || "User";
+
   const userRole = sessionUser?.role || "user";
+
   const displayRole =
     Array.isArray(sessionUser?.roleNames) && sessionUser.roleNames.length > 0
       ? sessionUser.roleNames.join(", ")
@@ -676,6 +813,7 @@ export default function Header({
 
   const goCategoryFromMobile = (slug: string) => {
     setMobileMenuOpen(false);
+
     router.push(`/ecommerce/categories?slug=${encodeURIComponent(slug)}`);
   };
 
@@ -684,35 +822,41 @@ export default function Header({
   };
 
   const headerIconClass =
-    "relative flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground transition hover:bg-white/10 hover:text-primary-foreground md:h-auto md:w-auto md:flex-col md:gap-1 md:rounded-none md:text-xs md:font-medium md:text-foreground md:hover:bg-transparent md:hover:text-primary";
+    "relative flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground transition hover:bg-white/10 hover:text-primary-foreground md:h-auto md:w-auto md:flex-col md:gap-0.5 md:rounded-none md:text-xs md:font-medium md:text-foreground md:hover:bg-transparent md:hover:text-primary";
 
   const hoveredNavCat = useMemo(() => {
     if (navHoverCatId === null) return null;
+
     return categoryTree.find((c) => c.id === navHoverCatId) ?? null;
   }, [categoryTree, navHoverCatId]);
 
   const hoveredNavSub = useMemo(() => {
     if (!hoveredNavCat || navHoverSubId === null) return null;
+
     return hoveredNavCat.children.find((c) => c.id === navHoverSubId) ?? null;
   }, [hoveredNavCat, navHoverSubId]);
 
   const clearNavCloseTimer = useCallback(() => {
     if (navCloseTimerRef.current) {
       clearTimeout(navCloseTimerRef.current);
+
       navCloseTimerRef.current = null;
     }
   }, []);
 
   const scheduleNavClose = useCallback(() => {
     clearNavCloseTimer();
+
     navCloseTimerRef.current = setTimeout(() => {
       setNavHoverCatId(null);
+
       setNavHoverSubId(null);
     }, 120);
   }, [clearNavCloseTimer]);
 
   useEffect(() => {
     if (!mobileSearchOpen) return;
+
     mobileSearchInputRef.current?.focus();
   }, [mobileSearchOpen]);
 
@@ -720,13 +864,14 @@ export default function Header({
     <header
       className={[
         "sticky top-0 z-50 bg-background/95 backdrop-blur-md text-foreground transition-shadow duration-200",
+
         scrolled ? "shadow-md" : "shadow-none",
       ].join(" ")}
     >
       <div className="border-b border-border bg-primary text-primary-foreground md:bg-background md:text-foreground">
-        <div className="container mx-auto flex h-[50px] items-center justify-between gap-3 px-4 md:h-[86px] md:gap-4">
+        <div className="container mx-auto flex h-[50px] items-center justify-between gap-3 px-4 md:h-[60px] md:gap-3">
           <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2">
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-white md:h-12 md:w-12 md:border-border md:bg-card">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-white md:h-11 md:w-11 md:border-border md:bg-card">
               <Image
                 src={siteSettings.logo || "/assets/examplelogo.jpg"}
                 alt="Logo"
@@ -740,8 +885,11 @@ export default function Header({
               <div className="max-w-[190px] truncate text-xl font-extrabold uppercase tracking-tight text-primary">
                 {siteSettings.siteTitle || "Ecommerce"}
               </div>
+
               {/* <div className="text-xl font-extrabold uppercase tracking-tight text-primary">
+
                 BAZAR
+
               </div> */}
             </div>
           </Link>
@@ -755,7 +903,7 @@ export default function Header({
                 searchResults.length > 0 && setShowSearchDropdown(true)
               }
               placeholder="Search in..."
-              className="h-12 w-full rounded-lg border border-border bg-muted px-5 pr-12 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+              className="h-12 w-full rounded-lg border border-border bg-muted px-5 pr-12 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring md:h-11"
             />
 
             <button
@@ -798,8 +946,11 @@ export default function Header({
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-5">
             {/* <Link href="/ecommerce/track-order" className={`${headerIconClass} hidden lg:flex`}>
+
               <MapPin className="h-6 w-6" />
+
               <span>Track Order</span>
+
             </Link> */}
 
             <Link
@@ -807,6 +958,7 @@ export default function Header({
               className={`${headerIconClass} hidden lg:flex`}
             >
               <Newspaper className="h-6 w-6" />
+
               <span>Blog</span>
             </Link>
 
@@ -815,6 +967,7 @@ export default function Header({
               className={`${headerIconClass} hidden lg:flex`}
             >
               <Boxes className="h-6 w-6" />
+
               <span>All Products</span>
             </Link>
 
@@ -830,9 +983,11 @@ export default function Header({
                     ) : (
                       <Moon className="h-6 w-6" />
                     )}
+
                     <span>Theme</span>
                   </button>
                 </DropdownMenuTrigger>
+
                 <DropdownMenuContent align="end">
                   {THEME_OPTIONS.map((option) => (
                     <DropdownMenuItem
@@ -841,6 +996,7 @@ export default function Header({
                       className="flex items-center justify-between"
                     >
                       <span>{option.label}</span>
+
                       {activeTheme === option.value ? (
                         <Check className="h-4 w-4" />
                       ) : null}
@@ -855,11 +1011,13 @@ export default function Header({
               className={`${headerIconClass} hidden sm:flex`}
             >
               <Heart className="h-6 w-6" />
+
               {hasMounted && wishlistCount > 0 && (
                 <span className="absolute -right-2 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">
                   {wishlistCount}
                 </span>
               )}
+
               <span>Wishlist</span>
             </Link>
 
@@ -926,9 +1084,11 @@ export default function Header({
                     ) : (
                       <Leaf className="h-6 w-6" />
                     )}
+
                     <span className="hidden">Theme</span>
                   </button>
                 </DropdownMenuTrigger>
+
                 <DropdownMenuContent align="end">
                   {THEME_OPTIONS.map((option) => (
                     <DropdownMenuItem
@@ -944,8 +1104,10 @@ export default function Header({
                         ) : (
                           <Leaf className="h-4 w-4" />
                         )}
+
                         {option.label}
                       </span>
+
                       {activeTheme === option.value ? (
                         <Check className="h-4 w-4" />
                       ) : null}
@@ -957,11 +1119,13 @@ export default function Header({
 
             <Link href="/ecommerce/cart" className={headerIconClass}>
               <ShoppingCart className="h-7 w-7" />
+
               {hasMounted && cartCount > 0 && (
                 <span className="absolute -right-2 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] text-destructive-foreground">
                   {cartCount}
                 </span>
               )}
+
               <span className="hidden sm:inline">Cart</span>
             </Link>
 
@@ -975,6 +1139,7 @@ export default function Header({
                     aria-label="Profile"
                   >
                     <UserIcon className="h-6 w-6" />
+
                     <span>Sign Out</span>
                   </button>
 
@@ -982,6 +1147,7 @@ export default function Header({
                     <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl z-[10001]">
                       <div className="border-b border-border px-4 py-3">
                         <div className="text-sm font-semibold">{userName}</div>
+
                         <div className="text-xs text-muted-foreground">
                           {displayRole}
                         </div>
@@ -1001,6 +1167,7 @@ export default function Header({
                         disabled={isPending}
                         onClick={async () => {
                           setProfileOpen(false);
+
                           await handleSignOut();
                         }}
                         className="flex w-full items-center gap-2 px-4 py-3 text-sm hover:bg-muted disabled:opacity-60"
@@ -1014,10 +1181,12 @@ export default function Header({
               ) : (
                 <Link href="/signin" className={headerIconClass}>
                   <UserIcon className="h-6 w-6" />
+
                   <span>Sign In</span>
                 </Link>
               )}
             </div>
+
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
@@ -1025,6 +1194,7 @@ export default function Header({
               aria-label="Open menu"
             >
               <Menu className="h-7 w-7" />
+
               <span className="hidden">More</span>
             </button>
           </div>
@@ -1035,6 +1205,7 @@ export default function Header({
         <div className="container relative mx-auto overflow-visible px-4">
           <div className="group/nav relative">
             {/* Left Arrow - Primary Color */}
+
             <button
               type="button"
               onClick={() => scrollDesktopNav("left")}
@@ -1045,6 +1216,7 @@ export default function Header({
             </button>
 
             {/* Right Arrow - Primary Color */}
+
             <button
               type="button"
               onClick={() => scrollDesktopNav("right")}
@@ -1066,7 +1238,9 @@ export default function Header({
                   className="relative shrink-0 group"
                   onMouseEnter={(e) => {
                     clearNavCloseTimer();
+
                     setNavHoverCatId(cat.children.length > 0 ? cat.id : null);
+
                     setNavHoverSubId(null);
 
                     const rect = (
@@ -1083,15 +1257,17 @@ export default function Header({
                         goCategoryFromDesktop(cat.slug);
                       }
                     }}
-                    className="flex h-14 items-center gap-1 whitespace-nowrap text-sm font-semibold transition-all duration-300 text-secondary-foreground hover:text-secondary-foreground/70 "
+                    className="flex h-14 items-center gap-1 whitespace-nowrap text-md font-semibold transition-all duration-300 text-secondary-foreground hover:text-secondary-foreground/70 "
                   >
                     {cat.name}
+
                     {cat.children.length > 0 && (
                       <ChevronDown className="h-4 w-4 transition-transform duration-300 group-hover:rotate-180" />
                     )}
                   </button>
 
                   {/* Hover underline effect */}
+
                   <div className="absolute -bottom-[2px] left-0 h-[2px] w-0 bg-primary transition-all duration-300 group-hover:w-full" />
                 </div>
               ))}
@@ -1119,6 +1295,7 @@ export default function Header({
                     className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
                   >
                     <span className="truncate">{sub.name}</span>
+
                     {sub.children.length > 0 ? (
                       <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5" />
                     ) : (
@@ -1177,6 +1354,7 @@ export default function Header({
                   <div className="truncate text-base font-bold">
                     {siteSettings.siteTitle || "BOED"}
                   </div>
+
                   <div className="truncate text-xs text-muted-foreground">
                     {siteSettings.footerDescription || "E-Commerce"}
                   </div>
@@ -1194,6 +1372,7 @@ export default function Header({
 
             <div className="flex-1 space-y-5 overflow-y-auto p-2">
               {/* Navigation Items */}
+
               <div className="grid grid-cols-4 gap-2">
                 <Link
                   href="/ecommerce/products"
@@ -1237,6 +1416,7 @@ export default function Header({
               </div>
 
               {/* Categories */}
+
               <div className="px-1">
                 <div className="mb-2 px-2">
                   <div className="text-sm font-bold">All Categories</div>
@@ -1268,13 +1448,16 @@ export default function Header({
                             <span className="block truncate text-sm font-semibold">
                               {userName}
                             </span>
+
                             <span className="block truncate text-[11px] text-muted-foreground">
                               {displayRole}
                             </span>
                           </span>
+
                           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                         </button>
                       </DropdownMenuTrigger>
+
                       <DropdownMenuContent
                         align="start"
                         side="top"
@@ -1290,6 +1473,7 @@ export default function Header({
                             Dashboard
                           </Link>
                         </DropdownMenuItem>
+
                         <DropdownMenuItem asChild>
                           <Link
                             href="/ecommerce/user/profile"
@@ -1308,6 +1492,7 @@ export default function Header({
                       disabled={isPending}
                       onClick={async () => {
                         setMobileMenuOpen(false);
+
                         await handleSignOut();
                       }}
                       className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:opacity-60"
@@ -1321,6 +1506,7 @@ export default function Header({
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
+
                       router.push("/signin");
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"
