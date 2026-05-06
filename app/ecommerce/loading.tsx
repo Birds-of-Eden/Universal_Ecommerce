@@ -1,11 +1,5 @@
-import Spinner from "@/components/ui/spinner";
-
 const Loading = () => {
-  return (
-    <div className="grid h-full place-items-center">
-      <Spinner />
-    </div>
-  );
+  return null;
 };
 
 export default Loading;
