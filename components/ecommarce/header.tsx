@@ -1325,7 +1325,7 @@ export default function Header({
       </nav>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[9999]">
+        <div className="fixed inset-0 z-[9999] md:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-black/50"
@@ -1333,44 +1333,46 @@ export default function Header({
             onClick={() => setMobileMenuOpen(false)}
           />
 
-          <div className="absolute right-0 top-0 flex h-full w-[78%] max-w-[340px] flex-col overflow-hidden border-l border-border bg-background text-foreground shadow-2xl">
-            <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-4">
-              <Link
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex min-w-0 items-center gap-3"
-              >
-                <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
-                  <Image
-                    src={siteSettings.logo || "/assets/examplelogo.jpg"}
-                    alt="Logo"
-                    fill
-                    className="object-contain"
-                    sizes="44px"
-                  />
-                </div>
-
-                <div className="min-w-0">
-                  <div className="truncate text-base font-bold">
-                    {siteSettings.siteTitle || "BOED"}
+          <div className="absolute right-0 top-0 flex h-screen w-[85vw] max-w-[360px] flex-col overflow-hidden border-l border-border bg-background text-foreground shadow-2xl">
+            <div className="shrink-0 border-b border-border px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <Link
+                  href="/"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex min-w-0 items-center gap-3"
+                >
+                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-border bg-muted">
+                    <Image
+                      src={siteSettings.logo || "/assets/examplelogo.jpg"}
+                      alt="Logo"
+                      fill
+                      className="object-contain"
+                      sizes="44px"
+                    />
                   </div>
 
-                  <div className="truncate text-xs text-muted-foreground">
-                    {siteSettings.footerDescription || "E-Commerce"}
-                  </div>
-                </div>
-              </Link>
+                  <div className="min-w-0">
+                    <div className="truncate text-base font-bold">
+                      {siteSettings.siteTitle || "BOED"}
+                    </div>
 
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted"
-              >
-                <X className="h-5 w-5" />
-              </button>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {siteSettings.footerDescription || "E-Commerce"}
+                    </div>
+                  </div>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="flex-1 space-y-5 overflow-y-auto p-2">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-2 pb-4 pt-2">
               {/* Navigation Items */}
 
               <div className="grid grid-cols-4 gap-2">
@@ -1431,7 +1433,7 @@ export default function Header({
             </div>
 
             {hasMounted && (
-              <div className="sticky bottom-0 bg-background/95 px-3 pb-3 pt-2 backdrop-blur">
+              <div className="shrink-0 border-t border-border bg-background/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur">
                 {session ? (
                   <div className="flex items-center gap-3 rounded-xl bg-card/90 px-3 py-2.5 shadow-sm">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
