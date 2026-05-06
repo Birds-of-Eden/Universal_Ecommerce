@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Heart,
@@ -28,6 +28,7 @@ import { useWishlist } from "@/components/ecommarce/WishlistContext";
 import { getVariantMediaMeta } from "@/lib/product-variants";
 import { Product, Variant } from "@/types/product";
 import { cn } from "@/lib/utils";
+import ProductDetailsSkeleton from "./ProductDetailsSkeleton";
 
 /* ─────────────────── helpers ─────────────────── */
 function moneyBDT(n: number) {
@@ -159,15 +160,30 @@ function TrustBadge({
 }
 
 /* ─────────────────── main page ─────────────────── */
-export default function ProductDetails() {
+const MIN_SKELETON_MS = 250;
+
+export default function ProductDetailsPage() {
   const params = useParams<{ id: string }>();
+  const routeProductId = typeof params?.id === "string" ? params.id : "";
+
+  return (
+    <ProductDetailsContent
+      key={routeProductId || "product-details"}
+      routeProductId={routeProductId}
+    />
+  );
+}
+
+function ProductDetailsContent({
+  routeProductId,
+}: {
+  routeProductId: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToCart, getQuantityByProductId, incProductQty, decProductQty } =
     useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-
-  const id = params?.id;
 
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<Product | null>(null);
@@ -194,14 +210,15 @@ export default function ProductDetails() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!routeProductId) return;
     let mounted = true;
     (async () => {
+      const startedAt = Date.now();
       try {
         setLoading(true);
         setErr(null);
         const [detailRes, allRes] = await Promise.all([
-          fetch(`/api/products/${id}`, { cache: "no-store" }),
+          fetch(`/api/products/${routeProductId}`, { cache: "no-store" }),
           fetch("/api/products", { cache: "no-store" }),
         ]);
         if (!detailRes.ok) throw new Error("Failed to load product");
@@ -212,9 +229,9 @@ export default function ProductDetails() {
         const list: Product[] = Array.isArray(data) ? (data as Product[]) : [];
         setAll(list);
         const found =
-          detailData && String(detailData.id) === String(id)
+          detailData && String(detailData.id) === String(routeProductId)
             ? detailData
-            : list.find((i) => String(i.id) === String(id)) ?? null;
+            : list.find((i) => String(i.id) === String(routeProductId)) ?? null;
         if (!found) { setErr("Product not found"); return; }
         setProduct(found);
         const iv = getDefaultVariant(found);
@@ -228,11 +245,15 @@ export default function ProductDetails() {
       } catch (e: any) {
         if (mounted) setErr(e?.message || "Something went wrong");
       } finally {
+        const remaining = MIN_SKELETON_MS - (Date.now() - startedAt);
+        if (remaining > 0) {
+          await new Promise((resolve) => setTimeout(resolve, remaining));
+        }
         if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
-  }, [id]);
+  }, [routeProductId]);
 
   useEffect(() => {
     if (!product) return;
@@ -359,27 +380,7 @@ export default function ProductDetails() {
   };
 
   /* ── loading skeleton ── */
-  if (loading) return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:grid-cols-2">
-          <div className="space-y-4">
-            <div className="aspect-square w-full animate-pulse rounded-none bg-muted" />
-            <div className="flex gap-3">
-              {[1,2,3,4].map(i => <div key={i} className="h-20 w-20 animate-pulse bg-muted" />)}
-            </div>
-          </div>
-          <div className="space-y-4 pt-2">
-            <div className="h-7 w-3/4 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-            <div className="h-10 w-1/3 animate-pulse rounded bg-muted" />
-            <div className="h-28 animate-pulse rounded bg-muted" />
-            <div className="h-12 animate-pulse rounded bg-muted" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  if (loading) return <ProductDetailsSkeleton />;
 
   if (err || !product) return (
     <div className="flex min-h-screen items-center justify-center bg-background">
