@@ -137,6 +137,21 @@ export async function seedOperationsOrders(
 
     ctx.orders[item.key] = order.id;
 
+    const existingOrderItems = await prisma.orderItem.findMany({
+      where: { orderId: order.id },
+      select: { id: true },
+    });
+
+    if (existingOrderItems.length > 0) {
+      const orderItemIds = existingOrderItems.map((record) => record.id);
+
+      await prisma.shipmentItem.deleteMany({
+        where: {
+          orderItemId: { in: orderItemIds },
+        },
+      });
+    }
+
     await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
 
     const orderItem = await prisma.orderItem.create({
