@@ -706,25 +706,46 @@ async function upsertPurchaseOrder(
     select: { id: true, poNumber: true, supplierId: true, warehouseId: true },
   });
 
-  await prisma.purchaseOrderItem.deleteMany({
-    where: { purchaseOrderId: po.id },
-  });
-  await prisma.purchaseOrderItem.createMany({
-    data: input.lines.map((line) => ({
-      purchaseOrderId: po.id,
-      productVariantId: requireVariant(ctx, line.variantKey).id,
+  for (const line of input.lines) {
+    const variant = requireVariant(ctx, line.variantKey);
+    const quantityReceived =
+      input.status === "RECEIVED"
+        ? line.quantity
+        : input.status === "PARTIALLY_RECEIVED"
+          ? Math.floor(line.quantity / 2)
+          : 0;
+
+    const existingItem = await prisma.purchaseOrderItem.findFirst({
+      where: {
+        purchaseOrderId: po.id,
+        productVariantId: variant.id,
+      },
+      select: { id: true },
+    });
+
+    const itemData = {
       description: line.description,
       quantityOrdered: line.quantity,
-      quantityReceived:
-        input.status === "RECEIVED"
-          ? line.quantity
-          : input.status === "PARTIALLY_RECEIVED"
-            ? Math.floor(line.quantity / 2)
-            : 0,
+      quantityReceived,
       unitCost: decimal(line.unitCost),
       lineTotal: decimal(lineTotal(line)),
-    })),
-  });
+    };
+
+    if (existingItem) {
+      await prisma.purchaseOrderItem.update({
+        where: { id: existingItem.id },
+        data: itemData,
+      });
+    } else {
+      await prisma.purchaseOrderItem.create({
+        data: {
+          purchaseOrderId: po.id,
+          productVariantId: variant.id,
+          ...itemData,
+        },
+      });
+    }
+  }
 
   await prisma.purchaseOrderLandedCost.deleteMany({
     where: { purchaseOrderId: po.id },

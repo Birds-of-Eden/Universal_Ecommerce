@@ -72,7 +72,7 @@ export function DeliveryDashboardClient() {
       }
       setError("");
 
-      const response = await fetch("/api/delivery-assignments?scope=mine&limit=200", {
+      const response = await fetch("/api/delivery-assignments?currentOnly=true&limit=200", {
         cache: "no-store",
       });
       const payload = (await response.json().catch(() => ({}))) as Partial<DeliveryAssignmentsApiResponse>;

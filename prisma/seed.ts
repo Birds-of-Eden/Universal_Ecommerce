@@ -5,6 +5,8 @@ import {
   SYSTEM_ROLE_DEFINITIONS,
 } from "../lib/rbac-config";
 import { seedScmDemo } from "./seed-data/scm";
+import { seedInvestorDemo } from "./seed-data/investor";
+import { seedOperationsDemo } from "./seed-data/operations";
 
 const prisma = new PrismaClient();
 
@@ -73,7 +75,7 @@ const DEFAULT_SUPPLIER_CATEGORIES = [
 
 const DEFAULT_INVESTOR_PORTAL_USERS = [
   {
-    code: "INV-PORTAL-001",
+    code: "INV-SEED-001",
     name: "Yousuf Shoes Capital",
     email: "yousuf@z.shoes.com",
     password: "yousuf123",
@@ -84,7 +86,7 @@ const DEFAULT_INVESTOR_PORTAL_USERS = [
     bankAccountNumber: "100000000001",
   },
   {
-    code: "INV-PORTAL-002",
+    code: "INV-SEED-002",
     name: "Mahin Shoes Capital",
     email: "mahin@z.shoes.com",
     password: "mahin123",
@@ -95,7 +97,7 @@ const DEFAULT_INVESTOR_PORTAL_USERS = [
     bankAccountNumber: "100000000002",
   },
   {
-    code: "INV-PORTAL-003",
+    code: "INV-SEED-003",
     name: "Salehin Shoes Capital",
     email: "salehin@z.shoes.com",
     password: "salehin123",
@@ -313,6 +315,7 @@ async function main() {
   await ensurePermissionsAndRoles();
 
   const hashedAdminPassword = await bcrypt.hash(adminPassword, 10);
+
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
     update: {
@@ -377,10 +380,16 @@ async function main() {
   console.log("✅ Default supplier categories ensured");
 
   await ensureInvestorPortalUsers(admin?.id ?? null);
-  console.log("✅ Investor portal users ensured");
+  console.log("✅ Legacy investor portal users ensured");
+
+  await seedOperationsDemo(prisma, admin?.id ?? null);
+  console.log("✅ Operations demo seed ensured");
 
   await seedScmDemo(prisma, admin?.id ?? null);
   console.log("✅ SCM demo seed ensured");
+
+  await seedInvestorDemo(prisma, admin?.id ?? null);
+  console.log("✅ Investor demo seed ensured");
 }
 
 main()
