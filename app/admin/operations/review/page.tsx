@@ -96,7 +96,7 @@ export default function ReviewPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          <div className="grid gap-3 grid-cols-3">
             <div className="rounded-2xl border border-border bg-background/80 p-4">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Placement

@@ -555,30 +555,31 @@ export default function AdminUsersPage() {
         )}
 
         {/* Stats Grid - Top Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/30 transition-colors duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+          <div className="rounded-lg border border-border bg-card p-3 transition-colors duration-300 hover:border-primary/30 sm:p-4 md:p-5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs">
                   Total Users
                 </p>
-                <p className="text-2xl font-bold text-foreground mt-2">
+                <p className="mt-1 text-lg font-bold text-foreground sm:mt-2 sm:text-2xl">
                   {pagination.total}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-primary" />
+
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-10 sm:w-10 md:h-12 md:w-12">
+                <Users className="h-4 w-4 text-primary sm:h-5 sm:w-5 md:h-6 md:w-6" />
               </div>
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/30 transition-colors duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="rounded-lg border border-border bg-card p-3 transition-colors duration-300 hover:border-primary/30 sm:p-4 md:p-5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs">
                   Active Users
                 </p>
-                <p className="text-2xl font-bold text-foreground mt-2">
+                <p className="mt-1 text-lg font-bold text-foreground sm:mt-2 sm:text-2xl">
                   {
                     users.filter(
                       (u) =>
@@ -588,19 +589,20 @@ export default function AdminUsersPage() {
                   }
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-green-500" />
+
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-500/10 sm:h-10 sm:w-10 md:h-12 md:w-12">
+                <Users className="h-4 w-4 text-green-500 sm:h-5 sm:w-5 md:h-6 md:w-6" />
               </div>
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/30 transition-colors duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="rounded-lg border border-border bg-card p-3 transition-colors duration-300 hover:border-primary/30 sm:p-4 md:p-5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs">
                   Admin Accounts
                 </p>
-                <p className="text-2xl font-bold text-foreground mt-2">
+                <p className="mt-1 text-lg font-bold text-foreground sm:mt-2 sm:text-2xl">
                   {
                     users.filter((u) =>
                       (u.role || "").toLowerCase().includes("admin"),
@@ -608,35 +610,39 @@ export default function AdminUsersPage() {
                   }
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <Users className="h-6 w-6 text-purple-500" />
+
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-500/10 sm:h-10 sm:w-10 md:h-12 md:w-12">
+                <Users className="h-4 w-4 text-purple-500 sm:h-5 sm:w-5 md:h-6 md:w-6" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Users Table Section - Streamlined */}
-        <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
-          {/* Table Header with Filters */}
-          <div className="p-5 border-b border-border bg-muted/40">
-            <div className="flex items-center justify-between mb-4">
+        {/* Users Table Section - Redesigned */}
+        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          {/* Header */}
+          <div className="border-b border-border bg-muted/30 p-4 sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">
+                <h2 className="text-base font-semibold text-foreground sm:text-lg">
                   User List
                 </h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {pagination.total} total users
+                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                  Manage and monitor all registered users
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 text-sm">
+              <div className="grid grid-cols-3 gap-2 sm:flex-row sm:items-center">
+                <div className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground">
+                  {pagination.total} total users
+                </div>
+
                 {pagination.totalPages > 1 && (
-                  <div className="bg-background px-2.5 py-1.5 rounded text-xs font-medium text-foreground border border-border">
+                  <div className="rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground">
                     Page {pagination.page} / {pagination.totalPages}
                   </div>
                 )}
 
-                {/* Results per page */}
                 <select
                   value={pagination.limit}
                   onChange={(e) =>
@@ -646,7 +652,7 @@ export default function AdminUsersPage() {
                       page: 1,
                     }))
                   }
-                  className="px-2.5 py-1.5 rounded text-xs border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="10">10 per page</option>
                   <option value="25">25 per page</option>
@@ -657,34 +663,39 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Filters */}
-            <UserFilters
-              search={filters.search}
-              role={filters.role}
-              roles={roles}
-              onSearchChange={handleSearchChange}
-              onRoleChange={handleRoleChange}
-              onReset={handleResetFilters}
-            />
+            <div className="mt-4">
+              <UserFilters
+                search={filters.search}
+                role={filters.role}
+                roles={roles}
+                onSearchChange={handleSearchChange}
+                onRoleChange={handleRoleChange}
+                onReset={handleResetFilters}
+              />
+            </div>
           </div>
 
-          {/* Table Content */}
+          {/* Content */}
           {users.length === 0 ? (
-            <div className="p-16 text-center">
-              <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center mb-4">
-                <Users className="h-8 w-8 text-muted-foreground" />
+            <div className="px-4 py-12 text-center sm:px-6 sm:py-16">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted sm:h-16 sm:w-16">
+                <Users className="h-7 w-7 text-muted-foreground sm:h-8 sm:w-8" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
+
+              <h3 className="mb-2 text-base font-semibold text-foreground sm:text-lg">
                 No users found
               </h3>
-              <p className="text-muted-foreground max-w-md mx-auto mb-6 text-sm">
+
+              <p className="mx-auto mb-6 max-w-md text-sm text-muted-foreground">
                 {filters.search || filters.role
                   ? "No users match your filters. Try adjusting your search criteria."
                   : "No users have been created yet. Start by adding your first user."}
               </p>
+
               {(filters.search || filters.role) && (
                 <button
                   onClick={handleResetFilters}
-                  className="px-4 py-2 rounded-lg bg-muted text-foreground hover:bg-muted/80 transition-all font-medium text-sm"
+                  className="rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted/80"
                 >
                   Clear Filters
                 </button>
@@ -692,15 +703,20 @@ export default function AdminUsersPage() {
             </div>
           ) : (
             <>
-              <UserTable
-                users={filteredUsers}
-                onUserUpdate={handleUserUpdate}
-                onUserDelete={handleUserDelete}
-              />
+              {/* Table Wrapper */}
+              <div className="w-full overflow-x-auto">
+                <div className="min-w-[900px]">
+                  <UserTable
+                    users={filteredUsers}
+                    onUserUpdate={handleUserUpdate}
+                    onUserDelete={handleUserDelete}
+                  />
+                </div>
+              </div>
 
               {/* Pagination */}
               {pagination.totalPages > 1 && (
-                <div className="p-5 border-t border-border bg-muted/40">
+                <div className="border-t border-border bg-muted/30 p-4 sm:p-5">
                   <Pagination
                     currentPage={paginationData.page}
                     totalPages={paginationData.totalPages}

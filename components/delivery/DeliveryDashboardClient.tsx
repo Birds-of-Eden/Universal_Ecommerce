@@ -172,7 +172,7 @@ export function DeliveryDashboardClient() {
           ) : null}
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <section className="grid gap-4 grid-cols-3 xl:grid-cols-6">
           {summaryCards.map((card) => (
             <article
               key={card.label}
