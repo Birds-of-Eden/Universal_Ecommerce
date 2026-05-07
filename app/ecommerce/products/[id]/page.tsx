@@ -13,11 +13,11 @@ import {
   Share2,
   ChevronRight,
   Star,
-  Package,
   Check,
   ChevronLeft,
   X,
   ZoomIn,
+  Box, // ← NEW: 3D button icon
 } from "lucide-react";
 import ProductReviews from "@/components/ecommarce/ProductReviews";
 import AddToCartButton from "@/components/ecommarce/AddToCartButton";
@@ -29,6 +29,7 @@ import { getVariantMediaMeta } from "@/lib/product-variants";
 import { Product, Variant } from "@/types/product";
 import { cn } from "@/lib/utils";
 import ProductDetailsSkeleton from "./ProductDetailsSkeleton";
+import ProductModel3D from "@/components/3dProductModel";
 
 /* ─────────────────── helpers ─────────────────── */
 function moneyBDT(n: number) {
@@ -59,13 +60,13 @@ function getDefaultVariant(product: Product | null): Variant | null {
   if (!product?.variants?.length) return null;
   return (
     (product.variants as Variant[]).find(
-      (v: any) => v?.active !== false && v?.isDefault && toNumber(v?.stock) > 0
+      (v: any) => v?.active !== false && v?.isDefault && toNumber(v?.stock) > 0,
     ) ??
     (product.variants as Variant[]).find(
-      (v: any) => v?.active !== false && v?.isDefault
+      (v: any) => v?.active !== false && v?.isDefault,
     ) ??
     (product.variants as Variant[]).find(
-      (v: any) => v?.active !== false && toNumber(v?.stock) > 0
+      (v: any) => v?.active !== false && toNumber(v?.stock) > 0,
     ) ??
     (product.variants as Variant[]).find((v: any) => v?.active !== false) ??
     (product.variants as Variant[]).find((v: any) => v?.isDefault) ??
@@ -91,7 +92,6 @@ function getVariantGallery(variant: Variant | null | undefined) {
   if (Array.isArray(variant.gallery) && variant.gallery.length > 0) {
     return normalizeImageList(variant.gallery);
   }
-
   return getVariantMediaMeta(variant.options)?.gallery ?? [];
 }
 
@@ -104,9 +104,7 @@ function getVariantDisplayImage(variant: Variant | null | undefined) {
     return variant.image.trim();
   }
   const [galleryImage] = getVariantGallery(variant);
-  if (galleryImage) {
-    return galleryImage;
-  }
+  if (galleryImage) return galleryImage;
   return null;
 }
 
@@ -124,7 +122,7 @@ function StarRow({ avg, count }: { avg: number; count: number }) {
                 ? "fill-amber-400 text-amber-400"
                 : i === Math.floor(avg) && avg % 1 >= 0.5
                   ? "fill-amber-400/50 text-amber-400"
-                  : "fill-muted text-muted-foreground/20"
+                  : "fill-muted text-muted-foreground/20",
             )}
           />
         ))}
@@ -165,7 +163,6 @@ const MIN_SKELETON_MS = 250;
 export default function ProductDetailsPage() {
   const params = useParams<{ id: string }>();
   const routeProductId = typeof params?.id === "string" ? params.id : "";
-
   return (
     <ProductDetailsContent
       key={routeProductId || "product-details"}
@@ -174,11 +171,7 @@ export default function ProductDetailsPage() {
   );
 }
 
-function ProductDetailsContent({
-  routeProductId,
-}: {
-  routeProductId: string;
-}) {
+function ProductDetailsContent({ routeProductId }: { routeProductId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToCart, getQuantityByProductId, incProductQty, decProductQty } =
@@ -200,6 +193,8 @@ function ProductDetailsContent({
   const [lightboxZoom, setLightboxZoom] = useState(1);
   const [lightboxPan, setLightboxPan] = useState({ x: 0, y: 0 });
   const [copied, setCopied] = useState(false);
+  const [show3D, setShow3D] = useState(false); // ← NEW
+
   const imgRef = useRef<HTMLDivElement>(null);
   const lightboxDragStartRef = useRef({ x: 0, y: 0 });
   const lightboxPanStartRef = useRef({ x: 0, y: 0 });
@@ -217,6 +212,7 @@ function ProductDetailsContent({
       try {
         setLoading(true);
         setErr(null);
+        setShow3D(false); // reset 3D view on product change
         const [detailRes, allRes] = await Promise.all([
           fetch(`/api/products/${routeProductId}`, { cache: "no-store" }),
           fetch("/api/products", { cache: "no-store" }),
@@ -231,8 +227,12 @@ function ProductDetailsContent({
         const found =
           detailData && String(detailData.id) === String(routeProductId)
             ? detailData
-            : list.find((i) => String(i.id) === String(routeProductId)) ?? null;
-        if (!found) { setErr("Product not found"); return; }
+            : (list.find((i) => String(i.id) === String(routeProductId)) ??
+              null);
+        if (!found) {
+          setErr("Product not found");
+          return;
+        }
         setProduct(found);
         const iv = getDefaultVariant(found);
         setSelectedVariant(iv);
@@ -246,18 +246,22 @@ function ProductDetailsContent({
         if (mounted) setErr(e?.message || "Something went wrong");
       } finally {
         const remaining = MIN_SKELETON_MS - (Date.now() - startedAt);
-        if (remaining > 0) {
-          await new Promise((resolve) => setTimeout(resolve, remaining));
-        }
+        if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [routeProductId]);
 
   useEffect(() => {
     if (!product) return;
-    if (selectedVariant && product.variants?.some((v) => String(v.id) === String(selectedVariant.id))) return;
+    if (
+      selectedVariant &&
+      product.variants?.some((v) => String(v.id) === String(selectedVariant.id))
+    )
+      return;
     const nextVariant = getDefaultVariant(product);
     setSelectedVariant(nextVariant);
     setPreviewVariant(nextVariant);
@@ -281,14 +285,20 @@ function ProductDetailsContent({
     const cid = product.categoryId ?? product.category?.id ?? null;
     if (!cid) return [];
     return all
-      .filter((i) => (i.categoryId ?? i.category?.id) === cid && i.featured && String(i.id) !== String(product.id))
+      .filter(
+        (i) =>
+          (i.categoryId ?? i.category?.id) === cid &&
+          i.featured &&
+          String(i.id) !== String(product.id),
+      )
       .slice(0, 10);
   }, [all, product]);
 
   const stock = useMemo(() => {
     if (selectedVariant) return toNumber(selectedVariant.stock);
     const variants = product?.variants ?? [];
-    if (variants.length) return variants.reduce((s, v) => s + toNumber(v.stock), 0);
+    if (variants.length)
+      return variants.reduce((s, v) => s + toNumber(v.stock), 0);
     return product?.available ? 10 : 0;
   }, [product, selectedVariant]);
 
@@ -307,17 +317,14 @@ function ProductDetailsContent({
       if (activeImg !== null) setActiveImg(null);
       return;
     }
-
     if (!activeImg || !images.includes(activeImg)) {
       setActiveImg(images[0]);
       setActiveThumb(0);
       return;
     }
-
     setActiveThumb(images.indexOf(activeImg));
   }, [activeImg, images]);
 
-  /* copy share link */
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href).then(() => {
       setCopied(true);
@@ -332,19 +339,13 @@ function ProductDetailsContent({
     setIsDraggingLightbox(false);
   };
 
-  const zoomInLightbox = () => {
-    setLightboxZoom((prev) => Math.min(prev + 0.25, 3));
-  };
-
-  const zoomOutLightbox = () => {
-    setLightboxZoom((prev) => {
-      const next = Math.max(prev - 0.25, 1);
-      if (next === 1) {
-        setLightboxPan({ x: 0, y: 0 });
-      }
-      return next;
+  const zoomInLightbox = () => setLightboxZoom((p) => Math.min(p + 0.25, 3));
+  const zoomOutLightbox = () =>
+    setLightboxZoom((p) => {
+      const n = Math.max(p - 0.25, 1);
+      if (n === 1) setLightboxPan({ x: 0, y: 0 });
+      return n;
     });
-  };
 
   const clampLightboxPan = (x: number, y: number, zoom: number) => {
     if (zoom <= 1) return { x: 0, y: 0 };
@@ -361,11 +362,12 @@ function ProductDetailsContent({
     lightboxPanStartRef.current = lightboxPan;
     setIsDraggingLightbox(true);
   };
-
   const moveLightboxDrag = (clientX: number, clientY: number) => {
     if (!isDraggingLightbox || lightboxZoom <= 1) return;
-    const deltaX = ((clientX - lightboxDragStartRef.current.x) / window.innerWidth) * 100;
-    const deltaY = ((clientY - lightboxDragStartRef.current.y) / window.innerHeight) * 100;
+    const deltaX =
+      ((clientX - lightboxDragStartRef.current.x) / window.innerWidth) * 100;
+    const deltaY =
+      ((clientY - lightboxDragStartRef.current.y) / window.innerHeight) * 100;
     setLightboxPan(
       clampLightboxPan(
         lightboxPanStartRef.current.x + deltaX,
@@ -374,30 +376,31 @@ function ProductDetailsContent({
       ),
     );
   };
+  const stopLightboxDrag = () => setIsDraggingLightbox(false);
 
-  const stopLightboxDrag = () => {
-    setIsDraggingLightbox(false);
-  };
-
-  /* ── loading skeleton ── */
+  /* ── guards ── */
   if (loading) return <ProductDetailsSkeleton />;
-
-  if (err || !product) return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="max-w-md space-y-4 p-6 text-center">
-        <div className="text-5xl">😕</div>
-        <h2 className="text-xl font-semibold">{err || "Product not found"}</h2>
-        <button onClick={() => router.back()} className="rounded-none border border-foreground bg-transparent px-6 py-2.5 text-sm font-semibold uppercase tracking-widest text-foreground transition hover:bg-foreground hover:text-background">
-          Go Back
-        </button>
+  if (err || !product)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="max-w-md space-y-4 p-6 text-center">
+          <div className="text-5xl">😕</div>
+          <h2 className="text-xl font-semibold">
+            {err || "Product not found"}
+          </h2>
+          <button
+            onClick={() => router.back()}
+            className="rounded-none border border-foreground bg-transparent px-6 py-2.5 text-sm font-semibold uppercase tracking-widest text-foreground transition hover:bg-foreground hover:text-background"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
 
   const displayPrice = selectedVariant
     ? toNumber(selectedVariant.price)
     : toNumber(product.basePrice as any);
-
   const displayOriginalPrice = selectedVariant
     ? (selectedVariant as any).originalPrice != null
       ? toNumber((selectedVariant as any).originalPrice)
@@ -411,14 +414,20 @@ function ProductDetailsContent({
   const hasMultipleVariants = (product.variants?.length ?? 0) > 1;
   const selectionRequired = hasMultipleVariants && !selectedVariant;
   const purchaseDisabled = selectionRequired || stock <= 0;
-  const cartQty = getQuantityByProductId(product.id, selectedVariant?.id ?? null);
+  const cartQty = getQuantityByProductId(
+    product.id,
+    selectedVariant?.id ?? null,
+  );
   const inWishlist = isInWishlist(product.id);
+
+  /* ── 3D model path — from product data or fallback ── */
+  const modelPath = "/models/snickersModel.glb";
+  const has3DModel = true;
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
-
-      {/* ── Lightbox ── */}
-      {lightbox && (
+      {/* ── Lightbox — disabled when 3D is active ── */}
+      {lightbox && !show3D && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm"
           onClick={closeLightbox}
@@ -427,7 +436,10 @@ function ProductDetailsContent({
             <button
               type="button"
               className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-              onClick={(e) => { e.stopPropagation(); zoomOutLightbox(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                zoomOutLightbox();
+              }}
               disabled={lightboxZoom <= 1}
               aria-label="Zoom out"
             >
@@ -436,22 +448,46 @@ function ProductDetailsContent({
             <button
               type="button"
               className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-              onClick={(e) => { e.stopPropagation(); zoomInLightbox(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                zoomInLightbox();
+              }}
               disabled={lightboxZoom >= 3}
               aria-label="Zoom in"
             >
               <Plus className="h-5 w-5" />
             </button>
-            <button className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20" onClick={closeLightbox}>
+            <button
+              className="rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+              onClick={closeLightbox}
+            >
               <X className="h-5 w-5" />
             </button>
           </div>
-          <button className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-            onClick={(e) => { e.stopPropagation(); const prev = (activeThumb - 1 + images.length) % images.length; setActiveThumb(prev); setActiveImg(images[prev]); setLightboxZoom(1); setLightboxPan({ x: 0, y: 0 }); }}>
+          <button
+            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              const prev = (activeThumb - 1 + images.length) % images.length;
+              setActiveThumb(prev);
+              setActiveImg(images[prev]);
+              setLightboxZoom(1);
+              setLightboxPan({ x: 0, y: 0 });
+            }}
+          >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <button className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
-            onClick={(e) => { e.stopPropagation(); const next = (activeThumb + 1) % images.length; setActiveThumb(next); setActiveImg(images[next]); setLightboxZoom(1); setLightboxPan({ x: 0, y: 0 }); }}>
+          <button
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              const next = (activeThumb + 1) % images.length;
+              setActiveThumb(next);
+              setActiveImg(images[next]);
+              setLightboxZoom(1);
+              setLightboxPan({ x: 0, y: 0 });
+            }}
+          >
             <ChevronRight className="h-5 w-5" />
           </button>
           <div
@@ -465,9 +501,9 @@ function ProductDetailsContent({
             onMouseLeave={stopLightboxDrag}
             onTouchMove={(e) => {
               e.stopPropagation();
-              const touch = e.touches[0];
-              if (!touch) return;
-              moveLightboxDrag(touch.clientX, touch.clientY);
+              const t = e.touches[0];
+              if (!t) return;
+              moveLightboxDrag(t.clientX, t.clientY);
             }}
             onTouchEnd={stopLightboxDrag}
           >
@@ -480,16 +516,27 @@ function ProductDetailsContent({
                 }}
                 onTouchStart={(e) => {
                   e.stopPropagation();
-                  const touch = e.touches[0];
-                  if (!touch) return;
-                  startLightboxDrag(touch.clientX, touch.clientY);
+                  const t = e.touches[0];
+                  if (!t) return;
+                  startLightboxDrag(t.clientX, t.clientY);
                 }}
                 style={{
                   transform: `translate(${lightboxPan.x}%, ${lightboxPan.y}%) scale(${lightboxZoom})`,
-                  cursor: lightboxZoom > 1 ? (isDraggingLightbox ? "grabbing" : "grab") : "default",
+                  cursor:
+                    lightboxZoom > 1
+                      ? isDraggingLightbox
+                        ? "grabbing"
+                        : "grab"
+                      : "default",
                 }}
               >
-                <Image src={activeImg} alt={product.name} fill className="object-contain" sizes="80vmin" />
+                <Image
+                  src={activeImg}
+                  alt={product.name}
+                  fill
+                  className="object-contain"
+                  sizes="80vmin"
+                />
               </div>
             )}
           </div>
@@ -497,22 +544,36 @@ function ProductDetailsContent({
       )}
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-
         {/* ── Breadcrumb ── */}
         <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="cursor-pointer hover:text-foreground" onClick={() => router.push("/")}>Home</span>
+          <span
+            className="cursor-pointer hover:text-foreground"
+            onClick={() => router.push("/")}
+          >
+            Home
+          </span>
           <ChevronRight className="h-3 w-3" />
-          <span className="cursor-pointer hover:text-foreground" onClick={() => router.push("/ecommerce/products")}>Products</span>
+          <span
+            className="cursor-pointer hover:text-foreground"
+            onClick={() => router.push("/ecommerce/products")}
+          >
+            Products
+          </span>
           {product.category?.name && (
             <>
               <ChevronRight className="h-3 w-3" />
-              <span className="cursor-pointer hover:text-foreground">{product.category.name}</span>
+              <span className="cursor-pointer hover:text-foreground">
+                {product.category.name}
+              </span>
             </>
           )}
           <ChevronRight className="h-3 w-3" />
-          <span className="min-w-0 line-clamp-1 text-foreground font-medium">{product.name}</span>
+          <span className="min-w-0 line-clamp-1 font-medium text-foreground">
+            {product.name}
+          </span>
         </nav>
 
+        {/* mobile title block */}
         <div className="mb-5 lg:hidden">
           {product.category?.name && (
             <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
@@ -526,23 +587,32 @@ function ProductDetailsContent({
               </h1>
               {Number(product.ratingCount ?? 0) > 0 && (
                 <div className="mt-2">
-                  <StarRow avg={Number(product.ratingAvg ?? 0)} count={Number(product.ratingCount ?? 0)} />
+                  <StarRow
+                    avg={Number(product.ratingAvg ?? 0)}
+                    count={Number(product.ratingCount ?? 0)}
+                  />
                 </div>
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
-                onClick={async () => inWishlist ? await removeFromWishlist(product.id) : await addToWishlist(product.id)}
+                onClick={async () =>
+                  inWishlist
+                    ? await removeFromWishlist(product.id)
+                    : await addToWishlist(product.id)
+                }
                 className={cn(
                   "flex h-10 w-10 items-center justify-center rounded-full border transition",
                   inWishlist
                     ? "border-red-400 bg-red-50 text-red-500 dark:bg-red-950"
-                    : "border-border bg-background text-muted-foreground hover:border-foreground hover:text-foreground"
+                    : "border-border bg-background text-muted-foreground hover:border-foreground hover:text-foreground",
                 )}
                 aria-label="Wishlist"
               >
-                <Heart className={cn("h-5 w-5", inWishlist && "fill-current")} />
+                <Heart
+                  className={cn("h-5 w-5", inWishlist && "fill-current")}
+                />
               </button>
               <button
                 type="button"
@@ -550,7 +620,11 @@ function ProductDetailsContent({
                 className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition hover:border-foreground hover:text-foreground"
                 aria-label="Share"
               >
-                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Share2 className="h-4 w-4" />
+                )}
               </button>
             </div>
           </div>
@@ -568,72 +642,129 @@ function ProductDetailsContent({
 
         {/* ── Main grid ── */}
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-12 xl:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
-
           {/* ────── LEFT: Image Gallery ────── */}
           <div className="min-w-0 space-y-3">
-            {/* Main image */}
+            {/* ── Main image container ── */}
             <div
               ref={imgRef}
-              className="group relative aspect-square w-full max-w-full cursor-zoom-in overflow-hidden bg-muted/30"
+              className={cn(
+                "group relative aspect-square w-full max-w-full overflow-hidden bg-muted/30",
+                // only allow zoom-cursor when NOT in 3D mode
+                !show3D && "cursor-zoom-in",
+              )}
               onMouseMove={(e) => {
-                const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-                setZoomPos({ x: ((e.clientX - left) / width) * 100, y: ((e.clientY - top) / height) * 100 });
+                if (show3D) return; // no zoom tracking in 3D mode
+                const { left, top, width, height } =
+                  e.currentTarget.getBoundingClientRect();
+                setZoomPos({
+                  x: ((e.clientX - left) / width) * 100,
+                  y: ((e.clientY - top) / height) * 100,
+                });
               }}
-              onMouseEnter={() => setIsZooming(true)}
+              onMouseEnter={() => {
+                if (!show3D) setIsZooming(true);
+              }}
               onMouseLeave={() => setIsZooming(false)}
               onClick={() => {
+                if (show3D) return; // don't open lightbox in 3D mode
                 setLightboxZoom(1);
                 setLightbox(true);
               }}
             >
+              {/* Sale badge */}
               {savings && (
                 <div className="absolute right-0 top-4 z-10 bg-red-500 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow">
                   {savings.pct}% OFF
                 </div>
               )}
+
+              {/* Best seller badge */}
               {product.rank && product.rank <= 3 && (
                 <div className="absolute left-0 top-4 z-10 bg-foreground px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-background shadow">
                   Best Seller
                 </div>
               )}
-              <div className="absolute right-3 top-3 z-10 flex gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+
+              {/* ── 3D View toggle button — top-left ── */}
+              {has3DModel && (
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setLightboxZoom(1); setLightbox(true); }}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-background/90 backdrop-blur-sm shadow transition hover:scale-105"
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={async (e) => {
+                  onClick={(e) => {
                     e.stopPropagation();
-                    if (inWishlist) {
-                      await removeFromWishlist(product.id);
-                    } else {
-                      await addToWishlist(product.id);
-                    }
+                    setShow3D((prev) => !prev);
+                    setIsZooming(false);
                   }}
                   className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-full bg-background/90 backdrop-blur-sm shadow transition hover:scale-105",
-                    inWishlist && "text-red-500"
+                    "absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider shadow-sm backdrop-blur-sm transition-all duration-200",
+                    show3D
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-primary bg-background/85 text-primary hover:bg-primary/10",
                   )}
                 >
-                  <Heart className={cn("h-4 w-4", inWishlist && "fill-current")} />
+                  <Box className="h-3.5 w-3.5" />
+                  3D Model
                 </button>
-              </div>
+              )}
 
-              {activeImg ? (
+              {/* Hover actions (zoom + wishlist) — only in photo mode */}
+              {!show3D && (
+                <div className="absolute right-[72px] top-3 z-10 flex gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxZoom(1);
+                      setLightbox(true);
+                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-background/90 shadow backdrop-blur-sm transition hover:scale-105"
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      inWishlist
+                        ? await removeFromWishlist(product.id)
+                        : await addToWishlist(product.id);
+                    }}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-full bg-background/90 shadow backdrop-blur-sm transition hover:scale-105",
+                      inWishlist && "text-red-500",
+                    )}
+                  >
+                    <Heart
+                      className={cn("h-4 w-4", inWishlist && "fill-current")}
+                    />
+                  </button>
+                </div>
+              )}
+
+              {/* ── Content: 3D viewer OR image ── */}
+              {show3D ? (
+                /* 3D model viewer fills the container */
+                <div
+                  className="h-full w-full"
+                  onClick={(e) => e.stopPropagation()} // isolate clicks from lightbox trigger
+                >
+                  <ProductModel3D modelPath={modelPath} />
+                </div>
+              ) : activeImg ? (
+                /* Normal zoom-on-hover image */
                 <div
                   className="h-full w-full bg-cover bg-no-repeat transition-[background-size] duration-150"
                   style={{
                     backgroundImage: `url(${activeImg})`,
-                    backgroundPosition: isZooming ? `${zoomPos.x}% ${zoomPos.y}%` : "center",
+                    backgroundPosition: isZooming
+                      ? `${zoomPos.x}% ${zoomPos.y}%`
+                      : "center",
                     backgroundSize: isZooming ? "230%" : "cover",
                   }}
                 />
               ) : (
-                <div className="flex h-full items-center justify-center text-muted-foreground">No Image</div>
+                <div className="flex h-full items-center justify-center text-muted-foreground">
+                  No Image
+                </div>
               )}
             </div>
 
@@ -644,15 +775,25 @@ function ProductDetailsContent({
                   <button
                     key={src}
                     type="button"
-                    onClick={() => { setActiveImg(src); setActiveThumb(i); }}
+                    onClick={() => {
+                      setShow3D(false);
+                      setActiveImg(src);
+                      setActiveThumb(i);
+                    }}
                     className={cn(
                       "relative h-[72px] w-[72px] shrink-0 overflow-hidden border-2 bg-muted/20 transition-all duration-150 sm:h-20 sm:w-20",
                       src === activeImg
                         ? "border-foreground"
-                        : "border-transparent hover:border-muted-foreground/40"
+                        : "border-transparent hover:border-muted-foreground/40",
                     )}
                   >
-                    <Image src={src} alt={`thumb-${i}`} fill className="object-contain p-1" sizes="80px" />
+                    <Image
+                      src={src}
+                      alt={`thumb-${i}`}
+                      fill
+                      className="object-contain p-1"
+                      sizes="80px"
+                    />
                   </button>
                 ))}
               </div>
@@ -660,8 +801,8 @@ function ProductDetailsContent({
           </div>
 
           {/* ────── RIGHT: Product Info ────── */}
+          {/* (unchanged — paste your original right column here) */}
           <div className="min-w-0 flex flex-col gap-5">
-
             {/* Title + wishlist */}
             <div className="hidden min-w-0 lg:block">
               {product.category?.name && (
@@ -676,16 +817,22 @@ function ProductDetailsContent({
                 <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
-                    onClick={async () => inWishlist ? await removeFromWishlist(product.id) : await addToWishlist(product.id)}
+                    onClick={async () =>
+                      inWishlist
+                        ? await removeFromWishlist(product.id)
+                        : await addToWishlist(product.id)
+                    }
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-full border transition",
                       inWishlist
                         ? "border-red-400 bg-red-50 text-red-500 dark:bg-red-950"
-                        : "border-border bg-background text-muted-foreground hover:border-foreground hover:text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-foreground hover:text-foreground",
                     )}
                     aria-label="Wishlist"
                   >
-                    <Heart className={cn("h-5 w-5", inWishlist && "fill-current")} />
+                    <Heart
+                      className={cn("h-5 w-5", inWishlist && "fill-current")}
+                    />
                   </button>
                   <button
                     type="button"
@@ -693,30 +840,36 @@ function ProductDetailsContent({
                     className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition hover:border-foreground hover:text-foreground"
                     aria-label="Share"
                   >
-                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
+                    {copied ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Share2 className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
-
-              {/* Rating */}
               {Number(product.ratingCount ?? 0) > 0 && (
                 <div className="mt-2">
-                  <StarRow avg={Number(product.ratingAvg ?? 0)} count={Number(product.ratingCount ?? 0)} />
+                  <StarRow
+                    avg={Number(product.ratingAvg ?? 0)}
+                    count={Number(product.ratingCount ?? 0)}
+                  />
                 </div>
               )}
             </div>
 
             {/* Price block */}
             <div className="hidden border-y border-border/50 bg-gradient-to-r from-muted/30 to-transparent py-6 lg:block">
-              <div className="flex items-baseline gap-2 flex-wrap">
+              <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-[22px] font-bold tracking-tight text-primary sm:text-[28px]">
                   {moneyBDT(displayPrice)}
                 </span>
-                {displayOriginalPrice && displayOriginalPrice > displayPrice && (
-                  <span className="text-[13px] text-muted-foreground line-through sm:text-[14px]">
-                    {moneyBDT(displayOriginalPrice)}
-                  </span>
-                )}
+                {displayOriginalPrice &&
+                  displayOriginalPrice > displayPrice && (
+                    <span className="text-[13px] text-muted-foreground line-through sm:text-[14px]">
+                      {moneyBDT(displayOriginalPrice)}
+                    </span>
+                  )}
               </div>
               <div className="mt-1.5 flex items-center gap-2">
                 {stock > 0 ? (
@@ -725,7 +878,9 @@ function ProductDetailsContent({
                     In Stock {stock < 10 && `(Only ${stock} left)`}
                   </span>
                 ) : selectionRequired ? (
-                  <span className="text-sm font-medium text-amber-600 dark:text-amber-400">Select a variant</span>
+                  <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                    Select a variant
+                  </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm font-medium text-red-500">
                     <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
@@ -735,19 +890,25 @@ function ProductDetailsContent({
               </div>
             </div>
 
-            {/* Meta info */}
-            {(product.brand?.name || product.sku || (selectedVariant as any)?.sku) && (
+            {/* Meta */}
+            {(product.brand?.name ||
+              product.sku ||
+              (selectedVariant as any)?.sku) && (
               <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
                 {product.brand?.name && (
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <span>Brand:</span>
-                    <span className="font-medium text-foreground">{product.brand.name}</span>
+                    <span className="font-medium text-foreground">
+                      {product.brand.name}
+                    </span>
                   </div>
                 )}
                 {((selectedVariant as any)?.sku || product.sku) && (
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <span>SKU:</span>
-                    <span className="font-medium text-foreground">{(selectedVariant as any)?.sku ?? product.sku}</span>
+                    <span className="font-medium text-foreground">
+                      {(selectedVariant as any)?.sku ?? product.sku}
+                    </span>
                   </div>
                 )}
               </div>
@@ -762,7 +923,9 @@ function ProductDetailsContent({
                 <VariantSelector
                   variants={product.variants ?? []}
                   value={selectedVariant}
-                  onPreviewVariant={(v) => setPreviewVariant(v as Variant | null)}
+                  onPreviewVariant={(v) =>
+                    setPreviewVariant(v as Variant | null)
+                  }
                   onChange={(v) => {
                     setSelectedVariant(v as Variant | null);
                     if (v) setPreviewVariant(v as Variant);
@@ -776,6 +939,7 @@ function ProductDetailsContent({
               </div>
             )}
 
+            {/* Mobile stock status */}
             <div className="lg:hidden">
               {stock > 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400">
@@ -783,7 +947,9 @@ function ProductDetailsContent({
                   In Stock {stock < 10 && `(Only ${stock} left)`}
                 </span>
               ) : selectionRequired ? (
-                <span className="text-sm font-medium text-amber-600 dark:text-amber-400">Select a variant</span>
+                <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                  Select a variant
+                </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-sm font-medium text-red-500">
                   <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
@@ -795,23 +961,26 @@ function ProductDetailsContent({
             {/* Short description */}
             {product.shortDesc && (
               <div
-                className="text-[14px] leading-7 text-muted-foreground
-                  [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1
-                  [&_p]:mb-2 [&_strong]:font-semibold [&_strong]:text-foreground"
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.shortDesc) }}
+                className="text-[14px] leading-7 text-muted-foreground [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1 [&_p]:mb-2 [&_strong]:font-semibold [&_strong]:text-foreground"
+                dangerouslySetInnerHTML={{
+                  __html: sanitizeHtml(product.shortDesc),
+                }}
               />
             )}
 
             {/* Quantity + CTA */}
             <div className="space-y-3">
-              {/* Qty stepper */}
               <div className="flex items-center gap-4">
-                <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Qty</p>
+                <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Qty
+                </p>
                 <div className="flex items-center border border-border">
                   <button
                     type="button"
                     disabled={purchaseDisabled || cartQty <= 0}
-                    onClick={() => decProductQty(product.id, 1, selectedVariant?.id ?? null)}
+                    onClick={() =>
+                      decProductQty(product.id, 1, selectedVariant?.id ?? null)
+                    }
                     className="flex h-10 w-10 items-center justify-center text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Minus className="h-3.5 w-3.5" />
@@ -822,15 +991,15 @@ function ProductDetailsContent({
                   <button
                     type="button"
                     disabled={purchaseDisabled}
-                    onClick={() => incProductQty(product.id, 1, selectedVariant?.id ?? null)}
+                    onClick={() =>
+                      incProductQty(product.id, 1, selectedVariant?.id ?? null)
+                    }
                     className="flex h-10 w-10 items-center justify-center text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
-
-              {/* Buttons */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
                 <AddToCartButton
                   productId={product.id}
@@ -841,7 +1010,12 @@ function ProductDetailsContent({
                   type="button"
                   disabled={purchaseDisabled}
                   onClick={() => {
-                    if (getQuantityByProductId(product.id, selectedVariant?.id ?? null) <= 0) {
+                    if (
+                      getQuantityByProductId(
+                        product.id,
+                        selectedVariant?.id ?? null,
+                      ) <= 0
+                    ) {
                       addToCart(product.id, 1, selectedVariant?.id ?? null);
                     }
                     router.push("/ecommerce/checkout");
@@ -854,20 +1028,35 @@ function ProductDetailsContent({
             </div>
 
             {/* Trust badges */}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <TrustBadge icon={Truck} title="Fast Delivery" sub="Dhaka same day" />
-              <TrustBadge icon={ShieldCheck} title="Authentic" sub="100% genuine" />
-              <TrustBadge icon={RefreshCcw} title="Easy Return" sub="7-day policy" />
+            <div className="grid grid-cols-3 gap-2">
+              <TrustBadge
+                icon={Truck}
+                title="Fast Delivery"
+                sub="Dhaka same day"
+              />
+              <TrustBadge
+                icon={ShieldCheck}
+                title="Authentic"
+                sub="100% genuine"
+              />
+              <TrustBadge
+                icon={RefreshCcw}
+                title="Easy Return"
+                sub="7-day policy"
+              />
             </div>
           </div>
         </div>
 
-        {/* ── Tabs section ── */}
+        {/* ── Tabs ── */}
         <div className="mt-12">
-          {/* Tab bar */}
           <div className="scrollbar-hide-on-idle flex w-full max-w-full overflow-x-auto border-b border-border">
             {(["desc", "spec", "reviews"] as const).map((t) => {
-              const labels = { desc: "Description", spec: "Delivery & Policy", reviews: "Reviews" };
+              const labels = {
+                desc: "Description",
+                spec: "Delivery & Policy",
+                reviews: "Reviews",
+              };
               return (
                 <button
                   key={t}
@@ -876,7 +1065,7 @@ function ProductDetailsContent({
                     "shrink-0 border-b-2 px-5 py-3 text-sm font-semibold uppercase tracking-wider transition-colors",
                     tab === t
                       ? "border-foreground text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {labels[t]}
@@ -888,65 +1077,102 @@ function ProductDetailsContent({
           <div className="py-8">
             {tab === "desc" && (
               <div>
-                {/* Bundle breakdown */}
-                {product.type === "BUNDLE" && (product as any).bundleItems?.length > 0 && (
-                  <div className="mb-8 overflow-hidden rounded-none border border-border">
-                    <div className="border-b border-border bg-muted/30 px-5 py-3">
-                      <h3 className="text-sm font-bold uppercase tracking-widest">Bundle Contents</h3>
-                    </div>
-                    <div className="divide-y divide-border">
-                      {(product as any).bundleItems.map((item: any, idx: number) => (
-                        <div key={item.id} className="flex items-center gap-4 px-5 py-4">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                            {idx + 1}
-                          </span>
-                          {item.product.image && (
-                            <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-border bg-muted/20">
-                              <Image src={item.product.image} alt={item.product.name} fill className="object-contain p-1" sizes="48px" />
+                {product.type === "BUNDLE" &&
+                  (product as any).bundleItems?.length > 0 && (
+                    <div className="mb-8 overflow-hidden rounded-none border border-border">
+                      <div className="border-b border-border bg-muted/30 px-5 py-3">
+                        <h3 className="text-sm font-bold uppercase tracking-widest">
+                          Bundle Contents
+                        </h3>
+                      </div>
+                      <div className="divide-y divide-border">
+                        {(product as any).bundleItems.map(
+                          (item: any, idx: number) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center gap-4 px-5 py-4"
+                            >
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
+                                {idx + 1}
+                              </span>
+                              {item.product.image && (
+                                <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-border bg-muted/20">
+                                  <Image
+                                    src={item.product.image}
+                                    alt={item.product.name}
+                                    fill
+                                    className="object-contain p-1"
+                                    sizes="48px"
+                                  />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="line-clamp-1 text-sm font-medium text-foreground">
+                                  {item.product.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Qty: {item.quantity}
+                                </p>
+                              </div>
+                              <p className="shrink-0 text-sm font-semibold text-foreground">
+                                {moneyBDT(
+                                  toNumber(
+                                    item?.product?.basePrice ??
+                                      (item?.product as any)?.price,
+                                  ) * toNumber(item?.quantity),
+                                )}
+                              </p>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground line-clamp-1">{item.product.name}</p>
-                            <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
-                          </div>
-                          <p className="shrink-0 text-sm font-semibold text-foreground">
-                            {moneyBDT(toNumber(item?.product?.basePrice ?? (item?.product as any)?.price) * toNumber(item?.quantity))}
-                          </p>
+                          ),
+                        )}
+                      </div>
+                      <div className="border-t border-border bg-muted/20 px-5 py-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Regular total
+                          </span>
+                          <span className="text-muted-foreground line-through">
+                            {moneyBDT(
+                              (product as any).bundleItems.reduce(
+                                (t: number, i: any) =>
+                                  t +
+                                  toNumber(
+                                    i?.product?.basePrice ??
+                                      (i?.product as any)?.price,
+                                  ) *
+                                    toNumber(i?.quantity),
+                                0,
+                              ),
+                            )}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                    <div className="border-t border-border bg-muted/20 px-5 py-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Regular total</span>
-                        <span className="line-through text-muted-foreground">
-                          {moneyBDT((product as any).bundleItems.reduce((t: number, i: any) => t + toNumber(i?.product?.basePrice ?? (i?.product as any)?.price) * toNumber(i?.quantity), 0))}
-                        </span>
+                        <div className="mt-1 flex items-center justify-between">
+                          <span className="font-semibold text-foreground">
+                            Bundle price
+                          </span>
+                          <span className="text-lg font-bold text-green-600">
+                            {moneyBDT(displayPrice)}
+                          </span>
+                        </div>
+                        {(product as any).bundleSavings && (
+                          <p className="mt-2 text-center text-sm font-medium text-green-600">
+                            🎉 You save {(product as any).bundleSavings}
+                          </p>
+                        )}
                       </div>
-                      <div className="mt-1 flex items-center justify-between">
-                        <span className="font-semibold text-foreground">Bundle price</span>
-                        <span className="text-lg font-bold text-green-600">{moneyBDT(displayPrice)}</span>
-                      </div>
-                      {(product as any).bundleSavings && (
-                        <p className="mt-2 text-center text-sm font-medium text-green-600">
-                          🎉 You save {(product as any).bundleSavings}
-                        </p>
-                      )}
                     </div>
-                  </div>
-                )}
-
-                {/* Description */}
-                <div
-                  className="prose prose-sm max-w-none dark:prose-invert
-                    [&_table]:w-full [&_table]:border-collapse [&_table]:overflow-x-auto [&_table]:block
-                    [&_th]:border [&_th]:border-border [&_th]:bg-muted/40 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold
-                    [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top
-                    [&_img]:max-w-full [&_img]:h-auto [&_p]:mb-3"
-                >
+                  )}
+                <div className="prose prose-sm max-w-none dark:prose-invert [&_table]:w-full [&_table]:border-collapse [&_table]:overflow-x-auto [&_table]:block [&_th]:border [&_th]:border-border [&_th]:bg-muted/40 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_th]:font-semibold [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_td]:align-top [&_img]:max-w-full [&_img]:h-auto [&_p]:mb-3">
                   {product.description ? (
-                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description) }} />
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeHtml(product.description),
+                      }}
+                    />
                   ) : (
-                    <p className="text-sm text-muted-foreground">No description available.</p>
+                    <p className="text-sm text-muted-foreground">
+                      No description available.
+                    </p>
                   )}
                 </div>
               </div>
@@ -957,24 +1183,35 @@ function ProductDetailsContent({
                 <div className="rounded-none border border-border p-5">
                   <div className="mb-3 flex items-center gap-2">
                     <Truck className="h-5 w-5 text-primary" />
-                    <h4 className="font-bold uppercase tracking-wider text-sm">Delivery</h4>
+                    <h4 className="text-sm font-bold uppercase tracking-wider">
+                      Delivery
+                    </h4>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-6">
-                    Fast delivery available. Same-day delivery for Dhaka city. 1–3 days for outside Dhaka.
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Fast delivery available. Same-day delivery for Dhaka city.
+                    1–3 days for outside Dhaka.
                   </p>
                 </div>
                 <div className="rounded-none border border-border p-5">
                   <div className="mb-3 flex items-center gap-2">
                     <ShieldCheck className="h-5 w-5 text-primary" />
-                    <h4 className="font-bold uppercase tracking-wider text-sm">Specifications</h4>
+                    <h4 className="text-sm font-bold uppercase tracking-wider">
+                      Specifications
+                    </h4>
                   </div>
                   <div className="space-y-2 text-sm">
                     {[
                       ["Weight", product.weight ? `${product.weight} kg` : "—"],
-                      ["SKU", (selectedVariant as any)?.sku ?? product.sku ?? "—"],
+                      [
+                        "SKU",
+                        (selectedVariant as any)?.sku ?? product.sku ?? "—",
+                      ],
                       ["Category", product.category?.name ?? "—"],
                     ].map(([k, v]) => (
-                      <div key={k} className="flex justify-between border-b border-border/40 pb-2">
+                      <div
+                        key={k}
+                        className="flex justify-between border-b border-border/40 pb-2"
+                      >
                         <span className="text-muted-foreground">{k}</span>
                         <span className="font-medium text-foreground">{v}</span>
                       </div>
@@ -984,10 +1221,13 @@ function ProductDetailsContent({
                 <div className="rounded-none border border-border p-5">
                   <div className="mb-3 flex items-center gap-2">
                     <RefreshCcw className="h-5 w-5 text-primary" />
-                    <h4 className="font-bold uppercase tracking-wider text-sm">Returns</h4>
+                    <h4 className="text-sm font-bold uppercase tracking-wider">
+                      Returns
+                    </h4>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-6">
-                    7-day replacement policy as per store rules and product eligibility. Contact support to initiate.
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    7-day replacement policy as per store rules and product
+                    eligibility. Contact support to initiate.
                   </p>
                 </div>
               </div>
@@ -1010,7 +1250,6 @@ function ProductDetailsContent({
           </div>
         )}
       </div>
-      {/* spacer for mobile sticky bar */}
       <div className="h-14 sm:hidden" />
     </div>
   );

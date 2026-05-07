@@ -1034,6 +1034,39 @@ body {
     transform: translateY(-1px);
     box-shadow: 0 8px 25px rgba(242, 181, 11, 0.4);
   }
+
+  .status-pill {
+    border-width: 1px;
+    border-style: solid;
+    border-color: hsl(var(--border));
+    background: hsl(var(--muted) / 0.9);
+    color: hsl(var(--muted-foreground));
+    box-shadow: 0 1px 2px hsl(var(--foreground) / 0.06);
+  }
+
+  .status-pill-default {
+    border-color: hsl(var(--border));
+    background: hsl(var(--muted) / 0.95);
+    color: hsl(var(--muted-foreground));
+  }
+
+  .status-pill-good {
+    border-color: hsl(var(--primary) / 0.26);
+    background: hsl(var(--primary) / 0.14);
+    color: hsl(var(--primary));
+  }
+
+  .status-pill-warn {
+    border-color: hsl(var(--accent) / 0.24);
+    background: hsl(var(--accent) / 0.12);
+    color: hsl(var(--accent));
+  }
+
+  .status-pill-danger {
+    border-color: hsl(var(--destructive) / 0.24);
+    background: hsl(var(--destructive) / 0.12);
+    color: hsl(var(--destructive));
+  }
 }
 
 /* ========================

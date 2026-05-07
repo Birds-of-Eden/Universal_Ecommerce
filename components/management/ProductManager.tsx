@@ -443,8 +443,11 @@ export default function ProductManager({
     return "In Stock";
   };
 
+  const filterSelectClass =
+    "w-full min-w-0 rounded-xl border border-border bg-background px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary";
+
   return (
-    <div className="min-h-screen p-0 bg-background">
+    <div className="min-h-screen bg-background pb-6">
       {/* DELETE MODAL */}
       <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <AlertDialogContent>
@@ -469,25 +472,25 @@ export default function ProductManager({
 
       {/* WAREHOUSE CONTROLS */}
       {/* Page Header */}
-      <div className="border-b bg-card mb-4">
-        <div className="px-6 py-8">
-          <div className="flex items-center justify-between">
+      <div className="mb-4 border-b bg-card">
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">
+              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
                 Product Management
               </h1>
               <p className="mt-2 text-muted-foreground">
                 Manage all products with warehouse-specific insights
               </p>
             </div>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-3 sm:flex-row sm:items-center">
+            <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
+              <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="outline"
-                      className="min-w-[240px] justify-between rounded-2xl px-4 py-3 text-sm font-medium"
+                      className="w-full justify-between rounded-2xl px-4 py-3 text-sm font-medium sm:min-w-[240px] sm:w-auto"
                     >
                       <span className="truncate">{selectedWarehouseLabel}</span>
                       <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
@@ -526,7 +529,7 @@ export default function ProductManager({
                 <button
                   type="button"
                   onClick={() => void fetchWarehouseData(undefined, true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground transition hover:bg-accent"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground transition hover:bg-accent sm:w-auto"
                 >
                   <RefreshCw
                     className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
@@ -540,7 +543,7 @@ export default function ProductManager({
       </div>
 
       {/* WAREHOUSE STATISTICS */}
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6 px-6">
+      <section className="mb-6 grid gap-4 px-4 sm:grid-cols-2 sm:px-6 xl:grid-cols-4">
         {warehouseStatsCards.map((card) => (
           <article
             key={card.title}
@@ -549,7 +552,7 @@ export default function ProductManager({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm text-muted-foreground">{card.title}</p>
-                <p className="mt-2 text-3xl font-semibold text-foreground">
+                <p className="mt-2 text-2xl font-semibold text-foreground sm:text-3xl">
                   {card.value}
                 </p>
               </div>
@@ -563,20 +566,21 @@ export default function ProductManager({
       </section>
 
       {/* SEARCH + ADD + FILTERS */}
-      <Card className="mx-6 mb-6 border bg-card shadow-sm">
-        <CardContent className="p-6 space-y-6">
+      <Card className="mx-4 mb-6 border bg-card shadow-sm sm:mx-6">
+        <CardContent className="space-y-6 p-4 sm:p-6">
           {/* Header with Stats and Actions */}
 
           {/* Filters Section */}
           <div className="space-y-4">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <h2 className="text-lg font-semibold text-foreground">Filters</h2>
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-end">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => setAttributesOpen(true)}
+                    className="w-full"
                   >
                     Attributes
                   </Button>
@@ -584,10 +588,11 @@ export default function ProductManager({
                     size="sm"
                     variant="outline"
                     onClick={() => setDigitalAssetsOpen(true)}
+                    className="w-full"
                   >
                     Digital Assets
                   </Button>
-                  <Button onClick={openAdd}>
+                  <Button onClick={openAdd} className="w-full">
                     <Plus className="h-4 w-4 mr-1" /> New Product
                   </Button>
                   <Button
@@ -596,25 +601,30 @@ export default function ProductManager({
                       (window.location.href =
                         "/admin/operations/products/bundles")
                     }
-                    className="border-primary/20 text-primary hover:bg-primary/10"
+                    className="w-full border-primary/20 text-primary hover:bg-primary/10"
                   >
                     <Package className="h-4 w-4 mr-1" /> Bundles
                   </Button>
                 </div>
 
                 {hasActiveFilters && (
-                  <Button variant="outline" size="sm" onClick={clearFilters}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="w-full xl:w-auto"
+                  >
                     Clear All Filters
                   </Button>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-4">
-              <div className="relative min-w-[220px] flex-1">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+              <div className="relative sm:col-span-2 xl:col-span-2">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  className="pl-10"
+                  className="h-11 pl-10"
                   placeholder="Search products..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -624,7 +634,7 @@ export default function ProductManager({
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className={filterSelectClass}
               >
                 <option value="">All Categories</option>
                 {(categories || []).map((category: any) => (
@@ -637,7 +647,7 @@ export default function ProductManager({
               <select
                 value={productTypeFilter}
                 onChange={(e) => setProductTypeFilter(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className={filterSelectClass}
               >
                 <option value="">All Types</option>
                 <option value="PHYSICAL">Physical</option>
@@ -649,7 +659,7 @@ export default function ProductManager({
               <select
                 value={availabilityFilter}
                 onChange={(e) => setAvailabilityFilter(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className={filterSelectClass}
               >
                 <option value="">All Availability</option>
                 <option value="available">Available</option>
@@ -659,7 +669,7 @@ export default function ProductManager({
               <select
                 value={featuredFilter}
                 onChange={(e) => setFeaturedFilter(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className={filterSelectClass}
               >
                 <option value="">All Visibility</option>
                 <option value="featured">Featured</option>
@@ -669,7 +679,7 @@ export default function ProductManager({
               <select
                 value={stockFilter}
                 onChange={(e) => setStockFilter(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className={filterSelectClass}
               >
                 <option value="">All Stock States</option>
                 <option value="in-stock">In Stock</option>
@@ -681,7 +691,7 @@ export default function ProductManager({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                className={filterSelectClass}
               >
                 <option value="name-asc">Name (A-Z)</option>
                 <option value="name-desc">Name (Z-A)</option>
@@ -749,14 +759,14 @@ export default function ProductManager({
 
       {/* LOADING */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-6">
+        <div className="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 sm:gap-6 sm:px-6 xl:grid-cols-3 2xl:grid-cols-4">
           {[...Array(8)].map((_, index) => (
             <Card
               key={`skeleton-${index}`}
               className="bg-card shadow-sm rounded-2xl overflow-hidden border"
             >
               {/* Image Skeleton */}
-              <div className="relative h-60 bg-muted">
+              <div className="relative h-48 bg-muted sm:h-56">
                 <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted/50 to-muted animate-pulse" />
               </div>
 
@@ -788,14 +798,14 @@ export default function ProductManager({
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-6 pb-6">
+        <div className="grid grid-cols-1 gap-4 px-4 pb-6 sm:grid-cols-2 sm:gap-6 sm:px-6 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((p: any) => (
             <SpotlightCard
               key={p.id}
               className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all duration-200 hover:border-border hover:shadow-md"
             >
               {/* Image */}
-              <div className="relative h-48 overflow-hidden bg-muted">
+              <div className="relative h-44 overflow-hidden bg-muted sm:h-48">
                 {p.image ? (
                   <Image
                     src={p.image}
@@ -835,7 +845,7 @@ export default function ProductManager({
                 {/* Top content */}
                 <div>
                   {/* Name + Price */}
-                  <div className="mb-1 flex items-start justify-between gap-2">
+                  <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                     <h3 className="line-clamp-2 min-h-[40px] font-medium text-[15px] leading-snug">
                       {p.name}
                     </h3>
@@ -879,7 +889,7 @@ export default function ProductManager({
                         <p className="mb-0.5 text-[10px] text-muted-foreground">
                           {label}
                         </p>
-                        <p className="truncate text-[12px] font-medium">
+                        <p className="break-words text-[12px] font-medium sm:truncate">
                           {value}
                         </p>
                       </div>
@@ -919,12 +929,12 @@ export default function ProductManager({
 
                 {/* Actions fixed bottom */}
                 <div className="mt-auto border-t border-border/50 pt-3">
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2 sm:flex-nowrap">
                     <Button
                       onClick={() => openEdit(p)}
                       variant="default"
                       size="sm"
-                      className="flex-1 text-xs"
+                      className="min-w-[calc(50%-0.25rem)] flex-1 text-xs sm:min-w-0"
                     >
                       <Edit3 className="mr-1 h-3 w-3" />
                       Edit
@@ -934,7 +944,7 @@ export default function ProductManager({
                       onClick={() => openManage(p)}
                       variant="default"
                       size="sm"
-                      className="flex-1 text-xs"
+                      className="min-w-[calc(50%-0.25rem)] flex-1 text-xs sm:min-w-0"
                     >
                       Manage
                     </Button>
@@ -943,7 +953,7 @@ export default function ProductManager({
                       onClick={() => openDeleteModal(p)}
                       variant="destructive"
                       size="sm"
-                      className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      className="h-9 w-full shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-9"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -956,7 +966,7 @@ export default function ProductManager({
       )}
 
       {!loading && filtered.length === 0 && (
-        <Card className="p-10 text-center bg-card shadow-sm border mx-6 mb-6">
+        <Card className="mx-4 mb-6 border bg-card p-6 text-center shadow-sm sm:mx-6 sm:p-10">
           <h3 className="text-xl font-bold mb-2">
             {warehouseId
               ? `No products found in ${selectedWarehouseLabel}`

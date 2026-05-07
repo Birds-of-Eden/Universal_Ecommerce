@@ -920,11 +920,11 @@ const OrderManagement = () => {
   // ------------------- RENDER -------------------
 
   return (
-    <div className="min-h-screen w-full bg-background px-4 py-4 ">
+    <div className="min-h-screen w-full bg-background px-3 py-4 sm:px-4">
       <div className="flex-col gap-8">
         {/* Heading */}
         <div className="mb-4">
-          <h1 className="text-3xl font-semibold text-foreground">
+          <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">
             Order Management
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -933,9 +933,9 @@ const OrderManagement = () => {
         </div>
 
         {/* Top stats + search row */}
-        <div className="flex flex-col gap-4 md:flex-row">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,0.85fr)_minmax(0,1.3fr)]">
           {/* Total Orders */}
-          <div className="flex w-full items-center justify-between rounded-2xl bg-card px-6 py-4 shadow-sm border-border md:w-1/4">
+          <div className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-6">
             <div>
               <p className="text-xs text-muted-foreground">Total Orders</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">
@@ -976,7 +976,7 @@ const OrderManagement = () => {
           </div>
 
           {/* Total Amount (This Page) */}
-          <div className="flex w-full items-center justify-between rounded-2xl bg-card px-6 py-4 shadow-sm border-border md:w-1/4">
+          <div className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-6">
             <div>
               <p className="text-xs text-muted-foreground">Page Total Amount</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">
@@ -1004,7 +1004,7 @@ const OrderManagement = () => {
           </div>
 
           {/* search + status filter */}
-          <div className="flex flex-1 items-center gap-4 rounded-2xl bg-card px-6 py-4 shadow-sm border-border">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-6 lg:flex-row lg:items-center">
             <div className="flex flex-1 items-center gap-2 rounded-full border border-border bg-muted px-4 py-2">
               <svg
                 className="h-4 w-4 text-muted-foreground"
@@ -1032,7 +1032,7 @@ const OrderManagement = () => {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="rounded-full border border-border bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm focus:outline-none"
+              className="w-full rounded-full border border-border bg-primary px-4 py-2 text-sm text-primary-foreground shadow-sm focus:outline-none lg:w-auto"
             >
               <option
                 className="bg-white text-black hover:bg-primary/20"
@@ -1072,32 +1072,32 @@ const OrderManagement = () => {
         {loading && (
           <div className="mt-6">
             {/* Stats Cards Skeleton */}
-            <div className="flex flex-col gap-4 md:flex-row mb-6">
-              <div className="flex w-full items-center justify-between rounded-2xl bg-card px-6 py-4 shadow-sm border-border md:w-1/4">
+            <div className="mb-6 grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,0.85fr)_minmax(0,1.3fr)]">
+              <div className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-6">
                 <div>
                   <div className="h-3 bg-muted rounded w-16 mb-2 animate-pulse"></div>
                   <div className="h-8 bg-muted rounded w-12 animate-pulse"></div>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted animate-pulse"></div>
               </div>
-              <div className="flex w-full items-center justify-between rounded-2xl bg-card px-6 py-4 shadow-sm border-border md:w-1/4">
+              <div className="flex w-full items-center justify-between rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-6">
                 <div>
                   <div className="h-3 bg-muted rounded w-20 mb-2 animate-pulse"></div>
                   <div className="h-8 bg-muted rounded w-16 animate-pulse"></div>
                 </div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted animate-pulse"></div>
               </div>
-              <div className="flex flex-1 items-center gap-4 rounded-2xl bg-card px-6 py-4 shadow-sm border-border">
+              <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-4 py-4 shadow-sm sm:px-6 lg:flex-row lg:items-center">
                 <div className="flex flex-1 items-center gap-2 rounded-full border border-border bg-muted px-4 py-2">
                   <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
                   <div className="h-4 bg-muted rounded flex-1 animate-pulse"></div>
                 </div>
-                <div className="h-8 bg-muted rounded w-24 animate-pulse"></div>
+                <div className="h-8 w-full rounded bg-muted animate-pulse lg:w-24"></div>
               </div>
             </div>
 
             {/* Order Cards Skeleton */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }, (_, i) => (
                 <div
                   key={i}
@@ -1161,7 +1161,7 @@ const OrderManagement = () => {
                 No orders found.
               </div>
             ) : (
-              <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-6 grid gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {filteredOrders.map((order) => {
                   const firstItem = order.orderItems?.[0];
                   const firstItemImage = getOrderItemImage(firstItem);
@@ -1198,7 +1198,7 @@ const OrderManagement = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 px-4 py-3 text-[11px]">
+                    <div className="grid grid-cols-1 gap-3 px-4 py-3 text-[11px] sm:grid-cols-3">
                       <div>
                         <p className="text-muted-foreground">Created on</p>
                         <p className="mt-1 font-semibold text-foreground">
@@ -1253,7 +1253,7 @@ const OrderManagement = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-border px-4 py-3">
+                    <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <span
                         className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${paymentBadgeClass(
                           order.paymentStatus,
@@ -1262,7 +1262,7 @@ const OrderManagement = () => {
                         {order.paymentStatus.toLowerCase()}
                       </span>
 
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <p className="text-xs text-muted-foreground">
                           Grand Total
                         </p>
@@ -1292,7 +1292,7 @@ const OrderManagement = () => {
 
             {/* pagination */}
             {pagination && pagination.pages > 1 && (
-              <div className="mt-8 flex items-center justify-center gap-4 text-sm">
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 text-sm sm:flex-row sm:gap-4">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
@@ -1300,7 +1300,7 @@ const OrderManagement = () => {
                 >
                   Previous
                 </button>
-                <span className="text-muted-foreground">
+                <span className="text-center text-muted-foreground">
                   Page {page} / {pagination.pages}
                 </span>
                 <button
@@ -1322,11 +1322,11 @@ const OrderManagement = () => {
 
       {/* ------------- DETAILS MODAL ------------- */}
       {detailOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-3xl bg-card shadow-xl border-border">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-2 backdrop-blur-sm sm:p-4">
+          <div className="relative max-h-[96vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-card shadow-xl sm:max-h-[90vh] sm:rounded-3xl">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <div>
+            <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-foreground">
                   Order Details
                 </h2>
@@ -1341,14 +1341,14 @@ const OrderManagement = () => {
               </div>
               <button
                 onClick={handleCloseDetail}
-                className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground hover:bg-muted/80"
+                className="w-full rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground hover:bg-muted/80 sm:w-auto"
               >
                 Close ✕
               </button>
             </div>
 
             {/* Body */}
-            <div className="max-h-[70vh] overflow-y-auto px-6 py-4">
+            <div className="max-h-[78vh] overflow-y-auto px-4 py-4 sm:max-h-[70vh] sm:px-6">
               {detailLoading && (
                 <div className="space-y-5 text-sm animate-pulse">
                   {/* Customer + Address Skeleton */}
@@ -1639,7 +1639,7 @@ const OrderManagement = () => {
                         return (
                           <div
                             key={item.id}
-                            className="flex items-center justify-between gap-3 rounded-xl bg-card px-3 py-2 text-xs"
+                            className="flex flex-col gap-3 rounded-xl bg-card px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between"
                           >
                             <div className="flex min-w-0 items-center gap-3">
                               <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
@@ -1676,7 +1676,7 @@ const OrderManagement = () => {
                                 </p>
                               </div>
                             </div>
-                            <p className="shrink-0 text-right text-[11px] font-semibold text-foreground">
+                            <p className="shrink-0 text-left text-[11px] font-semibold text-foreground sm:text-right">
                               {formatMoney(
                                 Number(item.quantity * item.price),
                                 orderDetail.currency || "BDT",
@@ -1795,7 +1795,7 @@ const OrderManagement = () => {
 
                   {/* 4. Shipment */}
                   <div className="rounded-2xl bg-muted/30 p-4">
-                    <div className="mb-2 flex items-center justify-between">
+                    <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <h3 className="text-xs font-semibold text-muted-foreground">
                         Shipment Status
                       </h3>
@@ -2083,7 +2083,7 @@ const OrderManagement = () => {
                                     key={log.id}
                                     className="rounded-xl border border-border bg-card px-3 py-3 text-xs text-muted-foreground"
                                   >
-                                    <div className="flex items-center justify-between gap-3">
+                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                       <p className="font-medium text-foreground">
                                         {log.fromStatus
                                           ? `${ASSIGNMENT_STATUS_LABELS[log.fromStatus]} -> ${ASSIGNMENT_STATUS_LABELS[log.toStatus]}`
