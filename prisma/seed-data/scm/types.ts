@@ -48,6 +48,26 @@ export type ScmSeedSupplierInvoiceRef = {
   purchaseOrderId: number | null;
 };
 
+export type ScmSeedMaterialRequestRef = {
+  id: number;
+  requestNumber: string;
+  warehouseId: number;
+};
+
+export type ScmSeedMaterialReleaseRef = {
+  id: number;
+  releaseNumber: string;
+  materialRequestId: number;
+  warehouseId: number;
+};
+
+export type ScmSeedWarehouseTransferRef = {
+  id: number;
+  transferNumber: string;
+  sourceWarehouseId: number;
+  destinationWarehouseId: number;
+};
+
 export type ScmSeedContext = {
   adminUserId: string | null;
   users: Record<string, ScmSeedUserRef>;
@@ -57,6 +77,9 @@ export type ScmSeedContext = {
   purchaseOrders?: Record<string, ScmSeedPurchaseOrderRef>;
   goodsReceipts?: Record<string, ScmSeedGoodsReceiptRef>;
   supplierInvoices?: Record<string, ScmSeedSupplierInvoiceRef>;
+  materialRequests?: Record<string, ScmSeedMaterialRequestRef>;
+  materialReleases?: Record<string, ScmSeedMaterialReleaseRef>;
+  warehouseTransfers?: Record<string, ScmSeedWarehouseTransferRef>;
 };
 
 export type ScmSeedPrisma = PrismaClient;
