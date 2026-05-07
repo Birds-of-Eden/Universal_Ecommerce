@@ -9,7 +9,8 @@ function requireUser(ctx: ScmSeedContext, key: string) {
 
 function requirePurchaseOrder(ctx: ScmSeedContext, key: string) {
   const purchaseOrder = ctx.purchaseOrders?.[key];
-  if (!purchaseOrder) throw new Error(`Missing SCM seed purchase order: ${key}`);
+  if (!purchaseOrder)
+    throw new Error(`Missing SCM seed purchase order: ${key}`);
   return purchaseOrder;
 }
 
@@ -32,7 +33,9 @@ async function recreateInvoiceItems(
   });
 
   for (const item of poItems) {
-    const qty = partial ? Math.max(1, Math.floor(item.quantityOrdered / 2)) : item.quantityOrdered;
+    const qty = partial
+      ? Math.max(1, Math.floor(item.quantityOrdered / 2))
+      : item.quantityOrdered;
     const unitCost = Number(item.unitCost);
     await prisma.supplierInvoiceItem.create({
       data: {
@@ -64,12 +67,20 @@ async function upsertSupplierInvoice(
   },
 ) {
   const poRef = requirePurchaseOrder(ctx, input.purchaseOrderKey);
-  const po = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: poRef.id } });
+  const po = await prisma.purchaseOrder.findUniqueOrThrow({
+    where: { id: poRef.id },
+  });
   const financeFocal = requireUser(ctx, "finance_focal");
 
-  const invoiceSubtotal = input.partial ? Number(po.subtotal) / 2 : Number(po.subtotal);
-  const invoiceTax = input.partial ? Number(po.taxTotal) / 2 : Number(po.taxTotal);
-  const otherCharges = input.partial ? Number(po.shippingTotal) / 2 : Number(po.shippingTotal);
+  const invoiceSubtotal = input.partial
+    ? Number(po.subtotal) / 2
+    : Number(po.subtotal);
+  const invoiceTax = input.partial
+    ? Number(po.taxTotal) / 2
+    : Number(po.taxTotal);
+  const otherCharges = input.partial
+    ? Number(po.shippingTotal) / 2
+    : Number(po.shippingTotal);
   const invoiceTotal = invoiceSubtotal + invoiceTax + otherCharges;
 
   const invoice = await prisma.supplierInvoice.upsert({
@@ -83,7 +94,10 @@ async function upsertSupplierInvoice(
       dueDate: daysFromNow(20),
       postedAt: daysAgo(input.issueDaysAgo - 1),
       createdById: financeFocal.id,
-      matchedAt: input.matchStatus === "PENDING" ? null : daysAgo(input.issueDaysAgo - 2),
+      matchedAt:
+        input.matchStatus === "PENDING"
+          ? null
+          : daysAgo(input.issueDaysAgo - 2),
       matchedById: input.matchStatus === "PENDING" ? null : financeFocal.id,
       currency: "BDT",
       subtotal: decimal(invoiceSubtotal),
@@ -92,7 +106,9 @@ async function upsertSupplierInvoice(
       total: decimal(invoiceTotal),
       note: input.note,
       paymentHoldStatus: input.paymentHold ? "HELD" : "CLEAR",
-      paymentHoldReason: input.paymentHold ? "Seeded SLA/quality variance hold." : null,
+      paymentHoldReason: input.paymentHold
+        ? "Seeded SLA/quality variance hold."
+        : null,
       paymentHoldAt: input.paymentHold ? daysAgo(input.issueDaysAgo - 1) : null,
     },
     create: {
@@ -105,7 +121,10 @@ async function upsertSupplierInvoice(
       dueDate: daysFromNow(20),
       postedAt: daysAgo(input.issueDaysAgo - 1),
       createdById: financeFocal.id,
-      matchedAt: input.matchStatus === "PENDING" ? null : daysAgo(input.issueDaysAgo - 2),
+      matchedAt:
+        input.matchStatus === "PENDING"
+          ? null
+          : daysAgo(input.issueDaysAgo - 2),
       matchedById: input.matchStatus === "PENDING" ? null : financeFocal.id,
       currency: "BDT",
       subtotal: decimal(invoiceSubtotal),
@@ -114,16 +133,27 @@ async function upsertSupplierInvoice(
       total: decimal(invoiceTotal),
       note: input.note,
       paymentHoldStatus: input.paymentHold ? "HELD" : "CLEAR",
-      paymentHoldReason: input.paymentHold ? "Seeded SLA/quality variance hold." : null,
+      paymentHoldReason: input.paymentHold
+        ? "Seeded SLA/quality variance hold."
+        : null,
       paymentHoldAt: input.paymentHold ? daysAgo(input.issueDaysAgo - 1) : null,
     },
-    select: { id: true, invoiceNumber: true, supplierId: true, purchaseOrderId: true, total: true },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      supplierId: true,
+      purchaseOrderId: true,
+      total: true,
+    },
   });
 
   await recreateInvoiceItems(prisma, invoice.id, po.id, input.partial);
 
   await prisma.supplierLedgerEntry.deleteMany({
-    where: { referenceType: "SUPPLIER_INVOICE", referenceNumber: input.invoiceNumber },
+    where: {
+      referenceType: "SUPPLIER_INVOICE",
+      referenceNumber: input.invoiceNumber,
+    },
   });
   await prisma.supplierLedgerEntry.create({
     data: {
@@ -152,13 +182,20 @@ async function upsertPaymentRequest(
     prfNumber: string;
     invoiceId: number;
     goodsReceiptKey: string;
-    status: "SUBMITTED" | "MANAGER_APPROVED" | "FINANCE_APPROVED" | "PAID" | "REJECTED";
+    status:
+      | "SUBMITTED"
+      | "MANAGER_APPROVED"
+      | "FINANCE_APPROVED"
+      | "PAID"
+      | "REJECTED";
     amount: number;
     requestedDaysAgo: number;
     note: string;
   },
 ) {
-  const invoice = await prisma.supplierInvoice.findUniqueOrThrow({ where: { id: input.invoiceId } });
+  const invoice = await prisma.supplierInvoice.findUniqueOrThrow({
+    where: { id: input.invoiceId },
+  });
   const grn = requireGoodsReceipt(ctx, input.goodsReceiptKey);
   const manager = requireUser(ctx, "ap_manager");
   const finance = requireUser(ctx, "finance_focal");
@@ -189,11 +226,24 @@ async function upsertPaymentRequest(
       currency: "BDT",
       requestedAt: daysAgo(input.requestedDaysAgo),
       submittedAt: daysAgo(input.requestedDaysAgo - 1),
-      managerApprovedAt: ["MANAGER_APPROVED", "FINANCE_APPROVED", "PAID"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 2) : null,
-      financeApprovedAt: ["FINANCE_APPROVED", "PAID"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 3) : null,
-      treasuryProcessedAt: input.status === "PAID" ? daysAgo(input.requestedDaysAgo - 4) : null,
-      paidAt: input.status === "PAID" ? daysAgo(input.requestedDaysAgo - 4) : null,
-      rejectedAt: input.status === "REJECTED" ? daysAgo(input.requestedDaysAgo - 2) : null,
+      managerApprovedAt: [
+        "MANAGER_APPROVED",
+        "FINANCE_APPROVED",
+        "PAID",
+      ].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 2)
+        : null,
+      financeApprovedAt: ["FINANCE_APPROVED", "PAID"].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 3)
+        : null,
+      treasuryProcessedAt:
+        input.status === "PAID" ? daysAgo(input.requestedDaysAgo - 4) : null,
+      paidAt:
+        input.status === "PAID" ? daysAgo(input.requestedDaysAgo - 4) : null,
+      rejectedAt:
+        input.status === "REJECTED"
+          ? daysAgo(input.requestedDaysAgo - 2)
+          : null,
       createdById: manager.id,
       managerApprovedById: manager.id,
       financeApprovedById: finance.id,
@@ -215,11 +265,24 @@ async function upsertPaymentRequest(
       currency: "BDT",
       requestedAt: daysAgo(input.requestedDaysAgo),
       submittedAt: daysAgo(input.requestedDaysAgo - 1),
-      managerApprovedAt: ["MANAGER_APPROVED", "FINANCE_APPROVED", "PAID"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 2) : null,
-      financeApprovedAt: ["FINANCE_APPROVED", "PAID"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 3) : null,
-      treasuryProcessedAt: input.status === "PAID" ? daysAgo(input.requestedDaysAgo - 4) : null,
-      paidAt: input.status === "PAID" ? daysAgo(input.requestedDaysAgo - 4) : null,
-      rejectedAt: input.status === "REJECTED" ? daysAgo(input.requestedDaysAgo - 2) : null,
+      managerApprovedAt: [
+        "MANAGER_APPROVED",
+        "FINANCE_APPROVED",
+        "PAID",
+      ].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 2)
+        : null,
+      financeApprovedAt: ["FINANCE_APPROVED", "PAID"].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 3)
+        : null,
+      treasuryProcessedAt:
+        input.status === "PAID" ? daysAgo(input.requestedDaysAgo - 4) : null,
+      paidAt:
+        input.status === "PAID" ? daysAgo(input.requestedDaysAgo - 4) : null,
+      rejectedAt:
+        input.status === "REJECTED"
+          ? daysAgo(input.requestedDaysAgo - 2)
+          : null,
       createdById: manager.id,
       managerApprovedById: manager.id,
       financeApprovedById: finance.id,
@@ -228,7 +291,12 @@ async function upsertPaymentRequest(
       note: input.note,
       referenceNumber: invoice.invoiceNumber,
     },
-    select: { id: true, prfNumber: true, supplierId: true, supplierInvoiceId: true },
+    select: {
+      id: true,
+      prfNumber: true,
+      supplierId: true,
+      supplierInvoiceId: true,
+    },
   });
 }
 
@@ -243,7 +311,9 @@ async function upsertSupplierPayment(
     paymentDaysAgo: number;
   },
 ) {
-  const invoice = await prisma.supplierInvoice.findUniqueOrThrow({ where: { id: input.invoiceId } });
+  const invoice = await prisma.supplierInvoice.findUniqueOrThrow({
+    where: { id: input.invoiceId },
+  });
   const finance = requireUser(ctx, "finance_focal");
 
   const payment = await prisma.supplierPayment.upsert({
@@ -285,7 +355,10 @@ async function upsertSupplierPayment(
   });
 
   await prisma.supplierLedgerEntry.deleteMany({
-    where: { referenceType: "SUPPLIER_PAYMENT", referenceNumber: input.paymentNumber },
+    where: {
+      referenceType: "SUPPLIER_PAYMENT",
+      referenceNumber: input.paymentNumber,
+    },
   });
   await prisma.supplierLedgerEntry.create({
     data: {
@@ -325,7 +398,7 @@ export async function seedScmFinanceScenarios(
     issueDaysAgo: 3,
     note: "Seeded matched invoice for happy path.",
   });
-  nextCtx.supplierInvoices.happyPath = invoiceHappy;
+  nextCtx.supplierInvoices!.happyPath = invoiceHappy;
 
   const prfPaid = await upsertPaymentRequest(prisma, ctx, {
     prfNumber: "PAYREQ-SCM-001",
@@ -355,7 +428,7 @@ export async function seedScmFinanceScenarios(
     partial: true,
     note: "Seeded pending invoice for partial receiving flow.",
   });
-  nextCtx.supplierInvoices.partialReceiving = invoicePartial;
+  nextCtx.supplierInvoices!.partialReceiving = invoicePartial;
 
   await upsertPaymentRequest(prisma, ctx, {
     prfNumber: "PAYREQ-SCM-002",
@@ -377,7 +450,7 @@ export async function seedScmFinanceScenarios(
     paymentHold: true,
     note: "Seeded invoice with variance and payment hold for return flow.",
   });
-  nextCtx.supplierInvoices.returnFlow = invoiceReturn;
+  nextCtx.supplierInvoices!.returnFlow = invoiceReturn;
 
   await upsertPaymentRequest(prisma, ctx, {
     prfNumber: "PAYREQ-SCM-003",
@@ -389,6 +462,8 @@ export async function seedScmFinanceScenarios(
     note: "Seeded submitted payment request blocked by invoice variance.",
   });
 
-  console.log("✅ SCM finance scenarios ensured: invoices, payment requests, payment, ledger");
+  console.log(
+    "✅ SCM finance scenarios ensured: invoices, payment requests, payment, ledger",
+  );
   return nextCtx;
 }

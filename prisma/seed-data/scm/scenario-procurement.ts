@@ -153,13 +153,29 @@ async function upsertPurchaseRequisition(
       estimatedAmount: decimal(estimatedAmount),
       requestedAt: now,
       neededBy: daysFromNow(10),
-      submittedAt: input.status === "SUBMITTED" ? now : daysAgo(input.requestedDaysAgo - 1),
-      budgetClearedAt: ["BUDGET_CLEARED", "ENDORSED", "APPROVED", "CONVERTED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 2) : null,
-      endorsedAt: ["ENDORSED", "APPROVED", "CONVERTED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 3) : null,
-      approvedAt: ["APPROVED", "CONVERTED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 4) : null,
+      submittedAt:
+        input.status === "SUBMITTED"
+          ? now
+          : daysAgo(input.requestedDaysAgo - 1),
+      budgetClearedAt: [
+        "BUDGET_CLEARED",
+        "ENDORSED",
+        "APPROVED",
+        "CONVERTED",
+      ].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 2)
+        : null,
+      endorsedAt: ["ENDORSED", "APPROVED", "CONVERTED"].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 3)
+        : null,
+      approvedAt: ["APPROVED", "CONVERTED"].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 4)
+        : null,
       rejectedAt: input.rejected ? daysAgo(input.requestedDaysAgo - 2) : null,
       convertedAt: input.converted ? daysAgo(input.requestedDaysAgo - 5) : null,
-      routedToProcurementAt: input.converted ? daysAgo(input.requestedDaysAgo - 5) : null,
+      routedToProcurementAt: input.converted
+        ? daysAgo(input.requestedDaysAgo - 5)
+        : null,
       createdById: requestor.id,
       budgetClearedById: manager.id,
       endorsedById: manager.id,
@@ -179,13 +195,29 @@ async function upsertPurchaseRequisition(
       estimatedAmount: decimal(estimatedAmount),
       requestedAt: now,
       neededBy: daysFromNow(10),
-      submittedAt: input.status === "SUBMITTED" ? now : daysAgo(input.requestedDaysAgo - 1),
-      budgetClearedAt: ["BUDGET_CLEARED", "ENDORSED", "APPROVED", "CONVERTED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 2) : null,
-      endorsedAt: ["ENDORSED", "APPROVED", "CONVERTED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 3) : null,
-      approvedAt: ["APPROVED", "CONVERTED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 4) : null,
+      submittedAt:
+        input.status === "SUBMITTED"
+          ? now
+          : daysAgo(input.requestedDaysAgo - 1),
+      budgetClearedAt: [
+        "BUDGET_CLEARED",
+        "ENDORSED",
+        "APPROVED",
+        "CONVERTED",
+      ].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 2)
+        : null,
+      endorsedAt: ["ENDORSED", "APPROVED", "CONVERTED"].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 3)
+        : null,
+      approvedAt: ["APPROVED", "CONVERTED"].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 4)
+        : null,
       rejectedAt: input.rejected ? daysAgo(input.requestedDaysAgo - 2) : null,
       convertedAt: input.converted ? daysAgo(input.requestedDaysAgo - 5) : null,
-      routedToProcurementAt: input.converted ? daysAgo(input.requestedDaysAgo - 5) : null,
+      routedToProcurementAt: input.converted
+        ? daysAgo(input.requestedDaysAgo - 5)
+        : null,
       createdById: requestor.id,
       budgetClearedById: manager.id,
       endorsedById: manager.id,
@@ -245,12 +277,17 @@ async function upsertRfqWithQuotations(
       requestedAt: daysAgo(input.requestedDaysAgo),
       submissionDeadline: daysFromNow(5),
       submittedAt: daysAgo(input.requestedDaysAgo - 1),
-      closedAt: ["CLOSED", "AWARDED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 4) : null,
-      awardedAt: input.status === "AWARDED" ? daysAgo(input.requestedDaysAgo - 5) : null,
+      closedAt: ["CLOSED", "AWARDED"].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 4)
+        : null,
+      awardedAt:
+        input.status === "AWARDED" ? daysAgo(input.requestedDaysAgo - 5) : null,
       scopeOfWork: "Seeded RFQ scope for SCM Pass 2 testing.",
       termsAndConditions: "Standard SCM seeded RFQ terms apply.",
-      technicalSpecifications: "Supplier must comply with product specification and delivery SLA.",
-      evaluationCriteria: "Technical compliance 70%, financial competitiveness 30%.",
+      technicalSpecifications:
+        "Supplier must comply with product specification and delivery SLA.",
+      evaluationCriteria:
+        "Technical compliance 70%, financial competitiveness 30%.",
       createdById: manager.id,
       approvedById: manager.id,
       currency: "BDT",
@@ -265,12 +302,17 @@ async function upsertRfqWithQuotations(
       requestedAt: daysAgo(input.requestedDaysAgo),
       submissionDeadline: daysFromNow(5),
       submittedAt: daysAgo(input.requestedDaysAgo - 1),
-      closedAt: ["CLOSED", "AWARDED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 4) : null,
-      awardedAt: input.status === "AWARDED" ? daysAgo(input.requestedDaysAgo - 5) : null,
+      closedAt: ["CLOSED", "AWARDED"].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 4)
+        : null,
+      awardedAt:
+        input.status === "AWARDED" ? daysAgo(input.requestedDaysAgo - 5) : null,
       scopeOfWork: "Seeded RFQ scope for SCM Pass 2 testing.",
       termsAndConditions: "Standard SCM seeded RFQ terms apply.",
-      technicalSpecifications: "Supplier must comply with product specification and delivery SLA.",
-      evaluationCriteria: "Technical compliance 70%, financial competitiveness 30%.",
+      technicalSpecifications:
+        "Supplier must comply with product specification and delivery SLA.",
+      evaluationCriteria:
+        "Technical compliance 70%, financial competitiveness 30%.",
       createdById: manager.id,
       approvedById: manager.id,
       currency: "BDT",
@@ -288,7 +330,8 @@ async function upsertRfqWithQuotations(
     const invite = await prisma.rfqSupplierInvite.upsert({
       where: { rfqId_supplierId: { rfqId: rfq.id, supplierId: supplier.id } },
       update: {
-        status: supplierKey === input.winningSupplierKey ? "AWARDED" : "RESPONDED",
+        status:
+          supplierKey === input.winningSupplierKey ? "AWARDED" : "RESPONDED",
         invitedAt: daysAgo(input.requestedDaysAgo - 1),
         respondedAt: daysAgo(input.requestedDaysAgo - 3),
         createdById: manager.id,
@@ -297,7 +340,8 @@ async function upsertRfqWithQuotations(
       create: {
         rfqId: rfq.id,
         supplierId: supplier.id,
-        status: supplierKey === input.winningSupplierKey ? "AWARDED" : "RESPONDED",
+        status:
+          supplierKey === input.winningSupplierKey ? "AWARDED" : "RESPONDED",
         invitedAt: daysAgo(input.requestedDaysAgo - 1),
         respondedAt: daysAgo(input.requestedDaysAgo - 3),
         createdById: manager.id,
@@ -306,7 +350,12 @@ async function upsertRfqWithQuotations(
       select: { id: true },
     });
 
-    const multiplier = supplierKey === input.winningSupplierKey ? 1 : supplierKey.endsWith("mate") ? 1.06 : 1.12;
+    const multiplier =
+      supplierKey === input.winningSupplierKey
+        ? 1
+        : supplierKey.endsWith("mate")
+          ? 1.06
+          : 1.12;
     const quoteSubtotal = subtotal(input.lines, multiplier);
     const quoteTax = quoteSubtotal * 0.05;
     const quoteTotal = quoteSubtotal + quoteTax;
@@ -354,7 +403,11 @@ async function upsertRfqWithQuotations(
 
     await prisma.supplierQuotationItem.createMany({
       data: rfqItems.map((rfqItem) => {
-        const line = input.lines.find((item) => requireVariant(ctx, item.variantKey).id === rfqItem.productVariantId);
+        const line = input.lines.find(
+          (item) =>
+            requireVariant(ctx, item.variantKey).id ===
+            rfqItem.productVariantId,
+        );
         const unitCost = (line?.unitCost ?? 0) * multiplier;
         return {
           supplierQuotationId: quotation.id,
@@ -379,7 +432,11 @@ async function upsertComparativeStatement(
     csNumber: string;
     rfqId: number;
     warehouseKey: string;
-    status: "SUBMITTED" | "MANAGER_APPROVED" | "COMMITTEE_APPROVED" | "FINAL_APPROVED";
+    status:
+      | "SUBMITTED"
+      | "MANAGER_APPROVED"
+      | "COMMITTEE_APPROVED"
+      | "FINAL_APPROVED";
     requestedDaysAgo: number;
   },
 ) {
@@ -407,9 +464,22 @@ async function upsertComparativeStatement(
       approvalStage,
       generatedAt: daysAgo(input.requestedDaysAgo),
       submittedAt: daysAgo(input.requestedDaysAgo - 1),
-      managerApprovedAt: ["MANAGER_APPROVED", "COMMITTEE_APPROVED", "FINAL_APPROVED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 2) : null,
-      committeeApprovedAt: ["COMMITTEE_APPROVED", "FINAL_APPROVED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 3) : null,
-      finalApprovedAt: input.status === "FINAL_APPROVED" ? daysAgo(input.requestedDaysAgo - 4) : null,
+      managerApprovedAt: [
+        "MANAGER_APPROVED",
+        "COMMITTEE_APPROVED",
+        "FINAL_APPROVED",
+      ].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 2)
+        : null,
+      committeeApprovedAt: ["COMMITTEE_APPROVED", "FINAL_APPROVED"].includes(
+        input.status,
+      )
+        ? daysAgo(input.requestedDaysAgo - 3)
+        : null,
+      finalApprovedAt:
+        input.status === "FINAL_APPROVED"
+          ? daysAgo(input.requestedDaysAgo - 4)
+          : null,
       managerApprovedById: manager.id,
       committeeApprovedById: committee.id,
       finalApprovedById: finalApprover.id,
@@ -427,9 +497,22 @@ async function upsertComparativeStatement(
       approvalStage,
       generatedAt: daysAgo(input.requestedDaysAgo),
       submittedAt: daysAgo(input.requestedDaysAgo - 1),
-      managerApprovedAt: ["MANAGER_APPROVED", "COMMITTEE_APPROVED", "FINAL_APPROVED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 2) : null,
-      committeeApprovedAt: ["COMMITTEE_APPROVED", "FINAL_APPROVED"].includes(input.status) ? daysAgo(input.requestedDaysAgo - 3) : null,
-      finalApprovedAt: input.status === "FINAL_APPROVED" ? daysAgo(input.requestedDaysAgo - 4) : null,
+      managerApprovedAt: [
+        "MANAGER_APPROVED",
+        "COMMITTEE_APPROVED",
+        "FINAL_APPROVED",
+      ].includes(input.status)
+        ? daysAgo(input.requestedDaysAgo - 2)
+        : null,
+      committeeApprovedAt: ["COMMITTEE_APPROVED", "FINAL_APPROVED"].includes(
+        input.status,
+      )
+        ? daysAgo(input.requestedDaysAgo - 3)
+        : null,
+      finalApprovedAt:
+        input.status === "FINAL_APPROVED"
+          ? daysAgo(input.requestedDaysAgo - 4)
+          : null,
       managerApprovedById: manager.id,
       committeeApprovedById: committee.id,
       finalApprovedById: finalApprover.id,
@@ -485,7 +568,13 @@ async function upsertPurchaseOrder(
     warehouseKey: string;
     purchaseRequisitionId?: number;
     sourceComparativeStatementId?: number;
-    status: "SUBMITTED" | "MANAGER_APPROVED" | "COMMITTEE_APPROVED" | "APPROVED" | "PARTIALLY_RECEIVED" | "RECEIVED";
+    status:
+      | "SUBMITTED"
+      | "MANAGER_APPROVED"
+      | "COMMITTEE_APPROVED"
+      | "APPROVED"
+      | "PARTIALLY_RECEIVED"
+      | "RECEIVED";
     lines: ProcurementLine[];
     orderDaysAgo: number;
   },
@@ -519,11 +608,35 @@ async function upsertPurchaseOrder(
       orderDate: daysAgo(input.orderDaysAgo),
       expectedAt: daysFromNow(7),
       submittedAt: daysAgo(input.orderDaysAgo - 1),
-      managerApprovedAt: ["MANAGER_APPROVED", "COMMITTEE_APPROVED", "APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(input.status) ? daysAgo(input.orderDaysAgo - 2) : null,
-      committeeApprovedAt: ["COMMITTEE_APPROVED", "APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(input.status) ? daysAgo(input.orderDaysAgo - 3) : null,
-      finalApprovedAt: ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(input.status) ? daysAgo(input.orderDaysAgo - 4) : null,
-      approvedAt: ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(input.status) ? daysAgo(input.orderDaysAgo - 4) : null,
-      receivedAt: input.status === "RECEIVED" ? daysAgo(input.orderDaysAgo - 6) : null,
+      managerApprovedAt: [
+        "MANAGER_APPROVED",
+        "COMMITTEE_APPROVED",
+        "APPROVED",
+        "PARTIALLY_RECEIVED",
+        "RECEIVED",
+      ].includes(input.status)
+        ? daysAgo(input.orderDaysAgo - 2)
+        : null,
+      committeeApprovedAt: [
+        "COMMITTEE_APPROVED",
+        "APPROVED",
+        "PARTIALLY_RECEIVED",
+        "RECEIVED",
+      ].includes(input.status)
+        ? daysAgo(input.orderDaysAgo - 3)
+        : null,
+      finalApprovedAt: ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(
+        input.status,
+      )
+        ? daysAgo(input.orderDaysAgo - 4)
+        : null,
+      approvedAt: ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(
+        input.status,
+      )
+        ? daysAgo(input.orderDaysAgo - 4)
+        : null,
+      receivedAt:
+        input.status === "RECEIVED" ? daysAgo(input.orderDaysAgo - 6) : null,
       createdById: manager.id,
       managerApprovedById: manager.id,
       committeeApprovedById: committee.id,
@@ -548,11 +661,35 @@ async function upsertPurchaseOrder(
       orderDate: daysAgo(input.orderDaysAgo),
       expectedAt: daysFromNow(7),
       submittedAt: daysAgo(input.orderDaysAgo - 1),
-      managerApprovedAt: ["MANAGER_APPROVED", "COMMITTEE_APPROVED", "APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(input.status) ? daysAgo(input.orderDaysAgo - 2) : null,
-      committeeApprovedAt: ["COMMITTEE_APPROVED", "APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(input.status) ? daysAgo(input.orderDaysAgo - 3) : null,
-      finalApprovedAt: ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(input.status) ? daysAgo(input.orderDaysAgo - 4) : null,
-      approvedAt: ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(input.status) ? daysAgo(input.orderDaysAgo - 4) : null,
-      receivedAt: input.status === "RECEIVED" ? daysAgo(input.orderDaysAgo - 6) : null,
+      managerApprovedAt: [
+        "MANAGER_APPROVED",
+        "COMMITTEE_APPROVED",
+        "APPROVED",
+        "PARTIALLY_RECEIVED",
+        "RECEIVED",
+      ].includes(input.status)
+        ? daysAgo(input.orderDaysAgo - 2)
+        : null,
+      committeeApprovedAt: [
+        "COMMITTEE_APPROVED",
+        "APPROVED",
+        "PARTIALLY_RECEIVED",
+        "RECEIVED",
+      ].includes(input.status)
+        ? daysAgo(input.orderDaysAgo - 3)
+        : null,
+      finalApprovedAt: ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(
+        input.status,
+      )
+        ? daysAgo(input.orderDaysAgo - 4)
+        : null,
+      approvedAt: ["APPROVED", "PARTIALLY_RECEIVED", "RECEIVED"].includes(
+        input.status,
+      )
+        ? daysAgo(input.orderDaysAgo - 4)
+        : null,
+      receivedAt:
+        input.status === "RECEIVED" ? daysAgo(input.orderDaysAgo - 6) : null,
       createdById: manager.id,
       managerApprovedById: manager.id,
       committeeApprovedById: committee.id,
@@ -569,7 +706,9 @@ async function upsertPurchaseOrder(
     select: { id: true, poNumber: true, supplierId: true, warehouseId: true },
   });
 
-  await prisma.purchaseOrderItem.deleteMany({ where: { purchaseOrderId: po.id } });
+  await prisma.purchaseOrderItem.deleteMany({
+    where: { purchaseOrderId: po.id },
+  });
   await prisma.purchaseOrderItem.createMany({
     data: input.lines.map((line) => ({
       purchaseOrderId: po.id,
@@ -587,7 +726,9 @@ async function upsertPurchaseOrder(
     })),
   });
 
-  await prisma.purchaseOrderLandedCost.deleteMany({ where: { purchaseOrderId: po.id } });
+  await prisma.purchaseOrderLandedCost.deleteMany({
+    where: { purchaseOrderId: po.id },
+  });
   await prisma.purchaseOrderLandedCost.createMany({
     data: [
       {
@@ -663,7 +804,7 @@ export async function seedScmProcurementScenarios(
     orderDaysAgo: 9,
   });
 
-  nextCtx.purchaseOrders.happyPath = poHappy;
+  nextCtx.purchaseOrders!.happyPath = poHappy;
 
   const prPartial = await upsertPurchaseRequisition(prisma, ctx, {
     requisitionNumber: "PR-SCM-002",
@@ -705,7 +846,7 @@ export async function seedScmProcurementScenarios(
     orderDaysAgo: 7,
   });
 
-  nextCtx.purchaseOrders.partialReceiving = poPartial;
+  nextCtx.purchaseOrders!.partialReceiving = poPartial;
 
   const prReturn = await upsertPurchaseRequisition(prisma, ctx, {
     requisitionNumber: "PR-SCM-003",
@@ -727,7 +868,7 @@ export async function seedScmProcurementScenarios(
     orderDaysAgo: 8,
   });
 
-  nextCtx.purchaseOrders.returnFlow = poReturn;
+  nextCtx.purchaseOrders!.returnFlow = poReturn;
 
   await upsertPurchaseRequisition(prisma, ctx, {
     requisitionNumber: "PR-SCM-004",
@@ -760,6 +901,8 @@ export async function seedScmProcurementScenarios(
     requestedDaysAgo: 2,
   });
 
-  console.log("✅ SCM procurement scenarios ensured: PR, RFQ, quotations, CS, PO");
+  console.log(
+    "✅ SCM procurement scenarios ensured: PR, RFQ, quotations, CS, PO",
+  );
   return nextCtx;
 }

@@ -114,7 +114,7 @@ export async function seedScmReceivingScenarios(
     receiptMode: "FULL",
     note: "Seeded full GRN for completed PO.",
   });
-  nextCtx.goodsReceipts.happyPath = fullReceipt;
+  nextCtx.goodsReceipts!.happyPath = fullReceipt;
 
   const partialReceipt = await upsertGoodsReceipt(prisma, ctx, {
     key: "partialReceiving",
@@ -124,7 +124,7 @@ export async function seedScmReceivingScenarios(
     receiptMode: "PARTIAL",
     note: "Seeded partial GRN to test receiving backlog and partial stock flow.",
   });
-  nextCtx.goodsReceipts.partialReceiving = partialReceipt;
+  nextCtx.goodsReceipts!.partialReceiving = partialReceipt;
 
   const returnReceipt = await upsertGoodsReceipt(prisma, ctx, {
     key: "returnFlow",
@@ -134,7 +134,7 @@ export async function seedScmReceivingScenarios(
     receiptMode: "DAMAGED_RETURN_BASE",
     note: "Seeded GRN with damaged goods note for supplier return scenario.",
   });
-  nextCtx.goodsReceipts.returnFlow = returnReceipt;
+  nextCtx.goodsReceipts!.returnFlow = returnReceipt;
 
   await prisma.goodsReceiptVendorEvaluation.deleteMany({
     where: { goodsReceiptId: returnReceipt.id },
