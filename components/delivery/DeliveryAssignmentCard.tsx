@@ -203,7 +203,7 @@ export function DeliveryAssignmentCard({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-4 grid-cols-2 xl:grid-cols-4">
           <InfoBlock label="Customer Phone" value={assignment.order.phone_number} />
           <InfoBlock
             label="Shipment Status"

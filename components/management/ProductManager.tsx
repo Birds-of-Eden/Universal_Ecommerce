@@ -484,7 +484,7 @@ export default function ProductManager({
               </p>
             </div>
             <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center lg:w-auto">
-              <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
+              <div className="grid grid-cols-2 gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto">
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -543,7 +543,7 @@ export default function ProductManager({
       </div>
 
       {/* WAREHOUSE STATISTICS */}
-      <section className="mb-6 grid gap-4 px-4 sm:grid-cols-2 sm:px-6 xl:grid-cols-4">
+      <section className="mb-6 grid gap-4 px-4 grid-cols-2 sm:px-6 xl:grid-cols-4">
         {warehouseStatsCards.map((card) => (
           <article
             key={card.title}
@@ -575,7 +575,7 @@ export default function ProductManager({
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <h2 className="text-lg font-semibold text-foreground">Filters</h2>
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-end">
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   <Button
                     size="sm"
                     variant="outline"
@@ -620,7 +620,7 @@ export default function ProductManager({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="grid gap-3 grid-cols-2 xl:grid-cols-6">
               <div className="relative sm:col-span-2 xl:col-span-2">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input

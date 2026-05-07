@@ -884,7 +884,7 @@ export default function LogisticsPage() {
                 </p>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-6 grid gap-3 grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-[24px] bg-primary px-4 py-4 text-primary-foreground shadow-sm">
                   <p className="text-xs uppercase tracking-[0.24em] text-primary-foreground/80">
                     Active shipments
@@ -945,7 +945,7 @@ export default function LogisticsPage() {
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="mt-6 grid gap-3 grid-cols-3">
                 <div className="rounded-2xl bg-card p-4">
                   <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground/55">
                     Estimated
@@ -972,7 +972,7 @@ export default function LogisticsPage() {
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="mt-6 grid gap-4 grid-cols-2">
                 <div className="rounded-[24px] bg-card p-4">
                   <div className="flex items-center gap-4">
                     <div className="flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-full border-[6px] border-primary border-r-primary/20 border-t-primary/40 text-center">
@@ -982,11 +982,6 @@ export default function LogisticsPage() {
                       <p className="mt-1 text-[10px] leading-none uppercase tracking-[0.08em] text-muted-foreground/70">
                         Delivered
                       </p>
-                    </div>
-
-                    <div className="text-sm leading-6 text-muted-foreground/70">
-                      Delivery performance for the current selection based on
-                      completed shipments.
                     </div>
                   </div>
                 </div>

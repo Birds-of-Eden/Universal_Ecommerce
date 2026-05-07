@@ -41,19 +41,20 @@ export default function UserFilters({
   };
 
   return (
-    <div className="bg-gradient-to-r from-background to-muted p-6 rounded-2xl shadow-lg border-border mb-8">
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+    <div className="bg-gradient-to-r from-background to-muted p-4 sm:p-6 rounded-xl sm:rounded-2xl shadow-lg border-border mb-6 sm:mb-8">
+      {/* Main Filters Grid */}
+      <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Search Input */}
-        <div className="lg:col-span-2">
+        <div className="sm:col-span-2">
           <div className="relative">
             <input
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search by email or name..."
-              className="w-full pl-10 pr-4 py-3 rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground placeholder-muted-foreground shadow-sm"
+              className="w-full pl-10 pr-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground placeholder-muted-foreground shadow-sm text-sm sm:text-base"
             />
-            <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           </div>
         </div>
 
@@ -62,7 +63,7 @@ export default function UserFilters({
           <select
             value={role}
             onChange={(e) => onRoleChange(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground shadow-sm"
+            className="w-full px-4 py-2.5 sm:py-3 rounded-lg sm:rounded-xl border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-300 text-foreground shadow-sm text-sm sm:text-base"
           >
             <option value="">All Roles</option>
             {roles.length > 0 ? (
@@ -83,10 +84,10 @@ export default function UserFilters({
         </div>
 
         {/* Reset Button */}
-        <div className="flex items-end">
+        <div className="sm:flex sm:items-end">
           <button
             onClick={onReset}
-            className="w-full py-3 px-4 rounded-xl bg-background border-border text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 font-medium shadow-sm hover:shadow-md flex items-center justify-center space-x-2 group"
+            className="w-full py-2.5 sm:py-3 px-4 rounded-lg sm:rounded-xl bg-background border-border text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-300 font-medium shadow-sm hover:shadow-md flex items-center justify-center space-x-2 group text-sm sm:text-base"
           >
             <RotateCcw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
             <span>Reset Filters</span>
@@ -96,27 +97,32 @@ export default function UserFilters({
 
       {/* Active Filters Indicator */}
       {(search || role) && (
-        <div className="mt-4 p-3 bg-muted bg-opacity-50 rounded-lg border-border">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 text-sm">
-              <span className="text-foreground font-medium">
+        <div className="mt-4 p-2.5 sm:p-3 bg-muted bg-opacity-50 rounded-lg border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
+              <span className="text-foreground font-medium text-xs sm:text-sm">
                 Active Filters:
               </span>
-              {search && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary bg-opacity-20 text-foreground text-xs border-border border-opacity-30">
-                  <Search className="h-3 w-3 mr-1" />"{search}"
-                </span>
-              )}
-              {role && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary bg-opacity-20 text-foreground text-xs border-border border-opacity-30">
-                  <Shield className="h-3 w-3 mr-1" />
-                  {formatRoleLabel(role)}
-                </span>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {search && (
+                  <span className="inline-flex items-center px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-primary bg-opacity-20 text-foreground text-xs border-border border-opacity-30">
+                    <Search className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                    <span className="truncate max-w-[150px] sm:max-w-none">
+                      "{search}"
+                    </span>
+                  </span>
+                )}
+                {role && (
+                  <span className="inline-flex items-center px-2 py-0.5 sm:px-3 sm:py-1 rounded-full bg-primary bg-opacity-20 text-foreground text-xs border-border border-opacity-30">
+                    <Shield className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                    {formatRoleLabel(role)}
+                  </span>
+                )}
+              </div>
             </div>
             <button
               onClick={onReset}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors duration-200 flex items-center space-x-1"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors duration-200 flex items-center space-x-1 sm:self-start"
             >
               <RotateCcw className="h-3 w-3" />
               <span>Clear All</span>
