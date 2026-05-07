@@ -2,11 +2,11 @@ import type { PrismaClient } from "../../../generated/prisma";
 import { seedManagementBlogs } from "./scenario-blogs";
 import { seedManagementBrands } from "./scenario-brands";
 import { seedManagementCategories } from "./scenario-categories";
+import { seedManagementCoupons } from "./scenario-coupons";
 import { seedManagementCouriers } from "./scenario-couriers";
 import { seedManagementNewsletter } from "./scenario-newsletter";
 import { seedManagementVat } from "./scenario-vat";
 import type { ManagementSeedContext } from "./types";
-import { seedManagementCoupons } from "./coupons";
 
 export async function seedManagementDemo(
   prisma: PrismaClient,
@@ -30,7 +30,8 @@ export async function seedManagementDemo(
   ctx = await seedManagementVat(prisma, ctx);
   ctx = await seedManagementBlogs(prisma, ctx);
   ctx = await seedManagementNewsletter(prisma, ctx);
-  await seedManagementCoupons(prisma);
+  ctx = await seedManagementCoupons(prisma, ctx);
+
   console.log("✅ Management demo seed ensured", {
     categories: Object.keys(ctx.categories).length,
     brands: Object.keys(ctx.brands).length,
