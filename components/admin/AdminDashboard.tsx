@@ -306,7 +306,13 @@ const CHART_COLORS = {
   teal: "#14b8a6",
 };
 
-const PIE_COLORS = [CHART_COLORS.primary, CHART_COLORS.success, CHART_COLORS.warning, CHART_COLORS.danger, CHART_COLORS.purple];
+const PIE_COLORS = [
+  CHART_COLORS.primary,
+  CHART_COLORS.success,
+  CHART_COLORS.warning,
+  CHART_COLORS.danger,
+  CHART_COLORS.purple,
+];
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-BD", {
@@ -361,7 +367,13 @@ function SectionShell({
   );
 }
 
-function StatusPill({ label, tone = "default" }: { label: string; tone?: Tone }) {
+function StatusPill({
+  label,
+  tone = "default",
+}: {
+  label: string;
+  tone?: Tone;
+}) {
   const toneStyles = {
     default: "status-pill-default",
     good: "status-pill-good",
@@ -377,7 +389,13 @@ function StatusPill({ label, tone = "default" }: { label: string; tone?: Tone })
   );
 }
 
-function InsightList({ items, emptyLabel }: { items: DashboardListItem[]; emptyLabel: string }) {
+function InsightList({
+  items,
+  emptyLabel,
+}: {
+  items: DashboardListItem[];
+  emptyLabel: string;
+}) {
   if (!items.length) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-center text-sm text-muted-foreground">
@@ -422,14 +440,22 @@ function InsightList({ items, emptyLabel }: { items: DashboardListItem[]; emptyL
 }
 
 // Custom Tooltip for Charts
-const CustomTooltip = ({ active, payload, label, valuePrefix = "", valueSuffix = "" }: any) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+  valuePrefix = "",
+  valueSuffix = "",
+}: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg border border-border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
         <p className="text-sm font-medium text-foreground">{label}</p>
         {payload.map((p: any, idx: number) => (
           <p key={idx} className="text-sm" style={{ color: p.color }}>
-            {p.name}: {valuePrefix}{p.value}{valueSuffix}
+            {p.name}: {valuePrefix}
+            {p.value}
+            {valueSuffix}
           </p>
         ))}
       </div>
@@ -444,7 +470,10 @@ function LoadingDashboard() {
       <div className="h-36 rounded-2xl border border-border bg-card/80 animate-pulse" />
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-40 rounded-xl border border-border bg-card/80 animate-pulse" />
+          <div
+            key={i}
+            className="h-40 rounded-xl border border-border bg-card/80 animate-pulse"
+          />
         ))}
       </div>
       <div className="grid gap-6 xl:grid-cols-2">
@@ -463,7 +492,9 @@ function EmptyDashboard({ onRefresh }: { onRefresh: () => void }) {
           <ShieldAlert className="h-6 w-6 text-destructive" />
         </div>
         <h2 className="mt-5 text-xl font-semibold">Dashboard Unavailable</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Unable to load metrics. Please try again.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Unable to load metrics. Please try again.
+        </p>
         <button
           onClick={onRefresh}
           className="mt-6 inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium transition hover:bg-muted"
@@ -476,15 +507,30 @@ function EmptyDashboard({ onRefresh }: { onRefresh: () => void }) {
   );
 }
 
-function QuickAction({ href, label, description, icon: Icon }: { href: string; label: string; description: string; icon: LucideIcon }) {
+function QuickAction({
+  href,
+  label,
+  description,
+  icon: Icon,
+}: {
+  href: string;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+}) {
   return (
-    <Link href={href} className="group flex items-start gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:shadow-md hover:border-primary/30">
+    <Link
+      href={href}
+      className="group flex items-start gap-4 rounded-xl border border-border bg-card p-4 transition-all hover:shadow-md hover:border-primary/30"
+    >
       <div className="rounded-lg border border-border bg-muted/30 p-2.5">
         <Icon className="h-5 w-5 text-foreground" />
       </div>
       <div className="flex-1">
         <p className="text-sm font-semibold text-foreground">{label}</p>
-        <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{description}</p>
+        <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+          {description}
+        </p>
       </div>
       <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 shrink-0" />
     </Link>
@@ -499,7 +545,9 @@ function AdminDashboard({
   onTimeRangeChange,
   onRefresh,
 }: AdminDashboardProps) {
-  const [primaryChart, setPrimaryChart] = useState<"revenue" | "orders" | "refunds">("revenue");
+  const [primaryChart, setPrimaryChart] = useState<
+    "revenue" | "orders" | "refunds"
+  >("revenue");
 
   if (loading && !stats) return <LoadingDashboard />;
   if (!stats || !dashboard) return <EmptyDashboard onRefresh={onRefresh} />;
@@ -509,7 +557,7 @@ function AdminDashboard({
     name: item.label,
     Revenue: item.value,
   }));
-  
+
   const ordersData = dashboard.ordersSeries.map((item) => ({
     name: item.label,
     Orders: item.value,
@@ -530,13 +578,30 @@ function AdminDashboard({
   const paymentPieData = dashboard.paymentBreakdown.map((item) => ({
     name: item.label,
     value: item.value,
-    color: item.tone === "good" ? CHART_COLORS.success : item.tone === "warn" ? CHART_COLORS.warning : CHART_COLORS.primary,
+    color:
+      item.tone === "good"
+        ? CHART_COLORS.success
+        : item.tone === "warn"
+          ? CHART_COLORS.warning
+          : CHART_COLORS.primary,
   }));
 
   const inventoryPieData = [
-    { name: "In Stock", value: dashboard.inStockVariants, color: CHART_COLORS.success },
-    { name: "Low Stock", value: dashboard.lowStockVariants, color: CHART_COLORS.warning },
-    { name: "Out of Stock", value: dashboard.outOfStockVariants, color: CHART_COLORS.danger },
+    {
+      name: "In Stock",
+      value: dashboard.inStockVariants,
+      color: CHART_COLORS.success,
+    },
+    {
+      name: "Low Stock",
+      value: dashboard.lowStockVariants,
+      color: CHART_COLORS.warning,
+    },
+    {
+      name: "Out of Stock",
+      value: dashboard.outOfStockVariants,
+      color: CHART_COLORS.danger,
+    },
   ];
 
   const warehouseData = dashboard.warehouseDistribution.map((item) => ({
@@ -545,7 +610,10 @@ function AdminDashboard({
   }));
 
   const topProductsData = stats.topProducts.slice(0, 5).map((product) => ({
-    name: product.name.length > 15 ? product.name.slice(0, 12) + "..." : product.name,
+    name:
+      product.name.length > 15
+        ? product.name.slice(0, 12) + "..."
+        : product.name,
     sales: product.soldCount,
     revenue: product.price * product.soldCount,
   }));
@@ -564,7 +632,9 @@ function AdminDashboard({
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
               {rangeTitleMap[timeRange]}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">Complete overview of your e-commerce performance</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Complete overview of your e-commerce performance
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-lg border border-border bg-background p-1 shadow-sm">
@@ -587,14 +657,16 @@ function AdminDashboard({
               disabled={loading}
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium transition hover:bg-muted disabled:opacity-60"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
               <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
           <StatCard
             label="Net Revenue"
             value={formatCurrency(stats.totalRevenue)}
@@ -603,6 +675,7 @@ function AdminDashboard({
             compareLabel={dashboard.compareLabel}
             tone="good"
           />
+
           <StatCard
             label="Total Orders"
             value={formatNumber(stats.totalOrders)}
@@ -610,6 +683,7 @@ function AdminDashboard({
             trend={stats.orderGrowth}
             compareLabel={dashboard.compareLabel}
           />
+
           <StatCard
             label="Pending Orders"
             value={formatNumber(stats.pendingOrders)}
@@ -618,6 +692,7 @@ function AdminDashboard({
             hint="Operational queue"
             tone={stats.pendingOrders > 0 ? "warn" : "good"}
           />
+
           <StatCard
             label="Paid Orders"
             value={formatNumber(dashboard.paidOrders)}
@@ -626,6 +701,7 @@ function AdminDashboard({
             hint="Cleared payments"
             tone="good"
           />
+
           <StatCard
             label="Active Products"
             value={formatNumber(dashboard.activeProducts)}
@@ -633,6 +709,7 @@ function AdminDashboard({
             compareLabel={dashboard.compareLabel}
             hint={`${dashboard.totalVariants} variants`}
           />
+
           <StatCard
             label="Conversion Rate"
             value={`${stats.conversionRate.toFixed(1)}%`}
@@ -668,16 +745,45 @@ function AdminDashboard({
           >
             <div className="h-[220px] w-full sm:h-[260px] lg:h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={primaryChart === "revenue" ? revenueData : primaryChart === "orders" ? ordersData : refundData}>
+                <AreaChart
+                  data={
+                    primaryChart === "revenue"
+                      ? revenueData
+                      : primaryChart === "orders"
+                        ? ordersData
+                        : refundData
+                  }
+                >
                   <defs>
                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
+                      <stop
+                        offset="5%"
+                        stopColor={CHART_COLORS.primary}
+                        stopOpacity={0.3}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor={CHART_COLORS.primary}
+                        stopOpacity={0}
+                      />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickFormatter={(v) => primaryChart === "revenue" ? formatCompactNumber(v) : v} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                  />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickFormatter={(v) =>
+                      primaryChart === "revenue" ? formatCompactNumber(v) : v
+                    }
+                  />
                   <Tooltip
                     content={
                       <CustomTooltip
@@ -685,22 +791,40 @@ function AdminDashboard({
                       />
                     }
                   />
-                  <Area type="monotone" dataKey={primaryChart === "revenue" ? "Revenue" : primaryChart === "orders" ? "Orders" : "Refunds"} stroke={CHART_COLORS.primary} fill="url(#colorValue)" strokeWidth={2} />
+                  <Area
+                    type="monotone"
+                    dataKey={
+                      primaryChart === "revenue"
+                        ? "Revenue"
+                        : primaryChart === "orders"
+                          ? "Orders"
+                          : "Refunds"
+                    }
+                    stroke={CHART_COLORS.primary}
+                    fill="url(#colorValue)"
+                    strokeWidth={2}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-3">
               <div className="rounded-xl bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Total Revenue</p>
-                <p className="text-lg font-bold text-foreground">{formatCurrency(stats.totalRevenue)}</p>
+                <p className="text-lg font-bold text-foreground">
+                  {formatCurrency(stats.totalRevenue)}
+                </p>
               </div>
               <div className="rounded-xl bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Avg Order Value</p>
-                <p className="text-lg font-bold text-foreground">{formatCurrency(stats.averageOrderValue)}</p>
+                <p className="text-lg font-bold text-foreground">
+                  {formatCurrency(stats.averageOrderValue)}
+                </p>
               </div>
               <div className="rounded-xl bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Success Rate</p>
-                <p className="text-lg font-bold text-foreground">{stats.successRate.toFixed(1)}%</p>
+                <p className="text-lg font-bold text-foreground">
+                  {stats.successRate.toFixed(1)}%
+                </p>
               </div>
             </div>
           </SectionShell>
@@ -713,7 +837,9 @@ function AdminDashboard({
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-border/60 bg-muted/15 p-4">
                 <div className="mb-3">
-                  <h3 className="text-base font-semibold text-foreground">Payment Methods</h3>
+                  <h3 className="text-base font-semibold text-foreground">
+                    Payment Methods
+                  </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Order payment split in the selected range
                   </p>
@@ -740,29 +866,38 @@ function AdminDashboard({
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-4 space-y-2">
+                <div className="grid grid-cols-3 gap-2 md:grid-cols-1">
                   {paymentPieData.map((item) => {
-                    const total = paymentPieData.reduce((sum, entry) => sum + entry.value, 0);
-                    const percent = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                    const total = paymentPieData.reduce(
+                      (sum, entry) => sum + entry.value,
+                      0,
+                    );
+
+                    const percent =
+                      total > 0 ? Math.round((item.value / total) * 100) : 0;
+
                     return (
                       <div
                         key={item.name}
-                        className="flex items-center justify-between rounded-xl border border-border/60 bg-background/80 px-3 py-2.5"
+                        className="flex min-h-[76px] w-full items-center justify-between rounded-xl border border-border/60 bg-background/80 px-2 py-2 sm:min-h-[84px] sm:px-3 sm:py-2.5"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                           <span
-                            className="h-2.5 w-2.5 rounded-full"
+                            className="h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5"
                             style={{ backgroundColor: item.color }}
                           />
-                          <span className="text-sm font-medium text-foreground">
+
+                          <span className="truncate text-[14px] font-medium text-foreground sm:text-sm">
                             {item.name}
                           </span>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-foreground">
+
+                        <div className="shrink-0 text-right">
+                          <p className="text-[14px] font-semibold text-foreground sm:text-sm">
                             {formatNumber(item.value)}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+
+                          <p className="text-[12px] text-muted-foreground sm:text-xs">
                             {percent}%
                           </p>
                         </div>
@@ -773,7 +908,9 @@ function AdminDashboard({
               </div>
               <div className="rounded-2xl border border-border/60 bg-muted/15 p-4">
                 <div className="mb-3">
-                  <h3 className="text-base font-semibold text-foreground">Inventory Status</h3>
+                  <h3 className="text-base font-semibold text-foreground">
+                    Inventory Status
+                  </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Current stock health across all tracked variants
                   </p>
@@ -800,29 +937,38 @@ function AdminDashboard({
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-4 space-y-2">
+                <div className="grid grid-cols-3 gap-2 md:grid-cols-1">
                   {inventoryPieData.map((item) => {
-                    const total = inventoryPieData.reduce((sum, entry) => sum + entry.value, 0);
-                    const percent = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                    const total = inventoryPieData.reduce(
+                      (sum, entry) => sum + entry.value,
+                      0,
+                    );
+
+                    const percent =
+                      total > 0 ? Math.round((item.value / total) * 100) : 0;
+
                     return (
                       <div
                         key={item.name}
-                        className="flex items-center justify-between rounded-xl border border-border/60 bg-background/80 px-3 py-2.5"
+                        className="flex min-h-[76px] w-full items-center justify-between rounded-xl border border-border/60 bg-background/80 px-2 py-2 sm:min-h-[84px] sm:px-3 sm:py-2.5"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                           <span
-                            className="h-2.5 w-2.5 rounded-full"
+                            className="h-2 w-2 shrink-0 rounded-full sm:h-2.5 sm:w-2.5"
                             style={{ backgroundColor: item.color }}
                           />
-                          <span className="text-sm font-medium text-foreground">
+
+                          <span className="truncate text-[12px] font-medium text-foreground sm:text-sm">
                             {item.name}
                           </span>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-foreground">
+
+                        <div className="shrink-0 text-right">
+                          <p className="text-[10px] font-semibold text-foreground sm:text-sm">
                             {formatNumber(item.value)}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+
+                          <p className="text-[12px] text-muted-foreground sm:text-xs">
                             {percent}%
                           </p>
                         </div>
@@ -837,14 +983,28 @@ function AdminDashboard({
 
         {/* Weekly Comparison Bar Chart */}
         <div className="grid gap-4 xl:grid-cols-2">
-          <SectionShell title="Weekly Performance" subtitle="Revenue vs orders in the selected range">
+          <SectionShell
+            title="Weekly Performance"
+            subtitle="Revenue vs orders in the selected range"
+          >
             <div className="h-[220px] sm:h-[260px] lg:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={combinedChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                  />
                   <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis yAxisId="left" stroke={CHART_COLORS.primary} tickFormatter={(v) => formatCompactNumber(v)} />
-                  <YAxis yAxisId="right" orientation="right" stroke={CHART_COLORS.success} />
+                  <YAxis
+                    yAxisId="left"
+                    stroke={CHART_COLORS.primary}
+                    tickFormatter={(v) => formatCompactNumber(v)}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    stroke={CHART_COLORS.success}
+                  />
                   <Tooltip
                     formatter={(value: number | string, name: string) => [
                       name === "Revenue"
@@ -854,15 +1014,32 @@ function AdminDashboard({
                     ]}
                   />
                   <Legend />
-                  <Bar yAxisId="left" dataKey="Revenue" fill={CHART_COLORS.primary} name="Revenue (BDT)" radius={[4, 4, 0, 0]} />
-                  <Line yAxisId="right" type="monotone" dataKey="Orders" stroke={CHART_COLORS.success} name="Orders" strokeWidth={2} dot={{ r: 4 }} />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="Revenue"
+                    fill={CHART_COLORS.primary}
+                    name="Revenue (BDT)"
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="Orders"
+                    stroke={CHART_COLORS.success}
+                    name="Orders"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
           </SectionShell>
 
           {/* Top Products Horizontal Bar */}
-          <SectionShell title="Top Products" subtitle="Best selling items by revenue">
+          <SectionShell
+            title="Top Products"
+            subtitle="Best selling items by revenue"
+          >
             <div className="h-[240px] sm:h-[280px] lg:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -870,11 +1047,30 @@ function AdminDashboard({
                   layout="vertical"
                   margin={{ left: 24, right: 8, top: 4, bottom: 4 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                  <XAxis type="number" tickFormatter={(v) => formatCompactNumber(v)} stroke="hsl(var(--muted-foreground))" />
-                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" width={72} fontSize={11} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    tickFormatter={(v) => formatCompactNumber(v)}
+                    stroke="hsl(var(--muted-foreground))"
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    stroke="hsl(var(--muted-foreground))"
+                    width={72}
+                    fontSize={11}
+                  />
                   <Tooltip formatter={(v) => formatCurrency(v as number)} />
-                  <Bar dataKey="revenue" fill={CHART_COLORS.purple} name="Revenue" radius={[0, 4, 4, 0]} />
+                  <Bar
+                    dataKey="revenue"
+                    fill={CHART_COLORS.purple}
+                    name="Revenue"
+                    radius={[0, 4, 4, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -883,72 +1079,157 @@ function AdminDashboard({
 
         {/* Order Pipeline & Quick Actions */}
         <div className="grid gap-4 lg:grid-cols-3">
-          <SectionShell title="Order Pipeline" subtitle="Real-time order status breakdown">
+          <SectionShell
+            title="Order Pipeline"
+            subtitle="Real-time order status breakdown"
+          >
             <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Pending", value: stats.pendingOrders, tone: "warn" as Tone },
+                  {
+                    label: "Pending",
+                    value: stats.pendingOrders,
+                    tone: "warn" as Tone,
+                  },
                   { label: "Processing", value: dashboard.processingOrders },
                   { label: "Shipped", value: dashboard.shippedOrders },
-                  { label: "Delivered", value: dashboard.deliveredOrders, tone: "good" as Tone },
-                  { label: "Cancelled", value: dashboard.cancelledOrders, tone: "danger" as Tone },
-                  { label: "Unpaid", value: dashboard.unpaidOrders, tone: "warn" as Tone },
+                  {
+                    label: "Delivered",
+                    value: dashboard.deliveredOrders,
+                    tone: "good" as Tone,
+                  },
+                  {
+                    label: "Cancelled",
+                    value: dashboard.cancelledOrders,
+                    tone: "danger" as Tone,
+                  },
+                  {
+                    label: "Unpaid",
+                    value: dashboard.unpaidOrders,
+                    tone: "warn" as Tone,
+                  },
                 ].map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border bg-muted/30 p-3">
+                  <div
+                    key={item.label}
+                    className="rounded-xl border border-border bg-muted/30 p-3"
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">{item.label}</span>
-                      {item.tone && <StatusPill label="Live" tone={item.tone} />}
+                      <span className="text-sm text-muted-foreground">
+                        {item.label}
+                      </span>
+                      {item.tone && (
+                        <StatusPill label="Live" tone={item.tone} />
+                      )}
                     </div>
-                    <p className="mt-1 text-xl font-semibold">{formatNumber(item.value)}</p>
+                    <p className="mt-1 text-xl font-semibold">
+                      {formatNumber(item.value)}
+                    </p>
                   </div>
                 ))}
               </div>
               <div className="rounded-xl border border-border bg-muted/20 p-4">
                 <h3 className="mb-2 text-sm font-semibold">Recent Orders</h3>
-                <InsightList items={stats.recentOrders.slice(0, 4).map((order) => ({
-                  id: order.id,
-                  title: `#${order.id}`,
-                  subtitle: order.user?.name || "Guest",
-                  status: order.status,
-                  tone: order.status === "DELIVERED" ? "good" : order.status === "PENDING" ? "warn" : "default",
-                  value: formatCurrency(order.grandTotal),
-                }))} emptyLabel="No recent orders" />
+                <InsightList
+                  items={stats.recentOrders.slice(0, 4).map((order) => ({
+                    id: order.id,
+                    title: `#${order.id}`,
+                    subtitle: order.user?.name || "Guest",
+                    status: order.status,
+                    tone:
+                      order.status === "DELIVERED"
+                        ? "good"
+                        : order.status === "PENDING"
+                          ? "warn"
+                          : "default",
+                    value: formatCurrency(order.grandTotal),
+                  }))}
+                  emptyLabel="No recent orders"
+                />
               </div>
             </div>
           </SectionShell>
 
-          <SectionShell title="Warehouse Distribution" subtitle="Stock by location">
+          <SectionShell
+            title="Warehouse Distribution"
+            subtitle="Stock by location"
+          >
             <div className="h-[220px] sm:h-[260px] lg:h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={warehouseData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                  />
                   <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
-                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" width={68} fontSize={11} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    stroke="hsl(var(--muted-foreground))"
+                    width={68}
+                    fontSize={11}
+                  />
                   <Tooltip formatter={(v) => formatNumber(v as number)} />
-                  <Bar dataKey="value" fill={CHART_COLORS.cyan} name="Units" radius={[0, 4, 4, 0]} />
+                  <Bar
+                    dataKey="value"
+                    fill={CHART_COLORS.cyan}
+                    name="Units"
+                    radius={[0, 4, 4, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Total Variants</p>
-                <p className="text-lg font-bold">{formatNumber(dashboard.totalVariants)}</p>
+                <p className="text-lg font-bold">
+                  {formatNumber(dashboard.totalVariants)}
+                </p>
               </div>
               <div className="rounded-xl bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Reserved Units</p>
-                <p className="text-lg font-bold">{formatNumber(dashboard.reservedUnits)}</p>
+                <p className="text-lg font-bold">
+                  {formatNumber(dashboard.reservedUnits)}
+                </p>
               </div>
             </div>
           </SectionShell>
 
-          <SectionShell title="Quick Actions" subtitle="Common administrative tasks">
+          <SectionShell
+            title="Quick Actions"
+            subtitle="Common administrative tasks"
+          >
             <div className="space-y-3">
               {[
-                { href: "/admin/operations/products", label: "Add Product", description: "Create new products and variants", icon: Package },
-                { href: "/admin/operations/orders", label: "View Orders", description: "Manage fulfillment and shipping", icon: ShoppingCart },
-                { href: "/admin/warehouse/stock", label: "Check Stock", description: "Monitor inventory levels", icon: PackageSearch },
-                { href: "/admin/management/coupons", label: "Create Coupon", description: "Launch promotions", icon: Percent },
-                { href: "/admin/chat", label: "Support Inbox", description: "Handle customer queries", icon: MessageSquareMore },
+                {
+                  href: "/admin/operations/products",
+                  label: "Add Product",
+                  description: "Create new products and variants",
+                  icon: Package,
+                },
+                {
+                  href: "/admin/operations/orders",
+                  label: "View Orders",
+                  description: "Manage fulfillment and shipping",
+                  icon: ShoppingCart,
+                },
+                {
+                  href: "/admin/warehouse/stock",
+                  label: "Check Stock",
+                  description: "Monitor inventory levels",
+                  icon: PackageSearch,
+                },
+                {
+                  href: "/admin/management/coupons",
+                  label: "Create Coupon",
+                  description: "Launch promotions",
+                  icon: Percent,
+                },
+                {
+                  href: "/admin/chat",
+                  label: "Support Inbox",
+                  description: "Handle customer queries",
+                  icon: MessageSquareMore,
+                },
               ].map((action) => (
                 <QuickAction key={action.label} {...action} />
               ))}
@@ -958,40 +1239,76 @@ function AdminDashboard({
 
         {/* Customer & Marketing Insights */}
         <div className="grid gap-4 lg:grid-cols-2">
-          <SectionShell title="Customer Intelligence" subtitle="Audience behavior and loyalty metrics">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <SectionShell
+            title="Customer Intelligence"
+            subtitle="Audience behavior and loyalty metrics"
+          >
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {[
                 { label: "Total Users", value: stats.totalUsers, icon: Users },
-                { label: "Active Buyers", value: dashboard.activeBuyers, icon: UserRound },
-                { label: "Repeat Rate", value: `${((dashboard.repeatCustomers / stats.totalUsers) * 100).toFixed(1)}%`, icon: CheckCircle2 },
-                { label: "Avg Rating", value: dashboard.reviewAverage.toFixed(1), icon: Star, suffix: "★" },
+                {
+                  label: "Active Buyers",
+                  value: dashboard.activeBuyers,
+                  icon: UserRound,
+                },
+                {
+                  label: "Repeat Rate",
+                  value: `${((dashboard.repeatCustomers / stats.totalUsers) * 100).toFixed(1)}%`,
+                  icon: CheckCircle2,
+                },
+                {
+                  label: "Avg Rating",
+                  value: dashboard.reviewAverage.toFixed(1),
+                  icon: Star,
+                  suffix: "★",
+                },
               ].map((item) => (
-                <div key={item.label} className="rounded-xl border border-border bg-muted/30 p-4 text-center">
+                <div
+                  key={item.label}
+                  className="rounded-xl border border-border bg-muted/30 p-4 text-center"
+                >
                   <item.icon className="mx-auto h-5 w-5 text-muted-foreground" />
-                  <p className="mt-2 text-xs text-muted-foreground">{item.label}</p>
-                  <p className="text-xl font-bold">{item.value}{item.suffix || ""}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {item.label}
+                  </p>
+                  <p className="text-xl font-bold">
+                    {item.value}
+                    {item.suffix || ""}
+                  </p>
                 </div>
               ))}
             </div>
             <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
               <h3 className="mb-2 text-sm font-semibold">Top Customers</h3>
-              <InsightList items={dashboard.topCustomers.slice(0, 5)} emptyLabel="No data" />
+              <InsightList
+                items={dashboard.topCustomers.slice(0, 5)}
+                emptyLabel="No data"
+              />
             </div>
           </SectionShell>
 
-          <SectionShell title="Marketing Performance" subtitle="Traffic sources and campaign metrics">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <SectionShell
+            title="Marketing Performance"
+            subtitle="Traffic sources and campaign metrics"
+          >
+            <div className="grid grid-cols-3 gap-3">
               <div className="rounded-xl border border-border bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Live Users</p>
-                <p className="text-xl font-bold">{formatNumber(dashboard.liveUsers)}</p>
+                <p className="text-xl font-bold">
+                  {formatNumber(dashboard.liveUsers)}
+                </p>
               </div>
               <div className="rounded-xl border border-border bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Total Visitors</p>
-                <p className="text-xl font-bold">{formatNumber(dashboard.sessions)}</p>
+                <p className="text-xl font-bold">
+                  {formatNumber(dashboard.sessions)}
+                </p>
               </div>
               <div className="rounded-xl border border-border bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Pageviews</p>
-                <p className="text-xl font-bold">{formatNumber(dashboard.pageViews)}</p>
+                <p className="text-xl font-bold">
+                  {formatNumber(dashboard.pageViews)}
+                </p>
               </div>
             </div>
             <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
@@ -1005,7 +1322,9 @@ function AdminDashboard({
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Total Visitors</p>
+                  <p className="text-xs text-muted-foreground">
+                    Total Visitors
+                  </p>
                   <p className="text-lg font-bold text-foreground">
                     {formatNumber(dashboard.sessions)}
                   </p>
@@ -1066,7 +1385,7 @@ function AdminDashboard({
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl border border-border bg-background/70 p-3">
                       <p className="text-xs text-muted-foreground">
                         Page Views
@@ -1101,30 +1420,52 @@ function AdminDashboard({
 
         {/* Support & Activity */}
         <div className="grid gap-4 lg:grid-cols-3">
-          <SectionShell title="Support Queue" subtitle="Customer service metrics">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <SectionShell
+            title="Support Queue"
+            subtitle="Customer service metrics"
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
                 <LifeBuoy className="mx-auto h-5 w-5 text-muted-foreground" />
-                <p className="mt-2 text-2xl font-bold">{formatNumber(dashboard.openChats)}</p>
+                <p className="mt-2 text-2xl font-bold">
+                  {formatNumber(dashboard.openChats)}
+                </p>
                 <p className="text-xs text-muted-foreground">Open Chats</p>
               </div>
               <div className="rounded-xl border border-border bg-muted/30 p-4 text-center">
                 <WalletCards className="mx-auto h-5 w-5 text-muted-foreground" />
-                <p className="mt-2 text-2xl font-bold">{formatNumber(dashboard.refundRequests)}</p>
+                <p className="mt-2 text-2xl font-bold">
+                  {formatNumber(dashboard.refundRequests)}
+                </p>
                 <p className="text-xs text-muted-foreground">Refund Requests</p>
               </div>
             </div>
             <div className="mt-4">
-              <InsightList items={dashboard.recentConversations.slice(0, 4)} emptyLabel="No active conversations" />
+              <InsightList
+                items={dashboard.recentConversations.slice(0, 4)}
+                emptyLabel="No active conversations"
+              />
             </div>
           </SectionShell>
 
-          <SectionShell title="Inventory Alerts" subtitle="Items requiring attention">
-            <InsightList items={dashboard.lowStockAlerts.slice(0, 6)} emptyLabel="All stock levels healthy" />
+          <SectionShell
+            title="Inventory Alerts"
+            subtitle="Items requiring attention"
+          >
+            <InsightList
+              items={dashboard.lowStockAlerts.slice(0, 6)}
+              emptyLabel="All stock levels healthy"
+            />
           </SectionShell>
 
-          <SectionShell title="System Activity" subtitle="Recent platform events">
-            <InsightList items={dashboard.latestActivity.slice(0, 6)} emptyLabel="No recent activity" />
+          <SectionShell
+            title="System Activity"
+            subtitle="Recent platform events"
+          >
+            <InsightList
+              items={dashboard.latestActivity.slice(0, 6)}
+              emptyLabel="No recent activity"
+            />
           </SectionShell>
         </div>
       </div>

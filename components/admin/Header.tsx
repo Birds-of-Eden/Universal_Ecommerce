@@ -258,7 +258,7 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
     <header className="w-full h-20 bg-background border-border border-b flex items-center justify-between px-4 sm:px-6 sticky top-0 z-20 shadow-sm">
       {/* Mobile menu toggle */}
       <button
-        className="lg:hidden p-2 rounded-full bg-muted hover:bg-primary/80 transition-all duration-300 hover:scale-105"
+        className="lg:hidden bg-muted hover:bg-primary/80 transition-all duration-300 hover:scale-105"
         onClick={onMenuClick}
         aria-label="Toggle Menu"
       >
@@ -267,28 +267,6 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
       {/* Logo and Title */}
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
-          {loadingSite ? (
-            <div className="animate-pulse w-full h-full bg-gray-200"></div>
-          ) : siteSettings?.logo ? (
-            <Image
-              src={siteSettings.logo}
-              alt="Site Logo"
-              width={40}
-              height={40}
-              className="object-cover"
-              onError={(e) => {
-                // Fallback to default icon if image fails to load
-                const target = e.target as HTMLImageElement;
-                target.style.display = "none";
-                target.parentElement!.innerHTML =
-                  '<svg class="h-5 w-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6v6H9z"></path></svg>';
-              }}
-            />
-          ) : (
-            <LayoutDashboard className="h-5 w-5 text-primary-foreground" />
-          )}
-        </div>
         <div className="flex flex-col">
           <h1 className="text-lg font-bold text-foreground hidden sm:block">
             {loadingSite ? (
