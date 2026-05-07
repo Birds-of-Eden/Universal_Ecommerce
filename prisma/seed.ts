@@ -6,6 +6,7 @@ import {
 } from "../lib/rbac-config";
 import { seedScmDemo } from "./seed-data/scm";
 import { seedInvestorDemo } from "./seed-data/investor";
+import { seedOperationsDemo } from "./seed-data/operations";
 
 const prisma = new PrismaClient();
 
@@ -380,6 +381,9 @@ async function main() {
 
   await ensureInvestorPortalUsers(admin?.id ?? null);
   console.log("✅ Legacy investor portal users ensured");
+
+  await seedOperationsDemo(prisma, admin?.id ?? null);
+  console.log("✅ Operations demo seed ensured");
 
   await seedScmDemo(prisma, admin?.id ?? null);
   console.log("✅ SCM demo seed ensured");
