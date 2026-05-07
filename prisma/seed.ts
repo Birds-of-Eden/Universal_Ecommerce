@@ -7,6 +7,7 @@ import {
 import { seedScmDemo } from "./seed-data/scm";
 import { seedInvestorDemo } from "./seed-data/investor";
 import { seedWarehouseDemo } from "./seed-data/warehouse";
+import { seedManagementDemo } from "./seed-data/management";
 
 const prisma = new PrismaClient();
 
@@ -387,6 +388,9 @@ async function main() {
 
   await seedWarehouseDemo(prisma, admin?.id ?? null);
   console.log("✅ Warehouse demo seed ensured");
+
+  await seedManagementDemo(prisma, admin?.id ?? null);
+  console.log("✅ Management demo seed ensured");
 
   await seedInvestorDemo(prisma, admin?.id ?? null);
   console.log("✅ Investor demo seed ensured");
