@@ -93,14 +93,14 @@ export default function BrandSlider({
 
   return (
     <section className="w-full bg-background">
-      <div className="w-full px-3 py-3 sm:px-5 sm:py-6">
+      <div className="w-full px-3 py-3 sm:px-5 sm:py-4">
         {/* Header */}
-        <div className="mb-3 sm:mb-5">
-          <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+        <div className="mb-3 sm:mb-4">
+          <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             {title}
           </h2>
 
-          <p className="mt-1 text-xs text-muted-foreground sm:mt-3 sm:text-xl">
+          <p className="mt-1 text-xs text-muted-foreground sm:mt-2 sm:text-sm">
             {subtitle}
           </p>
         </div>
@@ -116,47 +116,47 @@ export default function BrandSlider({
             <>
               <button
                 onClick={() => scrollByCards("left")}
-                className="absolute -left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card text-muted-foreground shadow-md sm:-left-4 sm:h-11 sm:w-11"
+                className="absolute -left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card text-muted-foreground shadow-md sm:-left-3 sm:h-9 sm:w-9"
                 aria-label="Previous brands"
               >
-                <ChevronLeft className="h-5 w-5 sm:h-7 sm:w-7" />
+                <ChevronLeft className="h-5 w-5 sm:h-5 sm:w-5" />
               </button>
 
               <button
                 onClick={() => scrollByCards("right")}
-                className="absolute -right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card text-muted-foreground shadow-md sm:-right-4 sm:h-11 sm:w-11"
+                className="absolute -right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card text-muted-foreground shadow-md sm:-right-3 sm:h-9 sm:w-9"
                 aria-label="Next brands"
               >
-                <ChevronRight className="h-5 w-5 sm:h-7 sm:w-7" />
+                <ChevronRight className="h-5 w-5 sm:h-5 sm:w-5" />
               </button>
             </>
           )}
 
           <div
             ref={scrollerRef}
-            className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth sm:gap-5 sm:pb-3"
+            className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scroll-smooth sm:gap-4 sm:pb-2"
           >
             {loading
               ? Array.from({ length: 4 }).map((_, i) => (
                   <div
                     key={i}
-                    className="min-w-[96px] max-w-[96px] flex-shrink-0 snap-start sm:min-w-[190px] sm:max-w-[190px]"
+                    className="min-w-[96px] max-w-[96px] flex-shrink-0 snap-start sm:min-w-[160px] sm:max-w-[160px]"
                   >
-                    <div className="h-[130px] animate-pulse rounded-2xl border border-border bg-card shadow-sm sm:h-[235px] sm:rounded-[22px]" />
+                    <div className="h-[130px] animate-pulse rounded-2xl border border-border bg-card shadow-sm sm:h-[200px] sm:rounded-[22px]" />
                   </div>
                 ))
               : visible.map((brand) => (
                   <div
                     key={brand.id}
                     data-brand-card="1"
-                    className="min-w-[96px] max-w-[96px] flex-shrink-0 snap-start sm:min-w-[190px] sm:max-w-[190px]"
+                    className="min-w-[96px] max-w-[96px] flex-shrink-0 snap-start sm:min-w-[160px] sm:max-w-[160px]"
                   >
                     <Link
                       href={`/ecommerce/brands/${brand.slug}`}
-                      className="block h-[130px] rounded-2xl border border-border bg-card px-2 py-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-xl sm:h-[235px] sm:rounded-[22px] sm:border-2 sm:px-4 sm:py-6"
+                      className="block h-[130px] rounded-2xl border border-border bg-card px-2 py-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-xl sm:h-[200px] sm:rounded-[22px] sm:border-2 sm:px-3 sm:py-5"
                     >
-                      <div className="mx-auto flex h-[58px] w-[58px] items-center justify-center rounded-full border-[3px] border-primary bg-background p-1 sm:h-[118px] sm:w-[118px] sm:border-[5px] sm:p-2">
-                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full bg-secondary sm:h-[96px] sm:w-[96px]">
+                      <div className="mx-auto flex h-[58px] w-[58px] items-center justify-center rounded-full border-[3px] border-primary bg-background p-1 sm:h-[100px] sm:w-[100px] sm:border-[4px] sm:p-1.5">
+                        <div className="flex h-[46px] w-[46px] items-center justify-center overflow-hidden rounded-full bg-secondary sm:h-[80px] sm:w-[80px]">
                           {brand.logo ? (
                             <Image
                               src={brand.logo}
@@ -166,19 +166,19 @@ export default function BrandSlider({
                               className="h-full w-full rounded-full object-contain"
                             />
                           ) : (
-                            <span className="text-base font-bold text-secondary-foreground sm:text-3xl">
+                            <span className="text-base font-bold text-secondary-foreground sm:text-2xl">
                               {brand.name.charAt(0).toUpperCase()}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <h3 className="mt-2 truncate text-sm font-medium text-card-foreground sm:mt-5 sm:text-2xl">
+                      <h3 className="mt-2 truncate text-sm font-medium text-card-foreground sm:mt-3 sm:text-base">
                         {brand.name}
                       </h3>
 
                       {brand.productCount > 0 && (
-                        <p className="mt-0.5 text-[10px] text-muted-foreground sm:mt-2 sm:text-lg">
+                        <p className="mt-0.5 text-[10px] text-muted-foreground sm:mt-1 sm:text-xs">
                           {brand.productCount} products
                         </p>
                       )}
