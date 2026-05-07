@@ -12,6 +12,14 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { 
+  Search, 
+  AlertCircle, 
+  Package, 
+  Truck, 
+  CheckCircle,
+  MapPin 
+} from "lucide-react";
 
 type ShipmentStatusType =
   | "PENDING"
@@ -1123,343 +1131,449 @@ export default function LogisticsPage() {
           </DashboardCard>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1.1fr,1fr]">
-          <DashboardCard
-            title="Shipment Operations"
-            subtitle="Search shipments, apply filters, and update status"
-          >
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-1 flex-col gap-3 sm:flex-row">
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by shipment, order, customer, courier, or assignee"
-                  className="h-12 w-full rounded-full border border-border bg-background px-5 text-sm text-foreground outline-none transition focus:border-primary"
-                />
-                <select
-                  value={filter}
-                  onChange={(event) =>
-                    setFilter(event.target.value as "ALL" | ShipmentStatusType)
-                  }
-                  className="h-12 rounded-full border border-border bg-background px-5 text-sm text-foreground outline-none transition focus:border-primary"
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status} value={status}>
-                      {formatStatusLabel(status)}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={selectedWarehouse}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setSelectedWarehouse(
-                      value === "ALL" ? "ALL" : Number(value),
-                    );
-                  }}
-                  className="h-12 rounded-full border border-border bg-background px-5 text-sm text-foreground outline-none transition focus:border-primary"
-                  disabled={warehousesLoading}
-                >
-                  <option value="ALL">
-                    {warehousesLoading
-                      ? "Loading warehouses..."
-                      : "All warehouses"}
-                  </option>
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name} ({warehouse.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+<section className="flex flex-col gap-6 lg:grid lg:grid-cols-2 xl:grid-cols-[1.1fr,1fr]">
+  {/* Left Column - Shipment Operations */}
+  <DashboardCard
+    title="Shipment Operations"
+    subtitle="Search shipments, apply filters, and update status"
+  >
+    <div className="flex flex-col gap-4">
+      {/* Filters Section */}
+      <div className="space-y-3">
+        {/* Search Input */}
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by shipment, order, customer, courier, or assignee"
+            className="h-11 w-full rounded-full border border-border bg-background pl-11 pr-4 text-sm text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-1 focus:ring-primary sm:h-12 sm:text-base"
+          />
+        </div>
 
-            {error ? (
-              <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="mt-5 max-h-[500px] overflow-y-auto">
-              {loading ? (
-                <ShipmentsSkeleton />
-              ) : !filteredShipments.length ? (
-                <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-16 text-center text-sm text-muted-foreground">
-                  <p className="text-base font-medium text-foreground">
-                    No shipments match the current filters.
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Adjust the filters or add new shipments from the shipment
-                    administration page.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredShipments.map((shipment) => {
-                    const nextStatuses = NEXT_STATUS_MAP[shipment.status] || [];
-                    const hasDeliveryLocation =
-                      hasValidDeliveryLocation(shipment);
-                    const deliveryAssignment =
-                      getCurrentDeliveryAssignment(shipment);
-                    const isSelected = shipment.id === selectedShipmentId;
-
-                    return (
-                      <article
-                        key={shipment.id}
-                        className={`rounded-[24px] border bg-card p-4 shadow-sm transition ${
-                          isSelected
-                            ? "border-primary/60 ring-1 ring-primary/20"
-                            : "border-border/60 hover:border-primary/30"
-                        }`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setSelectedShipmentId(shipment.id)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            setSelectedShipmentId(shipment.id);
-                          }
-                        }}
-                      >
-                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                          <div className="grid flex-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                                Shipment
-                              </p>
-                              <p className="mt-2 text-base font-semibold text-foreground">
-                                Shipment #{shipment.id} | Order #
-                                {shipment.orderId}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {shipment.order?.name ||
-                                  "Customer not available"}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {shipment.trackingNumber ||
-                                  "Tracking number not assigned"}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                                Management
-                              </p>
-                              <p className="mt-2 text-sm font-semibold text-foreground">
-                                {shipment.assignedTo?.name || "Not assigned"}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Warehouse {shipment.warehouseId || "-"} |
-                                Priority {shipment.priority || 0}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {shipment.dispatchNote ||
-                                  "No dispatch notes available"}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                                Cost
-                              </p>
-                              <p className="mt-2 text-sm font-semibold text-foreground">
-                                Estimated{" "}
-                                {formatAmount(toAmount(shipment.estimatedCost))}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Actual{" "}
-                                {formatAmount(toAmount(shipment.actualCost))}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Internal{" "}
-                                {formatAmount(
-                                  toAmount(shipment.handlingCost) +
-                                    toAmount(shipment.packagingCost) +
-                                    toAmount(shipment.fuelCost),
-                                )}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-                                Timeline
-                              </p>
-                              <p className="mt-2 text-sm text-muted-foreground">
-                                Assigned: {formatShortDate(shipment.assignedAt)}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Expected delivery:{" "}
-                                {formatShortDate(shipment.expectedDate)}
-                              </p>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                Delivered:{" "}
-                                {formatShortDate(shipment.deliveredAt)}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="min-w-full xl:min-w-[260px]">
-                            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                              {statusPill(shipment.status)}
-                              <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                                {shipment.courier}
-                                {shipment.courierStatus
-                                  ? ` - ${shipment.courierStatus}`
-                                  : ""}
-                              </span>
-                            </div>
-
-                            <div className="mt-4 flex flex-wrap gap-2 xl:justify-end">
-                              {nextStatuses.length ? (
-                                nextStatuses.map((nextStatus) => (
-                                  <button
-                                    key={nextStatus}
-                                    type="button"
-                                    disabled={updatingId === shipment.id}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      updateShipmentStatus(
-                                        shipment.id,
-                                        nextStatus,
-                                      );
-                                    }}
-                                    className="rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
-                                  >
-                                    {updatingId === shipment.id
-                                      ? "Updating..."
-                                      : NEXT_STATUS_LABELS[nextStatus]}
-                                  </button>
-                                ))
-                              ) : (
-                                <span className="rounded-full bg-muted px-4 py-2 text-xs font-medium text-muted-foreground">
-                                  No further action available
-                                </span>
-                              )}
-
-                              {shipment.trackingUrl ? (
-                                <a
-                                  href={shipment.trackingUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  onClick={(event) => event.stopPropagation()}
-                                  className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
-                                >
-                                  Open tracking
-                                </a>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </DashboardCard>
-
-          <DashboardCard
-            title="Shipment tracking"
-            subtitle={
-              selectedWarehouse === "ALL"
-                ? "Warehouse-level shipment visibility"
-                : "Detailed route view for the selected shipment"
+        {/* Filter Row - Responsive Grid */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
+          <select
+            value={filter}
+            onChange={(event) =>
+              setFilter(event.target.value as "ALL" | ShipmentStatusType)
             }
+            className="h-11 rounded-full border border-border bg-background px-4 text-sm text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-1 focus:ring-primary sm:h-12"
           >
-            <div className="max-h-[600px] overflow-y-auto">
-              {selectedWarehouse === "ALL" ? (
-                <>
-                  <MultiShipmentsMap shipments={filteredShipments} />
-                  <div className="mt-5">
-                    <p className="text-sm text-muted-foreground">
-                      Showing warehouse activity for {filteredShipments.length}{" "}
-                      shipments
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Select a warehouse to review route progress for an
-                      individual shipment.
-                    </p>
-                  </div>
-                </>
-              ) : highlightedShipment ? (
-                <>
-                  <ShipmentTrackingMap shipment={highlightedShipment} />
+            {STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {formatStatusLabel(status)}
+              </option>
+            ))}
+          </select>
 
-                  <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        Tracking reference #
-                        {highlightedShipment.trackingNumber ||
-                          highlightedShipment.id}
-                      </p>
-                      <p className="mt-2 text-xl font-semibold text-foreground">
-                        {highlightedShipment.order?.name || "Customer shipment"}
-                      </p>
-                      {typeof selectedWarehouse === "number" && (
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          Warehouse:{" "}
-                          {highlightedShipment.warehouse?.name ||
-                            `Warehouse ${highlightedShipment.warehouseId}`}
-                        </p>
-                      )}
+          <select
+            value={selectedWarehouse}
+            onChange={(event) => {
+              const value = event.target.value;
+              setSelectedWarehouse(value === "ALL" ? "ALL" : Number(value));
+            }}
+            className="h-11 rounded-full border border-border bg-background px-4 text-sm text-foreground outline-none transition-all duration-200 focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50 sm:h-12"
+            disabled={warehousesLoading}
+          >
+            <option value="ALL">
+              {warehousesLoading ? "Loading warehouses..." : "All warehouses"}
+            </option>
+            {warehouses.map((warehouse) => (
+              <option key={warehouse.id} value={warehouse.id}>
+                {warehouse.name} ({warehouse.code})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="flex items-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <p>{error}</p>
+        </div>
+      )}
+
+      {/* Shipments List */}
+      <div className="max-h-[500px] overflow-y-auto overscroll-contain">
+        {loading ? (
+          <ShipmentsSkeleton />
+        ) : !filteredShipments.length ? (
+          <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-12 text-center">
+            <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
+            <p className="mt-3 text-base font-medium text-foreground">
+              No shipments match the current filters
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Adjust your filters or add new shipments
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredShipments.map((shipment) => {
+              const nextStatuses = NEXT_STATUS_MAP[shipment.status] || [];
+              const hasDeliveryLocation = hasValidDeliveryLocation(shipment);
+              const deliveryAssignment = getCurrentDeliveryAssignment(shipment);
+              const isSelected = shipment.id === selectedShipmentId;
+
+              return (
+                <article
+                  key={shipment.id}
+                  className={`group cursor-pointer rounded-2xl border bg-card p-4 transition-all duration-200 hover:shadow-md ${
+                    isSelected
+                      ? "border-primary shadow-sm ring-1 ring-primary/20"
+                      : "border-border/60 hover:border-primary/30"
+                  }`}
+                  onClick={() => setSelectedShipmentId(shipment.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedShipmentId(shipment.id);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                >
+                  {/* Mobile Layout (Stacked) */}
+                  <div className="block lg:hidden">
+                    {/* Header with Status */}
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {statusPill(shipment.status)}
+                        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                          {shipment.courier}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        #{shipment.id}
+                      </span>
                     </div>
-                    <div>{statusPill(highlightedShipment.status)}</div>
+
+                    {/* Main Info */}
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Order #{shipment.orderId}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {shipment.order?.name || "Customer not available"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Assigned to:
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {shipment.assignedTo?.name || "Not assigned"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Priority:</span>
+                        <span className="font-medium text-foreground">
+                          P{shipment.priority || 0}
+                        </span>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {nextStatuses.slice(0, 2).map((nextStatus) => (
+                          <button
+                            key={nextStatus}
+                            type="button"
+                            disabled={updatingId === shipment.id}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              updateShipmentStatus(shipment.id, nextStatus);
+                            }}
+                            className="flex-1 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {updatingId === shipment.id
+                              ? "..."
+                              : NEXT_STATUS_LABELS[nextStatus]}
+                          </button>
+                        ))}
+                        {shipment.trackingUrl && (
+                          <a
+                            href={shipment.trackingUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                            className="flex-1 rounded-full bg-primary px-3 py-1.5 text-center text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
+                          >
+                            Track
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="mt-5 space-y-4">
-                    {[
-                      {
-                        label: "Picked up",
-                        value: formatDateTime(highlightedShipment.pickedAt),
-                        tone: "bg-amber-500",
-                      },
-                      {
-                        label: "In transit",
-                        value: formatDateTime(
-                          highlightedShipment.outForDeliveryAt ||
-                            highlightedShipment.assignedAt,
-                        ),
-                        tone: "bg-cyan-500",
-                      },
-                      {
-                        label: "Delivered",
-                        value: formatDateTime(highlightedShipment.deliveredAt),
-                        tone: "bg-emerald-500",
-                      },
-                    ].map((item) => (
-                      <div
-                        key={item.label}
-                        className="grid grid-cols-[16px,1fr,140px] items-start gap-3"
-                      >
-                        <span
-                          className={`mt-1 h-3 w-3 rounded-full ${item.tone}`}
-                        />
+                  {/* Desktop Layout (Grid) */}
+                  <div className="hidden lg:block">
+                    <div className="flex flex-col gap-4">
+                      {/* Shipment Details Grid */}
+                      <div className="grid flex-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <div>
-                          <p className="font-medium text-foreground">
-                            {item.label}
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                            Shipment
+                          </p>
+                          <p className="mt-1.5 text-sm font-semibold text-foreground">
+                            Shipment #{shipment.id}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {highlightedShipment.dispatchNote ||
-                              "Shipment activity recorded in dispatch timeline"}
+                            Order #{shipment.orderId}
+                          </p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {shipment.order?.name || "Customer not available"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {shipment.trackingNumber || "No tracking number"}
                           </p>
                         </div>
-                        <div className="text-right text-sm font-medium text-muted-foreground">
-                          {item.value}
+
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                            Management
+                          </p>
+                          <p className="mt-1.5 text-sm font-medium text-foreground">
+                            {shipment.assignedTo?.name || "Not assigned"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Warehouse {shipment.warehouseId || "-"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Priority {shipment.priority || 0}
+                          </p>
+                          <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
+                            {shipment.dispatchNote || "No dispatch notes"}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                            Cost
+                          </p>
+                          <p className="mt-1.5 text-sm text-muted-foreground">
+                            Est: {formatAmount(toAmount(shipment.estimatedCost))}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Actual: {formatAmount(toAmount(shipment.actualCost))}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Internal:{" "}
+                            {formatAmount(
+                              toAmount(shipment.handlingCost) +
+                                toAmount(shipment.packagingCost) +
+                                toAmount(shipment.fuelCost)
+                            )}
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                            Timeline
+                          </p>
+                          <p className="mt-1.5 text-sm text-muted-foreground">
+                            Assigned: {formatShortDate(shipment.assignedAt)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Expected: {formatShortDate(shipment.expectedDate)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Delivered: {formatShortDate(shipment.deliveredAt)}
+                          </p>
                         </div>
                       </div>
-                    ))}
+
+                      {/* Actions Panel */}
+                      <div className="min-w-[240px]">
+                        <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+                          {statusPill(shipment.status)}
+                          <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                            {shipment.courier}
+                            {shipment.courierStatus && ` - ${shipment.courierStatus}`}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2 xl:justify-end">
+                          {nextStatuses.length ? (
+                            nextStatuses.map((nextStatus) => (
+                              <button
+                                key={nextStatus}
+                                type="button"
+                                disabled={updatingId === shipment.id}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  updateShipmentStatus(shipment.id, nextStatus);
+                                }}
+                                className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {updatingId === shipment.id
+                                  ? "Updating..."
+                                  : NEXT_STATUS_LABELS[nextStatus]}
+                              </button>
+                            ))
+                          ) : (
+                            <span className="rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                              No further action
+                            </span>
+                          )}
+
+                          {shipment.trackingUrl && (
+                            <a
+                              href={shipment.trackingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(event) => event.stopPropagation()}
+                              className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
+                            >
+                              Open tracking
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </>
-              ) : (
-                <div className="rounded-[22px] border border-border/60 bg-muted px-4 py-16 text-center text-sm text-muted-foreground">
-                  {typeof selectedWarehouse === "number"
-                    ? "No shipments are available for the selected warehouse."
-                    : "No shipment data is available for the map view yet."}
-                </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  </DashboardCard>
+
+  {/* Right Column - Shipment Tracking */}
+  <DashboardCard
+    title="Shipment Tracking"
+    subtitle={
+      selectedWarehouse === "ALL"
+        ? "Warehouse-level shipment visibility"
+        : "Detailed route view for selected shipment"
+    }
+  >
+    <div className="max-h-[600px] overflow-y-auto overscroll-contain">
+      {selectedWarehouse === "ALL" ? (
+        <div className="space-y-4">
+          <div className="min-h-[300px] rounded-xl bg-muted/30">
+            <MultiShipmentsMap shipments={filteredShipments} />
+          </div>
+          <div className="rounded-lg bg-muted/20 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Warehouse Activity
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Showing {filteredShipments.length} active shipments
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select a warehouse to view route progress
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : highlightedShipment ? (
+        <div className="space-y-5">
+          {/* Map Section */}
+          <div className="min-h-[280px] rounded-xl bg-muted/30">
+            <ShipmentTrackingMap shipment={highlightedShipment} />
+          </div>
+
+          {/* Shipment Info */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Tracking Reference
+              </p>
+              <p className="text-sm font-medium text-foreground">
+                #{highlightedShipment.trackingNumber || highlightedShipment.id}
+              </p>
+              <p className="text-base font-semibold text-foreground">
+                {highlightedShipment.order?.name || "Customer shipment"}
+              </p>
+              {typeof selectedWarehouse === "number" && (
+                <p className="text-sm text-muted-foreground">
+                  Warehouse: {highlightedShipment.warehouse?.name || `ID: ${highlightedShipment.warehouseId}`}
+                </p>
               )}
             </div>
-          </DashboardCard>
-        </section>
+            <div>{statusPill(highlightedShipment.status)}</div>
+          </div>
+
+          {/* Timeline */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold text-foreground">Timeline</h4>
+            <div className="space-y-4">
+              {[
+                {
+                  label: "Picked up",
+                  value: formatDateTime(highlightedShipment.pickedAt),
+                  tone: "bg-amber-500",
+                  icon: Package,
+                },
+                {
+                  label: "In transit",
+                  value: formatDateTime(
+                    highlightedShipment.outForDeliveryAt ||
+                      highlightedShipment.assignedAt
+                  ),
+                  tone: "bg-cyan-500",
+                  icon: Truck,
+                },
+                {
+                  label: "Delivered",
+                  value: formatDateTime(highlightedShipment.deliveredAt),
+                  tone: "bg-emerald-500",
+                  icon: CheckCircle,
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex gap-3 rounded-lg border border-border/50 p-3 transition hover:bg-muted/10"
+                >
+                  <div className="flex-shrink-0">
+                    <div className={`h-3 w-3 rounded-full ${item.tone} mt-1`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {item.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {highlightedShipment.dispatchNote ||
+                        "Shipment activity recorded in dispatch timeline"}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {item.value || "Pending"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-12 text-center">
+          <MapPin className="mx-auto h-12 w-12 text-muted-foreground/50" />
+          <p className="mt-3 text-base font-medium text-foreground">
+            No shipment selected
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {typeof selectedWarehouse === "number"
+              ? "No shipments available for this warehouse"
+              : "Select a warehouse to view shipment tracking"}
+          </p>
+        </div>
+      )}
+    </div>
+  </DashboardCard>
+</section>
 
         <section className="grid gap-6 xl:grid-cols-[0.92fr,1.08fr]">
           <DashboardCard
