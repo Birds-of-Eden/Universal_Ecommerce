@@ -5,7 +5,10 @@ export const OPERATION_USERS = [
   { key: "customerB", email: "ops.customer.b@boe.demo", name: "Tanvir Hasan", phone: "01711000002", role: "user" },
   { key: "customerC", email: "ops.customer.c@boe.demo", name: "Nusrat Jahan", phone: "01711000003", role: "user" },
   { key: "orderManager", email: "ops.order.manager@boe.demo", name: "Order Manager", phone: "01711000004", role: "operations" },
-  { key: "deliveryAgent", email: "ops.delivery.agent@boe.demo", name: "Delivery Agent", phone: "01711000005", role: "delivery" },
+  { key: "deliveryAgent", email: "ops.delivery.agent@boe.demo", name: "Delivery Agent Dhaka", phone: "01711000005", role: "delivery_man" },
+  { key: "deliveryChattogram", email: "ops.delivery.ctg@boe.demo", name: "Delivery Agent Chattogram", phone: "01711000006", role: "delivery_man" },
+  { key: "deliverySylhet", email: "ops.delivery.syl@boe.demo", name: "Delivery Agent Sylhet", phone: "01711000007", role: "delivery_man" },
+  { key: "deliveryKhulna", email: "ops.delivery.khl@boe.demo", name: "Delivery Agent Khulna", phone: "01711000008", role: "delivery_man" },
 ] as const;
 
 export const OPERATION_CATEGORIES = [
