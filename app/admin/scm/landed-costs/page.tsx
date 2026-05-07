@@ -419,44 +419,114 @@ export default function LandedCostsPage() {
             {selectedPurchaseOrder.landedCosts.length === 0 ? (
               <p className="text-sm text-muted-foreground">No landed cost components yet.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Component</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Incurred</TableHead>
-                    <TableHead>Note</TableHead>
-                    <TableHead>Created By</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                <div className="space-y-3 md:hidden">
                   {selectedPurchaseOrder.landedCosts.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{formatComponent(row.component)}</TableCell>
-                      <TableCell>
-                        {formatMoney(row.amount)} {row.currency}
-                      </TableCell>
-                      <TableCell>
-                        {new Date(row.incurredAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell>{row.note || "N/A"}</TableCell>
-                      <TableCell>{row.createdBy?.name || row.createdBy?.email || "N/A"}</TableCell>
-                      <TableCell className="text-right">
+                    <div key={row.id} className="rounded-lg border p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="break-words font-medium">
+                            {formatComponent(row.component)}
+                          </div>
+                          <div className="mt-1 text-sm text-muted-foreground">
+                            {formatMoney(row.amount)} {row.currency}
+                          </div>
+                        </div>
                         <Button
                           variant="outline"
                           size="sm"
+                          className="shrink-0"
                           onClick={() => void deleteLandedCost(row.id)}
                           disabled={!canEditCurrent || saving}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Remove
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-md bg-muted/30 p-3 text-sm">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Incurred
+                          </div>
+                          <div className="mt-1 break-words font-medium">
+                            {new Date(row.incurredAt).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 p-3 text-sm">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Created By
+                          </div>
+                          <div className="mt-1 break-words font-medium">
+                            {row.createdBy?.name || row.createdBy?.email || "N/A"}
+                          </div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 p-3 text-sm sm:col-span-2">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Note
+                          </div>
+                          <div className="mt-1 break-words font-medium">
+                            {row.note || "N/A"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4 w-full"
+                        onClick={() => void deleteLandedCost(row.id)}
+                        disabled={!canEditCurrent || saving}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove
+                      </Button>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
+                  <Table className="min-w-[860px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Component</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Incurred</TableHead>
+                        <TableHead>Note</TableHead>
+                        <TableHead>Created By</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedPurchaseOrder.landedCosts.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>{formatComponent(row.component)}</TableCell>
+                          <TableCell>
+                            {formatMoney(row.amount)} {row.currency}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(row.incurredAt).toLocaleString()}
+                          </TableCell>
+                          <TableCell>{row.note || "N/A"}</TableCell>
+                          <TableCell>
+                            {row.createdBy?.name || row.createdBy?.email || "N/A"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void deleteLandedCost(row.id)}
+                              disabled={!canEditCurrent || saving}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Remove
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -471,37 +541,109 @@ export default function LandedCostsPage() {
             {selectedPurchaseOrder.allocationLines.length === 0 ? (
               <p className="text-sm text-muted-foreground">No PO line item found.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Base Unit</TableHead>
-                    <TableHead>Landed / Unit</TableHead>
-                    <TableHead>Effective Unit</TableHead>
-                    <TableHead>Base Line</TableHead>
-                    <TableHead>Landed Allocation</TableHead>
-                    <TableHead>Effective Line</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                <div className="space-y-3 md:hidden">
                   {selectedPurchaseOrder.allocationLines.map((line) => (
-                    <TableRow key={line.purchaseOrderItemId}>
-                      <TableCell>
-                        <div className="font-medium">{line.productName}</div>
+                    <div key={line.purchaseOrderItemId} className="rounded-lg border p-4">
+                      <div className="min-w-0">
+                        <div className="break-words font-medium">{line.productName}</div>
                         <div className="text-xs text-muted-foreground">{line.sku}</div>
-                      </TableCell>
-                      <TableCell>{line.quantityOrdered}</TableCell>
-                      <TableCell>{formatMoney(line.baseUnitCost)}</TableCell>
-                      <TableCell>{formatMoney(line.landedPerUnit)}</TableCell>
-                      <TableCell>{formatMoney(line.effectiveUnitCost)}</TableCell>
-                      <TableCell>{formatMoney(line.baseLineTotal)}</TableCell>
-                      <TableCell>{formatMoney(line.landedAllocationTotal)}</TableCell>
-                      <TableCell>{formatMoney(line.effectiveLineTotal)}</TableCell>
-                    </TableRow>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-md bg-muted/30 p-3 text-sm">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Qty
+                          </div>
+                          <div className="mt-1 font-medium">{line.quantityOrdered}</div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 p-3 text-sm">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Base Unit
+                          </div>
+                          <div className="mt-1 font-medium">
+                            {formatMoney(line.baseUnitCost)}
+                          </div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 p-3 text-sm">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Landed / Unit
+                          </div>
+                          <div className="mt-1 font-medium">
+                            {formatMoney(line.landedPerUnit)}
+                          </div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 p-3 text-sm">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Effective Unit
+                          </div>
+                          <div className="mt-1 font-medium">
+                            {formatMoney(line.effectiveUnitCost)}
+                          </div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 p-3 text-sm">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Base Line
+                          </div>
+                          <div className="mt-1 font-medium">
+                            {formatMoney(line.baseLineTotal)}
+                          </div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 p-3 text-sm">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Landed Allocation
+                          </div>
+                          <div className="mt-1 font-medium">
+                            {formatMoney(line.landedAllocationTotal)}
+                          </div>
+                        </div>
+                        <div className="rounded-md bg-muted/30 p-3 text-sm sm:col-span-2">
+                          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Effective Line
+                          </div>
+                          <div className="mt-1 font-medium">
+                            {formatMoney(line.effectiveLineTotal)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
+                  <Table className="min-w-[980px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead>Qty</TableHead>
+                        <TableHead>Base Unit</TableHead>
+                        <TableHead>Landed / Unit</TableHead>
+                        <TableHead>Effective Unit</TableHead>
+                        <TableHead>Base Line</TableHead>
+                        <TableHead>Landed Allocation</TableHead>
+                        <TableHead>Effective Line</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedPurchaseOrder.allocationLines.map((line) => (
+                        <TableRow key={line.purchaseOrderItemId}>
+                          <TableCell className="min-w-[220px]">
+                            <div className="font-medium">{line.productName}</div>
+                            <div className="text-xs text-muted-foreground">{line.sku}</div>
+                          </TableCell>
+                          <TableCell>{line.quantityOrdered}</TableCell>
+                          <TableCell>{formatMoney(line.baseUnitCost)}</TableCell>
+                          <TableCell>{formatMoney(line.landedPerUnit)}</TableCell>
+                          <TableCell>{formatMoney(line.effectiveUnitCost)}</TableCell>
+                          <TableCell>{formatMoney(line.baseLineTotal)}</TableCell>
+                          <TableCell>{formatMoney(line.landedAllocationTotal)}</TableCell>
+                          <TableCell>{formatMoney(line.effectiveLineTotal)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
