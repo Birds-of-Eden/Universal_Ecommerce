@@ -4,6 +4,7 @@ import {
   SYSTEM_PERMISSIONS,
   SYSTEM_ROLE_DEFINITIONS,
 } from "../lib/rbac-config";
+import { seedScmFoundation } from "./seed-data/scm";
 
 const prisma = new PrismaClient();
 
@@ -376,6 +377,8 @@ async function main() {
   console.log("✅ Default supplier categories ensured");
   await ensureInvestorPortalUsers(admin?.id ?? null);
   console.log("✅ Investor portal users ensured");
+  await seedScmFoundation(prisma, admin?.id ?? null);
+  console.log("✅ SCM foundation seed ensured");
 }
 
 main()
