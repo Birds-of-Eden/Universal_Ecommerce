@@ -428,7 +428,7 @@ export default function ReportsDashboard() {
               </div>
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 grid-cols-3">
             {QUICK_RANGES.map((item) => (
               <Button
                 key={item.label}
@@ -445,7 +445,7 @@ export default function ReportsDashboard() {
 
       <div className="sticky top-0 z-20 rounded-[24px] border border-border/70 bg-background/95 p-4 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="grid grid-cols-2 gap-4 sm:flex-row sm:items-end">
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="reports-from">
                 From
@@ -469,7 +469,7 @@ export default function ReportsDashboard() {
               />
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 justify-end">
             {tab !== "overview" ? (
               <Button variant="outline" onClick={() => exportTab(tab)}>
                 <Download className="h-4 w-4" />
@@ -496,7 +496,7 @@ export default function ReportsDashboard() {
         </Card>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-5">
         {topMetrics.map((m) => (
           <Metric
             key={m.label}
@@ -634,7 +634,7 @@ export default function ReportsDashboard() {
                     {data.filters.from} to {data.filters.to}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <CardContent className="grid gap-4 grid-cols-2 xl:grid-cols-3">
                   <Metric
                     label="Orders"
                     value={fmtNum(data.sales.summary.totalOrders)}

@@ -75,15 +75,19 @@ export function StatCard({
           : "text-foreground";
 
   return (
-    <article className="group relative overflow-hidden rounded-[24px] border border-border/70 bg-card/95 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_40px_rgba(0,0,0,0.09)]">
+    <article className="group relative overflow-hidden rounded-xl border border-border/70 bg-card/95 p-2 sm:p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <div className={`absolute inset-0 bg-gradient-to-br ${accent}`} />
-      <div className="relative flex items-start justify-between gap-4">
+
+      <div className="relative flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-foreground">{label}</p>
+          <div className="flex items-center gap-1">
+            <p className="truncate text-[14px] sm:text-xs font-medium text-foreground">
+              {label}
+            </p>
+
             {tone !== "default" && (
               <div
-                className={`h-2 w-2 rounded-full ${
+                className={`h-1.5 w-1.5 rounded-full ${
                   tone === "good"
                     ? "bg-emerald-500 [&:where(.theme-green)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-plum)]:bg-[hsl(var(--analytics-chart-1))] [&:where(.theme-olive)]:bg-[hsl(var(--analytics-chart-2))] [&:where(.theme-rose)]:bg-[hsl(var(--analytics-chart-2))]"
                     : tone === "warn"
@@ -93,23 +97,26 @@ export function StatCard({
               />
             )}
           </div>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-foreground md:text-[30px]">
+
+          <p className="mt-1 text-sm sm:text-lg md:text-xl font-bold tracking-tight text-foreground">
             {value}
           </p>
-          <div className="mt-3">
+
+          <div className="mt-1">
             {typeof trend === "number" ? (
               <MiniTrend value={trend} compareLabel={compareLabel} />
             ) : (
-              <span className="text-xs text-muted-foreground">
+              <span className="line-clamp-1 text-[9px] sm:text-[11px] text-muted-foreground">
                 {hint || compareLabel}
               </span>
             )}
           </div>
         </div>
+
         <div
-          className={`rounded-2xl border border-border/70 bg-background/80 p-3 shadow-sm ${statusColor}`}
+          className={`rounded-lg border border-border/70 bg-background/80 p-1.5 sm:p-2 shadow-sm ${statusColor}`}
         >
-          <Icon className="h-5 w-5" />
+          <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </div>
       </div>
     </article>
