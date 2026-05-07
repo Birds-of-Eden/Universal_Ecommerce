@@ -151,6 +151,7 @@ interface DashboardStats {
     ordersSeries?: DashboardSeriesPoint[];
     refundSeries?: DashboardSeriesPoint[];
     visitorSeries?: DashboardSeriesPoint[];
+    liveUsers?: number;
     paymentBreakdown?: MetricValue[];
     orderStatusBreakdown?: MetricValue[];
     topVariants?: DashboardListItem[];
@@ -239,6 +240,7 @@ interface AdminDashboardViewModel {
   activeBanners: number;
   totalBlogs: number;
   newsletterSubscribers: number;
+  liveUsers: number;
   sessions: number;
   pageViews: number;
   revenueSeries: DashboardSeriesPoint[];
@@ -343,7 +345,7 @@ function SectionShell({
     <section
       className={`rounded-2xl border border-border bg-card text-card-foreground shadow-sm ${className}`}
     >
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-border px-5 py-4 md:px-6">
+      <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5 md:px-6">
         <div>
           <h2 className="text-base font-semibold tracking-tight md:text-lg">
             {title}
@@ -354,20 +356,26 @@ function SectionShell({
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>
-      <div className="p-5 md:p-6">{children}</div>
+      <div className="p-4 sm:p-5 md:p-6">{children}</div>
     </section>
   );
 }
 
 function StatusPill({ label, tone = "default" }: { label: string; tone?: Tone }) {
   const toneStyles = {
-    default: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-    good: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    warn: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    danger: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    default:
+      "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+    good:
+      "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
+    warn:
+      "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
+    danger:
+      "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300",
   };
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${toneStyles[tone]}`}>
+    <span
+      className={`inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-center text-[11px] font-semibold uppercase tracking-[0.04em] whitespace-normal shadow-sm ${toneStyles[tone]}`}
+    >
       {label}
     </span>
   );
@@ -384,15 +392,32 @@ function InsightList({ items, emptyLabel }: { items: DashboardListItem[]; emptyL
   return (
     <div className="space-y-3">
       {items.map((item) => (
-        <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+        <div
+          key={item.id}
+          className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
-            {item.subtitle && <p className="truncate text-xs text-muted-foreground">{item.subtitle}</p>}
+            <p className="break-words text-sm font-medium text-foreground sm:truncate">
+              {item.title}
+            </p>
+            {item.subtitle && (
+              <p className="break-words text-xs text-muted-foreground sm:truncate">
+                {item.subtitle}
+              </p>
+            )}
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3">
             {item.status && <StatusPill label={item.status} tone={item.tone} />}
-            {item.meta && <span className="text-xs text-muted-foreground">{item.meta}</span>}
-            {item.value && <span className="text-sm font-semibold text-foreground">{item.value}</span>}
+            {item.meta && (
+              <span className="break-words text-xs text-muted-foreground sm:text-right">
+                {item.meta}
+              </span>
+            )}
+            {item.value && (
+              <span className="break-words text-sm font-semibold text-foreground sm:text-right">
+                {item.value}
+              </span>
+            )}
           </div>
         </div>
       ))}
@@ -535,7 +560,7 @@ function AdminDashboard({
   }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 px-2 py-3 md:px-3 md:py-4 xl:px-4">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-background via-background to-muted/20 px-2 py-3 md:px-3 md:py-4 xl:px-4">
       <div className="w-full space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -961,12 +986,12 @@ function AdminDashboard({
           <SectionShell title="Marketing Performance" subtitle="Traffic sources and campaign metrics">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-border bg-muted/30 p-3 text-center">
-                <p className="text-xs text-muted-foreground">Banners</p>
-                <p className="text-xl font-bold">{formatNumber(dashboard.activeBanners)}</p>
+                <p className="text-xs text-muted-foreground">Live Users</p>
+                <p className="text-xl font-bold">{formatNumber(dashboard.liveUsers)}</p>
               </div>
               <div className="rounded-xl border border-border bg-muted/30 p-3 text-center">
-                <p className="text-xs text-muted-foreground">Subscribers</p>
-                <p className="text-xl font-bold">{formatNumber(dashboard.newsletterSubscribers)}</p>
+                <p className="text-xs text-muted-foreground">Total Visitors</p>
+                <p className="text-xl font-bold">{formatNumber(dashboard.sessions)}</p>
               </div>
               <div className="rounded-xl border border-border bg-muted/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground">Pageviews</p>

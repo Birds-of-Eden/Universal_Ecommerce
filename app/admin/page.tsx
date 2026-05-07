@@ -25,6 +25,7 @@ interface AnalyticsSummaryResponse {
   kpis?: {
     visitors?: number;
     pageViews?: number;
+    liveUsers?: number;
   };
   series?: Array<{
     t: string;
@@ -59,14 +60,38 @@ function getAnalyticsWindow(timeRange: TimeRange) {
   return { from, to, bucket: "day" as const };
 }
 
+function formatAnalyticsSeriesLabel(timestamp: string, timeRange: TimeRange) {
+  const date = new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return timeRange === "today"
+      ? timestamp.slice(11, 13) || ""
+      : timestamp.slice(5, 10) || "";
+  }
+
+  if (timeRange === "today") {
+    return date.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      hour12: false,
+    });
+  }
+
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
 function mergeAnalyticsSummary(
   stats: DashboardStats,
-  summary: AnalyticsSummaryResponse | null
+  summary: AnalyticsSummaryResponse | null,
+  timeRange: TimeRange
 ): DashboardStats {
   if (!summary) return stats;
 
   const visitors = summary.kpis?.visitors ?? 0;
   const pageViews = summary.kpis?.pageViews ?? 0;
+  const liveUsers = summary.kpis?.liveUsers ?? 0;
 
   return {
     ...stats,
@@ -74,11 +99,9 @@ function mergeAnalyticsSummary(
       ...stats.analytics,
       sessions: visitors,
       pageViews,
+      liveUsers,
       visitorSeries: (summary.series ?? []).map((item) => ({
-        label:
-          item.t?.includes("T") && item.t.length >= 13
-            ? item.t.slice(11, 13)
-            : item.t?.slice(5, 10) || "",
+        label: formatAnalyticsSeriesLabel(item.t, timeRange),
         value: item.visitors || 0,
         secondaryValue: item.pageViews || 0,
       })),
@@ -164,6 +187,7 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
   const activeBanners = stats.marketing?.activeBanners ?? stats.activeBanners ?? 0;
   const totalBlogs = stats.marketing?.totalBlogs ?? stats.totalBlogs ?? 0;
   const newsletterSubscribers = stats.marketing?.newsletterSubscribers ?? stats.newsletterSubscribers ?? 0;
+  const liveUsers = stats.analytics?.liveUsers ?? 0;
   const sessions = stats.analytics?.sessions ?? stats.marketing?.sessions ?? Math.max(stats.totalUsers * 7, stats.totalOrders * 18);
   const pageViews = stats.analytics?.pageViews ?? stats.marketing?.pageViews ?? Math.max(sessions * 3, 1);
   const formatCurrency = (amount: number) =>
@@ -288,6 +312,7 @@ function buildDashboardViewModel(stats: DashboardStats | null, timeRange: TimeRa
     activeBanners,
     totalBlogs,
     newsletterSubscribers,
+    liveUsers,
     sessions,
     pageViews,
     revenueSeries,
@@ -375,7 +400,7 @@ const AdminPage = memo(function AdminPage() {
             (await analyticsResponse.json()) as AnalyticsSummaryResponse;
         }
 
-        const merged = mergeAnalyticsSummary(data, analyticsSummary);
+        const merged = mergeAnalyticsSummary(data, analyticsSummary, range);
         dashboardCache.set(range, merged);
         setStats(merged);
       } catch (error: any) {
