@@ -7,15 +7,67 @@ export async function seedWarehouseLogistics(
   ctx: WarehouseSeedContext,
 ): Promise<WarehouseSeedContext> {
   const rows = [
-    { key: "dhaka", productKey: "shoe", courierKey: "steadfast", status: "PENDING", orderStatus: "CONFIRMED", payment: "PAID", qty: 1, customer: "Dhaka Customer", phone: "01823000001" },
-    { key: "ctg", productKey: "bag", courierKey: "redx", status: "ASSIGNED", orderStatus: "PROCESSING", payment: "PAID", qty: 2, customer: "Chattogram Customer", phone: "01823000002" },
-    { key: "sylhet", productKey: "shirt", courierKey: "pathao", status: "IN_TRANSIT", orderStatus: "SHIPPED", payment: "PAID", qty: 3, customer: "Sylhet Customer", phone: "01823000003" },
-    { key: "khulna", productKey: "watch", courierKey: "custom", status: "OUT_FOR_DELIVERY", orderStatus: "SHIPPED", payment: "PAID", qty: 1, customer: "Khulna Customer", phone: "01823000004" },
-    { key: "rajshahi", productKey: "lamp", courierKey: "express", status: "DELIVERED", orderStatus: "DELIVERED", payment: "PAID", qty: 2, customer: "Rajshahi Customer", phone: "01823000005" },
+    {
+      key: "dhaka",
+      productKey: "shoe",
+      courierKey: "steadfast",
+      status: "PENDING",
+      orderStatus: "CONFIRMED",
+      payment: "PAID",
+      qty: 1,
+      customer: "Dhaka Customer",
+      phone: "01823000001",
+    },
+    {
+      key: "ctg",
+      productKey: "bag",
+      courierKey: "redx",
+      status: "ASSIGNED",
+      orderStatus: "PROCESSING",
+      payment: "PAID",
+      qty: 2,
+      customer: "Chattogram Customer",
+      phone: "01823000002",
+    },
+    {
+      key: "sylhet",
+      productKey: "shirt",
+      courierKey: "pathao",
+      status: "IN_TRANSIT",
+      orderStatus: "SHIPPED",
+      payment: "PAID",
+      qty: 3,
+      customer: "Sylhet Customer",
+      phone: "01823000003",
+    },
+    {
+      key: "khulna",
+      productKey: "watch",
+      courierKey: "custom",
+      status: "OUT_FOR_DELIVERY",
+      orderStatus: "SHIPPED",
+      payment: "PAID",
+      qty: 1,
+      customer: "Khulna Customer",
+      phone: "01823000004",
+    },
+    {
+      key: "rajshahi",
+      productKey: "lamp",
+      courierKey: "express",
+      status: "DELIVERED",
+      orderStatus: "DELIVERED",
+      payment: "PAID",
+      qty: 2,
+      customer: "Rajshahi Customer",
+      phone: "01823000005",
+    },
   ];
 
   for (const [index, row] of rows.entries()) {
-    const product = WAREHOUSE_PRODUCTS.find((item) => item.key === row.productKey)!;
+    const product = WAREHOUSE_PRODUCTS.find(
+      (item) => item.key === row.productKey,
+    )!;
     const total = product.price * row.qty;
     const vat = Math.round(total * 0.05);
     const shipping = 80 + index * 20;
@@ -34,7 +86,16 @@ export async function seedWarehouseLogistics(
       phone_number: row.phone,
       alt_phone_number: null,
       country: "BD",
-      district: row.key === "ctg" ? "Chattogram" : row.key === "sylhet" ? "Sylhet" : row.key === "khulna" ? "Khulna" : row.key === "rajshahi" ? "Rajshahi" : "Dhaka",
+      district:
+        row.key === "ctg"
+          ? "Chattogram"
+          : row.key === "sylhet"
+            ? "Sylhet"
+            : row.key === "khulna"
+              ? "Khulna"
+              : row.key === "rajshahi"
+                ? "Rajshahi"
+                : "Dhaka",
       area: row.key,
       address_details: `Seeded warehouse logistics address ${index + 1}`,
       payment_method: index === 0 ? "COD" : "BKASH",
@@ -52,12 +113,22 @@ export async function seedWarehouseLogistics(
     };
 
     const order = existingOrder
-      ? await prisma.order.update({ where: { id: existingOrder.id }, data: orderData, select: { id: true } })
+      ? await prisma.order.update({
+          where: { id: existingOrder.id },
+          data: orderData,
+          select: { id: true },
+        })
       : await prisma.order.create({ data: orderData, select: { id: true } });
 
     ctx.orders[row.key] = order.id;
 
-    await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
+    await prisma.shipmentItem.deleteMany({
+      where: {
+        orderItem: {
+          orderId: order.id,
+        },
+      },
+    });
     const orderItem = await prisma.orderItem.create({
       data: {
         orderId: order.id,
@@ -81,7 +152,7 @@ export async function seedWarehouseLogistics(
         amount: money(grand),
         currency: "BDT",
         provider: index === 0 ? "COD" : "BKASH",
-        status: row.payment === "PAID" ? "CAPTURED" : "INITIATED" as any,
+        status: row.payment === "PAID" ? "CAPTURED" : ("INITIATED" as any),
         paymentGatewayData: { seeded: true, source: "warehouse-seed" },
       },
       create: {
@@ -89,7 +160,7 @@ export async function seedWarehouseLogistics(
         amount: money(grand),
         currency: "BDT",
         provider: index === 0 ? "COD" : "BKASH",
-        status: row.payment === "PAID" ? "CAPTURED" : "INITIATED" as any,
+        status: row.payment === "PAID" ? "CAPTURED" : ("INITIATED" as any),
         externalId: `WH-PAY-${String(index + 1).padStart(3, "0")}`,
         paymentGatewayData: { seeded: true, source: "warehouse-seed" },
       },
@@ -129,12 +200,21 @@ export async function seedWarehouseLogistics(
     };
 
     const shipment = existingShipment
-      ? await prisma.shipment.update({ where: { id: existingShipment.id }, data: shipmentData, select: { id: true } })
-      : await prisma.shipment.create({ data: shipmentData, select: { id: true } });
+      ? await prisma.shipment.update({
+          where: { id: existingShipment.id },
+          data: shipmentData,
+          select: { id: true },
+        })
+      : await prisma.shipment.create({
+          data: shipmentData,
+          select: { id: true },
+        });
 
     ctx.shipments[row.key] = shipment.id;
 
-    await prisma.shipmentItem.deleteMany({ where: { shipmentId: shipment.id } });
+    await prisma.shipmentItem.deleteMany({
+      where: { shipmentId: shipment.id },
+    });
     await prisma.shipmentItem.create({
       data: {
         shipmentId: shipment.id,
@@ -146,7 +226,7 @@ export async function seedWarehouseLogistics(
     await prisma.shipmentStatusLog.create({
       data: {
         shipmentId: shipment.id,
-        fromStatus: index === 0 ? null : "PENDING" as any,
+        fromStatus: index === 0 ? null : ("PENDING" as any),
         toStatus: row.status as any,
         source: "WAREHOUSE_SEED",
         note: `Seeded shipment status ${row.status}`,

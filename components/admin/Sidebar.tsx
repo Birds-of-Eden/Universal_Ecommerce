@@ -1109,7 +1109,7 @@ export default function Sidebar({
 
   if (isMobile) {
     return (
-      <div className={cn("h-full flex flex-col", themeBg)}>
+      <div className={cn("h-full w-52 flex flex-col", themeBg)}>
         {/* Modern Header */}
         <div className="h-20 flex flex-col items-center justify-center border-b border-border px-4">
           <div className="text-center">
