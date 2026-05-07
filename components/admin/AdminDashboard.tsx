@@ -363,18 +363,14 @@ function SectionShell({
 
 function StatusPill({ label, tone = "default" }: { label: string; tone?: Tone }) {
   const toneStyles = {
-    default:
-      "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
-    good:
-      "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
-    warn:
-      "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
-    danger:
-      "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300",
+    default: "status-pill-default",
+    good: "status-pill-good",
+    warn: "status-pill-warn",
+    danger: "status-pill-danger",
   };
   return (
     <span
-      className={`inline-flex max-w-full items-center rounded-full border px-2.5 py-1 text-center text-[11px] font-semibold uppercase tracking-[0.04em] whitespace-normal shadow-sm ${toneStyles[tone]}`}
+      className={`status-pill inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-center text-[11px] font-semibold uppercase tracking-[0.04em] whitespace-normal ${toneStyles[tone]}`}
     >
       {label}
     </span>
