@@ -417,15 +417,17 @@ function MobileCategoryTree({
             onClick={() => onGo(node.slug)}
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
           >
-            <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/40">
-              <Image
-                src={node.image || "/placeholder.svg"}
-                alt={node.name}
-                fill
-                className="object-cover"
-                sizes="40px"
-              />
-            </span>
+            {node.image && (
+              <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/40">
+                <Image
+                  src={node.image}
+                  alt={node.name}
+                  fill
+                  className="object-cover"
+                  sizes="40px"
+                />
+              </span>
+            )}
 
             <span className="truncate text-[15px] font-medium text-foreground">
               {node.name}
@@ -915,15 +917,9 @@ export default function Header({
             </div>
 
             <div className="hidden leading-none sm:block">
-              <div className="max-w-[190px] truncate text-xl font-extrabold uppercase tracking-tight text-primary">
-                {siteSettings.siteTitle || "Ecommerce"}
+              <div className="max-w-[190px] truncate text-xl tracking-tight text-primary lexend-extrabold">
+                {siteSettings.siteTitle || "AanBee"}
               </div>
-
-              {/* <div className="text-xl font-extrabold uppercase tracking-tight text-primary">
-
-                BAZAR
-
-              </div> */}
             </div>
           </Link>
 
@@ -1171,18 +1167,54 @@ export default function Header({
                     className={headerIconClass}
                     aria-label="Profile"
                   >
-                    <UserIcon className="h-6 w-6" />
-
-                    <span>Sign Out</span>
+                    {/* User Image or Icon */}
+                    <div className="relative h-6 w-6 overflow-hidden rounded-full">
+                      {session.user?.image ? (
+                        <Image
+                          src={session.user.image}
+                          alt={userName}
+                          fill
+                          className="object-cover"
+                          sizes="24px"
+                        />
+                      ) : (
+                        <UserIcon className="h-6 w-6" />
+                      )}
+                    </div>
+                    <span>{userName?.split(" ")[0] || "Account"}</span>
                   </button>
 
                   {profileOpen && (
-                    <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl z-[10001]">
+                    <div className="absolute right-0 mt-3 w-64 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl z-[10001]">
+                      {/* User Info Section with Image */}
                       <div className="border-b border-border px-4 py-3">
-                        <div className="text-sm font-semibold">{userName}</div>
+                        <div className="flex items-center gap-3">
+                          {/* User Image */}
+                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-primary ring-2 ring-primary/20">
+                            {session.user?.image ? (
+                              <Image
+                                src={session.user.image}
+                                alt={userName}
+                                fill
+                                className="object-cover"
+                                sizes="48px"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-base font-bold text-primary-foreground">
+                                {userName?.charAt(0)?.toUpperCase() || "U"}
+                              </div>
+                            )}
+                          </div>
 
-                        <div className="text-xs text-muted-foreground">
-                          {displayRole}
+                          {/* User Name and Role */}
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-semibold">
+                              {userName}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {displayRole}
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1195,15 +1227,23 @@ export default function Header({
                         Dashboard
                       </Link>
 
+                      <Link
+                        href="/ecommerce/user/profile"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-muted"
+                      >
+                        <UserIcon className="h-4 w-4" />
+                        Profile
+                      </Link>
+
                       <button
                         type="button"
                         disabled={isPending}
                         onClick={async () => {
                           setProfileOpen(false);
-
                           await handleSignOut();
                         }}
-                        className="flex w-full items-center gap-2 px-4 py-3 text-sm hover:bg-muted disabled:opacity-60"
+                        className="flex w-full items-center gap-2 px-4 py-3 text-sm text-destructive hover:bg-muted disabled:opacity-60"
                       >
                         <LogOut className="h-4 w-4" />
                         Logout
@@ -1214,7 +1254,6 @@ export default function Header({
               ) : (
                 <Link href="/signin" className={headerIconClass}>
                   <UserIcon className="h-6 w-6" />
-
                   <span>Sign In</span>
                 </Link>
               )}
@@ -1295,9 +1334,21 @@ export default function Header({
                         goCategoryFromDesktop(cat.slug);
                       }
                     }}
-                    className="flex h-14 items-center gap-1 whitespace-nowrap text-md font-semibold transition-all duration-300 text-secondary-foreground hover:text-secondary-foreground/70 "
+                    className="flex h-14 items-center gap-2 whitespace-nowrap text-md font-semibold transition-all duration-300 text-secondary-foreground hover:text-secondary-foreground/70"
                   >
-                    {cat.name}
+                    {cat.image && (
+                      <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/40">
+                        <Image
+                          src={cat.image}
+                          alt={cat.name}
+                          fill
+                          className="object-cover"
+                          sizes="32px"
+                        />
+                      </span>
+                    )}
+
+                    <span>{cat.name}</span>
 
                     {cat.children.length > 0 && (
                       <ChevronDown className="h-4 w-4 transition-transform duration-300 group-hover:rotate-180" />
@@ -1320,7 +1371,7 @@ export default function Header({
             onMouseEnter={clearNavCloseTimer}
             onMouseLeave={scheduleNavClose}
           >
-            <div className="w-60 rounded-b-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl animate-in slide-in-from-top-2 duration-200">
+            <div className="w-80 rounded-b-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl animate-in slide-in-from-top-2 duration-200">
               {hoveredNavCat.children.map((sub) => (
                 <div
                   key={sub.id}
@@ -1332,8 +1383,20 @@ export default function Header({
                     onClick={() => goCategoryFromDesktop(sub.slug)}
                     className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
                   >
-                    <span className="truncate">{sub.name}</span>
-
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {sub.image && (
+                        <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/40">
+                          <Image
+                            src={sub.image}
+                            alt={sub.name}
+                            fill
+                            className="object-cover"
+                            sizes="32px"
+                          />
+                        </span>
+                      )}
+                      <span className="truncate">{sub.name}</span>
+                    </div>
                     {sub.children.length > 0 ? (
                       navChildMenuSide === "left" ? (
                         <ChevronLeft className="h-4 w-4 shrink-0" />
@@ -1347,7 +1410,7 @@ export default function Header({
 
                   {sub.children.length > 0 && hoveredNavSub?.id === sub.id && (
                     <div
-                      className={`absolute top-0 z-[10001] w-60 rounded-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl duration-200 animate-in ${
+                      className={`absolute top-0 z-[10001] w-80 rounded-xl border border-border bg-popover py-2 text-popover-foreground shadow-2xl duration-200 animate-in ${
                         navChildMenuSide === "left"
                           ? "right-full slide-in-from-right-2"
                           : "left-full slide-in-from-left-2"
@@ -1358,8 +1421,19 @@ export default function Header({
                           key={child.id}
                           type="button"
                           onClick={() => goCategoryFromDesktop(child.slug)}
-                          className="block w-full px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-all duration-200 hover:bg-primary hover:text-primary-foreground"
                         >
+                          {child.image && (
+                            <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border/40">
+                              <Image
+                                src={child.image}
+                                alt={child.name}
+                                fill
+                                className="object-cover"
+                                sizes="32px"
+                              />
+                            </span>
+                          )}
                           <span className="truncate">{child.name}</span>
                         </button>
                       ))}
@@ -1400,8 +1474,8 @@ export default function Header({
                   </div>
 
                   <div className="min-w-0">
-                    <div className="truncate text-base font-bold">
-                      {siteSettings.siteTitle || "BOED"}
+                    <div className="max-w-[190px] truncate text-xl text-primary font-lexend">
+                      {siteSettings.siteTitle || "AanBee"}
                     </div>
 
                     <div className="truncate text-xs text-muted-foreground">
@@ -1490,8 +1564,21 @@ export default function Header({
               <div className="shrink-0 border-t border-border bg-background/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur">
                 {session ? (
                   <div className="flex items-center gap-3 rounded-xl bg-card/90 px-3 py-2.5 shadow-sm">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                      {userName?.charAt(0)?.toUpperCase() || "U"}
+                    {/* User Image or Avatar */}
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-primary">
+                      {session.user?.image ? (
+                        <Image
+                          src={session.user.image}
+                          alt={userName}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-sm font-bold text-primary-foreground">
+                          {userName?.charAt(0)?.toUpperCase() || "U"}
+                        </div>
+                      )}
                     </div>
 
                     <DropdownMenu>
@@ -1504,12 +1591,10 @@ export default function Header({
                             <span className="block truncate text-sm font-semibold">
                               {userName}
                             </span>
-
                             <span className="block truncate text-[11px] text-muted-foreground">
                               {displayRole}
                             </span>
                           </span>
-
                           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                         </button>
                       </DropdownMenuTrigger>
@@ -1548,7 +1633,6 @@ export default function Header({
                       disabled={isPending}
                       onClick={async () => {
                         setMobileMenuOpen(false);
-
                         await handleSignOut();
                       }}
                       className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:opacity-60"
@@ -1562,7 +1646,6 @@ export default function Header({
                     type="button"
                     onClick={() => {
                       setMobileMenuOpen(false);
-
                       router.push("/signin");
                     }}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground"

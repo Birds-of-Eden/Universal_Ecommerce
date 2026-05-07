@@ -2,6 +2,8 @@ import type React from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Rubik } from "next/font/google";
+import { Syne } from "next/font/google";
+import { Lexend } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -29,6 +31,22 @@ const rubik = Rubik({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800", "900"],
   style: ["normal", "italic"],
+  display: "swap",
+});
+
+const syne = Syne({
+  variable: "--font-syne",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  style: ["normal"],
+  display: "swap",
+});
+
+const lexend = Lexend({
+  variable: "--font-lexend",
+  subsets: ["latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  style: ["normal"],
   display: "swap",
 });
 
@@ -93,7 +111,7 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} ${rubik.variable} antialiased min-h-screen flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} ${rubik.variable} ${syne.variable} ${lexend.variable} antialiased min-h-screen flex flex-col`}
       >
         <script
           type="application/ld+json"

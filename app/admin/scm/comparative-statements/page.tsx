@@ -529,7 +529,7 @@ export default function ComparativeStatementsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 lg:grid-cols-3">
                     <div className="space-y-2">
                       <Label>Technical Weight (%)</Label>
                       <Input
@@ -565,30 +565,52 @@ export default function ComparativeStatementsPage() {
                     </div>
                   </div>
 
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Rank</TableHead>
-                        <TableHead>Supplier</TableHead>
-                        <TableHead>Responsive</TableHead>
-                        <TableHead>Technical</TableHead>
-                        <TableHead>Financial</TableHead>
-                        <TableHead>Combined</TableHead>
-                        <TableHead>Grand Total</TableHead>
-                        <TableHead>Technical Note</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedStatement.lines.map((line) => (
-                        <TableRow key={line.id}>
-                          <TableCell>{line.rank ?? "-"}</TableCell>
-                          <TableCell>
-                            <div className="font-medium">{line.supplier.name}</div>
+                  <div className="space-y-3 md:hidden">
+                    {selectedStatement.lines.map((line) => (
+                      <div key={line.id} className="rounded-lg border p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="break-words font-medium">
+                              {line.supplier.name}
+                            </div>
                             <div className="text-xs text-muted-foreground">
                               {line.supplier.code}
                             </div>
-                          </TableCell>
-                          <TableCell>
+                          </div>
+                          <div className="shrink-0 rounded-md bg-muted px-2 py-1 text-xs font-medium">
+                            Rank {line.rank ?? "-"}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-md bg-muted/30 p-3 text-sm">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                              Financial
+                            </div>
+                            <div className="mt-1 font-medium">
+                              {Number(line.financialScore || 0).toFixed(2)}
+                            </div>
+                          </div>
+                          <div className="rounded-md bg-muted/30 p-3 text-sm">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                              Combined
+                            </div>
+                            <div className="mt-1 font-medium">
+                              {Number(line.combinedScore || 0).toFixed(4)}
+                            </div>
+                          </div>
+                          <div className="rounded-md bg-muted/30 p-3 text-sm sm:col-span-2">
+                            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                              Grand Total
+                            </div>
+                            <div className="mt-1 break-words font-medium">
+                              {formatMoney(line.financialGrandTotal)} {line.currency}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                          <label className="flex items-center gap-2 text-sm font-medium">
                             <input
                               type="checkbox"
                               checked={scorecardDraft[line.id]?.isResponsive ?? line.isResponsive}
@@ -599,14 +621,23 @@ export default function ComparativeStatementsPage() {
                                 })
                               }
                             />
-                          </TableCell>
-                          <TableCell>
+                            Responsive
+                          </label>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`technical-score-${line.id}`}>
+                              Technical Score
+                            </Label>
                             <Input
+                              id={`technical-score-${line.id}`}
                               type="number"
                               min={0}
                               max={100}
                               step="0.01"
-                              value={scorecardDraft[line.id]?.technicalScore ?? line.technicalScore}
+                              value={
+                                scorecardDraft[line.id]?.technicalScore ??
+                                line.technicalScore
+                              }
                               disabled={!canManage}
                               onChange={(event) =>
                                 updateScoreLine(line.id, {
@@ -614,14 +645,14 @@ export default function ComparativeStatementsPage() {
                                 })
                               }
                             />
-                          </TableCell>
-                          <TableCell>{Number(line.financialScore || 0).toFixed(2)}</TableCell>
-                          <TableCell>{Number(line.combinedScore || 0).toFixed(4)}</TableCell>
-                          <TableCell>
-                            {formatMoney(line.financialGrandTotal)} {line.currency}
-                          </TableCell>
-                          <TableCell>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`technical-note-${line.id}`}>
+                              Technical Note
+                            </Label>
                             <Input
+                              id={`technical-note-${line.id}`}
                               value={scorecardDraft[line.id]?.technicalNote ?? ""}
                               disabled={!canManage}
                               onChange={(event) =>
@@ -630,15 +661,99 @@ export default function ComparativeStatementsPage() {
                                 })
                               }
                             />
-                          </TableCell>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="hidden overflow-x-auto md:block">
+                    <Table className="min-w-[920px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Rank</TableHead>
+                          <TableHead>Supplier</TableHead>
+                          <TableHead>Responsive</TableHead>
+                          <TableHead>Technical</TableHead>
+                          <TableHead>Financial</TableHead>
+                          <TableHead>Combined</TableHead>
+                          <TableHead>Grand Total</TableHead>
+                          <TableHead>Technical Note</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedStatement.lines.map((line) => (
+                          <TableRow key={line.id}>
+                            <TableCell>{line.rank ?? "-"}</TableCell>
+                            <TableCell className="min-w-[180px]">
+                              <div className="font-medium">{line.supplier.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {line.supplier.code}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <input
+                                type="checkbox"
+                                checked={scorecardDraft[line.id]?.isResponsive ?? line.isResponsive}
+                                disabled={!canManage}
+                                onChange={(event) =>
+                                  updateScoreLine(line.id, {
+                                    isResponsive: event.target.checked,
+                                  })
+                                }
+                              />
+                            </TableCell>
+                            <TableCell className="min-w-[140px]">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step="0.01"
+                                value={
+                                  scorecardDraft[line.id]?.technicalScore ??
+                                  line.technicalScore
+                                }
+                                disabled={!canManage}
+                                onChange={(event) =>
+                                  updateScoreLine(line.id, {
+                                    technicalScore: event.target.value,
+                                  })
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {Number(line.financialScore || 0).toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              {Number(line.combinedScore || 0).toFixed(4)}
+                            </TableCell>
+                            <TableCell className="min-w-[150px]">
+                              {formatMoney(line.financialGrandTotal)} {line.currency}
+                            </TableCell>
+                            <TableCell className="min-w-[220px]">
+                              <Input
+                                value={scorecardDraft[line.id]?.technicalNote ?? ""}
+                                disabled={!canManage}
+                                onChange={(event) =>
+                                  updateScoreLine(line.id, {
+                                    technicalNote: event.target.value,
+                                  })
+                                }
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
 
                   {canManage &&
                   !["FINAL_APPROVED", "CANCELLED"].includes(selectedStatement.status) ? (
-                    <Button onClick={() => void saveScorecard()} disabled={saving}>
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={() => void saveScorecard()}
+                      disabled={saving}
+                    >
                       {saving ? "Saving..." : "Save Scorecard"}
                     </Button>
                   ) : null}
