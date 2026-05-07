@@ -826,6 +826,10 @@ body {
     background-color: hsl(var(--stock-card-low-stock));
   }
 
+  .font-lexend {
+  font-family: var(--font-lexend), sans-serif;
+}
+
   .stock-summary-card-out-of-stock {
     background-color: hsl(var(--stock-card-out-of-stock));
   }
@@ -859,10 +863,115 @@ body {
 }
 
 /* ========================
-   RUBIK FONT UTILITIES
+   PREMIUM FONT UTILITIES
 ======================== */
 
 @layer utilities {
+  /* Syne font family - Unique and Premium */
+  .syne-regular {
+    font-family: var(--font-syne);
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  .syne-medium {
+    font-family: var(--font-syne);
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  .syne-semibold {
+    font-family: var(--font-syne);
+    font-weight: 600;
+    font-style: normal;
+  }
+
+  .syne-bold {
+    font-family: var(--font-syne);
+    font-weight: 700;
+    font-style: normal;
+  }
+
+  .syne-extrabold {
+    font-family: var(--font-syne);
+    font-weight: 800;
+    font-style: normal;
+  }
+
+  /* Lexend font family - Modern and Comfortable */
+  .lexend-thin {
+    font-family: var(--font-lexend);
+    font-weight: 100;
+    font-style: normal;
+  }
+
+  .lexend-extralight {
+    font-family: var(--font-lexend);
+    font-weight: 200;
+    font-style: normal;
+  }
+
+  .lexend-light {
+    font-family: var(--font-lexend);
+    font-weight: 300;
+    font-style: normal;
+  }
+
+  .lexend-regular {
+    font-family: var(--font-lexend);
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  .lexend-medium {
+    font-family: var(--font-lexend);
+    font-weight: 500;
+    font-style: normal;
+  }
+
+  .lexend-semibold {
+    font-family: var(--font-lexend);
+    font-weight: 600;
+    font-style: normal;
+  }
+
+  .lexend-bold {
+    font-family: var(--font-lexend);
+    font-weight: 700;
+    font-style: normal;
+  }
+
+  .lexend-extrabold {
+    font-family: var(--font-lexend);
+    font-weight: 800;
+    font-style: normal;
+  }
+
+  .lexend-black {
+    font-family: var(--font-lexend);
+    font-weight: 900;
+    font-style: normal;
+  }
+
+  /* Generic font classes */
+  .syne {
+    font-family: var(--font-syne);
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  .lexend {
+    font-family: var(--font-lexend);
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+  }
+
+  /* ========================
+   RUBIK FONT UTILITIES
+======================== */
+
   /* Rubik font family with different weights */
   .rubik-light {
     font-family: var(--font-rubik);
