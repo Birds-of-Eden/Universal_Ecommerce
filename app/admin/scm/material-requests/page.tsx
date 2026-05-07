@@ -13,7 +13,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 
 type Warehouse = {
   id: number;
@@ -113,6 +112,7 @@ export default function MaterialRequestsPage() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id as string | undefined;
+
   const permissions = Array.isArray((session?.user as any)?.permissions)
     ? ((session?.user as any).permissions as string[])
     : [];
@@ -128,11 +128,10 @@ export default function MaterialRequestsPage() {
       "material_releases.manage",
     ].includes(permission),
   );
+
   const canManage = permissions.includes("material_requests.manage");
   const canSupervisorEndorse = permissions.includes("material_requests.endorse_supervisor");
-  const canProjectManagerEndorse = permissions.includes(
-    "material_requests.endorse_project_manager",
-  );
+  const canProjectManagerEndorse = permissions.includes("material_requests.endorse_project_manager");
   const canAdminApprove = permissions.includes("material_requests.approve_admin");
 
   const [loading, setLoading] = useState(true);
@@ -140,9 +139,7 @@ export default function MaterialRequestsPage() {
   const [requests, setRequests] = useState<MaterialRequest[]>([]);
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "ALL");
-  const [focusFilter, setFocusFilter] = useState(
-    (searchParams.get("focus") || "ALL").toUpperCase(),
-  );
+  const [focusFilter, setFocusFilter] = useState((searchParams.get("focus") || "ALL").toUpperCase());
   const [actionNotes, setActionNotes] = useState<Record<number, string>>({});
 
   useEffect(() => {
@@ -157,6 +154,7 @@ export default function MaterialRequestsPage() {
       const requestData = await fetch("/api/scm/material-requests", {
         cache: "no-store",
       }).then((res) => readJson<MaterialRequest[]>(res, "Failed to load material requests"));
+
       setRequests(Array.isArray(requestData) ? requestData : []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load material request data");
@@ -174,27 +172,35 @@ export default function MaterialRequestsPage() {
 
   const visibleRequests = useMemo(() => {
     const query = search.trim().toLowerCase();
+
     return requests.filter((request) => {
       if (statusFilter !== "ALL" && request.status !== statusFilter) return false;
       if (focusFilter === "SUPERVISOR-QUEUE" && request.status !== "SUBMITTED") return false;
       if (focusFilter === "PROJECT-QUEUE" && request.status !== "SUPERVISOR_ENDORSED") return false;
       if (focusFilter === "ADMIN-QUEUE" && request.status !== "PROJECT_MANAGER_ENDORSED") return false;
+
       if (
         focusFilter === "READY-FOR-RELEASE" &&
         !["ADMIN_APPROVED", "PARTIALLY_RELEASED"].includes(request.status)
       ) {
         return false;
       }
+
       if (
         focusFilter === "MY-ACTIVE" &&
         (request.createdById !== userId ||
-          !["SUBMITTED", "SUPERVISOR_ENDORSED", "PROJECT_MANAGER_ENDORSED", "ADMIN_APPROVED"].includes(
-            request.status,
-          ))
+          ![
+            "SUBMITTED",
+            "SUPERVISOR_ENDORSED",
+            "PROJECT_MANAGER_ENDORSED",
+            "ADMIN_APPROVED",
+          ].includes(request.status))
       ) {
         return false;
       }
+
       if (!query) return true;
+
       return (
         request.requestNumber.toLowerCase().includes(query) ||
         request.warehouse.name.toLowerCase().includes(query) ||
@@ -228,9 +234,15 @@ export default function MaterialRequestsPage() {
           note: actionNotes[materialRequestId] || undefined,
         }),
       });
+
       await readJson(response, `Failed to ${action} material request`);
       toast.success(`Material request ${action.replaceAll("_", " ")} completed`);
-      setActionNotes((current) => ({ ...current, [materialRequestId]: "" }));
+
+      setActionNotes((current) => ({
+        ...current,
+        [materialRequestId]: "",
+      }));
+
       await loadData();
     } catch (error: any) {
       toast.error(error?.message || `Failed to ${action} material request`);
@@ -241,7 +253,7 @@ export default function MaterialRequestsPage() {
 
   if (!canRead) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <Card>
           <CardHeader>
             <CardTitle>Forbidden</CardTitle>
@@ -255,7 +267,7 @@ export default function MaterialRequestsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Material Requests</h1>
@@ -263,23 +275,30 @@ export default function MaterialRequestsPage() {
             Manage warehouse material requisitions from requester draft to multi-stage approval.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
           {canManage ? (
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
               <Link href="/admin/scm/material-requests/new">
                 <Plus className="mr-2 h-4 w-4" />
                 New Material Request
               </Link>
             </Button>
           ) : null}
-          <Button variant="outline" onClick={() => void loadData()} disabled={loading}>
+
+          <Button
+            variant="outline"
+            onClick={() => void loadData()}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <ScmStatCard label="Total" value={String(summary.total)} hint="Visible material requests" />
         <ScmStatCard label="Supervisor Queue" value={String(summary.awaitingSupervisor)} hint="Waiting for supervisor endorsement" />
         <ScmStatCard label="Project Queue" value={String(summary.awaitingProject)} hint="Waiting for project manager review" />
@@ -306,8 +325,10 @@ export default function MaterialRequestsPage() {
                           : "Showing a filtered material request queue."}
               </p>
             </div>
+
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => {
                 setFocusFilter("ALL");
                 setStatusFilter("ALL");
@@ -327,13 +348,15 @@ export default function MaterialRequestsPage() {
             Track request status, approval events, and release readiness.
           </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_auto]">
             <Input
               placeholder="Search by request number, title, purpose, or warehouse..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
+
             <select
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={focusFilter}
@@ -346,6 +369,7 @@ export default function MaterialRequestsPage() {
               <option value="READY-FOR-RELEASE">Ready for release</option>
               <option value="MY-ACTIVE">My active requests</option>
             </select>
+
             <select
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={statusFilter}
@@ -362,6 +386,7 @@ export default function MaterialRequestsPage() {
               <option value="REJECTED">REJECTED</option>
               <option value="CANCELLED">CANCELLED</option>
             </select>
+
             <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
               {visibleRequests.length} visible request{visibleRequests.length === 1 ? "" : "s"}
             </div>
@@ -377,6 +402,7 @@ export default function MaterialRequestsPage() {
                 const canCancel =
                   ["DRAFT", "SUBMITTED"].includes(request.status) &&
                   (canManage || (request.createdById !== null && request.createdById === userId));
+
                 const canReject =
                   ["SUBMITTED", "SUPERVISOR_ENDORSED", "PROJECT_MANAGER_ENDORSED"].includes(
                     request.status,
@@ -386,7 +412,7 @@ export default function MaterialRequestsPage() {
                 return (
                   <Card key={request.id}>
                     <CardHeader className="gap-3">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <CardTitle className="text-lg">{request.requestNumber}</CardTitle>
                           <CardDescription>
@@ -394,8 +420,10 @@ export default function MaterialRequestsPage() {
                             {request.title ? ` • ${request.title}` : ""}
                           </CardDescription>
                         </div>
+
                         <ScmStatusChip status={request.status} />
                       </div>
+
                       <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
                         <div>Requested: {formatDateTime(request.requestedAt)}</div>
                         <div>Required By: {formatDateTime(request.requiredBy)}</div>
@@ -403,16 +431,20 @@ export default function MaterialRequestsPage() {
                         <div>Admin Approved: {formatDateTime(request.adminApprovedAt)}</div>
                       </div>
                     </CardHeader>
+
                     <CardContent className="space-y-4">
                       <div className="grid gap-2 text-sm md:grid-cols-2 xl:grid-cols-4">
                         <div>
-                          <span className="text-muted-foreground">Purpose:</span> {request.purpose || "-"}
+                          <span className="text-muted-foreground">Purpose:</span>{" "}
+                          {request.purpose || "-"}
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Budget:</span> {request.budgetCode || "-"}
+                          <span className="text-muted-foreground">Budget:</span>{" "}
+                          {request.budgetCode || "-"}
                         </div>
                         <div>
-                          <span className="text-muted-foreground">BOQ:</span> {request.boqReference || "-"}
+                          <span className="text-muted-foreground">BOQ:</span>{" "}
+                          {request.boqReference || "-"}
                         </div>
                         <div>
                           <span className="text-muted-foreground">Created By:</span>{" "}
@@ -421,58 +453,76 @@ export default function MaterialRequestsPage() {
                       </div>
 
                       {request.specification ? (
-                        <p className="text-sm text-muted-foreground">Specification: {request.specification}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Specification: {request.specification}
+                        </p>
                       ) : null}
 
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Item</TableHead>
-                            <TableHead>Requested</TableHead>
-                            <TableHead>Released</TableHead>
-                            <TableHead>Remaining</TableHead>
-                            <TableHead>Class</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {request.items.map((item) => {
-                            const remaining = Math.max(0, item.quantityRequested - item.quantityReleased);
-                            return (
-                              <TableRow key={item.id}>
-                                <TableCell>
-                                  <div className="font-medium">{item.productVariant.product.name}</div>
-                                  <div className="text-xs text-muted-foreground">{item.productVariant.sku}</div>
-                                </TableCell>
-                                <TableCell>{item.quantityRequested}</TableCell>
-                                <TableCell>{item.quantityReleased}</TableCell>
-                                <TableCell>{remaining}</TableCell>
-                                <TableCell>
-                                  {item.productVariant.product.inventoryItemClass}
-                                  {item.productVariant.product.requiresAssetTag ? " • TAG" : ""}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                      <div className="w-full overflow-x-auto">
+                        <Table className="min-w-[720px]">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Item</TableHead>
+                              <TableHead>Requested</TableHead>
+                              <TableHead>Released</TableHead>
+                              <TableHead>Remaining</TableHead>
+                              <TableHead>Class</TableHead>
+                            </TableRow>
+                          </TableHeader>
+
+                          <TableBody>
+                            {request.items.map((item) => {
+                              const remaining = Math.max(
+                                0,
+                                item.quantityRequested - item.quantityReleased,
+                              );
+
+                              return (
+                                <TableRow key={item.id}>
+                                  <TableCell>
+                                    <div className="font-medium">
+                                      {item.productVariant.product.name}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {item.productVariant.sku}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>{item.quantityRequested}</TableCell>
+                                  <TableCell>{item.quantityReleased}</TableCell>
+                                  <TableCell>{remaining}</TableCell>
+                                  <TableCell>
+                                    {item.productVariant.product.inventoryItemClass}
+                                    {item.productVariant.product.requiresAssetTag ? " • TAG" : ""}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
 
                       {request.attachments.length > 0 ? (
                         <div className="rounded-md border p-3">
                           <div className="mb-2 text-sm font-medium">Attachments</div>
                           <div className="space-y-1 text-sm">
                             {request.attachments.map((attachment) => (
-                              <div key={attachment.id} className="flex flex-wrap items-center gap-2">
+                              <div
+                                key={attachment.id}
+                                className="flex min-w-0 flex-wrap items-center gap-2"
+                              >
                                 <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
                                 <a
                                   href={attachment.fileUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="underline"
+                                  className="max-w-full truncate underline"
                                 >
                                   {attachment.fileName}
                                 </a>
                                 {attachment.note ? (
-                                  <span className="text-xs text-muted-foreground">({attachment.note})</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    ({attachment.note})
+                                  </span>
                                 ) : null}
                               </div>
                             ))}
@@ -494,14 +544,18 @@ export default function MaterialRequestsPage() {
                         />
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/admin/scm/material-requests/${request.id}`}>Open Detail</Link>
+                      <div className="grid gap-2 sm:flex sm:flex-wrap">
+                        <Button size="sm" variant="outline" asChild className="w-full sm:w-auto">
+                          <Link href={`/admin/scm/material-requests/${request.id}`}>
+                            Open Detail
+                          </Link>
                         </Button>
+
                         {canManage && request.status === "DRAFT" ? (
                           <Button
                             size="sm"
                             variant="outline"
+                            className="w-full sm:w-auto"
                             onClick={() => void runAction(request.id, "submit")}
                             disabled={saving}
                           >
@@ -513,6 +567,7 @@ export default function MaterialRequestsPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="w-full sm:w-auto"
                             onClick={() => void runAction(request.id, "endorse_supervisor")}
                             disabled={saving}
                           >
@@ -524,6 +579,7 @@ export default function MaterialRequestsPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="w-full sm:w-auto"
                             onClick={() => void runAction(request.id, "endorse_project_manager")}
                             disabled={saving}
                           >
@@ -535,6 +591,7 @@ export default function MaterialRequestsPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="w-full sm:w-auto"
                             onClick={() => void runAction(request.id, "approve_admin")}
                             disabled={saving}
                           >
@@ -546,6 +603,7 @@ export default function MaterialRequestsPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="w-full sm:w-auto"
                             onClick={() => void runAction(request.id, "reject")}
                             disabled={saving}
                           >
@@ -557,6 +615,7 @@ export default function MaterialRequestsPage() {
                           <Button
                             size="sm"
                             variant="ghost"
+                            className="w-full sm:w-auto"
                             onClick={() => void runAction(request.id, "cancel")}
                             disabled={saving}
                           >
