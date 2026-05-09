@@ -502,6 +502,10 @@ const adminPagePermissionRules: PermissionRule[] = [
     prefix: "/admin/operations/shipments",
     permissions: ["shipments.manage", "orders.read_all"],
   },
+  {
+    prefix: "/admin/operations/delivery",
+    permissions: ["delivery.dashboard.access"],
+  },
   { prefix: "/admin/warehouse/logistics", permissions: ["logistics.manage"] },
   {
     prefix: "/admin/warehouse/delivery-men",
