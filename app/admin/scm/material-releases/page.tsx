@@ -224,7 +224,7 @@ export default function MaterialReleasesPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <ScmStatCard label="Total" value={String(summary.total)} hint="Visible release notes" />
         <ScmStatCard label="Issued" value={String(summary.issued)} hint="Completed warehouse stock-out" />
         <ScmStatCard label="Cancelled" value={String(summary.cancelled)} hint="Release notes voided before use" />

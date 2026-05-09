@@ -312,105 +312,333 @@ export default function MaterialReleaseReportPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Release Register</CardTitle>
-          <CardDescription>
-            Use print actions to generate challan/waybill documents.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading report rows...</p>
-          ) : releases.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No release data found for selected filters.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Release</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead>Request</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {releases.map((release) => {
-                  const qty = release.items.reduce((sum, item) => sum + item.quantityReleased, 0);
-                  const value = release.items.reduce(
-                    (sum, item) => sum + Number(item.unitCost || 0) * item.quantityReleased,
-                    0,
-                  );
+<Card className="overflow-hidden border-border/60 bg-card/95 shadow-sm">
+  <CardHeader className="space-y-2 border-b border-border/50 pb-4">
+    <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <CardTitle className="text-lg font-bold text-foreground sm:text-xl">
+          Release Register
+        </CardTitle>
 
-                  return (
-                    <TableRow key={release.id}>
-                      <TableCell>
+        <CardDescription className="mt-1 text-xs sm:text-sm">
+          Use print actions to generate challan/waybill documents.
+        </CardDescription>
+      </div>
+
+      <div className="status-pill w-fit rounded-full px-3 py-1 text-xs font-medium">
+        Total Releases: {releases.length}
+      </div>
+    </div>
+  </CardHeader>
+
+  <CardContent className="p-0">
+    {loading ? (
+      <div className="flex min-h-[220px] items-center justify-center p-6">
+        <p className="text-sm text-muted-foreground">
+          Loading report rows...
+        </p>
+      </div>
+    ) : releases.length === 0 ? (
+      <div className="flex min-h-[220px] items-center justify-center p-6">
+        <p className="text-center text-sm text-muted-foreground">
+          No release data found for selected filters.
+        </p>
+      </div>
+    ) : (
+      <>
+        {/* Desktop Table */}
+        <div className="hidden w-full overflow-x-auto lg:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="whitespace-nowrap">
+                  Release
+                </TableHead>
+
+                <TableHead className="whitespace-nowrap">
+                  Warehouse
+                </TableHead>
+
+                <TableHead className="whitespace-nowrap">
+                  Request
+                </TableHead>
+
+                <TableHead className="whitespace-nowrap">
+                  Status
+                </TableHead>
+
+                <TableHead className="whitespace-nowrap text-right">
+                  Qty
+                </TableHead>
+
+                <TableHead className="whitespace-nowrap text-right">
+                  Value
+                </TableHead>
+
+                <TableHead className="whitespace-nowrap text-right">
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {releases.map((release) => {
+                const qty = release.items.reduce(
+                  (sum, item) => sum + item.quantityReleased,
+                  0,
+                );
+
+                const value = release.items.reduce(
+                  (sum, item) =>
+                    sum +
+                    Number(item.unitCost || 0) *
+                      item.quantityReleased,
+                  0,
+                );
+
+                return (
+                  <TableRow
+                    key={release.id}
+                    className="transition-colors hover:bg-muted/30"
+                  >
+                    <TableCell className="min-w-[240px]">
+                      <div className="space-y-1">
                         <Link
                           href={`/admin/scm/material-releases/${release.id}`}
-                          className="font-medium underline-offset-4 hover:underline"
+                          className="font-semibold text-primary underline-offset-4 hover:underline"
                         >
                           {release.releaseNumber}
                         </Link>
+
                         <div className="text-xs text-muted-foreground">
                           {formatDateTime(release.releasedAt)}
                         </div>
+
                         <div className="text-xs text-muted-foreground">
-                          CHL: {release.challanNumber || "N/A"} | WBL: {release.waybillNumber || "N/A"}
+                          CHL:{" "}
+                          {release.challanNumber || "N/A"} | WBL:{" "}
+                          {release.waybillNumber || "N/A"}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {release.warehouse.name} ({release.warehouse.code})
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/admin/scm/material-requests/${release.materialRequest.id}`}
-                          className="underline-offset-4 hover:underline"
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="min-w-[180px]">
+                      <div className="font-medium">
+                        {release.warehouse.name}
+                      </div>
+
+                      <div className="text-xs text-muted-foreground">
+                        {release.warehouse.code}
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="min-w-[180px]">
+                      <Link
+                        href={`/admin/scm/material-requests/${release.materialRequest.id}`}
+                        className="font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        {release.materialRequest.requestNumber}
+                      </Link>
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="status-pill-good rounded-full px-2.5 py-1 text-xs font-semibold">
+                        {release.status}
+                      </span>
+                    </TableCell>
+
+                    <TableCell className="text-right font-semibold">
+                      {qty}
+                    </TableCell>
+
+                    <TableCell className="text-right font-semibold">
+                      {formatMoney(value)}
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          onClick={() =>
+                            window.open(
+                              `/admin/scm/material-releases/${release.id}/print?type=challan`,
+                              "_blank",
+                            )
+                          }
                         >
-                          {release.materialRequest.requestNumber}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{release.status}</TableCell>
-                      <TableCell>{qty}</TableCell>
-                      <TableCell>{formatMoney(value)}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              window.open(
-                                `/admin/scm/material-releases/${release.id}/print?type=challan`,
-                                "_blank",
-                              )
-                            }
-                          >
-                            <Printer className="mr-1 h-3.5 w-3.5" /> Challan
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              window.open(
-                                `/admin/scm/material-releases/${release.id}/print?type=waybill`,
-                                "_blank",
-                              )
-                            }
-                          >
-                            <Printer className="mr-1 h-3.5 w-3.5" /> Waybill
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                          <Printer className="mr-1 h-3.5 w-3.5" />
+                          Challan
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          onClick={() =>
+                            window.open(
+                              `/admin/scm/material-releases/${release.id}/print?type=waybill`,
+                              "_blank",
+                            )
+                          }
+                        >
+                          <Printer className="mr-1 h-3.5 w-3.5" />
+                          Waybill
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile + Tablet Cards */}
+        <div className="grid gap-4 p-4 lg:hidden">
+          {releases.map((release) => {
+            const qty = release.items.reduce(
+              (sum, item) => sum + item.quantityReleased,
+              0,
+            );
+
+            const value = release.items.reduce(
+              (sum, item) =>
+                sum +
+                Number(item.unitCost || 0) *
+                  item.quantityReleased,
+              0,
+            );
+
+            return (
+              <div
+                key={release.id}
+                className="overflow-hidden rounded-2xl border border-border/60 bg-background/80 p-4 shadow-sm"
+              >
+                <div className="flex flex-col gap-4">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/admin/scm/material-releases/${release.id}`}
+                        className="line-clamp-1 text-sm font-bold text-primary underline-offset-4 hover:underline sm:text-base"
+                      >
+                        {release.releaseNumber}
+                      </Link>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatDateTime(release.releasedAt)}
+                      </p>
+                    </div>
+
+                    <span className="status-pill-good shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold sm:text-xs">
+                      {release.status}
+                    </span>
+                  </div>
+
+                  {/* Body */}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl bg-muted/40 p-3">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        Warehouse
+                      </p>
+
+                      <p className="mt-1 font-semibold text-foreground">
+                        {release.warehouse.name}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground">
+                        {release.warehouse.code}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-muted/40 p-3">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        Request
+                      </p>
+
+                      <Link
+                        href={`/admin/scm/material-requests/${release.materialRequest.id}`}
+                        className="mt-1 block font-semibold text-primary underline-offset-4 hover:underline"
+                      >
+                        {release.materialRequest.requestNumber}
+                      </Link>
+                    </div>
+
+                    <div className="rounded-xl bg-muted/40 p-3">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        Quantity
+                      </p>
+
+                      <p className="mt-1 text-base font-bold text-foreground">
+                        {qty}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-muted/40 p-3">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        Value
+                      </p>
+
+                      <p className="mt-1 text-base font-bold text-foreground">
+                        {formatMoney(value)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="space-y-2 rounded-xl bg-muted/30 p-3">
+                    <div className="text-xs text-muted-foreground">
+                      CHL: {release.challanNumber || "N/A"}
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      WBL: {release.waybillNumber || "N/A"}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        window.open(
+                          `/admin/scm/material-releases/${release.id}/print?type=challan`,
+                          "_blank",
+                        )
+                      }
+                    >
+                      <Printer className="mr-1 h-3.5 w-3.5" />
+                      Challan
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        window.open(
+                          `/admin/scm/material-releases/${release.id}/print?type=waybill`,
+                          "_blank",
+                        )
+                      }
+                    >
+                      <Printer className="mr-1 h-3.5 w-3.5" />
+                      Waybill
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </>
+    )}
+  </CardContent>
+</Card>
     </div>
   );
 }

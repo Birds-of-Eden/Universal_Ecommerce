@@ -204,8 +204,8 @@ export default function InvestorRetainedProfitPage() {
                   onClick={() => void openRun(run.id)}
                   className={`w-full rounded-lg border p-4 text-left transition-colors ${
                     payload.selectedRunId === run.id
-                      ? "border-emerald-300 bg-emerald-50"
-                      : "border-slate-200 hover:border-emerald-300"
+                      ? "border-primary/30 bg-primary/10"
+                      : "border-border bg-card hover:border-primary/40"
                   }`}
                 >
                   <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

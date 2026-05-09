@@ -42,10 +42,10 @@ export function ScmDocumentLifecycle({
           Follow upstream and downstream documents without leaving the workflow context.
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+      <div className="grid gap-3 grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
         {stages.map((stage) => {
           const content = (
-            <div className={`rounded-lg border p-3 ${stageClasses(stage.state)}`}>
+            <div className="rounded-lg border p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   {stage.label}

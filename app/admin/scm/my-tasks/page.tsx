@@ -69,7 +69,7 @@ export default function ScmMyTasksPage() {
       {loading ? <p className="text-sm text-muted-foreground">Loading SCM task queue...</p> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <ScmStatCard
           label="Needs My Action"
           value={data?.summary.needsMyAction ?? 0}
@@ -98,7 +98,7 @@ export default function ScmMyTasksPage() {
         />
       </div>
 
-      <section className="space-y-4">
+      <section className="space-y-4 ">
         <ScmSectionHeader
           title="Needs My Action"
           description="Start here first. These are the approvals, confirmations, and workflow moves currently waiting on you."
@@ -115,7 +115,7 @@ export default function ScmMyTasksPage() {
         />
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-4 ">
         <ScmSectionHeader
           title="Waiting On Others"
           description="These are your documents that already moved forward and are now with another team or approval stage."

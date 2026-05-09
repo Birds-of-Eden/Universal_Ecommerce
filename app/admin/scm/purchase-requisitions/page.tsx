@@ -148,7 +148,7 @@ export default function PurchaseRequisitionsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <ScmStatCard label="Total" value={String(summary.total)} hint="Visible requisitions" />
         <ScmStatCard label="Pending Approval" value={String(summary.pending)} hint="Submitted, budget-cleared, endorsed" />
         <ScmStatCard label="Approved" value={String(summary.approved)} hint="Ready for sourcing or conversion" />

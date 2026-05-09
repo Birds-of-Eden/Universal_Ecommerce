@@ -248,7 +248,7 @@ export default function WarehouseTransferDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <ScmStatCard label="Requested" value={String(requested)} hint={`${transfer.items.length} lines`} />
         <ScmStatCard label="Dispatched" value={String(dispatched)} hint={`Remaining ${Math.max(0, requested - dispatched)}`} />
         <ScmStatCard label="Received" value={String(received)} hint={`In transit ${Math.max(0, dispatched - received)}`} />

@@ -428,253 +428,293 @@ export default function ScmHomePage() {
   const lowStockCount = overview?.overview.lowStockVariants ?? 0;
 
   return (
-    <div className="space-y-8 p-4 md:p-6">
-      <ScmSectionHeader
-        title="SCM Workspace"
-        description="Start from work queues, risks, and next actions instead of hunting across modules."
-        action={
-          <>
-            <Button asChild variant="outline">
-              <Link href="/admin/scm/my-tasks">My Tasks</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/admin/scm/exceptions">Exceptions</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/admin/scm/notifications">Notifications</Link>
-            </Button>
-            <Button variant="outline" onClick={() => void loadWorkspace()}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
-            </Button>
-          </>
-        }
-      />
-
-      {loading ? <p className="text-sm text-muted-foreground">Loading SCM workspace...</p> : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScmStatCard
-          label="Needs My Action"
-          value={needsMyAction}
-          hint="Documents currently waiting on you."
-          icon={ClipboardCheck}
-          tone={needsMyAction > 0 ? "warning" : "default"}
+    <div className="min-h-screen space-y-6 px-3 py-4 sm:space-y-8 sm:px-4 sm:py-6 md:px-6 lg:px-8">
+      {/* Header Section - Responsive */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <ScmSectionHeader
+          title="SCM Workspace"
+          description="Start from work queues, risks, and next actions instead of hunting across modules."
         />
-        <ScmStatCard
-          label="Overdue Work"
-          value={overdue}
-          hint="Items stalled beyond expected response time."
-          icon={AlertTriangle}
-          tone={overdue > 0 ? "critical" : "default"}
-        />
-        <ScmStatCard
-          label="Unread Notifications"
-          value={unreadCount}
-          hint="Internal SCM workflow updates."
-          icon={Bell}
-          tone={unreadCount > 0 ? "warning" : "default"}
-        />
-        <ScmStatCard
-          label="Critical Exceptions"
-          value={criticalExceptions}
-          hint={canReadReports ? `${lowStockCount} low-stock variants in latest scan.` : "Risk queue needing immediate review."}
-          icon={Radar}
-          tone={criticalExceptions > 0 ? "critical" : "default"}
-        />
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-initial">
+            <Link href="/admin/scm/my-tasks">My Tasks</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-initial">
+            <Link href="/admin/scm/exceptions">Exceptions</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-initial">
+            <Link href="/admin/scm/notifications">Notifications</Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void loadWorkspace()} className="flex-1 sm:flex-initial">
+            <RefreshCw className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Refresh</span>
+            <span className="sm:hidden">Sync</span>
+          </Button>
+        </div>
       </div>
 
-      {canReadReports && overview ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <ScmStatCard
-            label="Pending Approvals"
-            value={overview.overview.pendingApprovals}
-            hint="Current approval workload across SCM."
-            icon={ClipboardList}
-          />
-          <ScmStatCard
-            label="Ordered Value"
-            value={fmtCurrency(overview.overview.totalOrderedAmount)}
-            hint="PO value in the last 30 days."
-            icon={ShoppingCart}
-            tone="success"
-          />
-          <ScmStatCard
-            label="Supplier Payments"
-            value={fmtCurrency(overview.overview.totalSupplierPayments)}
-            hint="Treasury settlements in the last 30 days."
-            icon={FileText}
-            tone="success"
-          />
-          <ScmStatCard
-            label="Audit Events"
-            value={overview.overview.auditEvents}
-            hint="Recent SCM change footprint."
-            icon={Bell}
-          />
+      {/* Loading & Error States */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <RefreshCw className="mx-auto h-8 w-8 animate-spin text-primary" />
+            <p className="mt-2 text-sm text-muted-foreground">Loading SCM workspace...</p>
+          </div>
         </div>
-      ) : null}
+      )}
+      
+      {error && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr,1fr,1fr]">
-        <section className="space-y-4">
-          <ScmSectionHeader
-            title="My Work Today"
-            description="Start from documents that require your approval, confirmation, or update."
-          />
-          <ScmActionList
-            items={tasks?.needsMyAction.slice(0, 4) ?? []}
-            empty={
-              <ScmEmptyState
-                title="Nothing is blocked on you"
-                description="Your immediate approval and execution queue is clear."
-                icon={ClipboardCheck}
-              />
-            }
-          />
-        </section>
+      {/* Stats Grid - Responsive */}
+      {!loading && !error && (
+        <>
+          <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+            <ScmStatCard
+              label="Needs My Action"
+              value={needsMyAction}
+              hint="Documents currently waiting on you."
+              icon={ClipboardCheck}
+              tone={needsMyAction > 0 ? "warning" : "default"}
+            />
+            <ScmStatCard
+              label="Overdue Work"
+              value={overdue}
+              hint="Items stalled beyond expected response time."
+              icon={AlertTriangle}
+              tone={overdue > 0 ? "critical" : "default"}
+            />
+            <ScmStatCard
+              label="Unread Notifications"
+              value={unreadCount}
+              hint="Internal SCM workflow updates."
+              icon={Bell}
+              tone={unreadCount > 0 ? "warning" : "default"}
+            />
+            <ScmStatCard
+              label="Critical Exceptions"
+              value={criticalExceptions}
+              hint={canReadReports ? `${lowStockCount} low-stock variants` : "Risk queue needing review"}
+              icon={Radar}
+              tone={criticalExceptions > 0 ? "critical" : "default"}
+            />
+          </div>
 
-        <section className="space-y-4">
-          <ScmSectionHeader
-            title="Urgent Exceptions"
-            description="Focus here first when approvals, stock, matching, or delivery risk starts to slip."
-          />
-          <ScmExceptionList
-            items={exceptionsData?.critical.slice(0, 4) ?? []}
-            empty={
-              <ScmEmptyState
-                title="No critical exception right now"
-                description="Low-stock, payment backlog, and match-variance alerts are currently under control."
-                icon={AlertTriangle}
-              />
-            }
-          />
-        </section>
-
-        <section className="space-y-4">
-          <ScmSectionHeader
-            title="Continue Previous Work"
-            description="Documents you started are still moving through other teams or approval stages."
-          />
-          <ScmActionList
-            items={tasks?.waitingOnOthers.slice(0, 4) ?? []}
-            empty={
-              <ScmEmptyState
-                title="Nothing waiting on others"
-                description="You do not have open SCM documents currently dependent on downstream teams."
+          {/* Financial Stats - Conditional */}
+          {canReadReports && overview && (
+            <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+              <ScmStatCard
+                label="Pending Approvals"
+                value={overview.overview.pendingApprovals}
+                hint="Current approval workload"
                 icon={ClipboardList}
               />
-            }
-          />
-        </section>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1fr,1.15fr]">
-        <Card className="shadow-none">
-          <CardHeader className="flex flex-row items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg">Recent Notifications</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                The latest workflow changes reaching your internal SCM inbox.
-              </p>
-            </div>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/admin/scm/notifications">Open Inbox</Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {notifications?.rows.length ? (
-              notifications.rows.map((row) => (
-                <Link
-                  key={`${row.type}-${row.id}`}
-                  href={row.href}
-                  className="block rounded-xl border border-border p-3 transition hover:bg-muted/40"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">{row.title}</p>
-                        <ScmStatusChip status={row.readAt ? "READ" : "UNREAD"} />
-                      </div>
-                      <p className="text-sm text-muted-foreground">{row.message}</p>
-                    </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {fmtDate(row.createdAt)}
-                    </span>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <ScmEmptyState
-                title="No recent notifications"
-                description="Workflow updates will appear here as SCM events move forward."
+              <ScmStatCard
+                label="Ordered Value"
+                value={fmtCurrency(overview.overview.totalOrderedAmount)}
+                hint="PO value (30 days)"
+                icon={ShoppingCart}
+                tone="success"
+              />
+              <ScmStatCard
+                label="Supplier Payments"
+                value={fmtCurrency(overview.overview.totalSupplierPayments)}
+                hint="Treasury settlements (30 days)"
+                icon={FileText}
+                tone="success"
+              />
+              <ScmStatCard
+                label="Audit Events"
+                value={overview.overview.auditEvents}
+                hint="Recent SCM changes"
                 icon={Bell}
               />
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <section className="space-y-4">
-            <ScmSectionHeader
-              title="Quick Start"
-              description="Jump directly into the most common SCM actions for your role."
-            />
-            <div className="grid gap-4 md:grid-cols-2">
-              {visibleQuickStart.map((item) => (
-                <Link key={item.title} href={item.href} className="group">
-                  <Card className="h-full border-border shadow-none transition group-hover:border-primary/40 group-hover:bg-primary/5">
-                    <CardContent className="flex h-full items-start gap-4 p-5">
-                      <div className="rounded-xl border border-border bg-background p-3">
-                        <item.icon className="h-5 w-5 text-foreground" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
             </div>
-          </section>
+          )}
 
-          <section className="space-y-4">
-            <ScmSectionHeader
-              title="Module Directory"
-              description="Navigate by business area when you need full workspace access beyond the active task queue."
-            />
-            <div className="grid gap-4 lg:grid-cols-3">
-              {visibleDirectory.map((section) => (
-                <Card key={section.label} className="shadow-none">
-                  <CardHeader>
-                    <CardTitle className="text-base">{section.label}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {section.links.map((item) => (
-                      <Link
-                        key={item.title}
-                        href={item.href}
-                        className="block rounded-lg border border-border p-3 transition hover:bg-muted/40"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="rounded-lg border border-border bg-background p-2">
-                            <item.icon className="h-4 w-4 text-foreground" />
+          {/* Main Content Grid - Responsive with proper stacking */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            {/* My Work Today */}
+            <div className="space-y-4">
+              <ScmSectionHeader
+                title="My Work Today"
+                description="Require your approval, confirmation, or update"
+              />
+              <ScmActionList
+                items={tasks?.needsMyAction.slice(0, 4) ?? []}
+                empty={
+                  <ScmEmptyState
+                    title="Nothing is blocked on you"
+                    description="Your immediate approval queue is clear"
+                    icon={ClipboardCheck}
+                  />
+                }
+              />
+            </div>
+
+            {/* Urgent Exceptions */}
+            <div className="space-y-4">
+              <ScmSectionHeader
+                title="Urgent Exceptions"
+                description="Address these critical issues first"
+              />
+              <ScmExceptionList
+                items={exceptionsData?.critical.slice(0, 4) ?? []}
+                empty={
+                  <ScmEmptyState
+                    title="No critical exceptions"
+                    description="All systems are currently under control"
+                    icon={AlertTriangle}
+                  />
+                }
+              />
+            </div>
+
+            {/* Continue Previous Work */}
+            <div className="space-y-4">
+              <ScmSectionHeader
+                title="Continue Previous Work"
+                description="Documents moving through other teams"
+              />
+              <ScmActionList
+                items={tasks?.waitingOnOthers.slice(0, 4) ?? []}
+                empty={
+                  <ScmEmptyState
+                    title="Nothing waiting on others"
+                    description="No documents currently dependent on other teams"
+                    icon={ClipboardList}
+                  />
+                }
+              />
+            </div>
+          </div>
+
+          {/* Bottom Section - Responsive Grid */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Recent Notifications */}
+            <Card className="shadow-none">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-base sm:text-lg">Recent Notifications</CardTitle>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Latest workflow changes reaching your inbox
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="sm" className="self-start sm:self-auto">
+                  <Link href="/admin/scm/notifications">Open Inbox</Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {notifications?.rows.length ? (
+                  notifications.rows.map((row) => (
+                    <Link
+                      key={`${row.type}-${row.id}`}
+                      href={row.href}
+                      className="block rounded-xl border border-border p-3 transition-all duration-200 hover:bg-muted/40 hover:shadow-sm"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-foreground line-clamp-1">
+                              {row.title}
+                            </p>
+                            <ScmStatusChip status={row.readAt ? "READ" : "UNREAD"} />
                           </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-foreground">{item.title}</p>
-                            <p className="text-xs text-muted-foreground">{item.description}</p>
-                          </div>
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
+                            {row.message}
+                          </p>
                         </div>
-                      </Link>
-                    ))}
-                  </CardContent>
-                </Card>
-              ))}
+                        <span className="shrink-0 text-xs text-muted-foreground sm:text-right">
+                          {fmtDate(row.createdAt)}
+                        </span>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <ScmEmptyState
+                    title="No recent notifications"
+                    description="Workflow updates will appear here"
+                    icon={Bell}
+                  />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Right Column - Quick Start & Module Directory */}
+            <div className="space-y-6">
+              {/* Quick Start Section */}
+              <div className="space-y-4">
+                <ScmSectionHeader
+                  title="Quick Start"
+                  description="Common SCM actions for your role"
+                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {visibleQuickStart.map((item) => (
+                    <Link key={item.title} href={item.href} className="group">
+                      <Card className="h-full border-border shadow-none transition-all duration-200 hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm">
+                        <CardContent className="flex items-start gap-3 p-4 sm:p-5">
+                          <div className="rounded-xl border border-border bg-background p-2.5 shrink-0">
+                            <item.icon className="h-4 w-4 sm:h-5 sm:w-5 text-foreground" />
+                          </div>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
+                              {item.description}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* Module Directory */}
+              <div className="space-y-4">
+                <ScmSectionHeader
+                  title="Module Directory"
+                  description="Navigate by business area"
+                />
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-3">
+                  {visibleDirectory.map((section) => (
+                    <Card key={section.label} className="shadow-none">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm sm:text-base">{section.label}</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        {section.links.map((item) => (
+                          <Link
+                            key={item.title}
+                            href={item.href}
+                            className="block rounded-lg border border-border p-3 transition-all duration-200 hover:bg-muted/40 hover:shadow-sm"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="rounded-lg border border-border bg-background p-2 shrink-0">
+                                <item.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-foreground" />
+                              </div>
+                              <div className="min-w-0 flex-1 space-y-0.5">
+                                <p className="text-xs sm:text-sm font-medium text-foreground line-clamp-1">
+                                  {item.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground line-clamp-2">
+                                  {item.description}
+                                </p>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             </div>
-          </section>
-        </div>
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

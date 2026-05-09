@@ -418,7 +418,7 @@ export default function ReplenishmentPlanningPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <ScmStatCard label="Rules" value={String(rules.length)} hint="Configured replenishment logic" />
         <ScmStatCard label="Triggered" value={String(visibleSuggestions.length)} hint="Current shortage or planning signals" />
         <ScmStatCard label="Purchase Signals" value={String(purchasableSuggestions.length)} hint="Can convert into requisitions" />
@@ -434,7 +434,7 @@ export default function ReplenishmentPlanningPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
               <div className="space-y-2">
                 <Label>Warehouse</Label>
                 <select
@@ -504,7 +504,7 @@ export default function ReplenishmentPlanningPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-4 grid-cols-2 xl:grid-cols-5">
               <div className="space-y-2">
                 <Label>Reorder Point</Label>
                 <Input

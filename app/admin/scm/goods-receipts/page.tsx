@@ -388,8 +388,8 @@ export default function GoodsReceiptsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <ScmStatCard label="Total GRN" value={String(summary.total)} hint="Visible receipt register" />
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-5">
+        <ScmStatCard className="col-span-2 md:col-span-1" label="Total GRN" value={String(summary.total)} hint="Visible receipt register" />
         <ScmStatCard label="Pending Confirmation" value={String(summary.pendingConfirmation)} hint="Requester still needs to confirm" />
         <ScmStatCard label="Variance" value={String(summary.variance)} hint="WO vs delivery vs invoice mismatch" />
         <ScmStatCard label="Evaluation Pending" value={String(summary.incompleteEvaluation)} hint="One or more roles still missing" />

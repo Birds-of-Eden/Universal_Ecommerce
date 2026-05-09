@@ -33,14 +33,15 @@ export default async function EditBlogPage({ params }: EditBlogPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F4F8F7] to-[#EEEFE0] p-4 sm:p-6">
+    <div className="min-h-screen gradient-soft p-4 sm:p-6">
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#0E4B4B] to-[#086666] rounded-2xl shadow-lg p-6 border border-[#F4F8F7]/10">
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-card/95 p-6 shadow-lg backdrop-blur-sm">
+          <div className="gradient-primary absolute inset-x-0 top-0 h-1" />
           <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-br from-[#F4F8F7]/20 to-[#EEEFE0]/20 p-3 rounded-xl border border-[#F4F8F7]/30">
+            <div className="rounded-xl border border-primary/20 bg-primary/10 p-3">
               <svg
-                className="w-6 h-6 text-[#F4F8F7]"
+                className="h-6 w-6 text-primary"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -54,37 +55,37 @@ export default async function EditBlogPage({ params }: EditBlogPageProps) {
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-[#F4F8F7]">
+              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
                 Edit Blog Post
               </h1>
-              <p className="text-[#F4F8F7]/70 text-sm mt-1">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Update your blog post content and details
               </p>
             </div>
           </div>
 
           {/* Breadcrumb */}
-          <nav className="flex space-x-2 text-sm text-[#F4F8F7]/70 mt-4">
+          <nav className="mt-4 flex space-x-2 text-sm text-muted-foreground">
             <Link
               href="/admin"
-              className="hover:text-[#F4F8F7] transition-colors duration-300"
+              className="transition-colors duration-300 hover:text-primary"
             >
               Dashboard
             </Link>
             <span>/</span>
             <Link
               href="/admin/management/blogs"
-              className="hover:text-[#F4F8F7] transition-colors duration-300"
+              className="transition-colors duration-300 hover:text-primary"
             >
               Blogs
             </Link>
             <span>/</span>
-            <span className="text-[#F4F8F7] font-medium">Edit</span>
+            <span className="font-medium text-foreground">Edit</span>
           </nav>
         </div>
 
         {/* Blog Form */}
-        <div className="bg-white/90 backdrop-blur-sm border border-[#D1D8BE] rounded-2xl shadow-lg p-6">
+        <div className="rounded-2xl border border-border bg-card/90 p-6 shadow-lg backdrop-blur-sm">
           <BlogForm blog={blog} />
         </div>
       </div>

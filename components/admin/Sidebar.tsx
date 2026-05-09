@@ -1221,6 +1221,7 @@ export default function Sidebar({
         <SidebarContent
           pathname={pathname}
           items={visibleMenuItems}
+          onClose={onClose}
           isWarehouseScopedOnly={isWarehouseScopedOnly}
         />
       </div>

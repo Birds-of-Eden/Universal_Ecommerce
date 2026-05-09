@@ -298,8 +298,8 @@ export default function MaterialRequestsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <ScmStatCard label="Total" value={String(summary.total)} hint="Visible material requests" />
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-5">
+        <ScmStatCard className="col-span-2 md:col-span-1" label="Total" value={String(summary.total)} hint="Visible material requests" />
         <ScmStatCard label="Supervisor Queue" value={String(summary.awaitingSupervisor)} hint="Waiting for supervisor endorsement" />
         <ScmStatCard label="Project Queue" value={String(summary.awaitingProject)} hint="Waiting for project manager review" />
         <ScmStatCard label="Admin Queue" value={String(summary.awaitingAdmin)} hint="Waiting for admin approval" />
