@@ -101,28 +101,28 @@ export default function SettingsPage() {
         onValueChange={setActiveTab}
         className="space-y-4"
       >
-        <TabsList className="grid w-full grid-cols-3 bg-primary/10 rounded-md">
-          <TabsTrigger
-            value="site"
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            Site Settings
-          </TabsTrigger>
+   <TabsList className="grid w-full grid-cols-3 rounded-md bg-primary/10">
+  <TabsTrigger
+    value="site"
+    className="text-[11px] sm:text-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+  >
+    Site Settings
+  </TabsTrigger>
 
-          <TabsTrigger
-            value="banners"
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            Banner Management
-          </TabsTrigger>
+  <TabsTrigger
+    value="banners"
+    className="text-[11px] sm:text-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+  >
+    Banner Management
+  </TabsTrigger>
 
-          <TabsTrigger
-            value="payments"
-            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            Payment Settings
-          </TabsTrigger>
-        </TabsList>
+  <TabsTrigger
+    value="payments"
+    className="text-[11px] sm:text-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+  >
+    Payment Settings
+  </TabsTrigger>
+</TabsList>
 
         {/* SITE SETTINGS */}
         <TabsContent value="site" className="space-y-4">
@@ -137,25 +137,29 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* BANNERS */}
-        <TabsContent value="banners" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Banner Management</CardTitle>
+       <TabsContent value="banners" className="space-y-4">
+          <Card className="overflow-hidden">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl">
+                Banner Management
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
               {loading ? (
-                <div className="flex items-center justify-center py-8">
+                <div className="flex items-center justify-center py-10">
                   <div className="text-sm text-muted-foreground">
                     Loading banners...
                   </div>
                 </div>
               ) : (
-                <BannerManager
-                  banners={banners}
-                  onCreate={handleCreateBanner}
-                  onUpdate={handleUpdateBanner}
-                  onDelete={handleDeleteBanner}
-                />
+                <div className="w-full overflow-x-auto">
+                  <BannerManager
+                    banners={banners}
+                    onCreate={handleCreateBanner}
+                    onUpdate={handleUpdateBanner}
+                    onDelete={handleDeleteBanner}
+                  />
+                </div>
               )}
             </CardContent>
           </Card>

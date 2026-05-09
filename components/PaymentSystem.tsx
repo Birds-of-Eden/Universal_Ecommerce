@@ -381,14 +381,15 @@ export default function PaymentGatewayManager() {
   return (
     <div className="space-y-6 p-4 w-full">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center sm:flex-row flex-col">
         <div>
           <h1 className="text-3xl font-bold" style={{ color: 'hsl(var(--foreground))' }}>Payment Gateway Management</h1>
         </div>
         <Button
           onClick={startCreating}
+          className="mt-4"
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="h-4 w-4 mr-2 " />
           Add Payment Gateway
         </Button>
       </div>
