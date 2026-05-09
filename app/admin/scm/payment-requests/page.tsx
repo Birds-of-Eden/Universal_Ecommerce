@@ -137,7 +137,7 @@ export default function PaymentRequestsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <ScmStatCard label="Total" value={String(summary.total)} hint="Visible payment requests" />
         <ScmStatCard label="In Workflow" value={String(summary.pending)} hint="Submitted through treasury processing" />
         <ScmStatCard label="Paid" value={String(summary.paid)} hint="Completed settlements" />

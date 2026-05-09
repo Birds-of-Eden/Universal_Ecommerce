@@ -2,11 +2,34 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { RefreshCw } from "lucide-react";
+import {
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Building2,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  FileText,
+  TrendingUp,
+  TrendingDown,
+  Eye,
+  Edit,
+  Save,
+  X,
+  Plus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,6 +41,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 type Supplier = {
   id: number;
@@ -95,7 +127,12 @@ type SlaBreach = {
   observedLeadTimeDays: number | string | null;
   onTimeRatePercent: number | string | null;
   fillRatePercent: number | string | null;
-  actionStatus: "NOT_REQUIRED" | "OPEN" | "IN_PROGRESS" | "RESOLVED" | "DISMISSED";
+  actionStatus:
+    | "NOT_REQUIRED"
+    | "OPEN"
+    | "IN_PROGRESS"
+    | "RESOLVED"
+    | "DISMISSED";
   ownerUserId: string | null;
   dueDate: string | null;
   startedAt: string | null;
@@ -299,7 +336,11 @@ type SlaFormState = {
   terminationLookbackDays: string;
   terminationMinBreachCount: string;
   terminationMinCriticalCount: string;
-  terminationRecommendedAction: "WATCHLIST" | "SUSPEND_NEW_PO" | "REVIEW_CONTRACT" | "TERMINATE_RELATIONSHIP";
+  terminationRecommendedAction:
+    | "WATCHLIST"
+    | "SUSPEND_NEW_PO"
+    | "REVIEW_CONTRACT"
+    | "TERMINATE_RELATIONSHIP";
   terminationNote: string;
   financialRuleActive: boolean;
   holdPaymentsOnThreeWayVariance: boolean;
@@ -376,7 +417,10 @@ const DEFAULT_FORM: SlaFormState = {
   note: "",
 };
 
-async function readJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+async function readJson<T>(
+  response: Response,
+  fallbackMessage: string,
+): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error((data as { error?: string }).error || fallbackMessage);
@@ -396,66 +440,602 @@ function fmtValue(value: number | string | null, suffix = "") {
   return `${value}${suffix}`;
 }
 
-function toDateInput(value: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-}
-
-function getIssues(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((issue) => (typeof issue === "string" ? issue : ""))
-    .filter((issue) => issue.length > 0);
-}
-
 function getStatusVariant(status: SlaBreach["status"]) {
-  if (status === "OK") return "default" as const;
-  if (status === "WARNING") return "secondary" as const;
-  return "destructive" as const;
+  if (status === "OK") return "bg-success/10 text-success border-success/20";
+  if (status === "WARNING")
+    return "bg-warning/10 text-warning border-warning/20";
+  return "bg-destructive/10 text-destructive border-destructive/20";
 }
 
 function getSeverityVariant(severity: SlaBreach["severity"]) {
-  if (severity === "LOW") return "outline" as const;
-  if (severity === "MEDIUM") return "secondary" as const;
-  if (severity === "HIGH") return "destructive" as const;
-  return "destructive" as const;
+  if (severity === "LOW") return "bg-info/10 text-info border-info/20";
+  if (severity === "MEDIUM")
+    return "bg-warning/10 text-warning border-warning/20";
+  return "bg-destructive/10 text-destructive border-destructive/20";
 }
 
 function getActionVariant(status: SlaBreach["actionStatus"]) {
-  if (status === "NOT_REQUIRED") return "outline" as const;
-  if (status === "OPEN") return "secondary" as const;
-  if (status === "IN_PROGRESS") return "default" as const;
-  return "destructive" as const;
+  if (status === "NOT_REQUIRED") return "bg-muted text-muted-foreground";
+  if (status === "OPEN") return "bg-warning/10 text-warning";
+  if (status === "IN_PROGRESS") return "bg-info/10 text-info";
+  return "bg-success/10 text-success";
 }
 
-function toActionDraft(row: SlaBreach): BreachActionDraft {
-  return {
-    ownerUserId: row.ownerUserId ?? "",
-    dueDate: toDateInput(row.dueDate),
-    actionStatus: row.actionStatus,
-    resolutionNote: row.resolutionNote ?? "",
-    acknowledgeAlert: Boolean(row.alertTriggeredAt && !row.alertAcknowledgedAt),
-    disputeStatus: row.disputeStatus,
-    disputeReason: row.disputeReason ?? "",
-    disputeResolutionNote: row.disputeResolutionNote ?? "",
+// Pagination Component
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  const getVisiblePages = () => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+
+      if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+
+    return pages;
   };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      {getVisiblePages().map((page) => (
+        <Button
+          key={page}
+          variant={currentPage === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => onPageChange(page)}
+          className="h-8 w-8 p-0"
+        >
+          {page}
+        </Button>
+      ))}
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
 }
 
-function toTerminationDraft(row: TerminationCase): TerminationDraft {
-  return {
-    ownerUserId: row.ownerUserId ?? "",
-    status: row.status,
-    recommendedAction: row.recommendedAction,
-    resolutionNote: row.resolutionNote ?? "",
-    markReviewed: false,
+// SLA Policy Modal Component
+function SlaPolicyModal({
+  open,
+  onOpenChange,
+  editingId,
+  form,
+  suppliers,
+  onFormChange,
+  onSave,
+  saving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editingId: number | null;
+  form: SlaFormState;
+  suppliers: Supplier[];
+  onFormChange: (updates: Partial<SlaFormState>) => void;
+  onSave: () => void;
+  saving: boolean;
+}) {
+  const handleClose = () => {
+    onOpenChange(false);
   };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-lg sm:text-xl">
+            {editingId ? "Edit SLA Policy" : "Create SLA Policy"}
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            One active policy per supplier. Thresholds are evaluated against
+            supplier intelligence metrics.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {/* Basic Info Grid */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Supplier *</Label>
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={form.supplierId}
+                onChange={(event) =>
+                  onFormChange({ supplierId: event.target.value })
+                }
+              >
+                <option value="">Select supplier</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name} ({supplier.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Evaluation Window (days)</Label>
+              <Input
+                type="number"
+                min={7}
+                max={730}
+                value={form.evaluationWindowDays}
+                onChange={(event) =>
+                  onFormChange({ evaluationWindowDays: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Min Tracked POs</Label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={form.minTrackedPoCount}
+                onChange={(event) =>
+                  onFormChange({ minTrackedPoCount: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Target Lead Time (days)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                value={form.targetLeadTimeDays}
+                onChange={(event) =>
+                  onFormChange({ targetLeadTimeDays: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Min On-Time Rate (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={form.minimumOnTimeRate}
+                onChange={(event) =>
+                  onFormChange({ minimumOnTimeRate: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Min Fill Rate (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={form.minimumFillRate}
+                onChange={(event) =>
+                  onFormChange({ minimumFillRate: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Max Open Late POs</Label>
+              <Input
+                type="number"
+                min={0}
+                max={999}
+                value={form.maxOpenLatePoCount}
+                onChange={(event) =>
+                  onFormChange({ maxOpenLatePoCount: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Warning Due (days)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={60}
+                value={form.warningActionDueDays}
+                onChange={(event) =>
+                  onFormChange({ warningActionDueDays: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Breach Due (days)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={60}
+                value={form.breachActionDueDays}
+                onChange={(event) =>
+                  onFormChange({ breachActionDueDays: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Effective From</Label>
+              <Input
+                type="date"
+                value={form.effectiveFrom}
+                onChange={(event) =>
+                  onFormChange({ effectiveFrom: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Effective To</Label>
+              <Input
+                type="date"
+                value={form.effectiveTo}
+                onChange={(event) =>
+                  onFormChange({ effectiveTo: event.target.value })
+                }
+                className="text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Policy Controls */}
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <Label className="text-sm font-medium">Policy Controls</Label>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(event) =>
+                    onFormChange({ isActive: event.target.checked })
+                  }
+                  className="rounded border-border"
+                />
+                Active Policy
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.autoEvaluationEnabled}
+                  onChange={(event) =>
+                    onFormChange({
+                      autoEvaluationEnabled: event.target.checked,
+                    })
+                  }
+                  className="rounded border-border"
+                />
+                Auto Daily Evaluation
+              </label>
+            </div>
+          </div>
+
+          {/* Termination Clause */}
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={form.terminationClauseEnabled}
+                onChange={(event) =>
+                  onFormChange({
+                    terminationClauseEnabled: event.target.checked,
+                  })
+                }
+                className="rounded border-border"
+              />
+              Enable Termination Escalation
+            </label>
+
+            {form.terminationClauseEnabled && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Lookback Days</Label>
+                  <Input
+                    type="number"
+                    min={30}
+                    max={730}
+                    value={form.terminationLookbackDays}
+                    onChange={(event) =>
+                      onFormChange({
+                        terminationLookbackDays: event.target.value,
+                      })
+                    }
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Min Breach Count</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={form.terminationMinBreachCount}
+                    onChange={(event) =>
+                      onFormChange({
+                        terminationMinBreachCount: event.target.value,
+                      })
+                    }
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Min Critical Count</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={20}
+                    value={form.terminationMinCriticalCount}
+                    onChange={(event) =>
+                      onFormChange({
+                        terminationMinCriticalCount: event.target.value,
+                      })
+                    }
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Recommended Action</Label>
+                  <select
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    value={form.terminationRecommendedAction}
+                    onChange={(event) =>
+                      onFormChange({
+                        terminationRecommendedAction: event.target.value as any,
+                      })
+                    }
+                  >
+                    <option value="WATCHLIST">WATCHLIST</option>
+                    <option value="SUSPEND_NEW_PO">SUSPEND_NEW_PO</option>
+                    <option value="REVIEW_CONTRACT">REVIEW_CONTRACT</option>
+                    <option value="TERMINATE_RELATIONSHIP">
+                      TERMINATE_RELATIONSHIP
+                    </option>
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* AP Financial Controls */}
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <div>
+              <Label className="text-sm font-medium">
+                AP Financial Controls
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Configure payment hold policy and SLA credit recommendation
+                rates.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.financialRuleActive}
+                  onChange={(event) =>
+                    onFormChange({ financialRuleActive: event.target.checked })
+                  }
+                />
+                Financial Rule Active
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.holdPaymentsOnThreeWayVariance}
+                  onChange={(event) =>
+                    onFormChange({
+                      holdPaymentsOnThreeWayVariance: event.target.checked,
+                    })
+                  }
+                />
+                Hold on 3-way variance
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.holdPaymentsOnOpenSlaAction}
+                  onChange={(event) =>
+                    onFormChange({
+                      holdPaymentsOnOpenSlaAction: event.target.checked,
+                    })
+                  }
+                />
+                Hold on open SLA action
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.allowPaymentHoldOverride}
+                  onChange={(event) =>
+                    onFormChange({
+                      allowPaymentHoldOverride: event.target.checked,
+                    })
+                  }
+                />
+                Allow AP override
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.autoCreditRecommendationEnabled}
+                  onChange={(event) =>
+                    onFormChange({
+                      autoCreditRecommendationEnabled: event.target.checked,
+                    })
+                  }
+                />
+                Auto credit recommendation
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.autoApplyRecommendedCredit}
+                  onChange={(event) =>
+                    onFormChange({
+                      autoApplyRecommendedCredit: event.target.checked,
+                    })
+                  }
+                />
+                Auto-apply credit to AP
+              </label>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Warning Penalty %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={form.warningPenaltyRatePercent}
+                  onChange={(event) =>
+                    onFormChange({
+                      warningPenaltyRatePercent: event.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Breach Penalty %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={form.breachPenaltyRatePercent}
+                  onChange={(event) =>
+                    onFormChange({
+                      breachPenaltyRatePercent: event.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Critical Penalty %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={form.criticalPenaltyRatePercent}
+                  onChange={(event) =>
+                    onFormChange({
+                      criticalPenaltyRatePercent: event.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Max Credit Cap</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.maxCreditCapAmount}
+                  onChange={(event) =>
+                    onFormChange({ maxCreditCapAmount: event.target.value })
+                  }
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Policy Note</Label>
+              <Textarea
+                rows={2}
+                value={form.note}
+                onChange={(event) => onFormChange({ note: event.target.value })}
+                placeholder="Optional policy notes..."
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Termination Note</Label>
+              <Textarea
+                rows={2}
+                value={form.terminationNote}
+                onChange={(event) =>
+                  onFormChange({ terminationNote: event.target.value })
+                }
+                placeholder="Optional termination clause notes..."
+                className="text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={onSave} disabled={saving}>
+            {saving
+              ? "Saving..."
+              : editingId
+                ? "Update Policy"
+                : "Create Policy"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export default function SupplierSlaPage() {
   const { data: session } = useSession();
-  const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
+  const globalPermissions = Array.isArray(
+    (session?.user as any)?.globalPermissions,
+  )
     ? ((session?.user as any).globalPermissions as string[])
     : [];
 
@@ -474,27 +1054,40 @@ export default function SupplierSlaPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [editingPolicyId, setEditingPolicyId] = useState<number | null>(null);
+  const [policyModalOpen, setPolicyModalOpen] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [owners, setOwners] = useState<SlaOwner[]>([]);
   const [policies, setPolicies] = useState<SlaPolicy[]>([]);
   const [breaches, setBreaches] = useState<SlaBreach[]>([]);
-  const [terminationCases, setTerminationCases] = useState<TerminationCase[]>([]);
+  const [terminationCases, setTerminationCases] = useState<TerminationCase[]>(
+    [],
+  );
   const [analytics, setAnalytics] = useState<SlaAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsDays, setAnalyticsDays] = useState("90");
   const [notifying, setNotifying] = useState(false);
-  const [actionDrafts, setActionDrafts] = useState<Record<number, BreachActionDraft>>({});
-  const [terminationDrafts, setTerminationDrafts] = useState<Record<number, TerminationDraft>>({});
-  const [terminationSavingId, setTerminationSavingId] = useState<number | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [expandedBreach, setExpandedBreach] = useState<number | null>(null);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const [form, setForm] = useState<SlaFormState>(DEFAULT_FORM);
 
   const loadAnalytics = async () => {
     try {
       setAnalyticsLoading(true);
-      const response = await fetch(`/api/scm/sla/analytics?days=${Number(analyticsDays) || 90}`, {
-        cache: "no-store",
-      });
-      const data = await readJson<SlaAnalytics>(response, "Failed to load SLA analytics");
+      const response = await fetch(
+        `/api/scm/sla/analytics?days=${Number(analyticsDays) || 90}`,
+        {
+          cache: "no-store",
+        },
+      );
+      const data = await readJson<SlaAnalytics>(
+        response,
+        "Failed to load SLA analytics",
+      );
       setAnalytics(data);
     } catch (error: any) {
       toast.error(error?.message || "Failed to load SLA analytics");
@@ -512,12 +1105,25 @@ export default function SupplierSlaPage() {
         fetch("/api/scm/suppliers", { cache: "no-store" }),
         fetch("/api/scm/sla/policies?includeInactive=1", { cache: "no-store" }),
         fetch("/api/scm/sla/breaches?latest=1&days=365", { cache: "no-store" }),
-        fetch("/api/scm/sla/termination-cases?limit=200", { cache: "no-store" }),
-        fetch(`/api/scm/sla/analytics?days=${Number(analyticsDays) || 90}`, { cache: "no-store" }),
-        canManage ? fetch("/api/scm/sla/owners", { cache: "no-store" }) : Promise.resolve(null),
+        fetch("/api/scm/sla/termination-cases?limit=200", {
+          cache: "no-store",
+        }),
+        fetch(`/api/scm/sla/analytics?days=${Number(analyticsDays) || 90}`, {
+          cache: "no-store",
+        }),
+        canManage
+          ? fetch("/api/scm/sla/owners", { cache: "no-store" })
+          : Promise.resolve(null),
       ]);
 
-      const [supplierRes, policyRes, breachRes, terminationRes, analyticsRes, ownerRes] = responses;
+      const [
+        supplierRes,
+        policyRes,
+        breachRes,
+        terminationRes,
+        analyticsRes,
+        ownerRes,
+      ] = responses;
 
       const supplierData = await readJson<Supplier[]>(
         supplierRes,
@@ -546,7 +1152,9 @@ export default function SupplierSlaPage() {
       setSuppliers(Array.isArray(supplierData) ? supplierData : []);
       setPolicies(Array.isArray(policyData) ? policyData : []);
       setBreaches(Array.isArray(breachData) ? breachData : []);
-      setTerminationCases(Array.isArray(terminationData) ? terminationData : []);
+      setTerminationCases(
+        Array.isArray(terminationData) ? terminationData : [],
+      );
       setAnalytics(analyticsData || null);
       setOwners(Array.isArray(ownerData) ? ownerData : []);
     } catch (error: any) {
@@ -568,21 +1176,10 @@ export default function SupplierSlaPage() {
     }
   }, [canRead, analyticsDays]);
 
+  // Reset pagination on filter change
   useEffect(() => {
-    const nextDrafts: Record<number, BreachActionDraft> = {};
-    for (const breach of breaches) {
-      nextDrafts[breach.id] = toActionDraft(breach);
-    }
-    setActionDrafts(nextDrafts);
-  }, [breaches]);
-
-  useEffect(() => {
-    const nextDrafts: Record<number, TerminationDraft> = {};
-    for (const row of terminationCases) {
-      nextDrafts[row.id] = toTerminationDraft(row);
-    }
-    setTerminationDrafts(nextDrafts);
-  }, [terminationCases]);
+    setCurrentPage(1);
+  }, [search, statusFilter]);
 
   const visibleBreaches = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -595,6 +1192,14 @@ export default function SupplierSlaPage() {
       );
     });
   }, [breaches, search, statusFilter]);
+
+  const paginatedBreaches = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return visibleBreaches.slice(start, end);
+  }, [visibleBreaches, currentPage]);
+
+  const totalBreachPages = Math.ceil(visibleBreaches.length / itemsPerPage);
 
   const submitPolicy = async () => {
     if (!canManage) return;
@@ -640,23 +1245,104 @@ export default function SupplierSlaPage() {
           breachPenaltyRatePercent: Number(form.breachPenaltyRatePercent),
           criticalPenaltyRatePercent: Number(form.criticalPenaltyRatePercent),
           minBreachCountForCredit: Number(form.minBreachCountForCredit),
-          autoApplyMaxAmount: form.autoApplyMaxAmount ? Number(form.autoApplyMaxAmount) : null,
-          maxCreditCapAmount: form.maxCreditCapAmount ? Number(form.maxCreditCapAmount) : null,
+          autoApplyMaxAmount: form.autoApplyMaxAmount
+            ? Number(form.autoApplyMaxAmount)
+            : null,
+          maxCreditCapAmount: form.maxCreditCapAmount
+            ? Number(form.maxCreditCapAmount)
+            : null,
           financialRuleNote: form.financialRuleNote || null,
           note: form.note || null,
         }),
       });
 
       await readJson<SlaPolicy>(response, "Failed to save SLA policy");
-      toast.success(editingPolicyId ? "SLA policy updated" : "SLA policy created");
+      toast.success(
+        editingPolicyId ? "SLA policy updated" : "SLA policy created",
+      );
       setEditingPolicyId(null);
       setForm(DEFAULT_FORM);
+      setPolicyModalOpen(false);
       await loadData();
     } catch (error: any) {
       toast.error(error?.message || "Failed to save SLA policy");
     } finally {
       setSaving(false);
     }
+  };
+
+  const openCreateModal = () => {
+    setEditingPolicyId(null);
+    setForm(DEFAULT_FORM);
+    setPolicyModalOpen(true);
+  };
+
+  const openEditModal = (policy: SlaPolicy) => {
+    setEditingPolicyId(policy.id);
+    setForm({
+      supplierId: String(policy.supplierId),
+      isActive: policy.isActive,
+      effectiveFrom: policy.effectiveFrom
+        ? policy.effectiveFrom.slice(0, 10)
+        : "",
+      effectiveTo: policy.effectiveTo ? policy.effectiveTo.slice(0, 10) : "",
+      evaluationWindowDays: String(policy.evaluationWindowDays),
+      minTrackedPoCount: String(policy.minTrackedPoCount),
+      targetLeadTimeDays: String(policy.targetLeadTimeDays),
+      minimumOnTimeRate: String(policy.minimumOnTimeRate),
+      minimumFillRate: String(policy.minimumFillRate),
+      maxOpenLatePoCount: String(policy.maxOpenLatePoCount),
+      autoEvaluationEnabled: policy.autoEvaluationEnabled,
+      warningActionDueDays: String(policy.warningActionDueDays),
+      breachActionDueDays: String(policy.breachActionDueDays),
+      terminationClauseEnabled: policy.terminationClauseEnabled ?? false,
+      terminationLookbackDays: String(policy.terminationLookbackDays ?? 180),
+      terminationMinBreachCount: String(policy.terminationMinBreachCount ?? 3),
+      terminationMinCriticalCount: String(
+        policy.terminationMinCriticalCount ?? 1,
+      ),
+      terminationRecommendedAction:
+        policy.terminationRecommendedAction ?? "REVIEW_CONTRACT",
+      terminationNote: policy.terminationNote || "",
+      financialRuleActive: policy.financialRule?.isActive ?? true,
+      holdPaymentsOnThreeWayVariance:
+        policy.financialRule?.holdPaymentsOnThreeWayVariance ?? true,
+      holdPaymentsOnOpenSlaAction:
+        policy.financialRule?.holdPaymentsOnOpenSlaAction ?? true,
+      allowPaymentHoldOverride:
+        policy.financialRule?.allowPaymentHoldOverride ?? true,
+      autoCreditRecommendationEnabled:
+        policy.financialRule?.autoCreditRecommendationEnabled ?? true,
+      autoApplyRecommendedCredit:
+        policy.financialRule?.autoApplyRecommendedCredit ?? false,
+      autoApplyRequireMatchedInvoice:
+        policy.financialRule?.autoApplyRequireMatchedInvoice ?? true,
+      autoApplyBlockOnOpenDispute:
+        policy.financialRule?.autoApplyBlockOnOpenDispute ?? true,
+      warningPenaltyRatePercent: String(
+        policy.financialRule?.warningPenaltyRatePercent ?? 0,
+      ),
+      breachPenaltyRatePercent: String(
+        policy.financialRule?.breachPenaltyRatePercent ?? 2,
+      ),
+      criticalPenaltyRatePercent: String(
+        policy.financialRule?.criticalPenaltyRatePercent ?? 5,
+      ),
+      minBreachCountForCredit: String(
+        policy.financialRule?.minBreachCountForCredit ?? 1,
+      ),
+      autoApplyMaxAmount:
+        policy.financialRule?.autoApplyMaxAmount == null
+          ? ""
+          : String(policy.financialRule.autoApplyMaxAmount),
+      maxCreditCapAmount:
+        policy.financialRule?.maxCreditCapAmount == null
+          ? ""
+          : String(policy.financialRule.maxCreditCapAmount),
+      financialRuleNote: policy.financialRule?.note || "",
+      note: policy.note || "",
+    });
+    setPolicyModalOpen(true);
   };
 
   const runEvaluation = async (supplierId?: number) => {
@@ -668,8 +1354,13 @@ export default function SupplierSlaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(supplierId ? { supplierId } : {}),
       });
-      const data = await readJson<{ count: number }>(response, "Failed to run SLA evaluation");
-      toast.success(`SLA evaluation completed for ${data.count} policy${data.count === 1 ? "" : "ies"}`);
+      const data = await readJson<{ count: number }>(
+        response,
+        "Failed to run SLA evaluation",
+      );
+      toast.success(
+        `SLA evaluation completed for ${data.count} policy${data.count === 1 ? "" : "ies"}`,
+      );
       await loadData();
     } catch (error: any) {
       toast.error(error?.message || "Failed to run SLA evaluation");
@@ -715,187 +1406,15 @@ export default function SupplierSlaPage() {
     }
   };
 
-  const updateActionDraft = <K extends keyof BreachActionDraft>(
-    breachId: number,
-    key: K,
-    value: BreachActionDraft[K],
-  ) => {
-    setActionDrafts((current) => {
-      const existing = current[breachId] ?? {
-        ownerUserId: "",
-        dueDate: "",
-        actionStatus: "OPEN" as const,
-        resolutionNote: "",
-        acknowledgeAlert: false,
-        disputeStatus: "NONE" as const,
-        disputeReason: "",
-        disputeResolutionNote: "",
-      };
-      return {
-        ...current,
-        [breachId]: {
-          ...existing,
-          [key]: value,
-        },
-      };
-    });
-  };
-
-  const submitBreachAction = async (breachId: number) => {
-    if (!canManage) return;
-    const draft = actionDrafts[breachId];
-    if (!draft) return;
-
-    try {
-      setActionSavingId(breachId);
-      const response = await fetch("/api/scm/sla/breaches", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          breachId,
-          ownerUserId: draft.ownerUserId || null,
-          dueDate: draft.dueDate || null,
-          actionStatus: draft.actionStatus,
-          resolutionNote: draft.resolutionNote || null,
-          acknowledgeAlert: draft.acknowledgeAlert,
-          disputeStatus: draft.disputeStatus,
-          disputeReason: draft.disputeReason || null,
-          disputeResolutionNote: draft.disputeResolutionNote || null,
-        }),
-      });
-      await readJson(response, "Failed to update SLA action workflow");
-      toast.success("SLA action workflow updated");
-      await loadData();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to update SLA action workflow");
-    } finally {
-      setActionSavingId(null);
-    }
-  };
-
-  const updateTerminationDraft = <K extends keyof TerminationDraft>(
-    caseId: number,
-    key: K,
-    value: TerminationDraft[K],
-  ) => {
-    setTerminationDrafts((current) => {
-      const existing = current[caseId] ?? {
-        ownerUserId: "",
-        status: "OPEN" as const,
-        recommendedAction: "REVIEW_CONTRACT" as const,
-        resolutionNote: "",
-        markReviewed: false,
-      };
-      return {
-        ...current,
-        [caseId]: {
-          ...existing,
-          [key]: value,
-        },
-      };
-    });
-  };
-
-  const submitTerminationCase = async (caseId: number) => {
-    if (!canManage) return;
-    const draft = terminationDrafts[caseId];
-    if (!draft) return;
-
-    try {
-      setTerminationSavingId(caseId);
-      const response = await fetch("/api/scm/sla/termination-cases", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          caseId,
-          ownerUserId: draft.ownerUserId || null,
-          status: draft.status,
-          recommendedAction: draft.recommendedAction,
-          resolutionNote: draft.resolutionNote || null,
-          markReviewed: draft.markReviewed,
-        }),
-      });
-      await readJson(response, "Failed to update termination case");
-      toast.success("Termination case workflow updated");
-      await loadData();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to update termination case");
-    } finally {
-      setTerminationSavingId(null);
-    }
-  };
-
-  const populateForm = (policy: SlaPolicy) => {
-    setEditingPolicyId(policy.id);
-    setForm({
-      supplierId: String(policy.supplierId),
-      isActive: policy.isActive,
-      effectiveFrom: policy.effectiveFrom ? policy.effectiveFrom.slice(0, 10) : "",
-      effectiveTo: policy.effectiveTo ? policy.effectiveTo.slice(0, 10) : "",
-      evaluationWindowDays: String(policy.evaluationWindowDays),
-      minTrackedPoCount: String(policy.minTrackedPoCount),
-      targetLeadTimeDays: String(policy.targetLeadTimeDays),
-      minimumOnTimeRate: String(policy.minimumOnTimeRate),
-      minimumFillRate: String(policy.minimumFillRate),
-      maxOpenLatePoCount: String(policy.maxOpenLatePoCount),
-      autoEvaluationEnabled: policy.autoEvaluationEnabled,
-      warningActionDueDays: String(policy.warningActionDueDays),
-      breachActionDueDays: String(policy.breachActionDueDays),
-      terminationClauseEnabled: policy.terminationClauseEnabled ?? false,
-      terminationLookbackDays: String(policy.terminationLookbackDays ?? 180),
-      terminationMinBreachCount: String(policy.terminationMinBreachCount ?? 3),
-      terminationMinCriticalCount: String(policy.terminationMinCriticalCount ?? 1),
-      terminationRecommendedAction: policy.terminationRecommendedAction ?? "REVIEW_CONTRACT",
-      terminationNote: policy.terminationNote || "",
-      financialRuleActive: policy.financialRule?.isActive ?? true,
-      holdPaymentsOnThreeWayVariance:
-        policy.financialRule?.holdPaymentsOnThreeWayVariance ?? true,
-      holdPaymentsOnOpenSlaAction:
-        policy.financialRule?.holdPaymentsOnOpenSlaAction ?? true,
-      allowPaymentHoldOverride:
-        policy.financialRule?.allowPaymentHoldOverride ?? true,
-      autoCreditRecommendationEnabled:
-        policy.financialRule?.autoCreditRecommendationEnabled ?? true,
-      autoApplyRecommendedCredit:
-        policy.financialRule?.autoApplyRecommendedCredit ?? false,
-      autoApplyRequireMatchedInvoice:
-        policy.financialRule?.autoApplyRequireMatchedInvoice ?? true,
-      autoApplyBlockOnOpenDispute:
-        policy.financialRule?.autoApplyBlockOnOpenDispute ?? true,
-      warningPenaltyRatePercent: String(
-        policy.financialRule?.warningPenaltyRatePercent ?? 0,
-      ),
-      breachPenaltyRatePercent: String(
-        policy.financialRule?.breachPenaltyRatePercent ?? 2,
-      ),
-      criticalPenaltyRatePercent: String(
-        policy.financialRule?.criticalPenaltyRatePercent ?? 5,
-      ),
-      minBreachCountForCredit: String(
-        policy.financialRule?.minBreachCountForCredit ?? 1,
-      ),
-      autoApplyMaxAmount:
-        policy.financialRule?.autoApplyMaxAmount === null ||
-        policy.financialRule?.autoApplyMaxAmount === undefined
-          ? ""
-          : String(policy.financialRule.autoApplyMaxAmount),
-      maxCreditCapAmount:
-        policy.financialRule?.maxCreditCapAmount === null ||
-        policy.financialRule?.maxCreditCapAmount === undefined
-          ? ""
-          : String(policy.financialRule.maxCreditCapAmount),
-      financialRuleNote: policy.financialRule?.note || "",
-      note: policy.note || "",
-    });
-  };
-
   if (!canRead) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Forbidden</CardTitle>
-            <CardDescription>You do not have permission to access supplier SLA policies.</CardDescription>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Forbidden</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              You do not have permission to access supplier SLA policies.
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -903,17 +1422,21 @@ export default function SupplierSlaPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Supplier SLA Policies</h1>
-          <p className="text-sm text-muted-foreground">
-            Define supplier SLA thresholds and keep breach logs for governance review.
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+            Supplier SLA Policies
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+            Define supplier SLA thresholds and keep breach logs for governance
+            review.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <select
-            className="rounded-md border bg-background px-2 py-2 text-sm"
+            className="rounded-md border border-border bg-background px-2 py-2 text-sm"
             value={analyticsDays}
             onChange={(event) => setAnalyticsDays(event.target.value)}
           >
@@ -923,90 +1446,160 @@ export default function SupplierSlaPage() {
             <option value="180">180d</option>
             <option value="365">365d</option>
           </select>
-          <Button variant="outline" onClick={() => void loadAnalytics()} disabled={analyticsLoading}>
-            {analyticsLoading ? "Loading..." : "Refresh Analytics"}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void loadAnalytics()}
+            disabled={analyticsLoading}
+          >
+            Refresh Analytics
           </Button>
-          <Button variant="outline" onClick={() => void loadData()} disabled={loading}>
-            <RefreshCw className="mr-2 h-4 w-4" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void loadData()}
+            disabled={loading}
+          >
+            <RefreshCw
+              className={cn("h-4 w-4 mr-2", loading && "animate-spin")}
+            />
             Refresh
           </Button>
-          {canManageNotifications ? (
-            <Button variant="outline" onClick={() => void runNotifications()} disabled={notifying}>
+          {canManageNotifications && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void runNotifications()}
+              disabled={notifying}
+            >
               {notifying ? "Notifying..." : "Run Notifications"}
             </Button>
-          ) : null}
-          {canManage ? (
-            <Button onClick={() => void runEvaluation()} disabled={running}>
-              {running ? "Running..." : "Run Evaluation"}
+          )}
+          {canManage && (
+            <Button onClick={openCreateModal} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Policy
             </Button>
-          ) : null}
+          )}
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>SLA Analytics</CardTitle>
-          <CardDescription>
-            Phase-5 governance KPIs, trend, and supplier risk ranking ({analytics?.range.days || Number(analyticsDays) || 90} days).
+      {/* Analytics Section */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">SLA Analytics</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Governance KPIs, trend, and supplier risk ranking (
+            {analytics?.range.days || Number(analyticsDays) || 90} days).
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
           {!analytics ? (
-            <p className="text-sm text-muted-foreground">
-              {analyticsLoading ? "Loading analytics..." : "No analytics data available."}
+            <p className="text-sm text-muted-foreground text-center py-4">
+              {analyticsLoading
+                ? "Loading analytics..."
+                : "No analytics data available."}
             </p>
           ) : (
             <>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-                <div className="rounded-md border p-3">
+              <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="rounded-lg border border-border p-3">
                   <p className="text-xs text-muted-foreground">Evaluations</p>
-                  <p className="text-lg font-semibold">{analytics.summary.totalEvaluations}</p>
+                  <p className="text-lg sm:text-xl font-semibold text-foreground">
+                    {analytics.summary.totalEvaluations}
+                  </p>
                 </div>
-                <div className="rounded-md border p-3">
+                <div className="rounded-lg border border-border p-3">
                   <p className="text-xs text-muted-foreground">Breaches</p>
-                  <p className="text-lg font-semibold">{analytics.summary.breachCount}</p>
+                  <p className="text-lg sm:text-xl font-semibold text-destructive">
+                    {analytics.summary.breachCount}
+                  </p>
                 </div>
-                <div className="rounded-md border p-3">
-                  <p className="text-xs text-muted-foreground">Overdue Actions</p>
-                  <p className="text-lg font-semibold">{analytics.summary.overdueActionCount}</p>
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Overdue Actions
+                  </p>
+                  <p className="text-lg sm:text-xl font-semibold text-warning">
+                    {analytics.summary.overdueActionCount}
+                  </p>
                 </div>
-                <div className="rounded-md border p-3">
+                <div className="rounded-lg border border-border p-3">
                   <p className="text-xs text-muted-foreground">Open Disputes</p>
-                  <p className="text-lg font-semibold">{analytics.summary.openDisputeCount}</p>
+                  <p className="text-lg sm:text-xl font-semibold text-info">
+                    {analytics.summary.openDisputeCount}
+                  </p>
                 </div>
-                <div className="rounded-md border p-3">
-                  <p className="text-xs text-muted-foreground">Termination Cases</p>
-                  <p className="text-lg font-semibold">{analytics.summary.openTerminationCaseCount}</p>
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Termination Cases
+                  </p>
+                  <p className="text-lg sm:text-xl font-semibold text-destructive">
+                    {analytics.summary.openTerminationCaseCount}
+                  </p>
                 </div>
-                <div className="rounded-md border p-3">
-                  <p className="text-xs text-muted-foreground">Applied Credit</p>
-                  <p className="text-lg font-semibold">{analytics.summary.appliedCreditAmount}</p>
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Applied Credit
+                  </p>
+                  <p className="text-lg sm:text-xl font-semibold text-success">
+                    {analytics.summary.appliedCreditAmount}
+                  </p>
                 </div>
               </div>
-              <div className="grid gap-4 xl:grid-cols-2">
-                <div className="rounded-md border p-3">
-                  <p className="mb-2 text-sm font-medium">Trend Snapshot</p>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-lg border border-border p-3">
+                  <p className="mb-2 text-sm font-medium text-foreground">
+                    Trend Snapshot
+                  </p>
                   <div className="space-y-1 text-xs">
                     {analytics.trends.slice(-7).map((row) => (
-                      <div key={row.date} className="flex items-center justify-between gap-2">
-                        <span>{row.date}</span>
+                      <div
+                        key={row.date}
+                        className="flex items-center justify-between gap-2"
+                      >
                         <span className="text-muted-foreground">
-                          OK {row.OK} | W {row.WARNING} | B {row.BREACH}
+                          {row.date}
+                        </span>
+                        <span className="text-muted-foreground">
+                          <span className="text-success">OK {row.OK}</span> |
+                          <span className="text-warning ml-1">
+                            W {row.WARNING}
+                          </span>{" "}
+                          |
+                          <span className="text-destructive ml-1">
+                            B {row.BREACH}
+                          </span>
                         </span>
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="rounded-md border p-3">
-                  <p className="mb-2 text-sm font-medium">Top Risk Suppliers</p>
+                <div className="rounded-lg border border-border p-3">
+                  <p className="mb-2 text-sm font-medium text-foreground">
+                    Top Risk Suppliers
+                  </p>
                   <div className="space-y-1 text-xs">
                     {analytics.topSuppliers.slice(0, 6).map((row) => (
-                      <div key={row.supplierId} className="flex items-center justify-between gap-2">
-                        <span>
+                      <div
+                        key={row.supplierId}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="text-foreground">
                           {row.supplierName} ({row.supplierCode})
                         </span>
                         <span className="text-muted-foreground">
-                          B {row.breachCount} | W {row.warningCount} | D {row.openDisputes}
+                          <span className="text-destructive">
+                            B {row.breachCount}
+                          </span>{" "}
+                          |
+                          <span className="text-warning ml-1">
+                            W {row.warningCount}
+                          </span>{" "}
+                          |
+                          <span className="text-info ml-1">
+                            D {row.openDisputes}
+                          </span>
                         </span>
                       </div>
                     ))}
@@ -1018,1027 +1611,583 @@ export default function SupplierSlaPage() {
         </CardContent>
       </Card>
 
-      {canManage ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{editingPolicyId ? "Edit SLA Policy" : "Create SLA Policy"}</CardTitle>
-            <CardDescription>
-              One active policy per supplier. Thresholds are evaluated against supplier intelligence metrics.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="space-y-2">
-                <Label>Supplier</Label>
-                <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                  value={form.supplierId}
-                  onChange={(event) => setForm((current) => ({ ...current, supplierId: event.target.value }))}
-                >
-                  <option value="">Select supplier</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name} ({supplier.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Evaluation Window (days)</Label>
-                <Input
-                  type="number"
-                  min={7}
-                  max={730}
-                  value={form.evaluationWindowDays}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, evaluationWindowDays: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Minimum Tracked POs</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={form.minTrackedPoCount}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, minTrackedPoCount: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Target Lead Time (days)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={form.targetLeadTimeDays}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, targetLeadTimeDays: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Minimum On-Time Rate (%)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={form.minimumOnTimeRate}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, minimumOnTimeRate: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Minimum Fill Rate (%)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={form.minimumFillRate}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, minimumFillRate: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Max Open Late POs</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={999}
-                  value={form.maxOpenLatePoCount}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, maxOpenLatePoCount: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Warning Due (days)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={form.warningActionDueDays}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, warningActionDueDays: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Breach Due (days)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={60}
-                  value={form.breachActionDueDays}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, breachActionDueDays: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Effective From</Label>
-                <Input
-                  type="date"
-                  value={form.effectiveFrom}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, effectiveFrom: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Effective To</Label>
-                <Input
-                  type="date"
-                  value={form.effectiveTo}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, effectiveTo: event.target.value }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Policy Controls</Label>
-                <div className="space-y-2 rounded-md border p-3 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={form.isActive}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, isActive: event.target.checked }))
-                      }
-                    />
-                    Active Policy
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={form.autoEvaluationEnabled}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          autoEvaluationEnabled: event.target.checked,
-                        }))
-                      }
-                    />
-                    Auto Daily Evaluation
-                  </label>
-                </div>
-              </div>
-              <div className="space-y-2 xl:col-span-2">
-                <Label>Termination Clause</Label>
-                <div className="space-y-2 rounded-md border p-3 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={form.terminationClauseEnabled}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          terminationClauseEnabled: event.target.checked,
-                        }))
-                      }
-                    />
-                    Enable termination escalation
-                  </label>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label>Lookback Days</Label>
-                      <Input
-                        type="number"
-                        min={30}
-                        max={730}
-                        value={form.terminationLookbackDays}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            terminationLookbackDays: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Min Breach Count</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={form.terminationMinBreachCount}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            terminationMinBreachCount: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Min Critical Count</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={20}
-                        value={form.terminationMinCriticalCount}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            terminationMinCriticalCount: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Recommended Action</Label>
-                      <select
-                        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                        value={form.terminationRecommendedAction}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            terminationRecommendedAction:
-                              event.target.value as SlaFormState["terminationRecommendedAction"],
-                          }))
-                        }
-                      >
-                        <option value="WATCHLIST">WATCHLIST</option>
-                        <option value="SUSPEND_NEW_PO">SUSPEND_NEW_PO</option>
-                        <option value="REVIEW_CONTRACT">REVIEW_CONTRACT</option>
-                        <option value="TERMINATE_RELATIONSHIP">TERMINATE_RELATIONSHIP</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Termination Clause Note</Label>
-              <Textarea
-                rows={2}
-                value={form.terminationNote}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, terminationNote: event.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Note</Label>
-              <Textarea
-                rows={3}
-                value={form.note}
-                onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
-              />
-            </div>
-            <div className="space-y-3 rounded-md border p-4">
-              <div>
-                <Label>AP Financial Controls</Label>
-                <p className="text-xs text-muted-foreground">
-                  Configure payment hold policy and SLA credit recommendation rates.
-                </p>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.financialRuleActive}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        financialRuleActive: event.target.checked,
-                      }))
-                    }
-                  />
-                  Financial Rule Active
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.holdPaymentsOnThreeWayVariance}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        holdPaymentsOnThreeWayVariance: event.target.checked,
-                      }))
-                    }
-                  />
-                  Hold on 3-way variance
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.holdPaymentsOnOpenSlaAction}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        holdPaymentsOnOpenSlaAction: event.target.checked,
-                      }))
-                    }
-                  />
-                  Hold on open SLA action
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.allowPaymentHoldOverride}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        allowPaymentHoldOverride: event.target.checked,
-                      }))
-                    }
-                  />
-                  Allow AP override
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.autoCreditRecommendationEnabled}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        autoCreditRecommendationEnabled: event.target.checked,
-                      }))
-                    }
-                  />
-                  Auto credit recommendation
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.autoApplyRecommendedCredit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        autoApplyRecommendedCredit: event.target.checked,
-                      }))
-                    }
-                  />
-                  Auto-apply credit to AP
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.autoApplyRequireMatchedInvoice}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        autoApplyRequireMatchedInvoice: event.target.checked,
-                      }))
-                    }
-                  />
-                  Require MATCHED invoice for auto-apply
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.autoApplyBlockOnOpenDispute}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        autoApplyBlockOnOpenDispute: event.target.checked,
-                      }))
-                    }
-                  />
-                  Block auto-apply on open dispute
-                </label>
-                <div className="space-y-1">
-                  <Label>Warning Penalty %</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    value={form.warningPenaltyRatePercent}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        warningPenaltyRatePercent: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Breach Penalty %</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    value={form.breachPenaltyRatePercent}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        breachPenaltyRatePercent: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Critical Penalty %</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    value={form.criticalPenaltyRatePercent}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        criticalPenaltyRatePercent: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Min Breach Count</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={form.minBreachCountForCredit}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        minBreachCountForCredit: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Max Credit Cap</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={form.maxCreditCapAmount}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        maxCreditCapAmount: event.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Auto-Apply Max Amount</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={form.autoApplyMaxAmount}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        autoApplyMaxAmount: event.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label>Financial Rule Note</Label>
-                <Textarea
-                  rows={2}
-                  value={form.financialRuleNote}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, financialRuleNote: event.target.value }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={() => void submitPolicy()} disabled={saving}>
-                {saving ? "Saving..." : editingPolicyId ? "Update Policy" : "Create Policy"}
-              </Button>
-              {editingPolicyId ? (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditingPolicyId(null);
-                    setForm(DEFAULT_FORM);
-                  }}
-                >
-                  Cancel Edit
-                </Button>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Policy Registry</CardTitle>
-          <CardDescription>Configured SLA policy per supplier.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading SLA policies...</p>
-          ) : policies.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No SLA policies configured.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Lead Time</TableHead>
-                  <TableHead>On-Time %</TableHead>
-                  <TableHead>Fill %</TableHead>
-                  <TableHead>Late PO</TableHead>
-                  <TableHead>Window</TableHead>
-                  <TableHead>Auto Eval</TableHead>
-                  <TableHead>Due SLA</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {policies.map((policy) => (
-                  <TableRow key={policy.id}>
-                    <TableCell>
-                      <div className="font-medium">{policy.supplier.name}</div>
-                      <div className="text-xs text-muted-foreground">{policy.supplier.code}</div>
-                    </TableCell>
-                    <TableCell>{policy.targetLeadTimeDays}d</TableCell>
-                    <TableCell>{policy.minimumOnTimeRate}%</TableCell>
-                    <TableCell>{policy.minimumFillRate}%</TableCell>
-                    <TableCell>{policy.maxOpenLatePoCount}</TableCell>
-                    <TableCell>{policy.evaluationWindowDays}d</TableCell>
-                    <TableCell>
-                      <Badge variant={policy.autoEvaluationEnabled ? "default" : "outline"}>
-                        {policy.autoEvaluationEnabled ? "ON" : "OFF"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-xs text-muted-foreground">
-                        Warning: {policy.warningActionDueDays}d
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Breach: {policy.breachActionDueDays}d
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={policy.isActive ? "default" : "outline"}>
-                        {policy.isActive ? "ACTIVE" : "INACTIVE"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="space-x-2">
-                      {canManage ? (
-                        <Button size="sm" variant="outline" onClick={() => populateForm(policy)}>
-                          Edit
-                        </Button>
-                      ) : null}
-                      {canManage ? (
-                        <Button size="sm" onClick={() => void runEvaluation(policy.supplierId)} disabled={running}>
-                          Evaluate
-                        </Button>
-                      ) : null}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <CardTitle>Breach Log</CardTitle>
-            <CardDescription>Latest evaluation results with issue trace for supplier governance.</CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Search supplier..."
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="w-56"
-            />
-            <select
-              className="rounded-md border bg-background px-3 py-2 text-sm"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="ALL">All statuses</option>
-              <option value="OK">OK</option>
-              <option value="WARNING">Warning</option>
-              <option value="BREACH">Breach</option>
-            </select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading breach logs...</p>
-          ) : visibleBreaches.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No SLA breach logs found.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Evaluated</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Severity</TableHead>
-                  <TableHead>Breach Count</TableHead>
-                  <TableHead>Observed LT</TableHead>
-                  <TableHead>On-Time</TableHead>
-                  <TableHead>Fill Rate</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Due</TableHead>
-                  <TableHead>Alert</TableHead>
-                  <TableHead>Dispute</TableHead>
-                  <TableHead>Termination</TableHead>
-                  <TableHead>Issues</TableHead>
-                  {canManage ? <TableHead>Workflow</TableHead> : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleBreaches.map((row) => {
-                  const issues = getIssues(row.issues);
-                  const draft = actionDrafts[row.id] ?? toActionDraft(row);
-                  return (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <div className="font-medium">{row.supplier.name}</div>
-                        <div className="text-xs text-muted-foreground">{row.supplier.code}</div>
-                      </TableCell>
-                      <TableCell>{fmtDate(row.evaluationDate)}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(row.status)}>{row.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getSeverityVariant(row.severity)}>{row.severity}</Badge>
-                      </TableCell>
-                      <TableCell>{row.breachCount}</TableCell>
-                      <TableCell>{fmtValue(row.observedLeadTimeDays, "d")}</TableCell>
-                      <TableCell>{fmtValue(row.onTimeRatePercent, "%")}</TableCell>
-                      <TableCell>{fmtValue(row.fillRatePercent, "%")}</TableCell>
-                      <TableCell>
-                        <Badge variant={getActionVariant(row.actionStatus)}>{row.actionStatus}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {row.owner ? (
-                          <div>
-                            <div className="text-xs font-medium">{row.owner.name || "Unnamed"}</div>
-                            <div className="text-xs text-muted-foreground">{row.owner.email}</div>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">Unassigned</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{fmtDate(row.dueDate)}</TableCell>
-                      <TableCell>
-                        {row.alertTriggeredAt ? (
-                          <div>
-                            <div className="text-xs">{fmtDate(row.alertTriggeredAt)}</div>
-                            <Badge variant={row.alertAcknowledgedAt ? "default" : "secondary"}>
-                              {row.alertAcknowledgedAt ? "ACKNOWLEDGED" : "PENDING"}
-                            </Badge>
-                            {row.alertMessage ? (
-                              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                                {row.alertMessage}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">No alert</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <Badge variant={row.disputeStatus === "NONE" ? "outline" : "secondary"}>
-                            {row.disputeStatus}
-                          </Badge>
-                          {row.disputeReason ? (
-                            <p className="max-w-xs text-xs text-muted-foreground">{row.disputeReason}</p>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {row.terminationCase ? (
-                          <div className="space-y-1">
-                            <Badge variant="destructive">{row.terminationCase.status}</Badge>
-                            <p className="text-xs text-muted-foreground">
-                              {row.terminationCase.recommendedAction}
-                            </p>
-                          </div>
-                        ) : row.terminationSuggestedAt ? (
-                          <div className="space-y-1 text-xs text-muted-foreground">
-                            <p>Suggested: {fmtDate(row.terminationSuggestedAt)}</p>
-                            {row.terminationSuggestionNote ? <p>{row.terminationSuggestionNote}</p> : null}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">No escalation</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {issues.length === 0 ? (
-                          <span className="text-muted-foreground">No issues</span>
-                        ) : (
-                          <div className="space-y-1 text-xs">
-                            {issues.slice(0, 3).map((issue, index) => (
-                              <p key={index}>{issue}</p>
-                            ))}
-                          </div>
-                        )}
-                      </TableCell>
-                      {canManage ? (
-                        <TableCell className="space-y-2">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Owner</Label>
-                            <select
-                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
-                              value={draft.ownerUserId}
-                              onChange={(event) =>
-                                updateActionDraft(row.id, "ownerUserId", event.target.value)
-                              }
-                            >
-                              <option value="">Unassigned</option>
-                              {owners.map((owner) => (
-                                <option key={owner.id} value={owner.id}>
-                                  {(owner.name || owner.email).slice(0, 38)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Due Date</Label>
-                            <Input
-                              type="date"
-                              className="h-8 w-44 text-xs"
-                              value={draft.dueDate}
-                              onChange={(event) =>
-                                updateActionDraft(row.id, "dueDate", event.target.value)
-                              }
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Action Status</Label>
-                            <select
-                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
-                              value={draft.actionStatus}
-                              onChange={(event) =>
-                                updateActionDraft(
-                                  row.id,
-                                  "actionStatus",
-                                  event.target.value as BreachActionDraft["actionStatus"],
-                                )
-                              }
-                            >
-                              <option value="NOT_REQUIRED">NOT_REQUIRED</option>
-                              <option value="OPEN">OPEN</option>
-                              <option value="IN_PROGRESS">IN_PROGRESS</option>
-                              <option value="RESOLVED">RESOLVED</option>
-                              <option value="DISMISSED">DISMISSED</option>
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Resolution Note</Label>
-                            <Textarea
-                              rows={2}
-                              className="w-44 text-xs"
-                              value={draft.resolutionNote}
-                              onChange={(event) =>
-                                updateActionDraft(row.id, "resolutionNote", event.target.value)
-                              }
-                            />
-                          </div>
-                          <label className="flex items-center gap-2 text-xs">
-                            <input
-                              type="checkbox"
-                              checked={draft.acknowledgeAlert}
-                              onChange={(event) =>
-                                updateActionDraft(row.id, "acknowledgeAlert", event.target.checked)
-                              }
-                            />
-                            Acknowledge Alert
-                          </label>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Dispute Status</Label>
-                            <select
-                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
-                              value={draft.disputeStatus}
-                              onChange={(event) =>
-                                updateActionDraft(
-                                  row.id,
-                                  "disputeStatus",
-                                  event.target.value as BreachActionDraft["disputeStatus"],
-                                )
-                              }
-                            >
-                              <option value="NONE">NONE</option>
-                              <option value="OPEN">OPEN</option>
-                              <option value="UNDER_REVIEW">UNDER_REVIEW</option>
-                              <option value="RESOLVED">RESOLVED</option>
-                              <option value="REJECTED">REJECTED</option>
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Dispute Reason</Label>
-                            <Textarea
-                              rows={2}
-                              className="w-44 text-xs"
-                              value={draft.disputeReason}
-                              onChange={(event) =>
-                                updateActionDraft(row.id, "disputeReason", event.target.value)
-                              }
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Dispute Resolution</Label>
-                            <Textarea
-                              rows={2}
-                              className="w-44 text-xs"
-                              value={draft.disputeResolutionNote}
-                              onChange={(event) =>
-                                updateActionDraft(
-                                  row.id,
-                                  "disputeResolutionNote",
-                                  event.target.value,
-                                )
-                              }
-                            />
-                          </div>
-                          <Button
-                            size="sm"
-                            className="h-8"
-                            disabled={actionSavingId === row.id}
-                            onClick={() => void submitBreachAction(row.id)}
-                          >
-                            {actionSavingId === row.id ? "Saving..." : "Save Action"}
-                          </Button>
-                        </TableCell>
-                      ) : null}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Termination Queue</CardTitle>
-          <CardDescription>
-            Auto-opened governance queue when policy termination clause thresholds are reached.
+      {/* Policy Registry */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">
+            Policy Registry
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Configured SLA policy per supplier.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading termination cases...</p>
-          ) : terminationCases.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active termination escalation cases.</p>
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : policies.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <FileText className="h-8 w-8 text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">
+                No SLA policies configured.
+              </p>
+              {canManage && (
+                <Button
+                  onClick={openCreateModal}
+                  variant="outline"
+                  className="mt-3"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Policy
+                </Button>
+              )}
+            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Case</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Window</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Updated</TableHead>
-                  {canManage ? <TableHead>Workflow</TableHead> : null}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {terminationCases.map((row) => {
-                  const draft = terminationDrafts[row.id] ?? toTerminationDraft(row);
-                  return (
-                    <TableRow key={row.id}>
-                      <TableCell>#{row.id}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{row.supplier.name}</div>
-                        <div className="text-xs text-muted-foreground">{row.supplier.code}</div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-xs font-medium text-muted-foreground">
+                      Supplier
+                    </TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                      Lead Time
+                    </TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                      On-Time %
+                    </TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                      Fill %
+                    </TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                      Late PO
+                    </TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                      Window
+                    </TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">
+                      Status
+                    </TableHead>
+                    {canManage && (
+                      <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                        Actions
+                      </TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {policies.map((policy) => (
+                    <TableRow
+                      key={policy.id}
+                      className="border-border hover:bg-muted/40"
+                    >
+                      <TableCell className="py-3">
+                        <div className="font-medium text-sm text-foreground">
+                          {policy.supplier.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {policy.supplier.code}
+                        </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant={row.status === "OPEN" ? "destructive" : "secondary"}>
+                      <TableCell className="text-right py-3 text-sm text-foreground">
+                        {policy.targetLeadTimeDays}d
+                      </TableCell>
+                      <TableCell className="text-right py-3 text-sm text-foreground">
+                        {policy.minimumOnTimeRate}%
+                      </TableCell>
+                      <TableCell className="text-right py-3 text-sm text-foreground">
+                        {policy.minimumFillRate}%
+                      </TableCell>
+                      <TableCell className="text-right py-3 text-sm text-foreground">
+                        {policy.maxOpenLatePoCount}
+                      </TableCell>
+                      <TableCell className="text-right py-3 text-sm text-foreground">
+                        {policy.evaluationWindowDays}d
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            policy.isActive
+                              ? "bg-success/10 text-success"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {policy.isActive ? "ACTIVE" : "INACTIVE"}
+                        </Badge>
+                      </TableCell>
+                      {canManage && (
+                        <TableCell className="py-3 text-right">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditModal(policy)}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                void runEvaluation(policy.supplierId)
+                              }
+                              disabled={running}
+                            >
+                              Evaluate
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Breach Log */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base sm:text-lg">Breach Log</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Latest evaluation results with issue trace for supplier
+                governance.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <div className="relative flex-1 sm:flex-initial">
+                <Input
+                  placeholder="Search supplier..."
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  className="w-full sm:w-56 text-sm"
+                />
+              </div>
+              <select
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+              >
+                <option value="ALL">All statuses</option>
+                <option value="OK">OK</option>
+                <option value="WARNING">Warning</option>
+                <option value="BREACH">Breach</option>
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="sm:hidden"
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6 pt-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : visibleBreaches.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <CheckCircle className="h-8 w-8 text-success/50 mb-2" />
+              <p className="text-sm text-muted-foreground">
+                No SLA breach logs found.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="text-xs font-medium text-muted-foreground">
+                        Supplier
+                      </TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">
+                        Evaluated
+                      </TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">
+                        Status
+                      </TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">
+                        Severity
+                      </TableHead>
+                      <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                        Breach Count
+                      </TableHead>
+                      <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                        Observed LT
+                      </TableHead>
+                      <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                        On-Time
+                      </TableHead>
+                      <TableHead className="text-right text-xs font-medium text-muted-foreground">
+                        Fill Rate
+                      </TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">
+                        Action
+                      </TableHead>
+                      {canManage && (
+                        <TableHead className="text-xs font-medium text-muted-foreground">
+                          Workflow
+                        </TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedBreaches.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        className="border-border hover:bg-muted/40"
+                      >
+                        <TableCell className="py-3">
+                          <div className="font-medium text-sm text-foreground">
+                            {row.supplier.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {row.supplier.code}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3 text-sm text-muted-foreground">
+                          {fmtDate(row.evaluationDate)}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs",
+                              getStatusVariant(row.status),
+                            )}
+                          >
+                            {row.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs",
+                              getSeverityVariant(row.severity),
+                            )}
+                          >
+                            {row.severity}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right py-3 font-medium text-foreground">
+                          {row.breachCount}
+                        </TableCell>
+                        <TableCell className="text-right py-3 text-sm">
+                          {fmtValue(row.observedLeadTimeDays, "d")}
+                        </TableCell>
+                        <TableCell className="text-right py-3">
+                          <span
+                            className={cn(
+                              "text-sm font-medium",
+                              getPerformanceColor(row.onTimeRatePercent),
+                            )}
+                          >
+                            {fmtValue(row.onTimeRatePercent, "%")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right py-3 text-sm">
+                          {fmtValue(row.fillRatePercent, "%")}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs",
+                              getActionVariant(row.actionStatus),
+                            )}
+                          >
+                            {row.actionStatus}
+                          </Badge>
+                        </TableCell>
+                        {canManage && (
+                          <TableCell className="py-3">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setExpandedBreach(
+                                  expandedBreach === row.id ? null : row.id,
+                                )
+                              }
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="space-y-3 lg:hidden">
+                {paginatedBreaches.map((row) => (
+                  <Card key={row.id} className="border-border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            {row.supplier.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {row.supplier.code}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            getStatusVariant(row.status),
+                          )}
+                        >
+                          {row.status}
+                        </Badge>
+                      </div>
+
+                      {/* Metrics Grid */}
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Evaluated
+                          </p>
+                          <p className="text-sm text-foreground">
+                            {fmtDate(row.evaluationDate)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Severity
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs mt-1",
+                              getSeverityVariant(row.severity),
+                            )}
+                          >
+                            {row.severity}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Breach Count
+                          </p>
+                          <p className="text-sm font-semibold text-foreground">
+                            {row.breachCount}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Observed LT
+                          </p>
+                          <p className="text-sm">
+                            {fmtValue(row.observedLeadTimeDays, "d")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            On-Time
+                          </p>
+                          <p
+                            className={cn(
+                              "text-sm font-medium",
+                              getPerformanceColor(row.onTimeRatePercent),
+                            )}
+                          >
+                            {fmtValue(row.onTimeRatePercent, "%")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            Fill Rate
+                          </p>
+                          <p className="text-sm">
+                            {fmtValue(row.fillRatePercent, "%")}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Status */}
+                      <div className="pt-2 border-t border-border/50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">
+                            Action Status
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs",
+                              getActionVariant(row.actionStatus),
+                            )}
+                          >
+                            {row.actionStatus}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalBreachPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalBreachPages}
+                  onPageChange={setCurrentPage}
+                />
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Termination Queue */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">
+            Termination Queue
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Auto-opened governance queue when policy termination clause
+            thresholds are reached.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6 pt-0">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : terminationCases.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <AlertTriangle className="h-8 w-8 text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">
+                No active termination escalation cases.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-xs font-medium text-muted-foreground">
+                      Case
+                    </TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">
+                      Supplier
+                    </TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">
+                      Status
+                    </TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">
+                      Action
+                    </TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">
+                      Owner
+                    </TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">
+                      Updated
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {terminationCases.slice(0, 10).map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className="border-border hover:bg-muted/40"
+                    >
+                      <TableCell className="py-3">
+                        <div className="font-medium text-sm text-foreground">
+                          #{row.id}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div className="font-medium text-sm text-foreground">
+                          {row.supplier.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {row.supplier.code}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            row.status === "OPEN"
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-muted",
+                          )}
+                        >
                           {row.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{row.recommendedAction}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {row.openBreachCount} breaches / {row.criticalBreachCount} critical in {row.lookbackDays}d
+                      <TableCell className="py-3 text-sm text-foreground">
+                        {row.recommendedAction}
                       </TableCell>
-                      <TableCell>
-                        <p className="max-w-sm text-xs text-muted-foreground">{row.reason}</p>
-                      </TableCell>
-                      <TableCell>
+                      <TableCell className="py-3">
                         {row.owner ? (
                           <div className="text-xs">
                             <p>{row.owner.name || "Unnamed"}</p>
-                            <p className="text-muted-foreground">{row.owner.email}</p>
+                            <p className="text-muted-foreground">
+                              {row.owner.email}
+                            </p>
                           </div>
                         ) : (
-                          <span className="text-muted-foreground">Unassigned</span>
+                          <span className="text-muted-foreground">
+                            Unassigned
+                          </span>
                         )}
                       </TableCell>
-                      <TableCell>{fmtDate(row.reviewedAt || row.resolvedAt || row.createdAt)}</TableCell>
-                      {canManage ? (
-                        <TableCell className="space-y-2">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Owner</Label>
-                            <select
-                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
-                              value={draft.ownerUserId}
-                              onChange={(event) =>
-                                updateTerminationDraft(row.id, "ownerUserId", event.target.value)
-                              }
-                            >
-                              <option value="">Unassigned</option>
-                              {owners.map((owner) => (
-                                <option key={owner.id} value={owner.id}>
-                                  {(owner.name || owner.email).slice(0, 38)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Case Status</Label>
-                            <select
-                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
-                              value={draft.status}
-                              onChange={(event) =>
-                                updateTerminationDraft(
-                                  row.id,
-                                  "status",
-                                  event.target.value as TerminationDraft["status"],
-                                )
-                              }
-                            >
-                              <option value="OPEN">OPEN</option>
-                              <option value="IN_REVIEW">IN_REVIEW</option>
-                              <option value="APPROVED">APPROVED</option>
-                              <option value="REJECTED">REJECTED</option>
-                              <option value="EXECUTED">EXECUTED</option>
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Recommended Action</Label>
-                            <select
-                              className="w-44 rounded-md border bg-background px-2 py-1 text-xs"
-                              value={draft.recommendedAction}
-                              onChange={(event) =>
-                                updateTerminationDraft(
-                                  row.id,
-                                  "recommendedAction",
-                                  event.target.value as TerminationDraft["recommendedAction"],
-                                )
-                              }
-                            >
-                              <option value="WATCHLIST">WATCHLIST</option>
-                              <option value="SUSPEND_NEW_PO">SUSPEND_NEW_PO</option>
-                              <option value="REVIEW_CONTRACT">REVIEW_CONTRACT</option>
-                              <option value="TERMINATE_RELATIONSHIP">TERMINATE_RELATIONSHIP</option>
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Resolution Note</Label>
-                            <Textarea
-                              rows={2}
-                              className="w-44 text-xs"
-                              value={draft.resolutionNote}
-                              onChange={(event) =>
-                                updateTerminationDraft(row.id, "resolutionNote", event.target.value)
-                              }
-                            />
-                          </div>
-                          <label className="flex items-center gap-2 text-xs">
-                            <input
-                              type="checkbox"
-                              checked={draft.markReviewed}
-                              onChange={(event) =>
-                                updateTerminationDraft(row.id, "markReviewed", event.target.checked)
-                              }
-                            />
-                            Mark reviewed
-                          </label>
-                          <Button
-                            size="sm"
-                            className="h-8"
-                            disabled={terminationSavingId === row.id}
-                            onClick={() => void submitTerminationCase(row.id)}
-                          >
-                            {terminationSavingId === row.id ? "Saving..." : "Save Case"}
-                          </Button>
-                        </TableCell>
-                      ) : null}
+                      <TableCell className="py-3 text-sm text-muted-foreground">
+                        {fmtDate(
+                          row.reviewedAt || row.resolvedAt || row.createdAt,
+                        )}
+                      </TableCell>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* SLA Policy Modal */}
+      <SlaPolicyModal
+        open={policyModalOpen}
+        onOpenChange={setPolicyModalOpen}
+        editingId={editingPolicyId}
+        form={form}
+        suppliers={suppliers}
+        onFormChange={(updates) => setForm((prev) => ({ ...prev, ...updates }))}
+        onSave={submitPolicy}
+        saving={saving}
+      />
     </div>
   );
+}
+
+// Helper function for performance colors
+function getPerformanceColor(value: number | string | null) {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (num === null || isNaN(num)) return "text-muted-foreground";
+  if (num >= 80) return "text-success";
+  if (num >= 60) return "text-warning";
+  return "text-destructive";
 }
