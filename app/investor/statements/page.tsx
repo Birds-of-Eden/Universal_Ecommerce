@@ -184,10 +184,10 @@ export default function InvestorStatementsPage() {
             </div>
             <div className="flex flex-wrap items-end gap-2 sm:col-span-2 md:col-span-1">
               <Button onClick={() => void load(from, to)}>Apply</Button>
-              <Button variant="outline" onClick={() => void downloadCsv()} disabled={exportingCsv}>
+              <Button className="w-full sm:w-auto" variant="outline" onClick={() => void downloadCsv()} disabled={exportingCsv}>
                 {exportingCsv ? "Exporting..." : "Export CSV"}
               </Button>
-              <Button variant="outline" onClick={() => void downloadPdf()} disabled={!data || exportingPdf}>
+              <Button className="w-full sm:w-auto" variant="outline" onClick={() => void downloadPdf()} disabled={!data || exportingPdf}>
                 {exportingPdf ? "Exporting..." : "Export PDF"}
               </Button>
             </div>
@@ -217,7 +217,29 @@ export default function InvestorStatementsPage() {
         <CardContent className="space-y-3">
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {loading ? <SkeletonTable rows={5} cols={5} /> : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="space-y-3 md:hidden">
+              {(data?.transactions || []).map((item) => {
+                const badge = statusBadge(item.direction);
+                return (
+                  <div key={item.id} className="rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium">{item.transactionNumber}</p>
+                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <div>Date: <span className="font-medium text-foreground">{shortDateTime(item.transactionDate)}</span></div>
+                      <div>Type: <span className="font-medium text-foreground">{item.type}</span></div>
+                      <div className="col-span-2">Amount: <span className="font-medium text-foreground">{fmtAmount(item.amount)} {item.currency}</span></div>
+                    </div>
+                  </div>
+                );
+              })}
+              {data?.transactions?.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground">No transactions in selected range.</p>
+              ) : null}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -253,6 +275,7 @@ export default function InvestorStatementsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -263,7 +286,29 @@ export default function InvestorStatementsPage() {
         </CardHeader>
         <CardContent>
           {loading ? <SkeletonTable rows={3} cols={5} /> : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="space-y-3 md:hidden">
+              {(data?.payouts || []).map((item) => {
+                const badge = statusBadge(item.status);
+                return (
+                  <div key={item.id} className="rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium">{item.payoutNumber}</p>
+                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <div>Amount: <span className="font-medium text-foreground">{fmtAmount(item.payoutAmount)} {item.currency}</span></div>
+                      <div>Created: <span className="font-medium text-foreground">{shortDateTime(item.createdAt)}</span></div>
+                      <div className="col-span-2">Paid: <span className="font-medium text-foreground">{shortDateTime(item.paidAt)}</span></div>
+                    </div>
+                  </div>
+                );
+              })}
+              {data?.payouts?.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground">No payouts in selected range.</p>
+              ) : null}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -299,6 +344,7 @@ export default function InvestorStatementsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

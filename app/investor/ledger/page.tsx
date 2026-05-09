@@ -107,10 +107,33 @@ export default function InvestorLedgerPage() {
                 placeholder="Filter by type (e.g. DISTRIBUTION)"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="max-w-sm"
+                className="w-full md:max-w-sm"
               />
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              <div className="overflow-x-auto">
+              <div className="space-y-3 md:hidden">
+                {(data?.transactions || []).map((item) => {
+                  const badge = statusBadge(item.direction);
+                  return (
+                    <div key={item.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-medium">{item.transactionNumber}</p>
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                        <div>Date: <span className="font-medium text-foreground">{shortDateTime(item.transactionDate)}</span></div>
+                        <div>Type: <span className="font-medium text-foreground">{item.type}</span></div>
+                        <div>Amount: <span className="font-medium text-foreground">{fmtAmount(item.amount)} {item.currency}</span></div>
+                        <div className="col-span-2">Product: <span className="font-medium text-foreground">{item.productVariant ? `${item.productVariant.product.name} (${item.productVariant.sku})` : "-"}</span></div>
+                        <div className="col-span-2">Note: <span className="font-medium text-foreground">{item.note || "-"}</span></div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {data?.transactions?.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground">No transactions found.</p>
+                ) : null}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>

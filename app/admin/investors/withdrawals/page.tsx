@@ -140,7 +140,7 @@ export default function InvestorWithdrawalsPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       <InvestorWorkflowGuide currentSection="withdrawals" />
 
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -150,12 +150,12 @@ export default function InvestorWithdrawalsPage() {
             Review, approve, and settle capital withdrawal requests with balance controls.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Input
             placeholder="Search investor or request"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="w-56"
+            className="w-full sm:w-56"
           />
           <Button variant="outline" onClick={() => void load()}>
             Refresh
@@ -171,7 +171,7 @@ export default function InvestorWithdrawalsPage() {
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total Requested</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{data?.summary.totalRequestedAmount ?? "0"}</CardContent></Card>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {["REQUESTED", "APPROVED", "SETTLED", "REJECTED", ""].map((value) => (
           <Button
             key={value || "ALL"}
@@ -275,9 +275,10 @@ export default function InvestorWithdrawalsPage() {
                           }
                         />
                       </div>
-                      <div className="flex gap-2 md:col-span-2">
+                      <div className="flex flex-wrap gap-2 md:col-span-2">
                         <Button
                           size="sm"
+                          className="w-full sm:w-auto"
                           onClick={() => void act(row, "approve")}
                           disabled={workingId === row.id}
                         >
@@ -285,6 +286,7 @@ export default function InvestorWithdrawalsPage() {
                         </Button>
                         <Button
                           size="sm"
+                          className="w-full sm:w-auto"
                           variant="outline"
                           onClick={() => void act(row, "reject")}
                           disabled={workingId === row.id}
@@ -313,6 +315,7 @@ export default function InvestorWithdrawalsPage() {
                       <div className="md:col-span-2">
                         <Button
                           size="sm"
+                          className="w-full sm:w-auto"
                           onClick={() => void act(row, "settle")}
                           disabled={workingId === row.id}
                         >

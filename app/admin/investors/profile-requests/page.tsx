@@ -103,7 +103,7 @@ export default function InvestorProfileRequestsPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       <InvestorWorkflowGuide currentSection="profile-requests" />
 
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -113,12 +113,12 @@ export default function InvestorProfileRequestsPage() {
             Review portal-submitted identity and beneficiary update requests.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Input
             placeholder="Search investor"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="w-56"
+            className="w-full sm:w-56"
           />
           <Button variant="outline" onClick={() => void load()}>
             Refresh
@@ -132,7 +132,7 @@ export default function InvestorProfileRequestsPage() {
         <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Rejected</CardTitle></CardHeader><CardContent className="text-2xl font-semibold">{data?.summary.rejected ?? 0}</CardContent></Card>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {["PENDING", "APPROVED", "REJECTED", ""].map((value) => (
           <Button
             key={value || "ALL"}
@@ -199,9 +199,10 @@ export default function InvestorProfileRequestsPage() {
                           }
                         />
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
+                          className="w-full sm:w-auto"
                           onClick={() => void review(row.id, "approve")}
                           disabled={workingId === row.id}
                         >
@@ -209,6 +210,7 @@ export default function InvestorProfileRequestsPage() {
                         </Button>
                         <Button
                           size="sm"
+                          className="w-full sm:w-auto"
                           variant="outline"
                           onClick={() => void review(row.id, "reject")}
                           disabled={workingId === row.id}
