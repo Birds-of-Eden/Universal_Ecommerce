@@ -31,7 +31,7 @@ function canReadVerifications(access: Awaited<ReturnType<typeof getAccessContext
 
 export async function GET(
   _request: NextRequest,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -46,7 +46,8 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const id = Number(context.params.id);
+    const { id: rawId } = await context.params;
+    const id = Number(rawId);
     if (!Number.isInteger(id) || id <= 0) {
       return NextResponse.json({ error: "Invalid verification id." }, { status: 400 });
     }
@@ -100,7 +101,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -112,7 +113,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const id = Number(context.params.id);
+    const { id: rawId } = await context.params;
+    const id = Number(rawId);
     if (!Number.isInteger(id) || id <= 0) {
       return NextResponse.json({ error: "Invalid verification id." }, { status: 400 });
     }
