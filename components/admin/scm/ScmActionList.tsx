@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowUpRight, Clock3 } from "lucide-react";
+import { ArrowUpRight, Clock3, Building2, Calendar, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScmStatusChip } from "@/components/admin/scm/ScmStatusChip";
+import { cn } from "@/lib/utils";
 
 export type ScmActionItem = {
   key: string;
@@ -26,7 +27,12 @@ function fmtDate(value?: string | null) {
   if (!value) return "N/A";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "N/A";
-  return parsed.toLocaleString();
+  return parsed.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function priorityLabel(priority: ScmActionItem["priority"]) {
@@ -38,6 +44,42 @@ function priorityLabel(priority: ScmActionItem["priority"]) {
     default:
       return "Normal";
   }
+}
+
+function getPriorityClass(priority: ScmActionItem["priority"]) {
+  switch (priority) {
+    case "critical":
+      return "border-destructive/30 bg-destructive/10 text-destructive";
+    case "high":
+      return "border-warning/30 bg-warning/10 text-warning";
+    default:
+      return "border-border/70 bg-background/80 text-muted-foreground";
+  }
+}
+
+// Metadata item component for consistency
+function MetadataItem({ 
+  icon: Icon, 
+  label, 
+  value, 
+  isWarning = false 
+}: { 
+  icon: any; 
+  label: string; 
+  value: string | number; 
+  isWarning?: boolean;
+}) {
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1 sm:gap-1.5",
+      isWarning && "text-warning"
+    )}>
+      <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+      <span className="text-[10px] sm:text-xs">
+        {label}: {value}
+      </span>
+    </span>
+  );
 }
 
 export function ScmActionList({
@@ -52,41 +94,99 @@ export function ScmActionList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 sm:space-y-4">
       {items.map((item) => (
-        <Card key={item.key} className="shadow-none">
-          <CardContent className="space-y-4 p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        <Card 
+          key={item.key} 
+          className="shadow-none transition-all duration-200 hover:shadow-sm hover:-translate-y-0.5 group"
+        >
+          <CardContent className="space-y-3 p-3 sm:space-y-4 sm:p-4 md:p-5">
+            {/* Main Content Row - Responsive */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              {/* Left Content */}
+              <div className="min-w-0 flex-1 space-y-2">
+                {/* Badges Row - Responsive wrapping */}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span className="text-[10px] sm:text-xs font-medium uppercase tracking-[0.15em] sm:tracking-[0.18em] text-muted-foreground">
                     {item.module}
                   </span>
                   <ScmStatusChip status={item.status} />
-                  <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  <span className={cn(
+                    "rounded-full border px-1.5 py-0.5 sm:px-2 text-[10px] sm:text-[11px] font-medium",
+                    getPriorityClass(item.priority)
+                  )}>
                     {priorityLabel(item.priority)}
                   </span>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
+
+                {/* Title & Description */}
+                <div className="space-y-0.5 sm:space-y-1">
+                  <p className="text-sm sm:text-base font-semibold text-foreground break-words line-clamp-2">
+                    {item.title}
+                  </p>
+                  <p className="text-xs sm:text-sm text-muted-foreground break-words line-clamp-2 sm:line-clamp-3">
+                    {item.description}
+                  </p>
                 </div>
               </div>
-              <Button asChild size="sm" className="md:self-center">
-                <Link href={item.href}>
+
+              {/* Action Button - Responsive */}
+              <Button 
+                asChild 
+                size="sm" 
+                className={cn(
+                  "w-full lg:w-auto",
+                  "lg:self-center",
+                  "mt-1 lg:mt-0",
+                  "transition-all duration-200 hover:scale-105"
+                )}
+              >
+                <Link href={item.href} className="flex items-center justify-center gap-1.5">
                   {item.actionLabel}
-                  <ArrowUpRight className="ml-1.5 h-4 w-4" />
+                  <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </Link>
               </Button>
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <Clock3 className="h-3.5 w-3.5" />
-                Age: {item.ageDays} day{item.ageDays === 1 ? "" : "s"}
-              </span>
-              {item.warehouseName ? <span>Warehouse: {item.warehouseName}</span> : null}
-              <span>Created: {fmtDate(item.createdAt)}</span>
-              {item.dueAt ? <span>Due: {fmtDate(item.dueAt)}</span> : null}
+
+            {/* Metadata Row - Responsive grid with proper separators */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 sm:gap-x-4 sm:gap-y-2 text-[10px] sm:text-xs text-muted-foreground border-t border-border/50 pt-2 sm:pt-3">
+              <MetadataItem 
+                icon={Clock3} 
+                label="Age" 
+                value={`${item.ageDays} day${item.ageDays === 1 ? '' : 's'}`} 
+              />
+              
+              {item.warehouseName && (
+                <>
+                  <span className="hidden sm:inline text-border/50">•</span>
+                  <MetadataItem 
+                    icon={Building2} 
+                    label="Warehouse" 
+                    value={item.warehouseName} 
+                  />
+                </>
+              )}
+              
+              <>
+                <span className="hidden sm:inline text-border/50">•</span>
+                <MetadataItem 
+                  icon={Calendar} 
+                  label="Created" 
+                  value={fmtDate(item.createdAt)} 
+                />
+              </>
+              
+              {item.dueAt && (
+                <>
+                  <span className="hidden sm:inline text-border/50">•</span>
+                  <MetadataItem 
+                    icon={AlertCircle} 
+                    label="Due" 
+                    value={fmtDate(item.dueAt)} 
+                    isWarning={true}
+                  />
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

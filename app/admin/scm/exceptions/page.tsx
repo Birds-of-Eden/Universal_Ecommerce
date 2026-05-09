@@ -71,7 +71,7 @@ export default function ScmExceptionsPage() {
       {loading ? <p className="text-sm text-muted-foreground">Loading SCM exceptions...</p> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-3">
         <ScmStatCard
           label="Critical"
           value={data?.summary.critical ?? 0}

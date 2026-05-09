@@ -242,7 +242,7 @@ export default function ScmNotificationsPage() {
 
       {!loading && !error && data ? (
         <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
             <ScmStatCard
               label="Unread"
               value={String(data.unreadCount)}
@@ -292,7 +292,7 @@ export default function ScmNotificationsPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 grid-cols-2 xl:grid-cols-3">
             {data.health.modules.map((module) => (
               <Card key={module.key}>
                 <CardHeader>

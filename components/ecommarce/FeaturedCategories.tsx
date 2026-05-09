@@ -33,14 +33,14 @@ function getInitials(name: string) {
 
 function getCardTheme(index: number) {
   const themes = [
-    "from-sky-100/95 via-cyan-50/90 to-blue-100/95",
-    "from-lime-100/95 via-green-50/90 to-emerald-100/95",
-    "from-orange-100/95 via-amber-50/90 to-yellow-100/95",
-    "from-pink-100/95 via-rose-50/90 to-fuchsia-100/95",
-    "from-violet-100/95 via-purple-50/90 to-indigo-100/95",
-    "from-teal-100/95 via-cyan-50/90 to-sky-100/95",
-    "from-slate-100/95 via-zinc-50/90 to-stone-100/95",
-    "from-red-100/95 via-orange-50/90 to-amber-100/95",
+    "from-primary/20 via-background/90 to-primary/10",
+    "from-secondary/20 via-background/90 to-secondary/10",
+    "from-accent/20 via-background/90 to-accent/10",
+    "from-muted via-background/90 to-primary/10",
+    "from-primary/15 via-card/90 to-secondary/10",
+    "from-accent/15 via-card/90 to-primary/10",
+    "from-muted via-card/90 to-background",
+    "from-secondary/15 via-background/90 to-accent/10",
   ];
 
   return themes[index % themes.length];
@@ -143,13 +143,14 @@ export default function FeaturedCategories({
   const regularCategories = firstParentCategories.slice(1, 5);
 
   return (
-    <section className="w-full bg-background">
+    <section className="w-full bg-background text-foreground">
       <div className="px-4 py-4 sm:px-6 sm:py-10 lg:px-8">
         <span className="mb-2 inline-flex rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
           Categories
         </span>
+
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex items-center justify-between w-full gap-4 flex-shrink-0">
+          <div className="flex w-full flex-shrink-0 items-center justify-between gap-4">
             <h2 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl lg:text-4xl">
               {title}
             </h2>
@@ -171,16 +172,16 @@ export default function FeaturedCategories({
         ) : loading ? (
           <CategoryCardSkeleton />
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {featuredCategory && (
               <Link
                 key={featuredCategory.id}
                 href={`/ecommerce/categories?slug=${featuredCategory.slug}`}
                 className={cn(
-                  "group relative min-h-[200px] sm:min-h-[320px] overflow-hidden rounded-[20px] sm:rounded-[32px] border border-primary/15",
-                  "bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.22),transparent_34%),linear-gradient(135deg,#f7fff7_0%,#ecfdf5_45%,#ffffff_100%)]",
-                  "shadow-[0_18px_50px_rgba(22,163,74,0.12)] transition-all duration-500",
-                  "hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(22,163,74,0.18)]",
+                  "group relative min-h-[200px] overflow-hidden rounded-[20px] border border-border sm:min-h-[320px] sm:rounded-[32px]",
+                  "bg-background gradient-soft",
+                  "shadow-[0_18px_50px_hsl(var(--primary)/0.12)] transition-all duration-500",
+                  "hover:-translate-y-1 hover:shadow-[0_24px_70px_hsl(var(--primary)/0.18)]",
                   "col-span-2 sm:col-span-2 xl:row-span-2 xl:min-h-[460px]",
                 )}
               >
@@ -191,8 +192,8 @@ export default function FeaturedCategories({
                       alt={featuredCategory.name}
                       priority
                     />
-                    <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-black/5 to-black/35" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/20" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-background/10 via-background/5 to-foreground/35" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-foreground/45 via-transparent to-card/20" />
                   </>
                 ) : (
                   <div
@@ -204,37 +205,38 @@ export default function FeaturedCategories({
                 )}
 
                 <div className="relative flex h-full flex-col justify-between p-3 sm:p-5 lg:p-8">
-                  <div className="space-y-5">
-                    <span className="inline-flex w-fit items-center gap-1.5 sm:gap-2 rounded-full border border-primary/15 bg-white/80 px-2 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold uppercase tracking-[0.18em] text-primary shadow-sm backdrop-blur">
+                  <div>
+                    <span className="absolute left-3 top-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-primary/15 bg-card/80 px-2 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary shadow-sm backdrop-blur sm:left-5 sm:top-5 sm:gap-2 sm:px-4 sm:py-2 sm:text-xs lg:left-8 lg:top-8">
                       <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4" />
                       Featured
                     </span>
 
-                    <div className="max-w-xl">
-                      <h3 className="text-xl sm:text-3xl font-black leading-[1.05] tracking-tight text-foreground lg:text-5xl">
+                    <div className="absolute left-3 top-16 inline-block max-w-fit sm:left-5 sm:top-20 lg:left-8 lg:top-24">
+                      <h3 className="inline-block rounded-xl text-foreground px-3 py-2 text-xl font-black leading-[1.05] tracking-tight bg-primary-foreground sm:text-3xl">
                         {featuredCategory.name}
                       </h3>
 
-                      <p className="mt-2 sm:mt-4 max-w-md text-[11px] sm:text-sm leading-5 sm:leading-6 text-muted-foreground">
+                      <p className="mt-2 w-fit rounded-full bg-card/80 px-3 py-1 text-[11px] font-semibold leading-5 text-card-foreground shadow-sm backdrop-blur sm:mt-3 sm:text-sm sm:leading-6">
                         {featuredCategory.productCount} products available
                       </p>
                     </div>
                   </div>
 
-                  <div className="ml-auto inline-flex w-fit items-center gap-1.5 sm:gap-2 rounded-full bg-primary px-3 sm:px-5 py-2 sm:py-3 text-[11px] sm:text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 group-hover:translate-x-1">
+                  <div className="ml-auto mt-auto inline-flex w-fit items-center gap-1.5 rounded-full bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 group-hover:translate-x-1 sm:gap-2 sm:px-5 sm:py-3 sm:text-sm">
                     Browse Now
                     <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4" />
                   </div>
                 </div>
               </Link>
             )}
+
             {regularCategories.map((category, index) => (
               <Link
                 key={category.id}
                 href={`/ecommerce/categories?slug=${category.slug}`}
                 className={cn(
-                  "group relative min-h-[160px] sm:min-h-[220px] overflow-hidden rounded-[20px] sm:rounded-[28px] border border-border/60",
-                  "shadow-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-lg",
+                  "group relative min-h-[160px] overflow-hidden rounded-[20px] border border-border/60 sm:min-h-[220px] sm:rounded-[28px]",
+                  "shadow-sm transition-all duration-500 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/10",
                   "col-span-1 sm:col-span-1 lg:col-span-1",
                 )}
               >
@@ -245,8 +247,8 @@ export default function FeaturedCategories({
                       alt={category.name}
                       priority={index < 2}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-black/5 to-black/35" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-white/20" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-background/10 via-background/5 to-foreground/35" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-foreground/45 via-transparent to-card/20" />
                   </>
                 ) : (
                   <div
@@ -259,17 +261,17 @@ export default function FeaturedCategories({
 
                 <div className="relative flex h-full flex-col justify-between p-3 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <span className="line-clamp-1 max-w-[80%] rounded-full bg-white/90 px-2 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-sm font-black text-foreground shadow-sm backdrop-blur">
+                    <span className="line-clamp-1 max-w-[80%] rounded-full bg-card/90 px-2 py-1.5 text-[11px] font-black text-card-foreground shadow-sm backdrop-blur sm:px-4 sm:py-2 sm:text-sm">
                       {category.name}
                     </span>
 
-                    <span className="rounded-full bg-white/80 p-1.5 sm:p-2 shadow-sm backdrop-blur">
-                      <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-foreground transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" />
+                    <span className="rounded-full bg-card/80 p-1.5 shadow-sm backdrop-blur sm:p-2">
+                      <ArrowUpRight className="h-3 w-3 text-foreground transition-transform duration-300 group-hover:-translate-y-1 group-hover:translate-x-1 sm:h-4 sm:w-4" />
                     </span>
                   </div>
 
                   {!category.image && (
-                    <div className="ml-auto grid h-14 w-14 sm:h-20 sm:w-20 place-items-center rounded-2xl sm:rounded-3xl border border-white/60 bg-white/55 text-xl sm:text-2xl font-black text-foreground/80 shadow-sm backdrop-blur">
+                    <div className="ml-auto grid h-14 w-14 place-items-center rounded-2xl border border-border/60 bg-card/55 text-xl font-black text-foreground/80 shadow-sm backdrop-blur sm:h-20 sm:w-20 sm:rounded-3xl sm:text-2xl">
                       {getInitials(category.name)}
                     </div>
                   )}

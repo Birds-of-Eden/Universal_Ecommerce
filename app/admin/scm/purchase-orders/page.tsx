@@ -116,7 +116,7 @@ export default function PurchaseOrdersPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
         <ScmStatCard label="Total" value={String(summary.total)} hint="Visible purchase orders" />
         <ScmStatCard label="Draft" value={String(summary.draft)} hint="Commercial draft stage" />
         <ScmStatCard label="In Approval" value={String(summary.approval)} hint="Submitted through committee stage" />
