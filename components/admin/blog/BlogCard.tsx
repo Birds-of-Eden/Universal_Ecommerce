@@ -99,20 +99,20 @@ const BlogCard = memo(function BlogCard() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Header Skeleton */}
-        <div className="bg-gradient-to-r from-muted to-muted/50 rounded-2xl shadow-lg p-6 animate-pulse border-border">
+        <div className="rounded-2xl border border-border bg-gradient-to-r from-muted to-muted/50 p-4 shadow-lg animate-pulse sm:p-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <div className="h-8 bg-muted rounded w-48 mb-2"></div>
               <div className="h-4 bg-muted rounded w-64"></div>
             </div>
-            <div className="h-12 bg-muted rounded-full w-40"></div>
+            <div className="h-12 w-full rounded-full bg-muted sm:w-40"></div>
           </div>
 
           {/* Search Bar Skeleton */}
           <div className="mt-6">
-            <div className="relative max-w-md">
+            <div className="relative max-w-full md:max-w-md">
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 bg-muted rounded"></div>
               <div className="h-12 bg-muted rounded-xl w-full pl-10"></div>
             </div>
@@ -120,19 +120,19 @@ const BlogCard = memo(function BlogCard() {
         </div>
 
         {/* Blog Grid Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
             <div
               key={i}
               className="bg-card border border-border rounded-2xl shadow-lg overflow-hidden"
             >
               {/* Image Skeleton */}
-              <div className="relative h-48 overflow-hidden">
+              <div className="relative h-44 overflow-hidden sm:h-48">
                 <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 animate-pulse"></div>
               </div>
 
               {/* Content Skeleton */}
-              <div className="p-5">
+              <div className="p-4 sm:p-5">
                 <div className="h-6 bg-muted rounded w-3/4 mb-2 animate-pulse"></div>
                 <div className="space-y-2 mb-4">
                   <div className="h-4 bg-muted rounded w-full animate-pulse"></div>
@@ -140,7 +140,7 @@ const BlogCard = memo(function BlogCard() {
                 </div>
 
                 {/* Meta Information Skeleton */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center space-x-1">
                     <div className="w-4 h-4 bg-muted rounded animate-pulse"></div>
                     <div className="h-4 bg-muted rounded w-16 animate-pulse"></div>
@@ -152,9 +152,9 @@ const BlogCard = memo(function BlogCard() {
                 </div>
 
                 {/* Actions Skeleton */}
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="h-4 bg-muted rounded w-12 animate-pulse"></div>
-                  <div className="h-4 bg-muted rounded w-16 animate-pulse"></div>
+                <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="h-4 w-full rounded bg-muted animate-pulse sm:w-12"></div>
+                  <div className="h-4 w-full rounded bg-muted animate-pulse sm:w-16"></div>
                 </div>
               </div>
             </div>
@@ -162,10 +162,10 @@ const BlogCard = memo(function BlogCard() {
         </div>
 
         {/* Pagination Skeleton */}
-        <div className="bg-card border border-border rounded-2xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div className="h-10 bg-muted rounded w-20 animate-pulse"></div>
-            <div className="flex items-center space-x-2">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-lg sm:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="h-10 w-full rounded bg-muted animate-pulse sm:w-20"></div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {Array.from({ length: 5 }, (_, i) => (
                 <div
                   key={i}
@@ -173,7 +173,7 @@ const BlogCard = memo(function BlogCard() {
                 ></div>
               ))}
             </div>
-            <div className="h-10 bg-muted rounded w-20 animate-pulse"></div>
+            <div className="h-10 w-full rounded bg-muted animate-pulse sm:w-20"></div>
           </div>
         </div>
       </div>
@@ -181,11 +181,11 @@ const BlogCard = memo(function BlogCard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-5 space-y-4 sm:space-y-6">
       {/* Header Section */}
-      <div className="bg-card border border-border shadow-lg p-6">
+      <div className="border border-border rounded-2xl bg-card p-4 shadow-lg sm:p-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
               Blog Management
             </h1>
@@ -195,7 +195,7 @@ const BlogCard = memo(function BlogCard() {
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground font-semibold px-6 py-3 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-secondary hover:border-secondary/80 flex items-center space-x-2"
+            className="flex w-full items-center justify-center space-x-2 rounded-full border border-secondary bg-secondary px-6 py-3 font-semibold text-secondary-foreground transition-all duration-300 hover:scale-105 hover:border-secondary/80 hover:bg-secondary/80 hover:shadow-lg sm:w-auto"
           >
             <svg
               className="w-5 h-5"
@@ -216,7 +216,7 @@ const BlogCard = memo(function BlogCard() {
 
         {/* Search Bar */}
         <div className="mt-6">
-          <div className="relative max-w-md">
+          <div className="relative max-w-full md:max-w-md">
             <svg
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5"
               fill="none"
@@ -256,11 +256,11 @@ const BlogCard = memo(function BlogCard() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
             {blogs.map((blog) => (
               <div
                 key={blog.id}
-                className="bg-card backdrop-blur-sm border border-border rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 overflow-hidden group relative"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg transition-all duration-300 hover:shadow-xl sm:hover:scale-[1.02]"
               >
                 {/* Clickable overlay that doesn't interfere with buttons */}
                 <Link
@@ -270,7 +270,7 @@ const BlogCard = memo(function BlogCard() {
                 />
 
                 {/* Image */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-44 overflow-hidden sm:h-48">
                   {blog.image ? (
                     <img
                       src={blog.image}
@@ -298,19 +298,19 @@ const BlogCard = memo(function BlogCard() {
                 </div>
 
                 {/* Content */}
-                <div className="p-5">
-                  <h3 className="font-semibold text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors duration-300">
+                <div className="p-4 sm:p-5">
+                  <h3 className="mb-2 line-clamp-2 text-base font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-lg">
                     {blog.title}
                   </h3>
-                  <p className="text-muted-foreground text-sm line-clamp-2 mb-4 leading-relaxed">
+                  <p className="mb-4 line-clamp-3 text-sm leading-relaxed text-muted-foreground sm:line-clamp-2">
                     {processBlogSummary(blog.summary, 160)}
                   </p>
 
                   {/* Meta Information */}
-                  <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-                    <span className="flex items-center space-x-1">
+                  <div className="mb-4 flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                    <span className="flex min-w-0 items-center space-x-1">
                       <svg
-                        className="w-4 h-4"
+                        className="h-4 w-4 shrink-0"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -322,11 +322,11 @@ const BlogCard = memo(function BlogCard() {
                           d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                         />
                       </svg>
-                      <span>{blog.author}</span>
+                      <span className="truncate">{blog.author}</span>
                     </span>
                     <span className="flex items-center space-x-1">
                       <svg
-                        className="w-4 h-4"
+                        className="h-4 w-4 shrink-0"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -345,10 +345,10 @@ const BlogCard = memo(function BlogCard() {
                   </div>
 
                   {/* Actions - Wrapped in a div with higher z-index to stay above the clickable overlay */}
-                  <div className="relative z-10 flex items-center justify-between pt-4 border-t border-border">
+                  <div className="relative z-10 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
                     <Link
                       href={`/admin/management/blogs/edit/${blog.id}`}
-                      className="flex items-center space-x-2 text-primary hover:text-primary/80 font-medium text-sm transition-colors duration-300"
+                      className="flex w-full items-center justify-center space-x-2 text-sm font-medium text-primary transition-colors duration-300 hover:text-primary/80 sm:w-auto sm:justify-start"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <svg
@@ -372,7 +372,7 @@ const BlogCard = memo(function BlogCard() {
                         e.stopPropagation();
                         handleDelete(blog.id);
                       }}
-                      className="flex items-center space-x-2 text-destructive hover:text-destructive/80 font-medium text-sm transition-colors duration-300"
+                      className="flex w-full items-center justify-center space-x-2 text-sm font-medium text-destructive transition-colors duration-300 hover:text-destructive/80 sm:w-auto sm:justify-start"
                     >
                       <svg
                         className="w-4 h-4"
@@ -396,7 +396,7 @@ const BlogCard = memo(function BlogCard() {
           </div>
         </>
       ) : (
-        <div className="bg-card backdrop-blur-sm border border-border rounded-2xl shadow-lg p-12 text-center">
+        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-lg sm:p-12">
           <div className="w-20 h-20 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
             <svg
               className="w-10 h-10 text-muted-foreground"
@@ -420,7 +420,7 @@ const BlogCard = memo(function BlogCard() {
           </p>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-secondary hover:bg-secondary/80 text-secondary-foreground font-semibold px-6 py-3 rounded-full transition-all duration-300 hover:shadow-lg hover:scale-105 border border-secondary hover:border-secondary/80"
+            className="w-full rounded-full border border-secondary bg-secondary px-6 py-3 font-semibold text-secondary-foreground transition-all duration-300 hover:scale-105 hover:border-secondary/80 hover:bg-secondary/80 hover:shadow-lg sm:w-auto"
           >
             Create Blog Post
           </button>
@@ -429,12 +429,12 @@ const BlogCard = memo(function BlogCard() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="bg-card backdrop-blur-sm border border-border rounded-2xl shadow-lg p-6">
-          <div className="flex items-center justify-between">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-lg sm:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <button
               onClick={() => setPage(page - 1)}
               disabled={page === 1}
-              className="flex items-center space-x-2 px-4 py-2 border border-border rounded-xl text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              className="flex w-full items-center justify-center space-x-2 rounded-xl border border-border px-4 py-2 text-foreground transition-all duration-300 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <svg
                 className="w-4 h-4"
@@ -453,7 +453,7 @@ const BlogCard = memo(function BlogCard() {
             </button>
 
             {/* Smart pagination - show limited page numbers */}
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {/* First page */}
               {page > 3 && (
                 <>
@@ -516,7 +516,7 @@ const BlogCard = memo(function BlogCard() {
             <button
               onClick={() => setPage(page + 1)}
               disabled={page === totalPages}
-              className="flex items-center space-x-2 px-4 py-2 border border-border rounded-xl text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              className="flex w-full items-center justify-center space-x-2 rounded-xl border border-border px-4 py-2 text-foreground transition-all duration-300 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               <span>Next</span>
               <svg
@@ -539,8 +539,8 @@ const BlogCard = memo(function BlogCard() {
 
       {/* Blog Form Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="overflow-y-auto h-[80vh] w-[80vw]">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="h-[88vh] w-full max-w-5xl overflow-y-auto rounded-t-2xl sm:h-[80vh] sm:rounded-2xl">
             <BlogForm
               onSuccess={() => {
                 setIsModalOpen(false);
