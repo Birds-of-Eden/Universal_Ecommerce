@@ -13,6 +13,7 @@ export const SUPPLIER_DASHBOARD_ROUTE = "/supplier";
 export const INVESTOR_DASHBOARD_ROUTE = "/investor";
 
 const ADMIN_DELIVERY_ROUTE = "/admin/delivery";
+const ADMIN_OPERATIONS_DELIVERY_ROUTE = "/admin/operations/delivery";
 const ADMIN_PROFILE_ROUTE = "/admin/profile";
 const LEGACY_DELIVERY_ENTRY_ROUTE = "/delivery";
 const LEGACY_DELIVERY_DASHBOARD_ROUTE = "/delivery/dashboard";
@@ -69,7 +70,10 @@ export function getDashboardRoute(user?: DashboardUserLike) {
 }
 
 export function isAdminDeliveryRoute(pathname: string) {
-  return isRoutePrefix(pathname, ADMIN_DELIVERY_ROUTE);
+  return (
+    isRoutePrefix(pathname, ADMIN_DELIVERY_ROUTE) ||
+    isRoutePrefix(pathname, ADMIN_OPERATIONS_DELIVERY_ROUTE)
+  );
 }
 
 export function isLegacyDeliveryDashboardRoute(pathname: string) {
