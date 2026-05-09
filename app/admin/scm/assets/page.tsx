@@ -4,12 +4,26 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { RefreshCw, Save } from "lucide-react";
+import { RefreshCw, Save, ChevronLeft, ChevronRight, Filter, Package, Building2, Calendar, User, FileText, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 type Warehouse = {
   id: number;
@@ -81,6 +95,90 @@ function formatDateTime(value: string | null) {
   return date.toLocaleString();
 }
 
+function getStatusColor(status: string) {
+  switch (status) {
+    case "ACTIVE":
+      return "bg-success/10 text-success border-success/20";
+    case "RETIRED":
+      return "bg-muted/50 text-muted-foreground border-border";
+    case "LOST":
+      return "bg-destructive/10 text-destructive border-destructive/20";
+    case "DISPOSED":
+      return "bg-warning/10 text-warning border-warning/20";
+    default:
+      return "bg-muted/50 text-muted-foreground border-border";
+  }
+}
+
+// Pagination Component
+function Pagination({ currentPage, totalPages, onPageChange }: { 
+  currentPage: number; 
+  totalPages: number; 
+  onPageChange: (page: number) => void;
+}) {
+  const getVisiblePages = () => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      
+      if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      {getVisiblePages().map((page) => (
+        <Button
+          key={page}
+          variant={currentPage === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => onPageChange(page)}
+          className="h-8 w-8 p-0"
+        >
+          {page}
+        </Button>
+      ))}
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 export default function AssetLifecyclePage() {
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
@@ -107,6 +205,11 @@ export default function AssetLifecyclePage() {
     disposed: 0,
   });
   const [drafts, setDrafts] = useState<Record<number, AssetDraft>>({});
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const loadData = async () => {
     setLoading(true);
@@ -120,8 +223,13 @@ export default function AssetLifecyclePage() {
         fetch("/api/warehouses", { cache: "no-store" }).then((res) =>
           readJson<Warehouse[]>(res, "Failed to load warehouses"),
         ),
-        fetch(`/api/scm/assets?${query.toString()}`, { cache: "no-store" }).then((res) =>
-          readJson<{ assets: AssetRow[]; summary: AssetSummary }>(res, "Failed to load assets"),
+        fetch(`/api/scm/assets?${query.toString()}`, {
+          cache: "no-store",
+        }).then((res) =>
+          readJson<{ assets: AssetRow[]; summary: AssetSummary }>(
+            res,
+            "Failed to load assets",
+          ),
         ),
       ]);
 
@@ -139,7 +247,9 @@ export default function AssetLifecyclePage() {
 
       setDrafts((current) => {
         const next = { ...current };
-        for (const asset of Array.isArray(payload.assets) ? payload.assets : []) {
+        for (const asset of Array.isArray(payload.assets)
+          ? payload.assets
+          : []) {
           if (!next[asset.id]) {
             next[asset.id] = {
               status: asset.status,
@@ -165,7 +275,19 @@ export default function AssetLifecyclePage() {
     }
   }, [canRead]);
 
-  const visibleAssets = useMemo(() => assets, [assets]);
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, status, warehouseId]);
+
+  // Pagination calculations
+  const paginatedAssets = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return assets.slice(start, end);
+  }, [assets, currentPage]);
+
+  const totalPages = Math.ceil(assets.length / itemsPerPage);
 
   const saveAsset = async (asset: AssetRow) => {
     const draft = drafts[asset.id];
@@ -195,11 +317,11 @@ export default function AssetLifecyclePage() {
 
   if (!canRead) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Forbidden</CardTitle>
-            <CardDescription>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Forbidden</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               You do not have permission to access asset register.
             </CardDescription>
           </CardHeader>
@@ -209,63 +331,93 @@ export default function AssetLifecyclePage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-h-screen space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">Asset Lifecycle</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+          Asset Lifecycle
+        </h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
           Monitor fixed-asset tags from material release and manage lifecycle status.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-xs text-muted-foreground">Total</div>
-            <div className="text-2xl font-bold">{summary.total}</div>
+      {/* Summary Cards - Responsive Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-5">
+        <Card className="shadow-sm">
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">Total</div>
+            <div className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
+              {summary.total}
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-xs text-muted-foreground">Active</div>
-            <div className="text-2xl font-bold">{summary.active}</div>
+        <Card className="shadow-sm">
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">Active</div>
+            <div className="text-lg sm:text-xl md:text-2xl font-bold text-success">
+              {summary.active}
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-xs text-muted-foreground">Retired</div>
-            <div className="text-2xl font-bold">{summary.retired}</div>
+        <Card className="shadow-sm">
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">Retired</div>
+            <div className="text-lg sm:text-xl md:text-2xl font-bold text-muted-foreground">
+              {summary.retired}
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-xs text-muted-foreground">Lost</div>
-            <div className="text-2xl font-bold">{summary.lost}</div>
+        <Card className="shadow-sm">
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">Lost</div>
+            <div className="text-lg sm:text-xl md:text-2xl font-bold text-destructive">
+              {summary.lost}
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-xs text-muted-foreground">Disposed</div>
-            <div className="text-2xl font-bold">{summary.disposed}</div>
+        <Card className="shadow-sm col-span-2 md:col-span-1">
+          <CardContent className="p-3 sm:p-4">
+            <div className="text-[10px] sm:text-xs text-muted-foreground">Disposed</div>
+            <div className="text-lg sm:text-xl md:text-2xl font-bold text-warning">
+              {summary.disposed}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Asset Register</CardTitle>
-          <CardDescription>
-            Filter and update assigned owner, status, and lifecycle notes.
-          </CardDescription>
+      {/* Main Card */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base sm:text-lg">Asset Register</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Filter and update assigned owner, status, and lifecycle notes.
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="sm:hidden"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]">
+        <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+          {/* Desktop Filters */}
+          <div className="hidden sm:grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]">
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search tag, item, sku, assigned owner"
+              placeholder="Search tag, item, sku, assigned owner..."
+              className="text-sm"
             />
             <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={warehouseId}
               onChange={(event) => setWarehouseId(event.target.value)}
             >
@@ -277,7 +429,7 @@ export default function AssetLifecyclePage() {
               ))}
             </select>
             <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={status}
               onChange={(event) => setStatus(event.target.value)}
             >
@@ -288,142 +440,403 @@ export default function AssetLifecyclePage() {
               <option value="DISPOSED">DISPOSED</option>
             </select>
             <Button variant="outline" onClick={() => void loadData()} disabled={loading}>
-              <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+              <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+              Refresh
             </Button>
           </div>
 
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading assets...</p>
-          ) : visibleAssets.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No assets found.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Asset</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Note</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleAssets.map((asset) => {
-                  const draft = drafts[asset.id] || {
-                    status: asset.status,
-                    assignedTo: asset.assignedTo || "",
-                    note: asset.note || "",
-                  };
+          {/* Mobile Filters Drawer */}
+          {showFilters && (
+            <div className="space-y-3 sm:hidden">
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search..."
+                className="text-sm"
+              />
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={warehouseId}
+                onChange={(event) => setWarehouseId(event.target.value)}
+              >
+                <option value="">All warehouses</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name} ({warehouse.code})
+                  </option>
+                ))}
+              </select>
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+              >
+                <option value="ALL">All statuses</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="RETIRED">RETIRED</option>
+                <option value="LOST">LOST</option>
+                <option value="DISPOSED">DISPOSED</option>
+              </select>
+              <Button variant="outline" onClick={() => void loadData()} disabled={loading} className="w-full">
+                <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+                Refresh
+              </Button>
+              <Button variant="outline" onClick={() => setShowFilters(false)} className="w-full">
+                Close Filters
+              </Button>
+            </div>
+          )}
 
-                  return (
-                    <TableRow key={asset.id}>
-                      <TableCell>
-                        <div className="font-medium">{asset.assetTag}</div>
-                        <div className="text-xs text-muted-foreground">{asset.productVariant.product.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {asset.productVariant.sku} • {formatDateTime(asset.acquiredAt)}
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+
+          {/* Desktop Table View */}
+          {!loading && paginatedAssets.length > 0 && (
+            <div className="hidden lg:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-xs font-medium text-muted-foreground">Asset</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Warehouse</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Source</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Assigned To</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Note</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedAssets.map((asset) => {
+                    const draft = drafts[asset.id] || {
+                      status: asset.status,
+                      assignedTo: asset.assignedTo || "",
+                      note: asset.note || "",
+                    };
+
+                    return (
+                      <TableRow key={asset.id} className="border-border hover:bg-muted/40">
+                        <TableCell className="py-3">
+                          <div className="font-medium text-sm text-foreground">{asset.assetTag}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {asset.productVariant.product.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {asset.productVariant.sku} • {formatDateTime(asset.acquiredAt)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="text-sm text-foreground">{asset.warehouse.name}</div>
+                          <div className="text-xs text-muted-foreground">{asset.warehouse.code}</div>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="text-xs text-foreground">
+                            MRF: {asset.materialRequest?.requestNumber || "N/A"}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            MRN: {asset.materialReleaseNote?.releaseNumber || "N/A"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          {canManage ? (
+                            <select
+                              className={cn(
+                                "rounded-md border px-2 py-1 text-xs font-medium",
+                                getStatusColor(draft.status)
+                              )}
+                              value={draft.status}
+                              onChange={(event) =>
+                                setDrafts((current) => ({
+                                  ...current,
+                                  [asset.id]: {
+                                    ...draft,
+                                    status: event.target.value as AssetRow["status"],
+                                  },
+                                }))
+                              }
+                            >
+                              <option value="ACTIVE">ACTIVE</option>
+                              <option value="RETIRED">RETIRED</option>
+                              <option value="LOST">LOST</option>
+                              <option value="DISPOSED">DISPOSED</option>
+                            </select>
+                          ) : (
+                            <span className={cn(
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+                              getStatusColor(asset.status)
+                            )}>
+                              {asset.status}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          {canManage ? (
+                            <Input
+                              value={draft.assignedTo}
+                              onChange={(event) =>
+                                setDrafts((current) => ({
+                                  ...current,
+                                  [asset.id]: {
+                                    ...draft,
+                                    assignedTo: event.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Person/department"
+                              className="text-sm"
+                            />
+                          ) : (
+                            <span className="text-sm text-foreground">
+                              {asset.assignedTo || "N/A"}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          {canManage ? (
+                            <Input
+                              value={draft.note}
+                              onChange={(event) =>
+                                setDrafts((current) => ({
+                                  ...current,
+                                  [asset.id]: {
+                                    ...draft,
+                                    note: event.target.value,
+                                  },
+                                }))
+                              }
+                              placeholder="Lifecycle note"
+                              className="text-sm"
+                            />
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              {asset.note || "N/A"}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="space-y-2">
+                            <Button size="sm" variant="outline" asChild className="w-full">
+                              <Link href={`/admin/scm/assets/${asset.id}`}>
+                                <FileText className="h-3 w-3 mr-1" />
+                                Detail
+                              </Link>
+                            </Button>
+                            {canManage && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void saveAsset(asset)}
+                                disabled={savingId === asset.id}
+                                className="w-full"
+                              >
+                                <Save className="mr-1 h-3 w-3" />
+                                {savingId === asset.id ? "Saving..." : "Save"}
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Mobile Card View */}
+          {!loading && paginatedAssets.length > 0 && (
+            <div className="space-y-3 lg:hidden">
+              {paginatedAssets.map((asset) => {
+                const draft = drafts[asset.id] || {
+                  status: asset.status,
+                  assignedTo: asset.assignedTo || "",
+                  note: asset.note || "",
+                };
+
+                return (
+                  <Card key={asset.id} className="border-border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Asset Header */}
+                      <div>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {asset.assetTag}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {asset.productVariant.product.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {asset.productVariant.sku}
+                            </p>
+                          </div>
+                          <span className={cn(
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+                            getStatusColor(asset.status)
+                          )}>
+                            {asset.status}
+                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {asset.warehouse.name} ({asset.warehouse.code})
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-xs">
-                          MRF: {asset.materialRequest?.requestNumber || "N/A"}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Acquired: {formatDateTime(asset.acquiredAt)}
+                        </p>
+                      </div>
+
+                      {/* Warehouse */}
+                      <div className="flex items-center gap-2 text-sm">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-foreground">{asset.warehouse.name}</span>
+                        <span className="text-xs text-muted-foreground">({asset.warehouse.code})</span>
+                      </div>
+
+                      {/* Source Documents */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-xs">
+                          <FileText className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-muted-foreground">MRF:</span>
+                          <span className="text-foreground">
+                            {asset.materialRequest?.requestNumber || "N/A"}
+                          </span>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          MRN: {asset.materialReleaseNote?.releaseNumber || "N/A"}
+                        <div className="flex items-center gap-2 text-xs">
+                          <FileText className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-muted-foreground">MRN:</span>
+                          <span className="text-foreground">
+                            {asset.materialReleaseNote?.releaseNumber || "N/A"}
+                          </span>
                         </div>
-                      </TableCell>
-                      <TableCell>
+                      </div>
+
+                      {/* Editable Fields */}
+                      <div className="space-y-2 pt-2 border-t border-border/50">
                         {canManage ? (
-                          <select
-                            className="w-full rounded-md border bg-background px-2 py-1 text-xs"
-                            value={draft.status}
-                            onChange={(event) =>
-                              setDrafts((current) => ({
-                                ...current,
-                                [asset.id]: {
-                                  ...draft,
-                                  status: event.target.value as AssetRow["status"],
-                                },
-                              }))
-                            }
-                          >
-                            <option value="ACTIVE">ACTIVE</option>
-                            <option value="RETIRED">RETIRED</option>
-                            <option value="LOST">LOST</option>
-                            <option value="DISPOSED">DISPOSED</option>
-                          </select>
+                          <>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Status</Label>
+                              <select
+                                className={cn(
+                                  "w-full rounded-md border px-2 py-1.5 text-sm mt-1",
+                                  getStatusColor(draft.status)
+                                )}
+                                value={draft.status}
+                                onChange={(event) =>
+                                  setDrafts((current) => ({
+                                    ...current,
+                                    [asset.id]: {
+                                      ...draft,
+                                      status: event.target.value as AssetRow["status"],
+                                    },
+                                  }))
+                                }
+                              >
+                                <option value="ACTIVE">ACTIVE</option>
+                                <option value="RETIRED">RETIRED</option>
+                                <option value="LOST">LOST</option>
+                                <option value="DISPOSED">DISPOSED</option>
+                              </select>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Assigned To</Label>
+                              <Input
+                                value={draft.assignedTo}
+                                onChange={(event) =>
+                                  setDrafts((current) => ({
+                                    ...current,
+                                    [asset.id]: {
+                                      ...draft,
+                                      assignedTo: event.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="Person/department"
+                                className="text-sm mt-1"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Note</Label>
+                              <Input
+                                value={draft.note}
+                                onChange={(event) =>
+                                  setDrafts((current) => ({
+                                    ...current,
+                                    [asset.id]: {
+                                      ...draft,
+                                      note: event.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="Lifecycle note"
+                                className="text-sm mt-1"
+                              />
+                            </div>
+                          </>
                         ) : (
-                          asset.status
+                          <>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Assigned To</Label>
+                              <p className="text-sm text-foreground mt-1">
+                                {asset.assignedTo || "N/A"}
+                              </p>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Note</Label>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {asset.note || "N/A"}
+                              </p>
+                            </div>
+                          </>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        {canManage ? (
-                          <Input
-                            value={draft.assignedTo}
-                            onChange={(event) =>
-                              setDrafts((current) => ({
-                                ...current,
-                                [asset.id]: {
-                                  ...draft,
-                                  assignedTo: event.target.value,
-                                },
-                              }))
-                            }
-                            placeholder="Person/department"
-                          />
-                        ) : (
-                          asset.assignedTo || "N/A"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {canManage ? (
-                          <Input
-                            value={draft.note}
-                            onChange={(event) =>
-                              setDrafts((current) => ({
-                                ...current,
-                                [asset.id]: {
-                                  ...draft,
-                                  note: event.target.value,
-                                },
-                              }))
-                            }
-                            placeholder="Lifecycle note"
-                          />
-                        ) : (
-                          asset.note || "N/A"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="mb-2">
-                          <Button size="sm" variant="outline" asChild>
-                            <Link href={`/admin/scm/assets/${asset.id}`}>Open Detail</Link>
-                          </Button>
-                        </div>
-                        {canManage ? (
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-2">
+                        <Button size="sm" variant="outline" asChild className="flex-1">
+                          <Link href={`/admin/scm/assets/${asset.id}`}>
+                            <FileText className="h-3.5 w-3.5 mr-1" />
+                            View Detail
+                          </Link>
+                        </Button>
+                        {canManage && (
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => void saveAsset(asset)}
                             disabled={savingId === asset.id}
+                            className="flex-1"
                           >
                             <Save className="mr-1 h-3.5 w-3.5" />
                             {savingId === asset.id ? "Saving..." : "Save"}
                           </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Read only</span>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && paginatedAssets.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Package className="h-8 w-8 text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">No assets found.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try adjusting your filters or search criteria.
+              </p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           )}
         </CardContent>
       </Card>

@@ -13,11 +13,21 @@ import {
   RefreshCw,
   ShieldCheck,
   Upload,
+  User,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  Package,
+  Mail,
+  Phone,
+  MapPin,
+  Clock,
+  CreditCard,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -48,6 +58,8 @@ import {
   type SupplierDocumentType,
 } from "@/lib/supplier-documents";
 import { uploadFile } from "@/lib/upload-file";
+import { cn } from "@/lib/utils";
+import SupplierModal from "@/components/admin/scm/SupplierModal";
 
 type SupplierDocument = {
   type: SupplierDocumentType;
@@ -150,6 +162,75 @@ type DocumentUploadCardProps = {
 const FILE_ACCEPT = ".pdf,.png,.jpg,.jpeg,.webp";
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
+// Pagination Component
+function Pagination({ currentPage, totalPages, onPageChange }: { 
+  currentPage: number; 
+  totalPages: number; 
+  onPageChange: (page: number) => void;
+}) {
+  const getVisiblePages = () => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      
+      if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      {getVisiblePages().map((page) => (
+        <Button
+          key={page}
+          variant={currentPage === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => onPageChange(page)}
+          className="h-8 w-8 p-0"
+        >
+          {page}
+        </Button>
+      ))}
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 function createEmptyForm(): SupplierFormState {
   return {
     code: "",
@@ -248,74 +329,76 @@ function DocumentUploadCard({
 
   if (hasSavedFile) {
     statusLabel = "Uploaded";
-    statusClasses = "border-emerald-200 bg-emerald-50 text-emerald-700";
+    statusClasses = "border-success/20 bg-success/10 text-success";
   }
   if (hasPendingFile) {
     statusLabel = hasSavedFile ? "Replace on Save" : "Ready to Upload";
-    statusClasses = "border-amber-200 bg-amber-50 text-amber-700";
+    statusClasses = "border-warning/20 bg-warning/10 text-warning";
   }
   if (isMarkedForRemoval) {
     statusLabel = "Removed";
-    statusClasses = "border-rose-200 bg-rose-50 text-rose-700";
+    statusClasses = "border-destructive/20 bg-destructive/10 text-destructive";
   }
 
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-xl border border-dashed border-border bg-card p-3 sm:p-4 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <p className="font-medium text-foreground">{label}</p>
+            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+            <p className="font-medium text-foreground text-sm">{label}</p>
           </div>
           <p className="text-xs text-muted-foreground">
-            Upload PDF or image copy. Max size 10 MB.
+            Upload PDF or image. Max 10 MB.
           </p>
         </div>
-        <Badge variant="outline" className={statusClasses}>
+        <Badge variant="outline" className={cn("shrink-0 self-start", statusClasses)}>
           {statusLabel}
         </Badge>
       </div>
 
-      <div className="mt-4 space-y-3 text-sm">
-        {hasSavedFile ? (
-          <div className="rounded-xl border border-border bg-muted p-3">
-            <p className="font-medium text-foreground">
+      <div className="mt-3 sm:mt-4 space-y-3 text-sm">
+        {hasSavedFile && (
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <p className="font-medium text-foreground text-sm">
               {draft?.fileName || "Current document uploaded"}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              {draft?.mimeType ? <span>{draft.mimeType}</span> : null}
-              {formatBytes(draft?.fileSize) ? (
+              {draft?.mimeType && <span>{draft.mimeType}</span>}
+              {formatBytes(draft?.fileSize) && (
                 <span>{formatBytes(draft?.fileSize)}</span>
-              ) : null}
+              )}
             </div>
             <div className="mt-2">
               <Button asChild variant="link" size="sm" className="h-auto px-0 text-xs">
                 <a href={draft?.fileUrl} target="_blank" rel="noreferrer">
                   View current file
-                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  <ArrowUpRight className="h-3 w-3 ml-1" />
                 </a>
               </Button>
             </div>
           </div>
-        ) : null}
+        )}
 
-        {hasPendingFile ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
-            <p className="font-medium">{draft?.file?.name}</p>
-            <p className="mt-1 text-xs">
-              This file will be uploaded when you save the supplier.
+        {hasPendingFile && (
+          <div className="rounded-lg border border-warning/20 bg-warning/10 p-3">
+            <p className="font-medium text-warning text-sm">{draft?.file?.name}</p>
+            <p className="mt-1 text-xs text-warning/80">
+              Will be uploaded when you save
             </p>
           </div>
-        ) : null}
+        )}
 
-        {isMarkedForRemoval ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-rose-700">
-            <p className="font-medium">Document removed from this supplier draft.</p>
-            <p className="mt-1 text-xs">
-              Upload a replacement before saving, otherwise enlistment will stay incomplete.
+        {isMarkedForRemoval && (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3">
+            <p className="font-medium text-destructive text-sm">
+              Document removed from draft
+            </p>
+            <p className="mt-1 text-xs text-destructive/80">
+              Upload replacement before saving
             </p>
           </div>
-        ) : null}
+        )}
 
         <div className="space-y-2">
           <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -326,7 +409,7 @@ function DocumentUploadCard({
               type="file"
               accept={FILE_ACCEPT}
               disabled={disabled}
-              className="cursor-pointer pl-10"
+              className="cursor-pointer pl-9 text-sm"
               onChange={(event) =>
                 onFileChange(type, event.target.files?.[0] ?? null)
               }
@@ -335,18 +418,19 @@ function DocumentUploadCard({
           </div>
         </div>
 
-        {(hasSavedFile || hasPendingFile || isMarkedForRemoval) ? (
+        {(hasSavedFile || hasPendingFile || isMarkedForRemoval) && (
           <Button
             type="button"
             variant="outline"
             size="sm"
             disabled={disabled}
             onClick={() => onRemove(type)}
+            className="w-full sm:w-auto"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4 mr-1" />
             Clear document
           </Button>
-        ) : null}
+        )}
       </div>
     </div>
   );
@@ -370,6 +454,16 @@ export default function SuppliersPage() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryCode, setNewCategoryCode] = useState("");
   const [newCategoryDescription, setNewCategoryDescription] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Modal states
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalEditingId, setModalEditingId] = useState<number | null>(null);
+  const [modalForm, setModalForm] = useState<SupplierFormState>(createEmptyForm);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const loadSuppliers = async () => {
     try {
@@ -397,6 +491,11 @@ export default function SuppliersPage() {
     void loadSuppliers();
   }, []);
 
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
   const filteredSuppliers = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return suppliers;
@@ -413,6 +512,15 @@ export default function SuppliersPage() {
         .some((value) => String(value).toLowerCase().includes(query)),
     );
   }, [search, suppliers]);
+
+  // Pagination calculations
+  const paginatedSuppliers = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return filteredSuppliers.slice(start, end);
+  }, [filteredSuppliers, currentPage]);
+
+  const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
 
   const requiredDocumentTypes = useMemo(
     () => getRequiredSupplierDocumentTypes(form.companyType),
@@ -716,529 +824,303 @@ export default function SuppliersPage() {
     }
   };
 
+  // Modal handlers
+  const openCreateModal = () => {
+    setModalEditingId(null);
+    setModalForm(createEmptyForm());
+    setModalOpen(true);
+  };
+
+  const openEditModal = (supplier: any) => {
+    setModalEditingId(supplier.id);
+    setModalForm({
+      code: supplier.code,
+      name: supplier.name,
+      companyType: supplier.companyType,
+      contactName: supplier.contactName || "",
+      email: supplier.email || "",
+      phone: supplier.phone || "",
+      taxNumber: supplier.taxNumber || "",
+      address: supplier.address || "",
+      city: supplier.city || "",
+      country: supplier.country || "",
+      leadTimeDays: supplier.leadTimeDays?.toString() || "",
+      paymentTermsDays: supplier.paymentTermsDays?.toString() || "",
+      currency: supplier.currency || "",
+      notes: supplier.notes || "",
+      isActive: supplier.isActive,
+      categoryIds: supplier.categories.map((cat: any) => String(cat.id)),
+      documents: supplier.documents.reduce((acc: any, doc: any) => {
+        acc[doc.type] = {
+          fileName: doc.fileName,
+          fileSize: doc.fileSize,
+          mimeType: doc.mimeType,
+          fileUrl: doc.fileUrl,
+        };
+        return acc;
+      }, {}),
+    });
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setModalEditingId(null);
+    setModalForm(createEmptyForm());
+  };
+
+  const handleModalSave = async () => {
+    // Temporarily set the main form to modal form for validation and saving
+    const originalForm = form;
+    const originalEditingId = editingId;
+    
+    setForm(modalForm);
+    setEditingId(modalEditingId);
+    
+    await saveSupplier();
+    
+    // Restore original form state
+    setForm(originalForm);
+    setEditingId(originalEditingId);
+    
+    if (!saving) { // Only close if save was successful
+      closeModal();
+    }
+  };
+
+  const handleModalDocumentFileChange = (type: SupplierDocumentType, file: File | null) => {
+    setModalForm((prev) => ({
+      ...prev,
+      documents: upsertDocumentDraft(prev.documents, {
+        type,
+        fileUrl: '',
+        fileName: file?.name || null,
+        fileSize: file?.size || null,
+        mimeType: file?.type || null,
+        file,
+        removed: false,
+      }),
+    }));
+  };
+
+  const handleModalDocumentRemove = (type: SupplierDocumentType) => {
+    setModalForm((prev) => {
+      const current = getDocumentDraft(prev.documents, type);
+      if (!current) return prev;
+
+      if (!current.fileUrl) {
+        return {
+          ...prev,
+          documents: prev.documents.filter((document) => document.type !== type),
+        };
+      }
+
+      return {
+        ...prev,
+        documents: upsertDocumentDraft(prev.documents, {
+          ...current,
+          file: null,
+          removed: true,
+        }),
+      };
+    });
+  };
+
+  const handleModalToggleCategory = (categoryId: number) => {
+    setModalForm((prev) => {
+      const exists = prev.categoryIds.includes(String(categoryId));
+      return {
+        ...prev,
+        categoryIds: exists
+          ? prev.categoryIds.filter((id) => id !== String(categoryId))
+          : [...prev.categoryIds, String(categoryId)],
+      };
+    });
+  };
+
+  const handleModalCreateCategory = async (name: string, code: string, description: string) => {
+    // Temporarily set the global state variables for the create function
+    const originalName = newCategoryName;
+    const originalCode = newCategoryCode;
+    const originalDescription = newCategoryDescription;
+    
+    setNewCategoryName(name);
+    setNewCategoryCode(code);
+    setNewCategoryDescription(description);
+    
+    await createSupplierCategory();
+    
+    // Restore original values
+    setNewCategoryName(originalName);
+    setNewCategoryCode(originalCode);
+    setNewCategoryDescription(originalDescription);
+  };
+
   const companyMeta = SUPPLIER_COMPANY_TYPE_META[form.companyType];
 
+  if (!canManage) {
+    return (
+      <div className="p-4 sm:p-6">
+        <Card>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Access Denied</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              You do not have permission to manage suppliers.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Suppliers</h1>
-          <p className="text-sm text-muted-foreground">
-            Maintain supplier master data and collect the mandatory enlistment
-            documents before onboarding a vendor.
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+            Suppliers
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+            Maintain supplier master data and collect mandatory enlistment documents.
           </p>
         </div>
         <div className="flex gap-2">
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search suppliers..."
-            className="w-full md:w-72"
-          />
+          <Button onClick={openCreateModal}>
+            Create Supplier
+          </Button>
+          <div className="relative flex-1 sm:flex-initial">
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search suppliers..."
+              className="w-full sm:w-72 text-sm"
+            />
+          </div>
           <Button variant="outline" onClick={() => void loadSuppliers()} disabled={loading}>
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
             Refresh
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="sm:hidden"
+          >
+            <Filter className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {canManage ? (
-        <div className="space-y-4">
-          <Card className="overflow-hidden border-border">
-            <div className="grid gap-6 bg-card p-6 lg:grid-cols-[1.6fr_1fr]">
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="border-amber-200 bg-card text-amber-700">
-                    <Building2 className="h-3.5 w-3.5" />
-                    {companyMeta.label}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-200 bg-card text-emerald-700"
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    {requiredDocumentTypes.length} required documents
-                  </Badge>
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-foreground">
-                    {editingId ? "Update supplier onboarding dossier" : "Create supplier dossier"}
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                    {companyMeta.description} Fill the supplier profile, upload every
-                    mandatory file, then save the record for procurement use.
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      Enlistment readiness
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Required uploads completed
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-semibold text-foreground">
-                      {documentSummary.uploaded}/{requiredDocumentTypes.length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {documentSummary.progress}% ready
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-500 transition-all"
-                    style={{ width: `${documentSummary.progress}%` }}
-                  />
-                </div>
-
-                <div className="mt-4 flex items-start gap-2 text-sm">
-                  {documentSummary.complete ? (
-                    <>
-                      <BadgeCheck className="mt-0.5 h-4 w-4 text-emerald-600" />
-                      <p className="text-emerald-700">
-                        All mandatory documents are attached for this company type.
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
-                      <p className="text-foreground">
-                        Missing:{" "}
-                        {documentSummary.missing.map(getSupplierDocumentLabel).join(", ")}
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{editingId ? "Edit Supplier" : "Create Supplier"}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 xl:grid-cols-2">
-                <div className="rounded-2xl border border-border bg-muted/60 p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="font-semibold text-foreground">Company Profile</h3>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="md:col-span-2">
-                      <Label>Supplier Name</Label>
-                      <Input
-                        value={form.name}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, name: event.target.value }))
-                        }
-                        placeholder="Acme Traders Ltd"
-                      />
-                    </div>
-                    <div>
-                      <Label>Supplier Code</Label>
-                      <Input
-                        value={form.code}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, code: event.target.value }))
-                        }
-                        placeholder="ACME"
-                      />
-                    </div>
-                    <div>
-                      <Label>Company Type</Label>
-                      <Select
-                        value={form.companyType}
-                        onValueChange={(value) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            companyType: value as SupplierCompanyType,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select company type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SUPPLIER_COMPANY_TYPES.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {SUPPLIER_COMPANY_TYPE_META[type].label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Contact Name</Label>
-                      <Input
-                        value={form.contactName}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, contactName: event.target.value }))
-                        }
-                        placeholder="Primary contact"
-                      />
-                    </div>
-                    <div>
-                      <Label>Email</Label>
-                      <Input
-                        value={form.email}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, email: event.target.value }))
-                        }
-                        placeholder="supplier@example.com"
-                      />
-                    </div>
-                    <div>
-                      <Label>Phone</Label>
-                      <Input
-                        value={form.phone}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, phone: event.target.value }))
-                        }
-                        placeholder="+8801..."
-                      />
-                    </div>
-                    <div>
-                      <Label>Tax Number</Label>
-                      <Input
-                        value={form.taxNumber}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, taxNumber: event.target.value }))
-                        }
-                        placeholder="TIN / Tax reference"
-                      />
-                    </div>
-                    <div className="md:col-span-2 space-y-3">
-                      <div>
-                        <Label>Supplier Categories</Label>
-                        <p className="text-xs text-muted-foreground">
-                          RFQ category targeting uses these vendor categories.
-                        </p>
-                      </div>
-                      {supplierCategories.length === 0 ? (
-                        <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                          No active supplier category found. Create one below.
-                        </p>
-                      ) : (
-                        <div className="grid gap-2 md:grid-cols-2">
-                          {supplierCategories.map((category) => {
-                            const checked = form.categoryIds.includes(String(category.id));
-                            return (
-                              <label
-                                key={category.id}
-                                className="flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => toggleCategorySelection(category.id)}
-                                />
-                                <span>
-                                  <span className="font-medium">{category.name}</span>
-                                  <span className="ml-1 text-xs text-muted-foreground">
-                                    ({category.code})
-                                  </span>
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                      <div className="grid gap-2 md:grid-cols-[1.2fr_0.8fr_1.2fr_auto]">
-                        <Input
-                          placeholder="New category name"
-                          value={newCategoryName}
-                          onChange={(event) => setNewCategoryName(event.target.value)}
-                        />
-                        <Input
-                          placeholder="Code (optional)"
-                          value={newCategoryCode}
-                          onChange={(event) => setNewCategoryCode(event.target.value)}
-                        />
-                        <Input
-                          placeholder="Description (optional)"
-                          value={newCategoryDescription}
-                          onChange={(event) => setNewCategoryDescription(event.target.value)}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => void createSupplierCategory()}
-                          disabled={creatingCategory || !canManage}
-                        >
-                          {creatingCategory ? "Adding..." : "Add"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-muted/60 p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="font-semibold text-foreground">Commercial Terms</h3>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <Label>Lead Time (Days)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={form.leadTimeDays}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, leadTimeDays: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label>Payment Terms (Days)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={form.paymentTermsDays}
-                        onChange={(event) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            paymentTermsDays: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label>City</Label>
-                      <Input
-                        value={form.city}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, city: event.target.value }))
-                        }
-                        placeholder="Dhaka"
-                      />
-                    </div>
-                    <div>
-                      <Label>Country</Label>
-                      <Input
-                        value={form.country}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, country: event.target.value }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label>Currency</Label>
-                      <Input
-                        value={form.currency}
-                        onChange={(event) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            currency: event.target.value.toUpperCase(),
-                          }))
-                        }
-                      />
-                    </div>
-                    <div className="flex items-end rounded-xl border border-border bg-card px-4 py-3">
-                      <div className="flex w-full items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            Active Supplier
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Inactive suppliers stay out of operational lists.
-                          </p>
-                        </div>
-                        <Switch
-                          checked={form.isActive}
-                          onCheckedChange={(checked) =>
-                            setForm((prev) => ({ ...prev, isActive: Boolean(checked) }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
-                <div className="rounded-2xl border border-border p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <FileCheck2 className="h-4 w-4 text-muted-foreground" />
-                    <h3 className="font-semibold text-foreground">Vendor Enlistment Documents</h3>
-                  </div>
-
-                  <div className="space-y-6">
-                    {documentSections.map((section) => (
-                      <div key={section.title} className="space-y-3">
-                        <div>
-                          <p className="font-medium text-foreground">{section.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {section.description}
-                          </p>
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {section.types.map((type) => (
-                            <DocumentUploadCard
-                              key={type}
-                              type={type}
-                              draft={getDocumentDraft(form.documents, type)}
-                              disabled={saving}
-                              onFileChange={handleDocumentFileChange}
-                              onRemove={handleDocumentRemove}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-border p-5">
-                    <Label>Address</Label>
-                    <Textarea
-                      value={form.address}
-                      onChange={(event) =>
-                        setForm((prev) => ({ ...prev, address: event.target.value }))
-                      }
-                      rows={4}
-                      placeholder="Office / warehouse address"
-                    />
-                  </div>
-                  <div className="rounded-2xl border border-border p-5">
-                    <Label>Internal Notes</Label>
-                    <Textarea
-                      value={form.notes}
-                      onChange={(event) =>
-                        setForm((prev) => ({ ...prev, notes: event.target.value }))
-                      }
-                      rows={8}
-                      placeholder="Commercial notes, compliance remarks, sourcing context..."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button onClick={() => void saveSupplier()} disabled={saving}>
-                  {saving ? "Saving..." : editingId ? "Update Supplier" : "Create Supplier"}
-                </Button>
-                <Button variant="outline" onClick={resetForm} disabled={saving}>
-                  Clear
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Supplier Directory</CardTitle>
+      {/* Supplier Directory */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Supplier Directory</CardTitle>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading suppliers...</p>
-          ) : filteredSuppliers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No suppliers found.</p>
-          ) : (
-            <div className="overflow-x-auto">
+        <CardContent className="p-4 sm:p-6 pt-0">
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+
+          {/* Desktop Table View */}
+          {!loading && paginatedSuppliers.length > 0 && (
+            <div className="hidden lg:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead>Business Type</TableHead>
-                    <TableHead>Categories</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Lead Time</TableHead>
-                    <TableHead>Payment Terms</TableHead>
-                    <TableHead>Documents</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-xs font-medium text-muted-foreground">Supplier</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Type</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Categories</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Contact</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Lead Time</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Payment Terms</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Documents</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSuppliers.map((supplier) => (
-                    <TableRow key={supplier.id}>
-                      <TableCell>
-                        <div className="font-medium text-foreground">{supplier.name}</div>
-                        <div className="text-xs text-muted-foreground">{supplier.code}</div>
+                  {paginatedSuppliers.map((supplier) => (
+                    <TableRow key={supplier.id} className="border-border hover:bg-muted/40">
+                      <TableCell className="py-3">
+                        <div className="font-medium text-sm text-foreground">{supplier.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{supplier.code}</div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
+                      <TableCell className="py-3">
+                        <Badge variant="outline" className="text-xs">
                           {SUPPLIER_COMPANY_TYPE_META[supplier.companyType].shortLabel}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex max-w-[260px] flex-wrap gap-1">
+                      <TableCell className="py-3">
+                        <div className="flex flex-wrap gap-1">
                           {supplier.categories.length > 0 ? (
-                            supplier.categories.map((category) => (
+                            supplier.categories.slice(0, 2).map((category) => (
                               <Badge key={category.id} variant="outline" className="text-xs">
                                 {category.name}
                               </Badge>
                             ))
                           ) : (
-                            <span className="text-xs text-muted-foreground">Uncategorized</span>
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                          {supplier.categories.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{supplier.categories.length - 2}
+                            </Badge>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div>{supplier.contactName || "-"}</div>
+                      <TableCell className="py-3">
+                        <div className="text-sm text-foreground">{supplier.contactName || "-"}</div>
                         <div className="text-xs text-muted-foreground">
-                          {[supplier.email, supplier.phone].filter(Boolean).join(" | ") || "-"}
+                          {supplier.email || supplier.phone || "-"}
                         </div>
                       </TableCell>
-                      <TableCell>{supplier.leadTimeDays ?? "-"}</TableCell>
-                      <TableCell>{supplier.paymentTermsDays ?? "-"}</TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <Badge
-                            variant="outline"
-                            className={
-                              supplier.documentsComplete
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                : "border-amber-200 bg-amber-50 text-amber-700"
-                            }
-                            style={{
-                              backgroundColor: supplier.documentsComplete 
-                                ? 'hsl(142 76% 36% / 0.1)'
-                                : 'hsl(38 92% 50% / 0.1)',
-                              borderColor: supplier.documentsComplete
-                                ? 'hsl(142 76% 36%)'
-                                : 'hsl(38 92% 50%)',
-                              color: supplier.documentsComplete
-                                ? 'hsl(142 76% 36%)'
-                                : 'hsl(38 92% 50%)'
-                            }}
-                          >
-                            {supplier.documentsComplete
-                              ? "Complete"
-                              : `${supplier.uploadedRequiredDocumentCount}/${supplier.requiredDocumentCount} uploaded`}
-                          </Badge>
-                          <div className="text-xs text-muted-foreground">
-                            {supplier.documentsComplete
-                              ? "All required files submitted"
-                              : `Missing: ${supplier.missingDocumentTypes
-                                  .map(getSupplierDocumentLabel)
-                                  .join(", ")}`}
-                          </div>
-                        </div>
+                      <TableCell className="py-3 text-sm text-foreground">
+                        {supplier.leadTimeDays ?? "-"}
                       </TableCell>
-                      <TableCell>{supplier.isActive ? "Active" : "Inactive"}</TableCell>
-                      <TableCell className="text-right">
-                        {canManage ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => populateForm(supplier)}
-                          >
-                            Edit
-                          </Button>
-                        ) : null}
+                      <TableCell className="py-3 text-sm text-foreground">
+                        {supplier.paymentTermsDays ?? "-"}
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            supplier.documentsComplete
+                              ? "border-success/20 bg-success/10 text-success"
+                              : "border-warning/20 bg-warning/10 text-warning"
+                          )}
+                        >
+                          {supplier.documentsComplete
+                            ? "Complete"
+                            : `${supplier.uploadedRequiredDocumentCount}/${supplier.requiredDocumentCount}`}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            supplier.isActive
+                              ? "border-success/20 bg-success/10 text-success"
+                              : "border-muted bg-muted/50 text-muted-foreground"
+                          )}
+                        >
+                          {supplier.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right py-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditModal(supplier)}
+                          className="h-8 px-3 text-xs"
+                        >
+                          Edit
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1246,8 +1128,158 @@ export default function SuppliersPage() {
               </Table>
             </div>
           )}
+
+          {/* Mobile Card View */}
+          {!loading && paginatedSuppliers.length > 0 && (
+            <div className="space-y-3 lg:hidden">
+              {paginatedSuppliers.map((supplier) => (
+                <Card key={supplier.id} className="border-border shadow-sm">
+                  <CardContent className="p-4 space-y-3">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {supplier.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Code: {supplier.code}</p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs",
+                          supplier.isActive
+                            ? "border-success/20 bg-success/10 text-success"
+                            : "border-muted bg-muted/50 text-muted-foreground"
+                        )}
+                      >
+                        {supplier.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+
+                    {/* Type & Categories */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {SUPPLIER_COMPANY_TYPE_META[supplier.companyType].shortLabel}
+                      </Badge>
+                      {supplier.categories.slice(0, 2).map((category) => (
+                        <Badge key={category.id} variant="outline" className="text-xs">
+                          {category.name}
+                        </Badge>
+                      ))}
+                      {supplier.categories.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{supplier.categories.length - 2}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Contact */}
+                    {supplier.contactName && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-foreground">{supplier.contactName}</span>
+                      </div>
+                    )}
+                    {supplier.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-foreground break-all">{supplier.email}</span>
+                      </div>
+                    )}
+                    {supplier.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-foreground">{supplier.phone}</span>
+                      </div>
+                    )}
+
+                    {/* Terms */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Lead Time</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {supplier.leadTimeDays ?? "-"} days
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Payment Terms</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {supplier.paymentTermsDays ?? "-"} days
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Documents Status */}
+                    <div className="pt-2">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs",
+                          supplier.documentsComplete
+                            ? "border-success/20 bg-success/10 text-success"
+                            : "border-warning/20 bg-warning/10 text-warning"
+                        )}
+                      >
+                        {supplier.documentsComplete
+                          ? "✓ All documents uploaded"
+                          : `${supplier.uploadedRequiredDocumentCount}/${supplier.requiredDocumentCount} documents uploaded`}
+                      </Badge>
+                    </div>
+
+                    {/* Actions */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditModal(supplier)}
+                      className="w-full mt-2"
+                    >
+                      Edit Supplier
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && paginatedSuppliers.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Package className="h-8 w-8 text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">No suppliers found.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try adjusting your search or create a new supplier.
+              </p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </CardContent>
       </Card>
+
+      {/* Supplier Modal */}
+      <SupplierModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        editingId={modalEditingId}
+        form={modalForm as any}
+        onFormChange={setModalForm as any}
+        supplierCategories={supplierCategories as any}
+        onSave={handleModalSave}
+        onCancel={closeModal}
+        saving={saving}
+        onDocumentFileChange={handleModalDocumentFileChange}
+        onDocumentRemove={handleModalDocumentRemove}
+        onToggleCategory={handleModalToggleCategory}
+        onCreateCategory={handleModalCreateCategory}
+        creatingCategory={creatingCategory}
+      />
     </div>
   );
 }

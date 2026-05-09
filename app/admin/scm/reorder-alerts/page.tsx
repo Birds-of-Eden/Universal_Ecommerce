@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Filter, Package, AlertTriangle, CheckCircle, Clock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 type Warehouse = { id: number; name: string; code: string };
 type Variant = { id: number; sku: string; product?: { id: number; name: string } };
@@ -38,6 +39,32 @@ async function readJson<T>(res: Response, errorMessage: string) {
   return (await res.json()) as T;
 }
 
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "OPEN":
+      return "bg-destructive/10 text-destructive border-destructive/20";
+    case "ACKNOWLEDGED":
+      return "bg-warning/10 text-warning border-warning/20";
+    case "RESOLVED":
+      return "bg-success/10 text-success border-success/20";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
+};
+
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case "OPEN":
+      return AlertTriangle;
+    case "ACKNOWLEDGED":
+      return Clock;
+    case "RESOLVED":
+      return CheckCircle;
+    default:
+      return Filter;
+  }
+};
+
 export default function ReorderAlertsPage() {
   const { data: session } = useSession();
   const permissions = Array.isArray((session?.user as any)?.permissions)
@@ -56,6 +83,7 @@ export default function ReorderAlertsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [manualForm, setManualForm] = useState({
     warehouseId: "",
     productVariantId: "",
@@ -186,7 +214,7 @@ export default function ReorderAlertsPage() {
 
   if (!canRead) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <Card>
           <CardContent className="p-6 text-sm text-muted-foreground">
             You do not have permission to access stock alerts.
@@ -197,174 +225,405 @@ export default function ReorderAlertsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="min-h-screen space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Reorder Alerts</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+            Reorder Alerts
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
             Review low stock signals and manage replenishment notifications.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canManage ? (
-            <Button variant="outline" onClick={() => void scanAlerts()} disabled={scanLoading}>
-              <RefreshCw className={scanLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          {canManage && (
+            <Button 
+              variant="outline" 
+              onClick={() => void scanAlerts()} 
+              disabled={scanLoading}
+              className="flex-1 sm:flex-initial"
+            >
+              <RefreshCw className={cn("h-4 w-4 mr-2", scanLoading && "animate-spin")} />
               Scan Stock
             </Button>
-          ) : null}
-          <Button variant="outline" onClick={() => void loadAlerts()} disabled={loading}>
-            <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          )}
+          <Button 
+            variant="outline" 
+            onClick={() => void loadAlerts()} 
+            disabled={loading}
+            className="flex-1 sm:flex-initial"
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
             Refresh
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="sm:hidden"
+          >
+            <Filter className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Filter alerts by warehouse, status, or SKU.</CardDescription>
+      {/* Filters Card - Desktop */}
+      <Card className="hidden sm:block shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Filters</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Filter alerts by warehouse, status, or SKU.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
-          <div className="space-y-2">
-            <Label>Warehouse</Label>
-            <select
-              className="w-64 rounded-md border bg-background px-3 py-2"
-              value={warehouseId}
-              onChange={(e) => setWarehouseId(e.target.value)}
-            >
-              <option value="">All warehouses</option>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name} ({warehouse.code})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <select
-              className="w-48 rounded-md border bg-background px-3 py-2"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="OPEN">Open</option>
-              <option value="ACKNOWLEDGED">Acknowledged</option>
-              <option value="RESOLVED">Resolved</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>Search</Label>
-            <Input
-              placeholder="SKU or product"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm">Warehouse</Label>
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={warehouseId}
+                onChange={(e) => setWarehouseId(e.target.value)}
+              >
+                <option value="">All warehouses</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name} ({warehouse.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm">Status</Label>
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="OPEN">Open</option>
+                <option value="ACKNOWLEDGED">Acknowledged</option>
+                <option value="RESOLVED">Resolved</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm">Search</Label>
+              <Input
+                placeholder="SKU or product name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="text-sm"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {canManage ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Manual Alert</CardTitle>
-            <CardDescription>Open a single alert for a specific variant.</CardDescription>
+      {/* Mobile Filter Drawer */}
+      {showFilters && (
+        <Card className="sm:hidden shadow-sm">
+          <CardHeader className="p-4">
+            <CardTitle className="text-base">Filters</CardTitle>
+            <CardDescription className="text-xs">
+              Filter alerts by warehouse, status, or SKU.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-[220px_1fr_1fr_180px]">
-            <select
-              className="rounded-md border bg-background px-3 py-2"
-              value={manualForm.warehouseId}
-              onChange={(e) => setManualForm((cur) => ({ ...cur, warehouseId: e.target.value }))}
+          <CardContent className="p-4 pt-0 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs">Warehouse</Label>
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={warehouseId}
+                onChange={(e) => setWarehouseId(e.target.value)}
+              >
+                <option value="">All warehouses</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name} ({warehouse.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Status</Label>
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="">All</option>
+                <option value="OPEN">Open</option>
+                <option value="ACKNOWLEDGED">Acknowledged</option>
+                <option value="RESOLVED">Resolved</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Search</Label>
+              <Input
+                placeholder="SKU or product name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(false)}
+              className="w-full"
             >
-              <option value="">Warehouse</option>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="rounded-md border bg-background px-3 py-2"
-              value={manualForm.productVariantId}
-              onChange={(e) => setManualForm((cur) => ({ ...cur, productVariantId: e.target.value }))}
-            >
-              <option value="">Variant</option>
-              {filteredVariants.map((variant) => (
-                <option key={variant.value} value={variant.value}>
-                  {variant.label}
-                </option>
-              ))}
-            </select>
-            <Input
-              placeholder="Note (optional)"
-              value={manualForm.note}
-              onChange={(e) => setManualForm((cur) => ({ ...cur, note: e.target.value }))}
-            />
-            <Button onClick={() => void createManual()} disabled={creating}>
-              Create
+              Close Filters
             </Button>
           </CardContent>
         </Card>
-      ) : null}
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Alert Register</CardTitle>
-          <CardDescription>Track open, acknowledged, and resolved alerts.</CardDescription>
+      {/* Create Manual Alert Card */}
+      {canManage && (
+        <Card className="shadow-sm">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              Create Manual Alert
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Open a single alert for a specific variant.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-[1fr_1.5fr_2fr_auto] sm:gap-3">
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={manualForm.warehouseId}
+                onChange={(e) => setManualForm((cur) => ({ ...cur, warehouseId: e.target.value }))}
+              >
+                <option value="">Select Warehouse</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name} ({warehouse.code})
+                  </option>
+                ))}
+              </select>
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={manualForm.productVariantId}
+                onChange={(e) => setManualForm((cur) => ({ ...cur, productVariantId: e.target.value }))}
+              >
+                <option value="">Select Variant</option>
+                {filteredVariants.map((variant) => (
+                  <option key={variant.value} value={variant.value}>
+                    {variant.label}
+                  </option>
+                ))}
+              </select>
+              <Input
+                placeholder="Note (optional)"
+                value={manualForm.note}
+                onChange={(e) => setManualForm((cur) => ({ ...cur, note: e.target.value }))}
+                className="text-sm"
+              />
+              <Button 
+                onClick={() => void createManual()} 
+                disabled={creating}
+                className="w-full sm:w-auto"
+              >
+                {creating ? "Creating..." : "Create Alert"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Alert Register */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Alert Register</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Track open, acknowledged, and resolved alerts.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Warehouse</TableHead>
-                <TableHead>Variant</TableHead>
-                <TableHead className="text-right">On hand</TableHead>
-                <TableHead className="text-right">Threshold</TableHead>
-                <TableHead className="text-right">Suggested</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {alerts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    No alerts found.
-                  </TableCell>
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="text-xs font-medium text-muted-foreground">Warehouse</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">Variant</TableHead>
+                  <TableHead className="text-right text-xs font-medium text-muted-foreground">On hand</TableHead>
+                  <TableHead className="text-right text-xs font-medium text-muted-foreground">Threshold</TableHead>
+                  <TableHead className="text-right text-xs font-medium text-muted-foreground">Suggested</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
                 </TableRow>
-              ) : (
-                alerts.map((alert) => (
-                  <TableRow key={alert.id}>
-                    <TableCell>
-                      <div className="font-medium">{alert.warehouse.name}</div>
-                      <div className="text-xs text-muted-foreground">{alert.warehouse.code}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium">{alert.productVariant.product.name}</div>
-                      <div className="text-xs text-muted-foreground">{alert.productVariant.sku}</div>
-                    </TableCell>
-                    <TableCell className="text-right">{alert.stockOnHand}</TableCell>
-                    <TableCell className="text-right">{alert.threshold}</TableCell>
-                    <TableCell className="text-right">{alert.suggestedQty}</TableCell>
-                    <TableCell>
-                      {canManage ? (
-                        <select
-                          className="rounded-md border bg-background px-2 py-1 text-xs"
-                          value={alert.status}
-                          onChange={(e) => void updateStatus(alert.id, e.target.value as AlertRow["status"])}
-                        >
-                          <option value="OPEN">Open</option>
-                          <option value="ACKNOWLEDGED">Acknowledged</option>
-                          <option value="RESOLVED">Resolved</option>
-                        </select>
-                      ) : (
-                        <span className="text-xs font-semibold">{alert.status}</span>
-                      )}
+              </TableHeader>
+              <TableBody>
+                {alerts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2">
+                        <Package className="h-8 w-8 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">No alerts found.</p>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  alerts.map((alert) => (
+                    <TableRow key={alert.id} className="border-border hover:bg-muted/40">
+                      <TableCell className="py-3">
+                        <div className="font-medium text-sm text-foreground">{alert.warehouse.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{alert.warehouse.code}</div>
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <div className="font-medium text-sm text-foreground">
+                          {alert.productVariant.product.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{alert.productVariant.sku}</div>
+                        {alert.note && (
+                          <div className="text-xs text-muted-foreground mt-1 italic">{alert.note}</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right py-3">
+                        <span className={cn(
+                          "font-medium",
+                          alert.stockOnHand <= alert.threshold && "text-destructive"
+                        )}>
+                          {alert.stockOnHand}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right py-3 text-foreground">
+                        {alert.threshold}
+                      </TableCell>
+                      <TableCell className="text-right py-3 text-primary font-medium">
+                        {alert.suggestedQty}
+                      </TableCell>
+                      <TableCell className="py-3">
+                        {canManage ? (
+                          <select
+                            className={cn(
+                              "rounded-md border px-2 py-1 text-xs font-medium",
+                              getStatusColor(alert.status)
+                            )}
+                            value={alert.status}
+                            onChange={(e) => void updateStatus(alert.id, e.target.value as AlertRow["status"])}
+                          >
+                            <option value="OPEN">Open</option>
+                            <option value="ACKNOWLEDGED">Acknowledged</option>
+                            <option value="RESOLVED">Resolved</option>
+                          </select>
+                        ) : (
+                          <span className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
+                            getStatusColor(alert.status)
+                          )}>
+                            {alert.status}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="space-y-3 md:hidden">
+            {alerts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Package className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">No alerts found.</p>
+              </div>
+            ) : (
+              alerts.map((alert) => {
+                const StatusIcon = getStatusIcon(alert.status);
+                return (
+                  <Card key={alert.id} className="border-border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-foreground">
+                            {alert.productVariant.product.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {alert.productVariant.sku}
+                          </p>
+                        </div>
+                        <div className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ml-2",
+                          getStatusColor(alert.status)
+                        )}>
+                          <StatusIcon className="h-3 w-3" />
+                          {alert.status}
+                        </div>
+                      </div>
+
+                      {/* Warehouse */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-muted-foreground">Warehouse:</span>
+                          <span className="text-foreground font-medium">
+                            {alert.warehouse.name} ({alert.warehouse.code})
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Stock Info */}
+                      <div className="grid grid-cols-3 gap-3 pt-2 border-t border-border/50">
+                        <div>
+                          <p className="text-xs text-muted-foreground">On Hand</p>
+                          <p className={cn(
+                            "text-base font-semibold",
+                            alert.stockOnHand <= alert.threshold && "text-destructive"
+                          )}>
+                            {alert.stockOnHand}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Threshold</p>
+                          <p className="text-base font-semibold text-foreground">
+                            {alert.threshold}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Suggested</p>
+                          <p className="text-base font-semibold text-primary">
+                            {alert.suggestedQty}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Note */}
+                      {alert.note && (
+                        <div className="pt-2 border-t border-border/50">
+                          <p className="text-xs text-muted-foreground italic">Note: {alert.note}</p>
+                        </div>
+                      )}
+
+                      {/* Status Update for Mobile */}
+                      {canManage && (
+                        <div className="pt-2">
+                          <label className="text-xs text-muted-foreground block mb-1">
+                            Update Status
+                          </label>
+                          <select
+                            className={cn(
+                              "w-full rounded-md border px-3 py-2 text-sm font-medium",
+                              getStatusColor(alert.status)
+                            )}
+                            value={alert.status}
+                            onChange={(e) => void updateStatus(alert.id, e.target.value as AlertRow["status"])}
+                          >
+                            <option value="OPEN">Open</option>
+                            <option value="ACKNOWLEDGED">Acknowledged</option>
+                            <option value="RESOLVED">Resolved</option>
+                          </select>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
