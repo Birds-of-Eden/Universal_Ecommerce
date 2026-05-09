@@ -3,11 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ChevronLeft, ChevronRight, Filter, Building2, Clock, AlertTriangle, CheckCircle, Package, TrendingUp, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -17,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 type SupplierIntelligenceRow = {
   supplier: {
@@ -87,7 +94,10 @@ type SupplierIntelligenceResponse = {
   rows: SupplierIntelligenceRow[];
 };
 
-async function readJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+async function readJson<T>(
+  response: Response,
+  fallbackMessage: string,
+): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error((data as { error?: string }).error || fallbackMessage);
@@ -106,16 +116,119 @@ function formatNumber(value: number | null, suffix = "") {
 }
 
 function getBandVariant(band: SupplierIntelligenceRow["metrics"]["performanceBand"]) {
-  if (band === "STABLE") return "default" as const;
-  if (band === "WATCH") return "secondary" as const;
-  if (band === "AT_RISK") return "destructive" as const;
-  return "outline" as const;
+  switch (band) {
+    case "STABLE":
+      return "bg-success/10 text-success border-success/20";
+    case "WATCH":
+      return "bg-warning/10 text-warning border-warning/20";
+    case "AT_RISK":
+      return "bg-destructive/10 text-destructive border-destructive/20";
+    default:
+      return "bg-muted text-muted-foreground border-border";
+  }
+}
+
+function getBandIcon(band: SupplierIntelligenceRow["metrics"]["performanceBand"]) {
+  switch (band) {
+    case "STABLE":
+      return CheckCircle;
+    case "WATCH":
+      return AlertTriangle;
+    case "AT_RISK":
+      return TrendingDown;
+    default:
+      return Package;
+  }
+}
+
+function getPerformanceColor(value: number | null, isInverse = false) {
+  if (value === null) return "text-muted-foreground";
+  if (isInverse) {
+    if (value <= 5) return "text-success";
+    if (value <= 10) return "text-warning";
+    return "text-destructive";
+  } else {
+    if (value >= 80) return "text-success";
+    if (value >= 60) return "text-warning";
+    return "text-destructive";
+  }
+}
+
+// Pagination Component
+function Pagination({ currentPage, totalPages, onPageChange }: { 
+  currentPage: number; 
+  totalPages: number; 
+  onPageChange: (page: number) => void;
+}) {
+  const getVisiblePages = () => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      
+      if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      {getVisiblePages().map((page) => (
+        <Button
+          key={page}
+          variant={currentPage === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => onPageChange(page)}
+          className="h-8 w-8 p-0"
+        >
+          {page}
+        </Button>
+      ))}
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
 }
 
 export default function SupplierIntelligencePage() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
-  const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
+  const globalPermissions = Array.isArray(
+    (session?.user as any)?.globalPermissions,
+  )
     ? ((session?.user as any).globalPermissions as string[])
     : [];
   const canRead = globalPermissions.includes("supplier_performance.read");
@@ -125,6 +238,7 @@ export default function SupplierIntelligencePage() {
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [bandFilter, setBandFilter] = useState("ALL");
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
   const [dataset, setDataset] = useState<SupplierIntelligenceResponse>({
     generatedAt: "",
     windowDays: 365,
@@ -142,14 +256,16 @@ export default function SupplierIntelligencePage() {
     rows: [],
   });
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const loadData = async () => {
     try {
       setLoading(true);
       const response = await fetch(
         `/api/scm/supplier-intelligence?windowDays=${encodeURIComponent(windowDays)}`,
-        {
-          cache: "no-store",
-        },
+        { cache: "no-store" },
       );
       const data = await readJson<SupplierIntelligenceResponse>(
         response,
@@ -174,6 +290,11 @@ export default function SupplierIntelligencePage() {
     setSearch(searchParams.get("search") || "");
   }, [searchParams]);
 
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [bandFilter, search]);
+
   const visibleRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return dataset.rows.filter((row) => {
@@ -189,6 +310,15 @@ export default function SupplierIntelligencePage() {
     });
   }, [bandFilter, dataset.rows, search]);
 
+  // Pagination calculations
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return visibleRows.slice(start, end);
+  }, [visibleRows, currentPage]);
+
+  const totalPages = Math.ceil(visibleRows.length / itemsPerPage);
+
   useEffect(() => {
     if (visibleRows.length === 0) {
       setSelectedSupplierId(null);
@@ -200,20 +330,37 @@ export default function SupplierIntelligencePage() {
   }, [selectedSupplierId, visibleRows]);
 
   const selectedSupplier =
-    visibleRows.find((row) => row.supplier.id === selectedSupplierId) ?? visibleRows[0] ?? null;
+    visibleRows.find((row) => row.supplier.id === selectedSupplierId) ??
+    visibleRows[0] ??
+    null;
+
+  if (!canRead) {
+    return (
+      <div className="p-4 sm:p-6">
+        <Card>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            You do not have access to supplier intelligence.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Supplier Intelligence</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+            Supplier Intelligence
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
             Compare configured supplier lead times against real PO-to-receipt performance.
           </p>
         </div>
-        <div className="flex flex-col gap-2 md:flex-row">
+        <div className="flex gap-2">
           <select
-            className="rounded-md border bg-background px-3 py-2 text-sm"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             value={windowDays}
             onChange={(event) => setWindowDays(event.target.value)}
           >
@@ -222,63 +369,93 @@ export default function SupplierIntelligencePage() {
             <option value="365">Last 365 days</option>
             <option value="730">Last 730 days</option>
           </select>
-          <Button variant="outline" onClick={() => void loadData()} disabled={loading || !canRead}>
-            <RefreshCw className="mr-2 h-4 w-4" />
+          <Button variant="outline" onClick={() => void loadData()} disabled={loading}>
+            <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
             Refresh
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="sm:hidden"
+          >
+            <Filter className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Suppliers Tracked</CardDescription>
-            <CardTitle>{dataset.overview.supplierCount}</CardTitle>
+      {/* Overview Cards */}
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        <Card className="shadow-sm">
+          <CardHeader className="p-3 sm:p-4">
+            <CardDescription className="text-xs sm:text-sm">Suppliers Tracked</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">{dataset.overview.supplierCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Tracked POs</CardDescription>
-            <CardTitle>{dataset.overview.trackedPoCount}</CardTitle>
+        <Card className="shadow-sm">
+          <CardHeader className="p-3 sm:p-4">
+            <CardDescription className="text-xs sm:text-sm">Tracked POs</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">{dataset.overview.trackedPoCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Observed Lead Time</CardDescription>
-            <CardTitle>{formatNumber(dataset.overview.averageObservedLeadTimeDays, " d")}</CardTitle>
+        <Card className="shadow-sm">
+          <CardHeader className="p-3 sm:p-4">
+            <CardDescription className="text-xs sm:text-sm">Observed Lead Time</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl">
+              {formatNumber(dataset.overview.averageObservedLeadTimeDays, "d")}
+            </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Average On-Time Rate</CardDescription>
-            <CardTitle>{formatNumber(dataset.overview.averageOnTimeRatePercent, "%")}</CardTitle>
+        <Card className="shadow-sm">
+          <CardHeader className="p-3 sm:p-4">
+            <CardDescription className="text-xs sm:text-sm">Avg On-Time Rate</CardDescription>
+            <CardTitle className={cn("text-xl sm:text-2xl", getPerformanceColor(dataset.overview.averageOnTimeRatePercent))}>
+              {formatNumber(dataset.overview.averageOnTimeRatePercent, "%")}
+            </CardTitle>
           </CardHeader>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Open Late POs</CardDescription>
-            <CardTitle>{dataset.overview.openLatePoCount}</CardTitle>
+        <Card className="shadow-sm col-span-2 sm:col-span-1">
+          <CardHeader className="p-3 sm:p-4">
+            <CardDescription className="text-xs sm:text-sm">Open Late POs</CardDescription>
+            <CardTitle className="text-xl sm:text-2xl text-destructive">
+              {dataset.overview.openLatePoCount}
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <CardTitle>Supplier Lead-Time Scorecard</CardTitle>
-            <CardDescription>
-              Recommended lead time uses real receipt history and keeps the configured baseline when it is already safer.
-            </CardDescription>
+      {/* Supplier Scorecard */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base sm:text-lg">Supplier Lead-Time Scorecard</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Recommended lead time uses real receipt history and keeps configured baseline when safer.
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="sm:hidden"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
           </div>
-          <div className="flex flex-col gap-2 md:flex-row">
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+          {/* Desktop Filters */}
+          <div className="hidden sm:flex gap-3">
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search supplier name, code, or email..."
-              className="w-full md:w-80"
+              className="max-w-md text-sm"
             />
             <select
-              className="rounded-md border bg-background px-3 py-2 text-sm"
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={bandFilter}
               onChange={(event) => setBandFilter(event.target.value)}
             >
@@ -289,163 +466,356 @@ export default function SupplierIntelligencePage() {
               <option value="INSUFFICIENT_DATA">Insufficient Data</option>
             </select>
           </div>
-        </CardHeader>
-        <CardContent>
-          {!canRead ? (
-            <p className="text-sm text-muted-foreground">You do not have access to supplier intelligence.</p>
-          ) : loading ? (
-            <p className="text-sm text-muted-foreground">Loading supplier intelligence...</p>
-          ) : visibleRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No supplier intelligence records found for this period.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Configured LT</TableHead>
-                  <TableHead>Observed LT</TableHead>
-                  <TableHead>Recommended LT</TableHead>
-                  <TableHead>On-Time</TableHead>
-                  <TableHead>Open Late</TableHead>
-                  <TableHead>Partial Rate</TableHead>
-                  <TableHead>Band</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleRows.map((row) => {
-                  const isSelected = row.supplier.id === selectedSupplier?.supplier.id;
-                  return (
-                    <TableRow
-                      key={row.supplier.id}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedSupplierId(row.supplier.id)}
-                      data-state={isSelected ? "selected" : undefined}
-                    >
-                      <TableCell>
-                        <div className="font-medium">{row.supplier.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {row.supplier.code}
-                          {row.supplier.contactName ? ` • ${row.supplier.contactName}` : ""}
+
+          {/* Mobile Filters */}
+          {showFilters && (
+            <div className="space-y-3 sm:hidden">
+              <Input
+                placeholder="Search..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="text-sm"
+              />
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={bandFilter}
+                onChange={(event) => setBandFilter(event.target.value)}
+              >
+                <option value="ALL">All bands</option>
+                <option value="STABLE">Stable</option>
+                <option value="WATCH">Watch</option>
+                <option value="AT_RISK">At Risk</option>
+                <option value="INSUFFICIENT_DATA">Insufficient Data</option>
+              </select>
+              <Button variant="outline" onClick={() => setShowFilters(false)} className="w-full">
+                Close Filters
+              </Button>
+            </div>
+          )}
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+
+          {/* Desktop Table View */}
+          {!loading && paginatedRows.length > 0 && (
+            <div className="hidden lg:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-xs font-medium text-muted-foreground">Supplier</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Config LT</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Observed LT</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Recommended LT</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">On-Time</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Open Late</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Partial Rate</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Band</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedRows.map((row) => {
+                    const isSelected = row.supplier.id === selectedSupplier?.supplier.id;
+                    const BandIcon = getBandIcon(row.metrics.performanceBand);
+                    return (
+                      <TableRow
+                        key={row.supplier.id}
+                        className={cn(
+                          "cursor-pointer transition-colors hover:bg-muted/40",
+                          isSelected && "bg-primary/5"
+                        )}
+                        onClick={() => setSelectedSupplierId(row.supplier.id)}
+                      >
+                        <TableCell className="py-3">
+                          <div className="font-medium text-sm text-foreground">{row.supplier.name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {row.supplier.code}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right py-3 text-sm text-foreground">
+                          {formatNumber(row.supplier.configuredLeadTimeDays, "d")}
+                        </TableCell>
+                        <TableCell className="text-right py-3">
+                          <span className={cn("text-sm font-medium", getPerformanceColor(row.metrics.averageFinalReceiptLeadTimeDays, true))}>
+                            {formatNumber(row.metrics.averageFinalReceiptLeadTimeDays, "d")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right py-3">
+                          <span className="text-sm font-medium text-primary">
+                            {formatNumber(row.metrics.recommendedLeadTimeDays, "d")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right py-3">
+                          <span className={cn("text-sm font-medium", getPerformanceColor(row.metrics.onTimeRatePercent))}>
+                            {formatNumber(row.metrics.onTimeRatePercent, "%")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right py-3">
+                          <span className={cn("text-sm font-medium", row.metrics.openLatePoCount > 0 ? "text-destructive" : "text-success")}>
+                            {row.metrics.openLatePoCount}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right py-3 text-sm text-muted-foreground">
+                          {formatNumber(row.metrics.partialReceiptRatePercent, "%")}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <Badge variant="outline" className={cn("text-xs", getBandVariant(row.metrics.performanceBand))}>
+                            <BandIcon className="h-3 w-3 mr-1" />
+                            {row.metrics.performanceBand.replaceAll("_", " ")}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Mobile Card View */}
+          {!loading && paginatedRows.length > 0 && (
+            <div className="space-y-3 lg:hidden">
+              {paginatedRows.map((row) => {
+                const BandIcon = getBandIcon(row.metrics.performanceBand);
+                const isSelected = row.supplier.id === selectedSupplier?.supplier.id;
+                return (
+                  <Card
+                    key={row.supplier.id}
+                    className={cn(
+                      "border-border cursor-pointer transition-all hover:shadow-md",
+                      isSelected && "border-primary/50 bg-primary/5"
+                    )}
+                    onClick={() => setSelectedSupplierId(row.supplier.id)}
+                  >
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{row.supplier.name}</p>
+                          <p className="text-xs text-muted-foreground">Code: {row.supplier.code}</p>
                         </div>
-                      </TableCell>
-                      <TableCell>{formatNumber(row.supplier.configuredLeadTimeDays, " d")}</TableCell>
-                      <TableCell>{formatNumber(row.metrics.averageFinalReceiptLeadTimeDays, " d")}</TableCell>
-                      <TableCell>{formatNumber(row.metrics.recommendedLeadTimeDays, " d")}</TableCell>
-                      <TableCell>{formatNumber(row.metrics.onTimeRatePercent, "%")}</TableCell>
-                      <TableCell>{row.metrics.openLatePoCount}</TableCell>
-                      <TableCell>{formatNumber(row.metrics.partialReceiptRatePercent, "%")}</TableCell>
-                      <TableCell>
-                        <Badge variant={getBandVariant(row.metrics.performanceBand)}>
+                        <Badge variant="outline" className={cn("text-xs", getBandVariant(row.metrics.performanceBand))}>
+                          <BandIcon className="h-3 w-3 mr-1" />
                           {row.metrics.performanceBand.replaceAll("_", " ")}
                         </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                      </div>
+
+                      {/* Lead Times */}
+                      <div className="grid grid-cols-3 gap-2 pt-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Config LT</p>
+                          <p className="text-sm font-medium text-foreground">
+                            {formatNumber(row.supplier.configuredLeadTimeDays, "d")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Observed LT</p>
+                          <p className={cn("text-sm font-medium", getPerformanceColor(row.metrics.averageFinalReceiptLeadTimeDays, true))}>
+                            {formatNumber(row.metrics.averageFinalReceiptLeadTimeDays, "d")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Recommended LT</p>
+                          <p className="text-sm font-medium text-primary">
+                            {formatNumber(row.metrics.recommendedLeadTimeDays, "d")}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Performance Metrics */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">On-Time</p>
+                          <p className={cn("text-sm font-medium", getPerformanceColor(row.metrics.onTimeRatePercent))}>
+                            {formatNumber(row.metrics.onTimeRatePercent, "%")}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Open Late</p>
+                          <p className={cn("text-sm font-medium", row.metrics.openLatePoCount > 0 ? "text-destructive" : "text-success")}>
+                            {row.metrics.openLatePoCount}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Partial Rate</p>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            {formatNumber(row.metrics.partialReceiptRatePercent, "%")}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Contact Info */}
+                      {row.supplier.contactName && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                          <Building2 className="h-3 w-3" />
+                          <span>{row.supplier.contactName}</span>
+                          {row.supplier.email && <span>• {row.supplier.email}</span>}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && paginatedRows.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Package className="h-8 w-8 text-muted-foreground/50 mb-2" />
+              <p className="text-sm text-muted-foreground">No supplier intelligence records found.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try adjusting your filters or window period.
+              </p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {!loading && totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           )}
         </CardContent>
       </Card>
 
-      {selectedSupplier ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedSupplier.supplier.name}</CardTitle>
-            <CardDescription>
-              Configured lead time {formatNumber(selectedSupplier.supplier.configuredLeadTimeDays, " days")} •
-              Recommended {formatNumber(selectedSupplier.metrics.recommendedLeadTimeDays, " days")} • Last receipt{" "}
-              {formatDate(selectedSupplier.metrics.latestReceiptAt)}
-            </CardDescription>
+      {/* Supplier Detail Section */}
+      {selectedSupplier && (
+        <Card className="shadow-sm">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="text-base sm:text-lg">{selectedSupplier.supplier.name}</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Configured lead time {formatNumber(selectedSupplier.supplier.configuredLeadTimeDays, " days")} • 
+                  Recommended {formatNumber(selectedSupplier.metrics.recommendedLeadTimeDays, " days")} • 
+                  Last receipt {formatDate(selectedSupplier.metrics.latestReceiptAt)}
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className={cn("text-xs self-start", getBandVariant(selectedSupplier.metrics.performanceBand))}>
+                {selectedSupplier.metrics.performanceBand.replaceAll("_", " ")}
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-6">
-              <div className="rounded-lg border p-3">
-                <div className="text-sm text-muted-foreground">Completed POs</div>
-                <div className="text-lg font-semibold">{selectedSupplier.metrics.completedPoCount}</div>
-              </div>
-              <div className="rounded-lg border p-3">
-                <div className="text-sm text-muted-foreground">Avg First Receipt</div>
-                <div className="text-lg font-semibold">
-                  {formatNumber(selectedSupplier.metrics.averageFirstReceiptLeadTimeDays, " d")}
+          <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+            {/* Metrics Cards */}
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-xs text-muted-foreground">Completed POs</div>
+                <div className="text-lg sm:text-xl font-semibold text-foreground">
+                  {selectedSupplier.metrics.completedPoCount}
                 </div>
               </div>
-              <div className="rounded-lg border p-3">
-                <div className="text-sm text-muted-foreground">Avg Final Receipt</div>
-                <div className="text-lg font-semibold">
-                  {formatNumber(selectedSupplier.metrics.averageFinalReceiptLeadTimeDays, " d")}
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-xs text-muted-foreground">Avg First Receipt</div>
+                <div className="text-lg sm:text-xl font-semibold text-foreground">
+                  {formatNumber(selectedSupplier.metrics.averageFirstReceiptLeadTimeDays, "d")}
                 </div>
               </div>
-              <div className="rounded-lg border p-3">
-                <div className="text-sm text-muted-foreground">Avg Delay</div>
-                <div className="text-lg font-semibold">
-                  {formatNumber(selectedSupplier.metrics.averageDelayDays, " d")}
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-xs text-muted-foreground">Avg Final Receipt</div>
+                <div className={cn("text-lg sm:text-xl font-semibold", getPerformanceColor(selectedSupplier.metrics.averageFinalReceiptLeadTimeDays, true))}>
+                  {formatNumber(selectedSupplier.metrics.averageFinalReceiptLeadTimeDays, "d")}
                 </div>
               </div>
-              <div className="rounded-lg border p-3">
-                <div className="text-sm text-muted-foreground">Fill Rate</div>
-                <div className="text-lg font-semibold">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-xs text-muted-foreground">Avg Delay</div>
+                <div className={cn("text-lg sm:text-xl font-semibold", getPerformanceColor(selectedSupplier.metrics.averageDelayDays, true))}>
+                  {formatNumber(selectedSupplier.metrics.averageDelayDays, "d")}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-xs text-muted-foreground">Fill Rate</div>
+                <div className={cn("text-lg sm:text-xl font-semibold", getPerformanceColor(selectedSupplier.metrics.averageFillRatePercent))}>
                   {formatNumber(selectedSupplier.metrics.averageFillRatePercent, "%")}
                 </div>
               </div>
-              <div className="rounded-lg border p-3">
-                <div className="text-sm text-muted-foreground">Suggested Buffer</div>
-                <div className="text-lg font-semibold">
-                  {formatNumber(selectedSupplier.metrics.recommendedBufferDays, " d")}
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-xs text-muted-foreground">Suggested Buffer</div>
+                <div className="text-lg sm:text-xl font-semibold text-primary">
+                  {formatNumber(selectedSupplier.metrics.recommendedBufferDays, "d")}
                 </div>
               </div>
             </div>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>PO</TableHead>
-                  <TableHead>Warehouse</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Due</TableHead>
-                  <TableHead>First Receipt</TableHead>
-                  <TableHead>Final Receipt</TableHead>
-                  <TableHead>Lead Time</TableHead>
-                  <TableHead>Delay</TableHead>
-                  <TableHead>Fill Rate</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {selectedSupplier.recentOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell>
-                      <div className="font-medium">{order.poNumber}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Ordered {formatDate(order.orderDate)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {order.warehouse.name}
-                      <div className="text-xs text-muted-foreground">{order.warehouse.code}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div>{order.status}</div>
-                      {order.isLateOpen ? (
-                        <div className="text-xs text-destructive">Open late</div>
-                      ) : order.isOnTime === false ? (
-                        <div className="text-xs text-destructive">Delivered late</div>
-                      ) : order.isOnTime === true ? (
-                        <div className="text-xs text-emerald-600">On time</div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{formatDate(order.benchmarkDueAt)}</TableCell>
-                    <TableCell>{formatDate(order.firstReceiptAt)}</TableCell>
-                    <TableCell>{formatDate(order.finalReceiptAt)}</TableCell>
-                    <TableCell>{formatNumber(order.finalReceiptLeadTimeDays, " d")}</TableCell>
-                    <TableCell>{formatNumber(order.delayDays || 0, " d")}</TableCell>
-                    <TableCell>{formatNumber(order.fillRatePercent, "%")}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {/* Recent Orders Table */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Recent Orders</h3>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border">
+                      <TableHead className="text-xs font-medium text-muted-foreground">PO</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">Warehouse</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">Due</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">Lead Time</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">Delay</TableHead>
+                      <TableHead className="text-xs font-medium text-muted-foreground">Fill Rate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedSupplier.recentOrders.slice(0, 5).map((order) => (
+                      <TableRow key={order.id} className="border-border">
+                        <TableCell className="py-3">
+                          <div className="text-sm font-medium text-foreground">{order.poNumber}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatDate(order.orderDate)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="text-sm text-foreground">{order.warehouse.name}</div>
+                          <div className="text-xs text-muted-foreground">{order.warehouse.code}</div>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="text-sm text-foreground">{order.status}</div>
+                          {order.isLateOpen && (
+                            <div className="text-xs text-destructive">Open late</div>
+                          )}
+                          {order.isOnTime === false && (
+                            <div className="text-xs text-destructive">Delayed</div>
+                          )}
+                          {order.isOnTime === true && (
+                            <div className="text-xs text-success">On time</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-3 text-sm text-foreground">
+                          {formatDate(order.benchmarkDueAt)}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <span className={cn("text-sm", getPerformanceColor(order.finalReceiptLeadTimeDays, true))}>
+                            {formatNumber(order.finalReceiptLeadTimeDays, "d")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <span className={cn("text-sm", order.delayDays > 0 ? "text-destructive" : "text-success")}>
+                            {formatNumber(order.delayDays, "d")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <span className={cn("text-sm", getPerformanceColor(order.fillRatePercent))}>
+                            {formatNumber(order.fillRatePercent, "%")}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {selectedSupplier.recentOrders.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No recent orders found for this supplier.
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
-      ) : null}
+      )}
     </div>
   );
 }

@@ -3,7 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
-import { RefreshCw } from "lucide-react";
+import { 
+  RefreshCw, 
+  ChevronLeft, 
+  ChevronRight, 
+  Filter,
+  Building2,
+  DollarSign,
+  FileText,
+  CreditCard,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Edit,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +36,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 type SupplierSummary = {
   id: number;
@@ -144,6 +171,431 @@ async function getJson<T>(url: string): Promise<T> {
   return readJson<T>(response, "Request failed");
 }
 
+function formatMoney(value: number | string) {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  return num.toFixed(2);
+}
+
+function getBalanceColor(balance: string | number) {
+  const num = typeof balance === 'string' ? parseFloat(balance) : balance;
+  if (num > 0) return "text-destructive";
+  if (num < 0) return "text-success";
+  return "text-foreground";
+}
+
+function getPaymentHoldBadge(status: string | undefined) {
+  if (!status || status === "CLEAR") {
+    return { variant: "outline", text: "CLEAR", className: "border-success/20 text-success" };
+  }
+  if (status === "HELD") {
+    return { variant: "destructive", text: "HELD", className: "bg-destructive/10 text-destructive" };
+  }
+  return { variant: "secondary", text: "OVERRIDDEN", className: "bg-warning/10 text-warning" };
+}
+
+// Pagination Component
+function Pagination({ currentPage, totalPages, onPageChange }: { 
+  currentPage: number; 
+  totalPages: number; 
+  onPageChange: (page: number) => void;
+}) {
+  const getVisiblePages = () => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      
+      if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      {getVisiblePages().map((page) => (
+        <Button
+          key={page}
+          variant={currentPage === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => onPageChange(page)}
+          className="h-8 w-8 p-0"
+        >
+          {page}
+        </Button>
+      ))}
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+// Ledger Detail Modal Component
+function LedgerDetailModal({ 
+  open, 
+  onOpenChange, 
+  detail,
+  canManageInvoices,
+  canManagePayments,
+  canOverridePaymentHold,
+  supplierPurchaseOrders,
+  onInvoiceAction,
+  invoiceActionId
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  detail: SupplierLedgerDetail | null;
+  canManageInvoices: boolean;
+  canManagePayments: boolean;
+  canOverridePaymentHold: boolean;
+  supplierPurchaseOrders: PurchaseOrderOption[];
+  onInvoiceAction: (invoiceId: number, action: "reevaluate" | "override_hold" | "clear_override" | "apply_credit" | "waive_credit", note?: string) => Promise<void>;
+  invoiceActionId: number | null;
+}) {
+  const [activeTab, setActiveTab] = useState<"entries" | "invoices" | "payments">("entries");
+  
+  if (!detail) return null;
+
+  const balanceColor = getBalanceColor(detail.summary.balance);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-lg sm:text-xl flex items-center gap-2 flex-wrap">
+            <Building2 className="h-5 w-5 text-muted-foreground" />
+            {detail.supplier.name} ({detail.supplier.code})
+            <Badge variant="outline" className={detail.supplier.isActive ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}>
+              {detail.supplier.isActive ? "ACTIVE" : "INACTIVE"}
+            </Badge>
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            Ledger details, invoices, and payment history
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {/* Summary Cards */}
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <Card className="border-border shadow-sm">
+              <CardContent className="p-3 sm:p-4">
+                <p className="text-xs text-muted-foreground">Total Debit</p>
+                <p className="text-lg sm:text-xl font-semibold text-destructive">
+                  {formatMoney(detail.summary.totalDebit)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-border shadow-sm">
+              <CardContent className="p-3 sm:p-4">
+                <p className="text-xs text-muted-foreground">Total Credit</p>
+                <p className="text-lg sm:text-xl font-semibold text-success">
+                  {formatMoney(detail.summary.totalCredit)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-border shadow-sm">
+              <CardContent className="p-3 sm:p-4">
+                <p className="text-xs text-muted-foreground">Outstanding Balance</p>
+                <p className={cn("text-lg sm:text-xl font-semibold", balanceColor)}>
+                  {formatMoney(detail.summary.balance)}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="flex flex-wrap gap-2 border-b border-border">
+            <Button
+              variant={activeTab === "entries" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setActiveTab("entries")}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Ledger Entries
+            </Button>
+            <Button
+              variant={activeTab === "invoices" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setActiveTab("invoices")}
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              Invoices ({detail.invoices.length})
+            </Button>
+            <Button
+              variant={activeTab === "payments" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setActiveTab("payments")}
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Payments ({detail.payments.length})
+            </Button>
+          </div>
+
+          {/* Ledger Entries Tab */}
+          {activeTab === "entries" && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border">
+                    <TableHead className="text-xs font-medium text-muted-foreground">Date</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Reference</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Type</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Debit</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Credit</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Note</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detail.entries.map((entry) => (
+                    <TableRow key={entry.id} className="border-border">
+                      <TableCell className="py-3 text-sm text-muted-foreground">
+                        {new Date(entry.entryDate).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="py-3 text-sm text-foreground">
+                        {entry.referenceNumber || "-"}
+                      </TableCell>
+                      <TableCell className="py-3 text-sm text-foreground">
+                        {entry.entryType}
+                      </TableCell>
+                      <TableCell className="text-right py-3 text-sm text-destructive">
+                        {entry.direction === "DEBIT" ? formatMoney(entry.amount) : "-"}
+                      </TableCell>
+                      <TableCell className="text-right py-3 text-sm text-success">
+                        {entry.direction === "CREDIT" ? formatMoney(entry.amount) : "-"}
+                      </TableCell>
+                      <TableCell className="py-3 text-sm text-muted-foreground max-w-xs truncate">
+                        {entry.note || "-"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Invoices Tab */}
+          {activeTab === "invoices" && (
+            <div className="space-y-3">
+              {detail.invoices.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No supplier invoices yet.</p>
+              ) : (
+                detail.invoices.map((invoice) => {
+                  const holdBadge = getPaymentHoldBadge(invoice.paymentHoldStatus);
+                  return (
+                    <Card key={invoice.id} className="border-border shadow-sm">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold text-foreground">{invoice.invoiceNumber}</p>
+                              <Badge variant="outline" className="text-xs">
+                                {invoice.status}
+                              </Badge>
+                              <Badge variant="outline" className={cn("text-xs", holdBadge.className)}>
+                                {holdBadge.text}
+                              </Badge>
+                              {invoice.slaCreditStatus && invoice.slaCreditStatus !== "NONE" && (
+                                <Badge variant="outline" className="text-xs bg-info/10 text-info">
+                                  Credit: {invoice.slaCreditStatus}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Issue Date: {new Date(invoice.issueDate).toLocaleDateString()} | 
+                              Due Date: {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : "N/A"}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-semibold text-foreground">
+                              {formatMoney(invoice.total)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Match: {invoice.threeWayMatch?.status || invoice.matchStatus || "PENDING"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2 text-xs sm:grid-cols-2">
+                          <div>
+                            <span className="text-muted-foreground">PO:</span>{" "}
+                            <span className="text-foreground">{invoice.purchaseOrder?.poNumber || "Direct invoice"}</span>
+                          </div>
+                          {invoice.threeWayMatch?.summary?.varianceCount !== undefined && (
+                            <div>
+                              <span className="text-muted-foreground">Variances:</span>{" "}
+                              <span className={invoice.threeWayMatch.summary.varianceCount > 0 ? "text-warning" : "text-success"}>
+                                {invoice.threeWayMatch.summary.varianceCount}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {invoice.paymentHoldReason && (
+                          <div className="rounded-md bg-warning/10 p-2 text-xs text-warning">
+                            Hold Reason: {invoice.paymentHoldReason}
+                          </div>
+                        )}
+
+                        {invoice.slaCreditStatus === "RECOMMENDED" && invoice.slaRecommendedCredit && (
+                          <div className="rounded-md bg-info/10 p-2 text-xs text-info">
+                            Suggested Credit: {formatMoney(invoice.slaRecommendedCredit)}
+                            {invoice.slaCreditReason && ` • ${invoice.slaCreditReason}`}
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        {canManageInvoices && (
+                          <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={invoiceActionId === invoice.id}
+                              onClick={() => onInvoiceAction(invoice.id, "reevaluate")}
+                            >
+                              Re-evaluate
+                            </Button>
+                            {canOverridePaymentHold && invoice.paymentHoldStatus === "HELD" && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                disabled={invoiceActionId === invoice.id}
+                                onClick={() => onInvoiceAction(invoice.id, "override_hold", "AP emergency release")}
+                              >
+                                Override Hold
+                              </Button>
+                            )}
+                            {canOverridePaymentHold && invoice.paymentHoldStatus === "OVERRIDDEN" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={invoiceActionId === invoice.id}
+                                onClick={() => onInvoiceAction(invoice.id, "clear_override")}
+                              >
+                                Clear Override
+                              </Button>
+                            )}
+                            {invoice.slaCreditStatus === "RECOMMENDED" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  disabled={invoiceActionId === invoice.id}
+                                  onClick={() => onInvoiceAction(invoice.id, "apply_credit")}
+                                >
+                                  Apply SLA Credit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={invoiceActionId === invoice.id}
+                                  onClick={() => onInvoiceAction(invoice.id, "waive_credit", "Waived by AP manager")}
+                                >
+                                  Waive Credit
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* Payments Tab */}
+          {activeTab === "payments" && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border">
+                    <TableHead className="text-xs font-medium text-muted-foreground">Payment No</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Date</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Method</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Invoice</TableHead>
+                    <TableHead className="text-right text-xs font-medium text-muted-foreground">Amount</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Reference</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {detail.payments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
+                        No supplier payments found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    detail.payments.map((payment) => (
+                      <TableRow key={payment.id} className="border-border">
+                        <TableCell className="py-3 text-sm font-medium text-foreground">
+                          {payment.paymentNumber}
+                        </TableCell>
+                        <TableCell className="py-3 text-sm text-muted-foreground">
+                          {new Date(payment.paymentDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="py-3 text-sm text-foreground">
+                          {payment.method}
+                        </TableCell>
+                        <TableCell className="py-3 text-sm text-foreground">
+                          {payment.supplierInvoice?.invoiceNumber || "-"}
+                        </TableCell>
+                        <TableCell className="text-right py-3 text-sm font-semibold text-success">
+                          {formatMoney(payment.amount)}
+                        </TableCell>
+                        <TableCell className="py-3 text-sm text-muted-foreground">
+                          {payment.reference || "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function SupplierLedgerPage() {
   const { data: session } = useSession();
   const globalPermissions = Array.isArray((session?.user as any)?.globalPermissions)
@@ -171,6 +623,7 @@ export default function SupplierLedgerPage() {
   const [savingInvoice, setSavingInvoice] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
   const [invoiceActionId, setInvoiceActionId] = useState<number | null>(null);
+  const [ledgerModalOpen, setLedgerModalOpen] = useState(false);
 
   const [invoicePurchaseOrderId, setInvoicePurchaseOrderId] = useState("");
   const [invoiceIssueDate, setInvoiceIssueDate] = useState("");
@@ -189,6 +642,18 @@ export default function SupplierLedgerPage() {
   const [paymentNote, setPaymentNote] = useState("");
   const [paymentHoldOverride, setPaymentHoldOverride] = useState(false);
   const [paymentHoldOverrideNote, setPaymentHoldOverrideNote] = useState("");
+
+  // Pagination for suppliers table
+  const [supplierPage, setSupplierPage] = useState(1);
+  const suppliersPerPage = 10;
+
+  const paginatedSuppliers = useMemo(() => {
+    const start = (supplierPage - 1) * suppliersPerPage;
+    const end = start + suppliersPerPage;
+    return suppliers.slice(start, end);
+  }, [suppliers, supplierPage]);
+
+  const supplierTotalPages = Math.ceil(suppliers.length / suppliersPerPage);
 
   const loadBaseData = async () => {
     try {
@@ -210,7 +675,6 @@ export default function SupplierLedgerPage() {
       if (Array.isArray(supplierData) && supplierData.length > 0) {
         setSupplierOptions(supplierData);
       } else {
-        // Fallback for roles that can read ledger but do not have supplier master read scope.
         setSupplierOptions(
           normalizedSummary.map((supplier) => ({
             id: supplier.id,
@@ -223,8 +687,7 @@ export default function SupplierLedgerPage() {
 
       if (canReadPurchaseOrders) {
         try {
-          const purchaseOrderData =
-            await getJson<PurchaseOrderOption[]>("/api/scm/purchase-orders");
+          const purchaseOrderData = await getJson<PurchaseOrderOption[]>("/api/scm/purchase-orders");
           setPurchaseOrders(Array.isArray(purchaseOrderData) ? purchaseOrderData : []);
         } catch (error: any) {
           const message = String(error?.message || "").toLowerCase();
@@ -263,13 +726,11 @@ export default function SupplierLedgerPage() {
     void loadBaseData();
   }, [canReadPurchaseOrders]);
 
-  useEffect(() => {
-    if (!selectedSupplierId) {
-      setDetail(null);
-      return;
-    }
-    void loadDetail(selectedSupplierId);
-  }, [selectedSupplierId]);
+  const openLedgerModal = async (supplierId: string) => {
+    setSelectedSupplierId(supplierId);
+    await loadDetail(supplierId);
+    setLedgerModalOpen(true);
+  };
 
   const supplierPurchaseOrders = useMemo(() => {
     const supplierId = Number(selectedSupplierId);
@@ -447,587 +908,107 @@ export default function SupplierLedgerPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Supplier Ledger</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+            Supplier Ledger
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
             Track supplier payable balances using invoice debits and payment credits.
           </p>
         </div>
         <Button variant="outline" onClick={() => void loadBaseData()} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" />
+          <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
           Refresh
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Supplier Balances</CardTitle>
+      {/* Supplier Balances Card */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Supplier Balances</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading supplier balances...</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead>Total Debit</TableHead>
-                    <TableHead>Total Credit</TableHead>
-                    <TableHead>Balance</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {suppliers.map((supplier) => (
-                    <TableRow key={supplier.id}>
-                      <TableCell>
-                        <div className="font-medium">{supplier.name}</div>
-                        <div className="text-xs text-muted-foreground">{supplier.code}</div>
-                      </TableCell>
-                      <TableCell>{supplier.totalDebit}</TableCell>
-                      <TableCell>{supplier.totalCredit}</TableCell>
-                      <TableCell>{supplier.balance}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedSupplierId(String(supplier.id))}
-                        >
-                          Open Ledger
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Ledger Workspace</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Supplier</Label>
-            <select
-              className="w-full rounded-md border bg-background px-3 py-2 md:w-[420px]"
-              value={selectedSupplierId}
-              onChange={(event) => setSelectedSupplierId(event.target.value)}
-            >
-              <option value="">Select supplier</option>
-              {supplierOptions.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name} ({supplier.code})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {detail ? (
-            <>
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Total Debit</p>
-                    <p className="text-2xl font-semibold">{detail.summary.totalDebit}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Total Credit</p>
-                    <p className="text-2xl font-semibold">{detail.summary.totalCredit}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-                    <p className="text-2xl font-semibold">{detail.summary.balance}</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {(canManageInvoices || canManagePayments) ? (
-                <div className="grid gap-6 lg:grid-cols-2">
-                  {canManageInvoices ? (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Create Supplier Invoice</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <Label>Purchase Order</Label>
-                          <select
-                            className="w-full rounded-md border bg-background px-3 py-2"
-                            value={invoicePurchaseOrderId}
-                            onChange={(event) => setInvoicePurchaseOrderId(event.target.value)}
-                          >
-                            <option value="">Optional purchase order</option>
-                            {supplierPurchaseOrders.map((purchaseOrder) => (
-                              <option key={purchaseOrder.id} value={purchaseOrder.id}>
-                                {purchaseOrder.poNumber} • {purchaseOrder.status}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        {selectedPurchaseOrder ? (
-                          <div className="space-y-3 rounded-lg border p-3">
-                            <div className="text-sm font-medium">
-                              Matchable invoice lines from {selectedPurchaseOrder.poNumber}
-                            </div>
-                            {invoiceItems.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">
-                                No received PO lines available yet. Post goods receipt before invoicing.
-                              </p>
-                            ) : (
-                              <div className="space-y-3">
-                                {invoiceItems.map((item, index) => (
-                                  <div
-                                    key={`${item.purchaseOrderItemId}-${index}`}
-                                    className="grid gap-3 rounded-md border p-3 md:grid-cols-[2fr_1fr_1fr]"
-                                  >
-                                    <div>
-                                      <Label>Item</Label>
-                                      <div className="text-sm font-medium">{item.productName}</div>
-                                      <div className="text-xs text-muted-foreground">{item.sku}</div>
-                                    </div>
-                                    <div>
-                                      <Label>Qty Invoiced</Label>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={item.quantityInvoiced}
-                                        onChange={(event) =>
-                                          updateInvoiceItem(index, "quantityInvoiced", event.target.value)
-                                        }
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label>Unit Cost</Label>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={item.unitCost}
-                                        onChange={(event) =>
-                                          updateInvoiceItem(index, "unitCost", event.target.value)
-                                        }
-                                      />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ) : null}
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div>
-                            <Label>Issue Date</Label>
-                            <Input
-                              type="date"
-                              value={invoiceIssueDate}
-                              onChange={(event) => setInvoiceIssueDate(event.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Due Date</Label>
-                            <Input
-                              type="date"
-                              value={invoiceDueDate}
-                              onChange={(event) => setInvoiceDueDate(event.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Subtotal</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={invoiceSubtotal}
-                              onChange={(event) => setInvoiceSubtotal(event.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Tax Total</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={invoiceTaxTotal}
-                              onChange={(event) => setInvoiceTaxTotal(event.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Other Charges</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={invoiceOtherCharges}
-                              onChange={(event) => setInvoiceOtherCharges(event.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label>Note</Label>
-                          <Textarea
-                            rows={4}
-                            value={invoiceNote}
-                            onChange={(event) => setInvoiceNote(event.target.value)}
-                          />
-                        </div>
-                        <Button onClick={() => void createInvoice()} disabled={savingInvoice}>
-                          {savingInvoice ? "Posting..." : "Post Invoice"}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ) : null}
-
-                  {canManagePayments ? (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Create Supplier Payment</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <Label>Invoice</Label>
-                          <select
-                            className="w-full rounded-md border bg-background px-3 py-2"
-                            value={paymentInvoiceId}
-                            onChange={(event) => setPaymentInvoiceId(event.target.value)}
-                          >
-                            <option value="">Optional invoice allocation</option>
-                            {detail.invoices
-                              .filter((invoice) => invoice.status !== "PAID")
-                              .map((invoice) => (
-                                <option key={invoice.id} value={invoice.id}>
-                                  {invoice.invoiceNumber} • {invoice.status} • {invoice.total}
-                                  {invoice.paymentHoldStatus && invoice.paymentHoldStatus !== "CLEAR"
-                                    ? ` • HOLD:${invoice.paymentHoldStatus}`
-                                    : ""}
-                                </option>
-                              ))}
-                          </select>
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div>
-                            <Label>Payment Date</Label>
-                            <Input
-                              type="date"
-                              value={paymentDate}
-                              onChange={(event) => setPaymentDate(event.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Amount</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={paymentAmount}
-                              onChange={(event) => setPaymentAmount(event.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <Label>Method</Label>
-                            <select
-                              className="w-full rounded-md border bg-background px-3 py-2"
-                              value={paymentMethod}
-                              onChange={(event) => setPaymentMethod(event.target.value)}
-                            >
-                              <option value="BANK_TRANSFER">Bank Transfer</option>
-                              <option value="CASH">Cash</option>
-                              <option value="MOBILE_BANKING">Mobile Banking</option>
-                              <option value="CHEQUE">Cheque</option>
-                              <option value="ADJUSTMENT">Adjustment</option>
-                            </select>
-                          </div>
-                          <div>
-                            <Label>Reference</Label>
-                            <Input
-                              value={paymentReference}
-                              onChange={(event) => setPaymentReference(event.target.value)}
-                            />
-                          </div>
-                        </div>
-                        {canOverridePaymentHold ? (
-                          <div className="space-y-2 rounded-md border p-3">
-                            <label className="flex items-center gap-2 text-sm">
-                              <input
-                                type="checkbox"
-                                checked={paymentHoldOverride}
-                                onChange={(event) =>
-                                  setPaymentHoldOverride(event.target.checked)
-                                }
-                              />
-                              Override invoice payment hold (if selected invoice is HELD)
-                            </label>
-                            {paymentHoldOverride ? (
-                              <div>
-                                <Label>Override Note</Label>
-                                <Textarea
-                                  rows={2}
-                                  value={paymentHoldOverrideNote}
-                                  onChange={(event) =>
-                                    setPaymentHoldOverrideNote(event.target.value)
-                                  }
-                                  placeholder="Write why this hold is being overridden..."
-                                />
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        <div>
-                          <Label>Note</Label>
-                          <Textarea
-                            rows={4}
-                            value={paymentNote}
-                            onChange={(event) => setPaymentNote(event.target.value)}
-                          />
-                        </div>
-                        <Button onClick={() => void createPayment()} disabled={savingPayment}>
-                          {savingPayment ? "Posting..." : "Post Payment"}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ) : null}
-                </div>
-              ) : null}
-
-              <div className="grid gap-6 xl:grid-cols-3">
-                <Card className="xl:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Ledger Entries</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Reference</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Debit</TableHead>
-                            <TableHead>Credit</TableHead>
-                            <TableHead>Note</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {detail.entries.map((entry) => (
-                            <TableRow key={entry.id}>
-                              <TableCell>{new Date(entry.entryDate).toLocaleDateString()}</TableCell>
-                              <TableCell>{entry.referenceNumber || "-"}</TableCell>
-                              <TableCell>{entry.entryType}</TableCell>
-                              <TableCell>
-                                {entry.direction === "DEBIT" ? Number(entry.amount).toFixed(2) : "-"}
-                              </TableCell>
-                              <TableCell>
-                                {entry.direction === "CREDIT" ? Number(entry.amount).toFixed(2) : "-"}
-                              </TableCell>
-                              <TableCell className="max-w-[320px] truncate">{entry.note || "-"}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Open Invoices</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {detail.invoices.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No supplier invoices yet.</p>
-                    ) : (
-                      detail.invoices.map((invoice) => (
-                        <div key={invoice.id} className="rounded-lg border p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="font-medium">{invoice.invoiceNumber}</div>
-                            <div className="flex gap-1">
-                              <Badge
-                                variant={
-                                  invoice.paymentHoldStatus === "HELD"
-                                    ? "destructive"
-                                    : invoice.paymentHoldStatus === "OVERRIDDEN"
-                                      ? "secondary"
-                                      : "outline"
-                                }
-                              >
-                                Hold: {invoice.paymentHoldStatus || "CLEAR"}
-                              </Badge>
-                              <Badge
-                                variant={
-                                  invoice.slaCreditStatus === "RECOMMENDED"
-                                    ? "secondary"
-                                    : invoice.slaCreditStatus === "APPLIED"
-                                      ? "default"
-                                      : "outline"
-                                }
-                              >
-                                Credit: {invoice.slaCreditStatus || "NONE"}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {invoice.status} • {Number(invoice.total).toFixed(2)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Match: {invoice.threeWayMatch?.status || invoice.matchStatus || "PENDING"}
-                            {typeof invoice.threeWayMatch?.summary?.varianceCount === "number"
-                              ? ` • Variances: ${invoice.threeWayMatch.summary.varianceCount}`
-                              : ""}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {invoice.purchaseOrder?.poNumber || "Direct supplier invoice"}
-                          </div>
-                          {invoice.paymentHoldReason ? (
-                            <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                              {invoice.paymentHoldReason}
-                            </div>
-                          ) : null}
-                          {invoice.paymentHoldOverrideNote ? (
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              Override note: {invoice.paymentHoldOverrideNote}
-                            </div>
-                          ) : null}
-                          {invoice.slaCreditStatus === "RECOMMENDED" ? (
-                            <div className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-                              Suggested credit: {Number(invoice.slaRecommendedCredit || 0).toFixed(2)}
-                              {invoice.slaCreditReason ? ` • ${invoice.slaCreditReason}` : ""}
-                            </div>
-                          ) : null}
-                          {(canManageInvoices || canOverridePaymentHold) ? (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {canManageInvoices ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={invoiceActionId === invoice.id}
-                                  onClick={() => void runInvoiceAction(invoice.id, "reevaluate")}
-                                >
-                                  Re-evaluate
-                                </Button>
-                              ) : null}
-                              {canOverridePaymentHold && invoice.paymentHoldStatus === "HELD" ? (
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  disabled={invoiceActionId === invoice.id}
-                                  onClick={() =>
-                                    void runInvoiceAction(
-                                      invoice.id,
-                                      "override_hold",
-                                      "AP emergency release approved by authorized user.",
-                                    )
-                                  }
-                                >
-                                  Override Hold
-                                </Button>
-                              ) : null}
-                              {canOverridePaymentHold && invoice.paymentHoldStatus === "OVERRIDDEN" ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={invoiceActionId === invoice.id}
-                                  onClick={() =>
-                                    void runInvoiceAction(invoice.id, "clear_override")
-                                  }
-                                >
-                                  Clear Override
-                                </Button>
-                              ) : null}
-                              {canManageInvoices && invoice.slaCreditStatus === "RECOMMENDED" ? (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    disabled={invoiceActionId === invoice.id}
-                                    onClick={() =>
-                                      void runInvoiceAction(invoice.id, "apply_credit")
-                                    }
-                                  >
-                                    Apply SLA Credit
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={invoiceActionId === invoice.id}
-                                    onClick={() =>
-                                      void runInvoiceAction(
-                                        invoice.id,
-                                        "waive_credit",
-                                        "Waived by AP manager after governance review.",
-                                      )
-                                    }
-                                  >
-                                    Waive Credit
-                                  </Button>
-                                </>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Supplier Payments</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Payment No</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Method</TableHead>
-                          <TableHead>Invoice</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>Reference</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {detail.payments.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
-                              No supplier payments found.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          detail.payments.map((payment) => (
-                            <TableRow key={payment.id}>
-                              <TableCell>{payment.paymentNumber}</TableCell>
-                              <TableCell>{new Date(payment.paymentDate).toLocaleDateString()}</TableCell>
-                              <TableCell>{payment.method}</TableCell>
-                              <TableCell>{payment.supplierInvoice?.invoiceNumber || "-"}</TableCell>
-                              <TableCell>{Number(payment.amount).toFixed(2)}</TableCell>
-                              <TableCell>{payment.reference || "-"}</TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Select a supplier to view ledger details and post AP transactions.
-            </p>
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border hover:bg-transparent">
+                      <TableHead className="text-xs font-medium text-muted-foreground">Supplier</TableHead>
+                      <TableHead className="text-right text-xs font-medium text-muted-foreground">Total Debit</TableHead>
+                      <TableHead className="text-right text-xs font-medium text-muted-foreground">Total Credit</TableHead>
+                      <TableHead className="text-right text-xs font-medium text-muted-foreground">Balance</TableHead>
+                      <TableHead className="text-right text-xs font-medium text-muted-foreground">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedSuppliers.map((supplier) => {
+                      const balance = parseFloat(supplier.balance);
+                      return (
+                        <TableRow key={supplier.id} className="border-border hover:bg-muted/40">
+                          <TableCell className="py-3">
+                            <div className="font-medium text-sm text-foreground">{supplier.name}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{supplier.code}</div>
+                          </TableCell>
+                          <TableCell className="text-right py-3 text-sm text-destructive">
+                            {formatMoney(supplier.totalDebit)}
+                          </TableCell>
+                          <TableCell className="text-right py-3 text-sm text-success">
+                            {formatMoney(supplier.totalCredit)}
+                          </TableCell>
+                          <TableCell className={cn("text-right py-3 text-sm font-semibold", getBalanceColor(supplier.balance))}>
+                            {formatMoney(supplier.balance)}
+                          </TableCell>
+                          <TableCell className="text-right py-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openLedgerModal(String(supplier.id))}
+                              className="h-8 px-3 text-xs"
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1" />
+                              Open Ledger
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination for suppliers */}
+              {supplierTotalPages > 1 && (
+                <Pagination
+                  currentPage={supplierPage}
+                  totalPages={supplierTotalPages}
+                  onPageChange={setSupplierPage}
+                />
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Ledger Detail Modal */}
+      <LedgerDetailModal
+        open={ledgerModalOpen}
+        onOpenChange={setLedgerModalOpen}
+        detail={detail}
+        canManageInvoices={canManageInvoices}
+        canManagePayments={canManagePayments}
+        canOverridePaymentHold={canOverridePaymentHold}
+        supplierPurchaseOrders={supplierPurchaseOrders}
+        onInvoiceAction={runInvoiceAction}
+        invoiceActionId={invoiceActionId}
+      />
     </div>
   );
 }
