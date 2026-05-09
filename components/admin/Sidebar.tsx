@@ -747,11 +747,14 @@ const menuItems: MenuItem[] = [
 interface MenuItemProps {
   item: MenuItem;
   pathname: string;
-  onClose?: () => void;
   compactSubSections?: boolean;
 }
 
-const MenuItem = ({ item, pathname, onClose, compactSubSections = false }: MenuItemProps) => {
+const MenuItem = ({
+  item,
+  pathname,
+  compactSubSections = false,
+}: MenuItemProps) => {
   const flattenedSubItems = item.subSections
     ? item.subSections.flatMap((section) => section.items)
     : item.subItems ?? [];
@@ -841,7 +844,6 @@ const MenuItem = ({ item, pathname, onClose, compactSubSections = false }: MenuI
                                     <Link
                                       key={subItem.name}
                                       href={subItem.href}
-                                      onClick={onClose}
                                       className={cn(
                                         "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
                                         isSubItemActive
@@ -877,7 +879,6 @@ const MenuItem = ({ item, pathname, onClose, compactSubSections = false }: MenuI
                                   <Link
                                     key={subItem.name}
                                     href={subItem.href}
-                                    onClick={onClose}
                                     className={cn(
                                       "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
                                       isSubItemActive
@@ -911,7 +912,6 @@ const MenuItem = ({ item, pathname, onClose, compactSubSections = false }: MenuI
                         <Link
                           key={subItem.name}
                           href={subItem.href}
-                          onClick={onClose}
                           className={cn(
                             "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
                             isSubItemActive
@@ -939,7 +939,6 @@ const MenuItem = ({ item, pathname, onClose, compactSubSections = false }: MenuI
       ) : (
         <Link
           href={item.href || "#"}
-          onClick={onClose}
           className={cn(
             "flex items-center gap-3 px-4 py-2.5 transition-all duration-150 group",
             isActive
@@ -968,13 +967,11 @@ const MenuItem = ({ item, pathname, onClose, compactSubSections = false }: MenuI
 const SidebarContent = ({
   pathname,
   items,
-  onClose,
   isWarehouseScopedOnly = false,
   compactSubSections = false,
 }: {
   pathname: string;
   items: MenuItem[];
-  onClose?: () => void;
   isWarehouseScopedOnly?: boolean;
   compactSubSections?: boolean;
 }) => (
@@ -1000,7 +997,6 @@ const SidebarContent = ({
                   key={`${item.name}:${item.href ?? "item"}`}
                   item={item}
                   pathname={pathname}
-                  onClose={onClose}
                   compactSubSections={compactSubSections}
                 />
               ))}
@@ -1011,7 +1007,7 @@ const SidebarContent = ({
         // Single menu item (collapsible or regular)
         return (
           <div key={`${section.name}:${section.href ?? "group"}`}>
-            <MenuItem item={section} pathname={pathname} onClose={onClose} />
+            <MenuItem item={section} pathname={pathname} />
           </div>
         );
       }
@@ -1021,7 +1017,6 @@ const SidebarContent = ({
 
 export default function Sidebar({
   isMobile = false,
-  onClose,
 }: {
   isMobile?: boolean;
   onClose?: () => void;
@@ -1177,11 +1172,10 @@ export default function Sidebar({
             <p className="text-xs text-muted-foreground">{adminSubtitle}</p>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto" onClick={onClose}>
+        <div className="flex-1 overflow-y-auto">
           <SidebarContent
             pathname={pathname}
             items={visibleMenuItems}
-            onClose={onClose}
             compactSubSections
           />
         </div>
@@ -1221,7 +1215,6 @@ export default function Sidebar({
         <SidebarContent
           pathname={pathname}
           items={visibleMenuItems}
-          onClose={onClose}
           isWarehouseScopedOnly={isWarehouseScopedOnly}
         />
       </div>
