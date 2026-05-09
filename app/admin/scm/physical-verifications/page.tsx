@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, ChevronLeft, ChevronRight, Filter, Eye, CheckCircle, XCircle, Users, Package, Building2, Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type Warehouse = { id: number; name: string; code: string };
 type Variant = { id: number; sku: string; product?: { id: number; name: string } };
@@ -51,12 +52,119 @@ type Verification = {
   }>;
 };
 
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "DRAFT":
+      return "bg-muted/50 text-muted-foreground border-border";
+    case "SUBMITTED":
+      return "bg-warning/10 text-warning border-warning/20";
+    case "COMMITTEE_REVIEW":
+      return "bg-info/10 text-info border-info/20";
+    case "APPROVED":
+      return "bg-success/10 text-success border-success/20";
+    case "REJECTED":
+      return "bg-destructive/10 text-destructive border-destructive/20";
+    case "CLOSED":
+      return "bg-muted/30 text-muted-foreground border-border";
+    default:
+      return "bg-muted/50 text-muted-foreground border-border";
+  }
+};
+
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case "DRAFT":
+      return Package;
+    case "SUBMITTED":
+      return Clock;
+    case "COMMITTEE_REVIEW":
+      return Users;
+    case "APPROVED":
+      return CheckCircle;
+    case "REJECTED":
+      return XCircle;
+    case "CLOSED":
+      return CheckCircle;
+    default:
+      return Package;
+  }
+};
+
 async function readJson<T>(res: Response, errorMessage: string) {
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
     throw new Error(payload?.error || errorMessage);
   }
   return (await res.json()) as T;
+}
+
+// Pagination Component
+function Pagination({ currentPage, totalPages, onPageChange }: { 
+  currentPage: number; 
+  totalPages: number; 
+  onPageChange: (page: number) => void;
+}) {
+  const getVisiblePages = () => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      
+      if (end - start + 1 < maxVisible) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+      
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+
+      {getVisiblePages().map((page) => (
+        <Button
+          key={page}
+          variant={currentPage === page ? "default" : "outline"}
+          size="sm"
+          onClick={() => onPageChange(page)}
+          className="h-8 w-8 p-0"
+        >
+          {page}
+        </Button>
+      ))}
+
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="h-8 w-8 p-0"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
 }
 
 export default function PhysicalVerificationsPage() {
@@ -78,6 +186,11 @@ export default function PhysicalVerificationsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const [form, setForm] = useState({
     warehouseId: "",
@@ -98,6 +211,20 @@ export default function PhysicalVerificationsPage() {
   );
 
   const selectedWarehouseId = Number(form.warehouseId || warehouseId);
+
+  // Pagination calculations
+  const paginatedVerifications = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return verifications.slice(start, end);
+  }, [verifications, currentPage]);
+
+  const totalPages = Math.ceil(verifications.length / itemsPerPage);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [warehouseId, statusFilter]);
 
   const loadBootstrap = async () => {
     setLoading(true);
@@ -269,7 +396,7 @@ export default function PhysicalVerificationsPage() {
 
   if (!canRead) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <Card>
           <CardContent className="p-6 text-sm text-muted-foreground">
             You do not have permission to access physical verifications.
@@ -280,47 +407,54 @@ export default function PhysicalVerificationsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="min-h-screen space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Physical Verification</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+            Physical Verification
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
             Schedule warehouse verification cycles, capture counts, and approve variance outcomes.
           </p>
         </div>
         <Button variant="outline" onClick={() => void loadVerifications()} disabled={loading}>
-          <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
           Refresh
         </Button>
       </div>
 
-      {canManage ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Verification Cycle</CardTitle>
-            <CardDescription>Capture counted stock for a verification period.</CardDescription>
+      {/* Create Verification Form */}
+      {canManage && (
+        <Card className="shadow-sm">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Create Verification Cycle</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Capture counted stock for a verification period.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-[220px_180px_180px_1fr]">
-              <div className="space-y-2">
-                <Label>Warehouse</Label>
+          <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+            {/* Basic Info Grid */}
+            <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs sm:text-sm">Warehouse</Label>
                 <select
-                  className="w-full rounded-md border bg-background px-3 py-2"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   value={form.warehouseId}
                   onChange={(e) => setForm((cur) => ({ ...cur, warehouseId: e.target.value }))}
                 >
                   <option value="">Select warehouse</option>
                   {warehouses.map((warehouse) => (
                     <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
+                      {warehouse.name} ({warehouse.code})
                     </option>
                   ))}
                 </select>
               </div>
-              <div className="space-y-2">
-                <Label>Frequency</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs sm:text-sm">Frequency</Label>
                 <select
-                  className="w-full rounded-md border bg-background px-3 py-2"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   value={form.frequency}
                   onChange={(e) => setForm((cur) => ({ ...cur, frequency: e.target.value }))}
                 >
@@ -329,40 +463,44 @@ export default function PhysicalVerificationsPage() {
                   <option value="ANNUAL">Annual</option>
                 </select>
               </div>
-              <div className="space-y-2">
-                <Label>Period Start</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs sm:text-sm">Period Start</Label>
                 <Input
                   type="date"
                   value={form.periodStart}
                   onChange={(e) => setForm((cur) => ({ ...cur, periodStart: e.target.value }))}
+                  className="text-sm"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Period End</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs sm:text-sm">Period End</Label>
                 <Input
                   type="date"
                   value={form.periodEnd}
                   onChange={(e) => setForm((cur) => ({ ...cur, periodEnd: e.target.value }))}
+                  className="text-sm"
                 />
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
-              <div className="space-y-2">
-                <Label>Committee Members</Label>
-                <div className="flex flex-wrap gap-2">
+            {/* Committee & Note */}
+            <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs sm:text-sm">Committee Members</Label>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 max-h-24 overflow-y-auto p-2 border border-border rounded-md">
                   {visibleUsers.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No users available.</div>
+                    <div className="text-xs text-muted-foreground">No users available.</div>
                   ) : (
                     visibleUsers.map((user) => (
                       <button
                         key={user.id}
                         type="button"
-                        className={`rounded-full border px-3 py-1 text-xs ${
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-xs transition-colors",
                           form.committeeUserIds.includes(user.id)
                             ? "border-primary bg-primary/10 text-primary"
-                            : "border-border text-muted-foreground"
-                        }`}
+                            : "border-border text-muted-foreground hover:border-primary/50"
+                        )}
                         onClick={() => toggleCommitteeMember(user.id)}
                       >
                         {user.name || user.email || user.id.slice(0, 6)}
@@ -371,111 +509,138 @@ export default function PhysicalVerificationsPage() {
                   )}
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Note</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs sm:text-sm">Note</Label>
                 <Textarea
                   value={form.note}
                   onChange={(e) => setForm((cur) => ({ ...cur, note: e.target.value }))}
                   placeholder="Optional verification note"
+                  className="text-sm min-h-[80px]"
                 />
               </div>
             </div>
 
+            {/* Counted Lines */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label>Counted Lines</Label>
+                <Label className="text-xs sm:text-sm">Counted Lines</Label>
                 <Button variant="outline" size="sm" onClick={addLine}>
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
                   Add line
                 </Button>
               </div>
+              
               {lines.length === 0 ? (
-                <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
                   Add counted lines to record verification results.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
                   {lines.map((line, index) => (
                     <div
                       key={`line-${index}`}
-                      className="grid gap-2 md:grid-cols-[2fr_1.2fr_120px_120px_1fr_auto]"
+                      className="space-y-2 p-3 border border-border rounded-md bg-muted/10"
                     >
-                      <select
-                        className="rounded-md border bg-background px-3 py-2"
-                        value={line.productVariantId}
-                        onChange={(e) => updateLine(index, "productVariantId", e.target.value)}
-                      >
-                        <option value="">Variant</option>
-                        {variants.map((variant) => (
-                          <option key={variant.id} value={variant.id}>
-                            {variant.product?.name || "Variant"} ({variant.sku})
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        className="rounded-md border bg-background px-3 py-2"
-                        value={line.binId}
-                        onChange={(e) => updateLine(index, "binId", e.target.value)}
-                      >
-                        <option value="">Bin (optional)</option>
-                        {bins.map((bin) => (
-                          <option key={bin.id} value={bin.id}>
-                            {bin.code} · {bin.name}
-                          </option>
-                        ))}
-                      </select>
-                      <Input
-                        placeholder="System qty"
-                        value={line.systemQty}
-                        onChange={(e) => updateLine(index, "systemQty", e.target.value)}
-                      />
-                      <Input
-                        placeholder="Counted qty"
-                        value={line.countedQty}
-                        onChange={(e) => updateLine(index, "countedQty", e.target.value)}
-                      />
-                      <Input
-                        placeholder="Note"
-                        value={line.note}
-                        onChange={(e) => updateLine(index, "note", e.target.value)}
-                      />
-                      <Button variant="ghost" size="sm" onClick={() => removeLine(index)}>
-                        Remove
-                      </Button>
+                      <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+                        <select
+                          className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                          value={line.productVariantId}
+                          onChange={(e) => updateLine(index, "productVariantId", e.target.value)}
+                        >
+                          <option value="">Variant</option>
+                          {variants.map((variant) => (
+                            <option key={variant.id} value={variant.id}>
+                              {variant.product?.name || "Variant"} ({variant.sku})
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                          value={line.binId}
+                          onChange={(e) => updateLine(index, "binId", e.target.value)}
+                        >
+                          <option value="">Bin (optional)</option>
+                          {bins.map((bin) => (
+                            <option key={bin.id} value={bin.id}>
+                              {bin.code} · {bin.name}
+                            </option>
+                          ))}
+                        </select>
+                        <Input
+                          placeholder="System qty"
+                          value={line.systemQty}
+                          onChange={(e) => updateLine(index, "systemQty", e.target.value)}
+                          className="text-sm"
+                        />
+                        <Input
+                          placeholder="Counted qty"
+                          value={line.countedQty}
+                          onChange={(e) => updateLine(index, "countedQty", e.target.value)}
+                          className="text-sm"
+                        />
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Note"
+                            value={line.note}
+                            onChange={(e) => updateLine(index, "note", e.target.value)}
+                            className="text-sm flex-1"
+                          />
+                          <Button variant="ghost" size="sm" onClick={() => removeLine(index)} className="px-2">
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <Button onClick={() => void createVerification()} disabled={creating}>
-              Create Verification
+            <Button onClick={() => void createVerification()} disabled={creating} className="w-full sm:w-auto">
+              {creating ? "Creating..." : "Create Verification"}
             </Button>
           </CardContent>
         </Card>
-      ) : null}
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Verification Register</CardTitle>
-          <CardDescription>Monitor verification status and approvals.</CardDescription>
+      {/* Verification Register */}
+      <Card className="shadow-sm">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base sm:text-lg">Verification Register</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Monitor verification status and approvals.
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="sm:hidden"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-3">
+        <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+          {/* Desktop Filters */}
+          <div className="hidden sm:flex flex-wrap gap-3">
             <select
-              className="rounded-md border bg-background px-3 py-2"
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={warehouseId}
               onChange={(e) => setWarehouseId(e.target.value)}
             >
               <option value="">All warehouses</option>
               {warehouses.map((warehouse) => (
                 <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
+                  {warehouse.name} ({warehouse.code})
                 </option>
               ))}
             </select>
             <select
-              className="rounded-md border bg-background px-3 py-2"
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -488,83 +653,224 @@ export default function PhysicalVerificationsPage() {
               <option value="CLOSED">Closed</option>
             </select>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Warehouse</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Lines</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {verifications.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    No verifications found.
-                  </TableCell>
+
+          {/* Mobile Filters Drawer */}
+          {showFilters && (
+            <div className="space-y-3 sm:hidden">
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={warehouseId}
+                onChange={(e) => setWarehouseId(e.target.value)}
+              >
+                <option value="">All warehouses</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name} ({warehouse.code})
+                  </option>
+                ))}
+              </select>
+              <select
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">All statuses</option>
+                <option value="DRAFT">Draft</option>
+                <option value="SUBMITTED">Submitted</option>
+                <option value="COMMITTEE_REVIEW">Committee review</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="CLOSED">Closed</option>
+              </select>
+              <Button variant="outline" onClick={() => setShowFilters(false)} className="w-full">
+                Close Filters
+              </Button>
+            </div>
+          )}
+
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="text-xs font-medium text-muted-foreground">Warehouse</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">Period</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-right text-xs font-medium text-muted-foreground">Lines</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">Actions</TableHead>
                 </TableRow>
-              ) : (
-                verifications.map((verification) => (
-                  <TableRow key={verification.id}>
-                    <TableCell>
-                      <div className="font-medium">{verification.warehouse.name}</div>
-                      <div className="text-xs text-muted-foreground">{verification.warehouse.code}</div>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(verification.periodStart).toLocaleDateString()} →{" "}
-                      {new Date(verification.periodEnd).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>{verification.status.replaceAll("_", " ")}</TableCell>
-                    <TableCell>{verification.lines.length}</TableCell>
-                    <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" asChild>
-                          <Link href={`/admin/scm/physical-verifications/${verification.id}`}>Open Detail</Link>
-                        </Button>
-                        {canManage && verification.status === "DRAFT" ? (
-                          <Button size="sm" onClick={() => void runAction(verification.id, "submit")}>
-                            Submit
-                          </Button>
-                        ) : null}
-                        {canApprove && verification.status === "SUBMITTED" ? (
-                          <Button size="sm" variant="outline" onClick={() => void runAction(verification.id, "committee_review")}>
-                            Committee Review
-                          </Button>
-                        ) : null}
-                        {canApprove && verification.status === "COMMITTEE_REVIEW" ? (
-                          <>
-                            <Button size="sm" onClick={() => void runAction(verification.id, "committee_approve")}>
-                              Committee Approve
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => void runAction(verification.id, "committee_reject")}>
-                              Reject
-                            </Button>
-                          </>
-                        ) : null}
-                        {canApprove && ["SUBMITTED", "COMMITTEE_REVIEW"].includes(verification.status) ? (
-                          <>
-                            <Button size="sm" variant="outline" onClick={() => void runAction(verification.id, "admin_approve")}>
-                              Final Approve
-                            </Button>
-                            <Button size="sm" variant="destructive" onClick={() => void runAction(verification.id, "admin_reject")}>
-                              Final Reject
-                            </Button>
-                          </>
-                        ) : null}
-                        {canApprove && verification.status === "APPROVED" ? (
-                          <Button size="sm" variant="outline" onClick={() => void runAction(verification.id, "close")}>
-                            Close
-                          </Button>
-                        ) : null}
+              </TableHeader>
+              <TableBody>
+                {paginatedVerifications.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8">
+                      <div className="flex flex-col items-center gap-2">
+                        <Package className="h-8 w-8 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">No verifications found.</p>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  paginatedVerifications.map((verification) => {
+                    const StatusIcon = getStatusIcon(verification.status);
+                    return (
+                      <TableRow key={verification.id} className="border-border hover:bg-muted/40">
+                        <TableCell className="py-3">
+                          <div className="font-medium text-sm text-foreground">{verification.warehouse.name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{verification.warehouse.code}</div>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="text-sm text-foreground">
+                            {new Date(verification.periodStart).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            → {new Date(verification.periodEnd).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <span className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
+                            getStatusColor(verification.status)
+                          )}>
+                            <StatusIcon className="h-3 w-3" />
+                            {verification.status.replaceAll("_", " ")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right py-3 font-medium text-foreground">
+                          {verification.lines.length}
+                        </TableCell>
+                        <TableCell className="py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" asChild className="h-8 px-2 text-xs">
+                              <Link href={`/admin/scm/physical-verifications/${verification.id}`}>
+                                <Eye className="h-3 w-3 mr-1" />
+                                View
+                              </Link>
+                            </Button>
+                            {canManage && verification.status === "DRAFT" && (
+                              <Button size="sm" onClick={() => void runAction(verification.id, "submit")} className="h-8 px-2 text-xs">
+                                Submit
+                              </Button>
+                            )}
+                            {canApprove && verification.status === "SUBMITTED" && (
+                              <Button size="sm" variant="outline" onClick={() => void runAction(verification.id, "committee_review")} className="h-8 px-2 text-xs">
+                                Review
+                              </Button>
+                            )}
+                            {canApprove && verification.status === "COMMITTEE_REVIEW" && (
+                              <>
+                                <Button size="sm" onClick={() => void runAction(verification.id, "committee_approve")} className="h-8 px-2 text-xs">
+                                  Approve
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => void runAction(verification.id, "committee_reject")} className="h-8 px-2 text-xs">
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="space-y-3 lg:hidden">
+            {paginatedVerifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Package className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">No verifications found.</p>
+              </div>
+            ) : (
+              paginatedVerifications.map((verification) => {
+                const StatusIcon = getStatusIcon(verification.status);
+                return (
+                  <Card key={verification.id} className="border-border shadow-sm">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            <p className="text-sm font-semibold text-foreground">
+                              {verification.warehouse.name}
+                            </p>
+                            <span className="text-xs text-muted-foreground">
+                              ({verification.warehouse.code})
+                            </span>
+                          </div>
+                        </div>
+                        <span className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                          getStatusColor(verification.status)
+                        )}>
+                          <StatusIcon className="h-3 w-3" />
+                          {verification.status.replaceAll("_", " ")}
+                        </span>
+                      </div>
+
+                      {/* Period */}
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-foreground">
+                          {new Date(verification.periodStart).toLocaleDateString()} →{" "}
+                          {new Date(verification.periodEnd).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      {/* Lines Count */}
+                      <div className="flex items-center gap-2 text-sm">
+                        <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-foreground">
+                          {verification.lines.length} line{verification.lines.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+                        <Button size="sm" variant="outline" asChild className="flex-1">
+                          <Link href={`/admin/scm/physical-verifications/${verification.id}`}>
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            View Details
+                          </Link>
+                        </Button>
+                        {canManage && verification.status === "DRAFT" && (
+                          <Button size="sm" onClick={() => void runAction(verification.id, "submit")} className="flex-1">
+                            Submit
+                          </Button>
+                        )}
+                        {canApprove && verification.status === "SUBMITTED" && (
+                          <Button size="sm" variant="outline" onClick={() => void runAction(verification.id, "committee_review")} className="flex-1">
+                            Start Review
+                          </Button>
+                        )}
+                        {canApprove && verification.status === "COMMITTEE_REVIEW" && (
+                          <div className="flex gap-2 w-full">
+                            <Button size="sm" onClick={() => void runAction(verification.id, "committee_approve")} className="flex-1">
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => void runAction(verification.id, "committee_reject")} className="flex-1">
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
     </div>
