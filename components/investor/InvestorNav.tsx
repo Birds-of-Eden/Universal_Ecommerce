@@ -97,7 +97,7 @@ export default function InvestorNav({ investorName, investorCode, onNavClick }: 
   }, []);
 
   return (
-    <aside className="flex h-full w-72 flex-col border-r border-border bg-card/70 backdrop-blur">
+    <aside className="flex h-full w-full flex-col border-r border-border bg-card/70 backdrop-blur md:w-72">
       <div className="flex h-full flex-col">
         <div className="border-b border-border p-5">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Investor Portal</p>

@@ -56,10 +56,6 @@ export default function CategoryManager({
     };
   }, [imagePreviewUrl]);
 
-  /* =========================
-     BUILD TREE
-  ========================= */
-
   const buildTree = (items: Category[]) => {
     const map = new Map<number, any>();
     const roots: any[] = [];
@@ -87,112 +83,99 @@ export default function CategoryManager({
 
   const treeData = useMemo(() => buildTree(filtered || []), [filtered]);
 
-  /* =========================
-     TOGGLE
-  ========================= */
-
   const toggle = (id: number) => {
-    setExpanded((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
   };
-
-  /* =========================
-     RENDER TREE NODE
-  ========================= */
 
   const renderNode = (node: any, level = 0) => {
     const hasChildren = node.children.length > 0;
 
     return (
-      <div key={node.id}>
+      <div key={node.id} className="min-w-0">
         <div
           className={cn(
-            "flex items-center justify-between py-2 px-3 rounded-md hover:bg-primary/10 transition",
+            "group rounded-md px-2 py-3 transition hover:bg-primary/10 sm:px-3",
             hasChildren && "cursor-pointer",
           )}
-          style={{ paddingLeft: `${level * 24}px` }}
+          style={{ paddingLeft: `${Math.min(level * 16, 48)}px` }}
           onClick={() => hasChildren && toggle(node.id)}
         >
-          <div className="flex items-center gap-3">
-            {hasChildren ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggle(node.id);
-                }}
-                className="p-0"
-              >
-                {expanded[node.id] ? (
-                  <ChevronDown size={16} />
-                ) : (
-                  <ChevronRight size={16} />
-                )}
-              </button>
-            ) : (
-              <div className="w-4" />
-            )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              {hasChildren ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggle(node.id);
+                  }}
+                  className="shrink-0 rounded p-1 hover:bg-muted"
+                >
+                  {expanded[node.id] ? (
+                    <ChevronDown size={16} />
+                  ) : (
+                    <ChevronRight size={16} />
+                  )}
+                </button>
+              ) : (
+                <div className="w-6 shrink-0" />
+              )}
 
-            {node.image ? (
-              <img
-                src={node.image}
-                alt={node.name}
-                className="h-7 w-7 rounded border object-cover bg-muted"
-              />
-            ) : (
-              <div className="h-7 w-7 rounded border bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
-                {(node.name?.[0] || "?").toUpperCase()}
+              {node.image ? (
+                <img
+                  src={node.image}
+                  alt={node.name}
+                  className="h-9 w-9 shrink-0 rounded border bg-muted object-cover sm:h-7 sm:w-7"
+                />
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border bg-muted text-[10px] text-muted-foreground sm:h-7 sm:w-7">
+                  {(node.name?.[0] || "?").toUpperCase()}
+                </div>
+              )}
+
+              <div className="min-w-0">
+                <p className="truncate font-medium">{node.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {node.productCount || 0} products
+                </p>
               </div>
-            )}
+            </div>
 
-            <span className="font-medium">{node.name}</span>
-
-            <span className="text-xs text-muted-foreground ml-2">
-              ({node.productCount || 0} products)
-            </span>
-          </div>
-
-          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openAddModal(node)}
+            <div
+              className="grid grid-cols-3 gap-2 sm:flex sm:shrink-0"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Plus size={14} />
-            </Button>
+              <Button size="sm" variant="outline" onClick={() => openAddModal(node)}>
+                <Plus size={14} />
+                <span className="ml-1 sm:hidden">Add</span>
+              </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openEditModal(node)}
-            >
-              <Edit3 size={14} />
-            </Button>
+              <Button size="sm" variant="outline" onClick={() => openEditModal(node)}>
+                <Edit3 size={14} />
+                <span className="ml-1 sm:hidden">Edit</span>
+              </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDeleteLocal(node.id)}
-              className="text-destructive"
-            >
-              <Trash2 size={14} />
-            </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleDeleteLocal(node.id)}
+                className="text-destructive"
+              >
+                <Trash2 size={14} />
+                <span className="ml-1 sm:hidden">Del</span>
+              </Button>
+            </div>
           </div>
         </div>
 
         {hasChildren && expanded[node.id] && (
-          <div>
+          <div className="mt-1 space-y-1">
             {node.children.map((child: any) => renderNode(child, level + 1))}
           </div>
         )}
       </div>
     );
   };
-
-  /* =========================
-     CRUD
-  ========================= */
 
   const closeModal = () => {
     setModalOpen(false);
@@ -286,86 +269,87 @@ export default function CategoryManager({
     toast.success("Deleted");
   };
 
-  /* =========================
-     UI
-  ========================= */
-
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Category Management</h1>
+    <div className="w-full p-3 sm:p-5 lg:p-8">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold sm:text-2xl">Category Management</h1>
 
-        <Button onClick={() => openAddModal(null)}>
+        <Button className="w-full sm:w-auto" onClick={() => openAddModal(null)}>
           <Plus size={16} className="mr-2" />
           Add Root Category
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-6">
+      <div className="relative mb-5">
         <Search
-          className="absolute left-3 top-3 text-muted-foreground"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
           size={16}
         />
         <Input
-          className="pl-10"
+          className="h-11 pl-10"
           placeholder="Search categories..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      {/* Tree */}
-      <div className="border rounded-lg p-4 bg-card">
+      <div className="overflow-x-hidden rounded-lg border bg-card p-2 sm:p-4">
         {loading ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {[...Array(8)].map((_, index) => (
-              <div key={index} className="flex items-center justify-between py-2 px-3 rounded-md">
+              <div
+                key={index}
+                className="flex flex-col gap-3 rounded-md px-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div className="flex items-center gap-3">
-                  <div className="w-4 h-4 bg-muted animate-pulse rounded" />
-                  <div className="h-7 w-7 bg-muted animate-pulse rounded border" />
-                  <div className="h-4 bg-muted animate-pulse rounded w-32" />
-                  <div className="h-3 bg-muted animate-pulse rounded w-20" />
+                  <div className="h-4 w-4 animate-pulse rounded bg-muted" />
+                  <div className="h-9 w-9 animate-pulse rounded border bg-muted" />
+                  <div>
+                    <div className="mb-2 h-4 w-32 animate-pulse rounded bg-muted" />
+                    <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <div className="h-8 w-8 bg-muted animate-pulse rounded" />
-                  <div className="h-8 w-8 bg-muted animate-pulse rounded" />
-                  <div className="h-8 w-8 bg-muted animate-pulse rounded" />
+                <div className="grid grid-cols-3 gap-2 sm:flex">
+                  <div className="h-8 animate-pulse rounded bg-muted sm:w-8" />
+                  <div className="h-8 animate-pulse rounded bg-muted sm:w-8" />
+                  <div className="h-8 animate-pulse rounded bg-muted sm:w-8" />
                 </div>
               </div>
             ))}
           </div>
         ) : treeData.length === 0 ? (
-          <p className="text-muted-foreground">No categories found</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No categories found
+          </p>
         ) : (
-          treeData.map((node) => renderNode(node))
+          <div className="space-y-1">{treeData.map((node) => renderNode(node))}</div>
         )}
       </div>
 
-      {/* Modal */}
       {modalOpen && (
         <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
           onClick={closeModal}
         >
           <div
-            className="bg-card p-6 rounded-lg md:w-[40vw] relative"
+            className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-card p-4 shadow-lg sm:max-w-xl sm:rounded-lg sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between mb-4">
-              <h2 className="text-xl font-bold">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h2 className="text-lg font-bold sm:text-xl">
                 {editing
                   ? "Edit Category"
                   : createParent
                     ? `Add Subcategory: ${createParent.name}`
                     : "New Root Category"}
               </h2>
+
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={closeModal}
                 aria-label="Close modal"
+                className="shrink-0"
               >
                 <X size={18} />
               </Button>
@@ -375,6 +359,7 @@ export default function CategoryManager({
               <div>
                 <Label>Name</Label>
                 <Input
+                  className="mt-1 h-11"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
@@ -382,8 +367,9 @@ export default function CategoryManager({
 
               <div>
                 <Label>Image</Label>
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-md border bg-muted overflow-hidden flex items-center justify-center">
+
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted sm:h-14 sm:w-14">
                     {imagePreviewUrl ? (
                       <img
                         src={imagePreviewUrl}
@@ -401,12 +387,15 @@ export default function CategoryManager({
                     key={fileInputKey}
                     type="file"
                     accept="image/*"
+                    className="h-auto"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
                       if (!file) return;
+
                       if (imagePreviewUrl?.startsWith("blob:")) {
                         URL.revokeObjectURL(imagePreviewUrl);
                       }
+
                       setImageFile(file);
                       setImagePreviewUrl(URL.createObjectURL(file));
                     }}
@@ -418,7 +407,7 @@ export default function CategoryManager({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="mt-2"
+                    className="mt-3 w-full sm:w-auto"
                     onClick={() => {
                       if (imagePreviewUrl?.startsWith("blob:")) {
                         URL.revokeObjectURL(imagePreviewUrl);
@@ -449,7 +438,7 @@ export default function CategoryManager({
                 <div>
                   <Label>Parent</Label>
                   <select
-                    className="w-full border rounded-md px-3 py-2 bg-background"
+                    className="mt-1 h-11 w-full rounded-md border bg-background px-3 py-2"
                     value={form.parentId ?? ""}
                     onChange={(e) =>
                       setForm({
@@ -470,7 +459,7 @@ export default function CategoryManager({
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"
@@ -480,6 +469,7 @@ export default function CategoryManager({
                 >
                   Cancel
                 </Button>
+
                 <Button
                   onClick={handleSubmit}
                   className="w-full"

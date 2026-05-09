@@ -747,10 +747,14 @@ const menuItems: MenuItem[] = [
 interface MenuItemProps {
   item: MenuItem;
   pathname: string;
-  onClose?: () => void;
+  compactSubSections?: boolean;
 }
 
-const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
+const MenuItem = ({
+  item,
+  pathname,
+  compactSubSections = false,
+}: MenuItemProps) => {
   const flattenedSubItems = item.subSections
     ? item.subSections.flatMap((section) => section.items)
     : item.subItems ?? [];
@@ -816,49 +820,98 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
               <div className="absolute left-6 top-0 bottom-0 w-px border-l border-border" />
               <div className="ml-6 py-1 space-y-0.5">
                 {item.subSections
-                  ? item.subSections.map((section) => (
-                      <div key={section.label} className="space-y-1 py-1.5">
-                        <div className="px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
-                          {section.label}
-                        </div>
-                        {section.items.map((subItem) => {
-                          const isSubItemActive = pathname === subItem.href;
-                          return (
-                            <Link
-                              key={subItem.name}
-                              href={subItem.href}
-                              onClick={onClose}
-                              className={cn(
-                                "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
-                                isSubItemActive
-                                  ? "text-primary font-medium bg-primary/20 border-l-2 border-primary"
-                                  : "text-muted-foreground/70 hover:text-foreground hover:bg-primary/10",
-                              )}
+                  ? item.subSections.map((section) => {
+                      const isSectionActive = section.items.some(
+                        (subItem) =>
+                          pathname === subItem.href ||
+                          (subItem.href !== "/admin" &&
+                            pathname.startsWith(`${subItem.href}/`)),
+                      );
+                      return (
+                        <div key={section.label} className="space-y-1 py-1.5">
+                          {compactSubSections ? (
+                            <details
+                              open={isSectionActive}
+                              className="group rounded-md border border-border/60 bg-muted/20"
                             >
-                              <div
-                                className={cn(
-                                  "w-1.5 h-1.5 rounded-full transition-all duration-150",
-                                  isSubItemActive
-                                    ? "bg-primary"
-                                    : "bg-muted-foreground/40",
-                                )}
-                              />
-                              {subItem.name}
-                              {isSubItemActive && (
-                                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
-                              )}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    ))
+                              <summary className="cursor-pointer list-none px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+                                {section.label}
+                              </summary>
+                              <div className="space-y-0.5 pb-1">
+                                {section.items.map((subItem) => {
+                                  const isSubItemActive = pathname === subItem.href;
+                                  return (
+                                    <Link
+                                      key={subItem.name}
+                                      href={subItem.href}
+                                      className={cn(
+                                        "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
+                                        isSubItemActive
+                                          ? "text-primary font-medium bg-primary/20 border-l-2 border-primary"
+                                          : "text-muted-foreground/70 hover:text-foreground hover:bg-primary/10",
+                                      )}
+                                    >
+                                      <div
+                                        className={cn(
+                                          "w-1.5 h-1.5 rounded-full transition-all duration-150",
+                                          isSubItemActive
+                                            ? "bg-primary"
+                                            : "bg-muted-foreground/40",
+                                        )}
+                                      />
+                                      {subItem.name}
+                                      {isSubItemActive && (
+                                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
+                                      )}
+                                    </Link>
+                                  );
+                                })}
+                              </div>
+                            </details>
+                          ) : (
+                            <>
+                              <div className="px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60">
+                                {section.label}
+                              </div>
+                              {section.items.map((subItem) => {
+                                const isSubItemActive = pathname === subItem.href;
+                                return (
+                                  <Link
+                                    key={subItem.name}
+                                    href={subItem.href}
+                                    className={cn(
+                                      "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
+                                      isSubItemActive
+                                        ? "text-primary font-medium bg-primary/20 border-l-2 border-primary"
+                                        : "text-muted-foreground/70 hover:text-foreground hover:bg-primary/10",
+                                    )}
+                                  >
+                                    <div
+                                      className={cn(
+                                        "w-1.5 h-1.5 rounded-full transition-all duration-150",
+                                        isSubItemActive
+                                          ? "bg-primary"
+                                          : "bg-muted-foreground/40",
+                                      )}
+                                    />
+                                    {subItem.name}
+                                    {isSubItemActive && (
+                                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
+                                    )}
+                                  </Link>
+                                );
+                              })}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })
                   : item.subItems?.map((subItem) => {
                       const isSubItemActive = pathname === subItem.href;
                       return (
                         <Link
                           key={subItem.name}
                           href={subItem.href}
-                          onClick={onClose}
                           className={cn(
                             "relative pl-4 pr-4 py-2 text-xs transition-all duration-150 flex items-center gap-2",
                             isSubItemActive
@@ -886,7 +939,6 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
       ) : (
         <Link
           href={item.href || "#"}
-          onClick={onClose}
           className={cn(
             "flex items-center gap-3 px-4 py-2.5 transition-all duration-150 group",
             isActive
@@ -915,13 +967,13 @@ const MenuItem = ({ item, pathname, onClose }: MenuItemProps) => {
 const SidebarContent = ({
   pathname,
   items,
-  onClose,
   isWarehouseScopedOnly = false,
+  compactSubSections = false,
 }: {
   pathname: string;
   items: MenuItem[];
-  onClose?: () => void;
   isWarehouseScopedOnly?: boolean;
+  compactSubSections?: boolean;
 }) => (
   <nav className="py-6 space-y-2 overflow-y-auto scrollbar-hide-on-idle">
     {items.map((section) => {
@@ -945,7 +997,7 @@ const SidebarContent = ({
                   key={`${item.name}:${item.href ?? "item"}`}
                   item={item}
                   pathname={pathname}
-                  onClose={onClose}
+                  compactSubSections={compactSubSections}
                 />
               ))}
             </div>
@@ -955,7 +1007,7 @@ const SidebarContent = ({
         // Single menu item (collapsible or regular)
         return (
           <div key={`${section.name}:${section.href ?? "group"}`}>
-            <MenuItem item={section} pathname={pathname} onClose={onClose} />
+            <MenuItem item={section} pathname={pathname} />
           </div>
         );
       }
@@ -965,7 +1017,6 @@ const SidebarContent = ({
 
 export default function Sidebar({
   isMobile = false,
-  onClose,
 }: {
   isMobile?: boolean;
   onClose?: () => void;
@@ -1109,7 +1160,7 @@ export default function Sidebar({
 
   if (isMobile) {
     return (
-      <div className={cn("h-full w-52 flex flex-col", themeBg)}>
+      <div className={cn("h-full w-[86vw] max-w-80 flex flex-col", themeBg)}>
         {/* Modern Header */}
         <div className="h-20 flex flex-col items-center justify-center border-b border-border px-4">
           <div className="text-center">
@@ -1121,11 +1172,11 @@ export default function Sidebar({
             <p className="text-xs text-muted-foreground">{adminSubtitle}</p>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto" onClick={onClose}>
+        <div className="flex-1 overflow-y-auto">
           <SidebarContent
             pathname={pathname}
             items={visibleMenuItems}
-            onClose={onClose}
+            compactSubSections
           />
         </div>
       </div>

@@ -164,7 +164,26 @@ export default function InvestorProfitRunsPage() {
         </CardHeader>
         <CardContent>
           {loading ? <SkeletonTable rows={3} cols={4} /> : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="space-y-3 md:hidden">
+              {(data?.allocationLines || []).map((item) => (
+                <div key={item.id} className="rounded-lg border p-3">
+                  <p className="text-sm font-medium">
+                    {item.productVariant.product.name}
+                    <span className="ml-1 text-xs text-muted-foreground">({item.productVariant.sku})</span>
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                    <div>Share: <span className="font-medium text-foreground">{fmtAmount(item.participationSharePct)}%</span></div>
+                    <div>Revenue: <span className="font-medium text-foreground">{fmtAmount(item.allocatedRevenue)}</span></div>
+                    <div className="col-span-2">Net Profit: <span className="font-medium text-foreground">{fmtAmount(item.allocatedNetProfit)}</span></div>
+                  </div>
+                </div>
+              ))}
+              {data?.allocationLines?.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground">No allocation lines for selected run.</p>
+              ) : null}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -196,6 +215,7 @@ export default function InvestorProfitRunsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -206,7 +226,30 @@ export default function InvestorProfitRunsPage() {
         </CardHeader>
         <CardContent>
           {loading ? <SkeletonTable rows={3} cols={5} /> : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="space-y-3 md:hidden">
+              {(data?.payouts || []).map((item) => {
+                const badge = statusBadge(item.status);
+                return (
+                  <div key={item.id} className="rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium">{item.payoutNumber}</p>
+                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                      <div>Amount: <span className="font-medium text-foreground">{fmtAmount(item.payoutAmount)} {item.currency}</span></div>
+                      <div>Payout %: <span className="font-medium text-foreground">{fmtAmount(item.payoutPercent)}%</span></div>
+                      <div>Created: <span className="font-medium text-foreground">{shortDate(item.createdAt)}</span></div>
+                      <div>Paid: <span className="font-medium text-foreground">{shortDate(item.paidAt)}</span></div>
+                    </div>
+                  </div>
+                );
+              })}
+              {data?.payouts?.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground">No payouts for selected run.</p>
+              ) : null}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -246,6 +289,7 @@ export default function InvestorProfitRunsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

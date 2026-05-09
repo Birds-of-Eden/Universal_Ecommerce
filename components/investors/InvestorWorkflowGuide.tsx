@@ -269,60 +269,56 @@ export function InvestorWorkflowGuide({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="overflow-x-auto">
-          <div className="flex min-w-[760px] items-center gap-2">
-            {WORKFLOW_STAGES.map((stage, index) => {
-              const Icon = stage.icon;
-              const isCurrent = stage.id === currentMeta.stageId;
-              const isComplete = currentStageIndex > index;
-              return (
-                <div key={stage.id} className="flex items-center gap-2">
-                  <div
-                    className={`flex min-w-[160px] items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
-                      isCurrent
-                        ? "border-primary/30 bg-primary/10"
-                        : isComplete
-                          ? "border-border bg-muted/60"
-                          : "border-border bg-card"
-                    }`}
-                  >
-                    <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
-                        isCurrent
-                          ? "border-primary/30 bg-primary/15 text-primary"
-                          : isComplete
-                            ? "border-border bg-muted text-foreground"
-                            : "border-border bg-background text-muted-foreground"
-                      }`}
-                    >
-                      {isComplete ? (
-                        <CheckCircle2 className="h-4 w-4" />
-                      ) : (
-                        <Icon className="h-4 w-4" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                          Step {index + 1}
-                        </span>
-                        {isCurrent ? <Badge className="h-5 px-2 text-[10px]">Current</Badge> : null}
-                      </div>
-                      <p className="mt-1 text-sm font-semibold leading-tight">{stage.title}</p>
-                    </div>
-                  </div>
-                  {index < WORKFLOW_STAGES.length - 1 ? (
-                    <div className="h-px w-6 bg-border" />
-                  ) : null}
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {WORKFLOW_STAGES.map((stage, index) => {
+            const Icon = stage.icon;
+            const isCurrent = stage.id === currentMeta.stageId;
+            const isComplete = currentStageIndex > index;
+            return (
+              <div
+                key={stage.id}
+                className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                  isCurrent
+                    ? "border-primary/30 bg-primary/10"
+                    : isComplete
+                      ? "border-border bg-muted/60"
+                      : "border-border bg-card"
+                }`}
+              >
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
+                    isCurrent
+                      ? "border-primary/30 bg-primary/15 text-primary"
+                      : isComplete
+                        ? "border-border bg-muted text-foreground"
+                        : "border-border bg-background text-muted-foreground"
+                  }`}
+                >
+                  {isComplete ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <Icon className="h-4 w-4" />
+                  )}
                 </div>
-              );
-            })}
-          </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Step {index + 1}
+                    </span>
+                    {isCurrent ? (
+                      <Badge className="h-5 px-2 text-[10px]">Current</Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-sm font-semibold leading-tight">{stage.title}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="rounded-xl border border-border bg-muted/50 px-3 py-3">
-          <div className="flex flex-wrap items-start gap-3">
-            <div className="min-w-[180px] flex-1">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
               <div className="flex items-center gap-2">
                 <CircleDotDashed className="h-4 w-4 text-primary" />
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -335,7 +331,7 @@ export function InvestorWorkflowGuide({
               </p>
             </div>
 
-            <div className="min-w-[220px] flex-[1.2]">
+            <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 In This Stage
               </p>
@@ -362,7 +358,7 @@ export function InvestorWorkflowGuide({
               </div>
             </div>
 
-            <div className="min-w-[220px] flex-1">
+            <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Next
               </p>

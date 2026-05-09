@@ -192,7 +192,7 @@ export default function InvestorDocumentsPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       <InvestorWorkflowGuide currentSection="documents" />
 
       <div>
@@ -275,12 +275,12 @@ export default function InvestorDocumentsPage() {
           <CardTitle className="text-base">Document Registry</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Input
               placeholder="Search investor..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className="max-w-md"
+              className="w-full sm:max-w-md"
             />
             <Button variant="outline" onClick={() => void load(search)}>Search</Button>
           </div>
@@ -315,17 +315,17 @@ export default function InvestorDocumentsPage() {
                   ) : investor.documents.map((document) => (
                     <div key={document.id} className="rounded-md border p-3">
                       <div className="flex items-start justify-between gap-3">
-                        <div>
+                        <div className="min-w-0">
                           <p className="font-medium">{document.type}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="break-all text-xs text-muted-foreground">
                             {document.fileName || "Uploaded file"} • {document.status}
                           </p>
                         </div>
-                        <a href={document.fileUrl} target="_blank" rel="noreferrer" className="text-sm text-primary underline">
+                        <a href={document.fileUrl} target="_blank" rel="noreferrer" className="shrink-0 text-sm text-primary underline">
                           View
                         </a>
                       </div>
-                      <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                      <div className="mt-2 grid gap-1 break-words text-xs text-muted-foreground">
                         <div>Uploaded: {fmtDate(document.createdAt)}</div>
                         <div>Expires: {fmtDate(document.expiresAt)}</div>
                         <div>Reviewed: {fmtDate(document.reviewedAt)}</div>

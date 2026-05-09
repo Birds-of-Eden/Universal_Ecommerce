@@ -123,7 +123,31 @@ export default function InvestorPayoutsPage() {
           <CardTitle className="text-base">Payout Register</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="space-y-3 md:hidden">
+            {(data?.payouts || []).map((item) => {
+              const badge = statusBadge(item.status);
+              return (
+                <div key={item.id} className="rounded-lg border p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-medium">{item.payoutNumber}</p>
+                    <Badge variant={badge.variant}>{badge.label}</Badge>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                    <div>Run: <span className="font-medium text-foreground">{item.run.runNumber}</span></div>
+                    <div>Amount: <span className="font-medium text-foreground">{fmtAmount(item.payoutAmount)} {item.currency}</span></div>
+                    <div>Method: <span className="font-medium text-foreground">{item.paymentMethod || "-"}</span></div>
+                    <div>Created: <span className="font-medium text-foreground">{shortDate(item.createdAt)}</span></div>
+                    <div>Approved: <span className="font-medium text-foreground">{shortDate(item.approvedAt)}</span></div>
+                    <div>Paid: <span className="font-medium text-foreground">{shortDate(item.paidAt)}</span></div>
+                  </div>
+                </div>
+              );
+            })}
+            {data?.payouts?.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No payouts found.</p>
+            ) : null}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>

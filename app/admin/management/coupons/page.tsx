@@ -60,7 +60,7 @@ const CouponManagement = memo(function CouponManagement() {
 
   const fetchCoupons = async () => {
     try {
-      const response = await fetch("/api/admin/management/coupons");
+      const response = await fetch("/api/admin/coupons");
       if (response.ok) {
         const data = await response.json();
         setCoupons(data);
@@ -80,8 +80,8 @@ const CouponManagement = memo(function CouponManagement() {
     e.preventDefault();
     try {
       const url = editingCoupon
-        ? `/api/admin/management/coupons/${editingCoupon.id}`
-        : "/api/admin/management/coupons";
+        ? `/api/admin/coupons/${editingCoupon.id}`
+        : "/api/admin/coupons";
       const method = editingCoupon ? "PUT" : "POST";
 
       const response = await fetch(url, {

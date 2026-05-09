@@ -73,49 +73,76 @@ export default function InvestorAllocationsPage() {
           {loading ? (
             <SkeletonTable rows={5} cols={6} />
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Share %</TableHead>
-                    <TableHead>Committed</TableHead>
-                    <TableHead>Effective</TableHead>
-                    <TableHead>Note</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(data?.allocations || []).map((item) => {
-                    const badge = statusBadge(item.status);
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">
+            <>
+              <div className="space-y-3 md:hidden">
+                {(data?.allocations || []).map((item) => {
+                  const badge = statusBadge(item.status);
+                  return (
+                    <div key={item.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-medium">
                           {item.productVariant.product.name}
                           <span className="ml-1 text-xs text-muted-foreground">({item.productVariant.sku})</span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={badge.variant}>{badge.label}</Badge>
-                        </TableCell>
-                        <TableCell>{fmtAmount(item.participationPercent)}%</TableCell>
-                        <TableCell className="whitespace-nowrap font-medium">{fmtAmount(item.committedAmount)}</TableCell>
-                        <TableCell className="whitespace-nowrap text-sm">
-                          {shortDate(item.effectiveFrom)} – {item.effectiveTo ? shortDate(item.effectiveTo) : "ongoing"}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.note || "-"}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {data?.allocations?.length === 0 ? (
+                        </p>
+                        <Badge variant={badge.variant}>{badge.label}</Badge>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                        <div>Share: <span className="font-medium text-foreground">{fmtAmount(item.participationPercent)}%</span></div>
+                        <div>Committed: <span className="font-medium text-foreground">{fmtAmount(item.committedAmount)}</span></div>
+                        <div className="col-span-2">Effective: <span className="font-medium text-foreground">{shortDate(item.effectiveFrom)} - {item.effectiveTo ? shortDate(item.effectiveTo) : "ongoing"}</span></div>
+                        <div className="col-span-2">Note: <span className="font-medium text-foreground">{item.note || "-"}</span></div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {data?.allocations?.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground">No allocations found.</p>
+                ) : null}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
-                        No allocations found.
-                      </TableCell>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Share %</TableHead>
+                      <TableHead>Committed</TableHead>
+                      <TableHead>Effective</TableHead>
+                      <TableHead>Note</TableHead>
                     </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {(data?.allocations || []).map((item) => {
+                      const badge = statusBadge(item.status);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">
+                            {item.productVariant.product.name}
+                            <span className="ml-1 text-xs text-muted-foreground">({item.productVariant.sku})</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={badge.variant}>{badge.label}</Badge>
+                          </TableCell>
+                          <TableCell>{fmtAmount(item.participationPercent)}%</TableCell>
+                          <TableCell className="whitespace-nowrap font-medium">{fmtAmount(item.committedAmount)}</TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {shortDate(item.effectiveFrom)} - {item.effectiveTo ? shortDate(item.effectiveTo) : "ongoing"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{item.note || "-"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {data?.allocations?.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                          No allocations found.
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
